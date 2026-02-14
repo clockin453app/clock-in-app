@@ -5,9 +5,9 @@ from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, render_template_string, request, redirect, session, url_for
 from datetime import datetime, timedelta
 
-app = Flask(__name__)
+# ================= APP =================
 
-# Render: set SECRET_KEY in environment
+app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
 # ================= GOOGLE SHEETS =================
@@ -19,12 +19,14 @@ SCOPE = [
 
 def load_google_creds_dict():
     """
-    Production (Render): GOOGLE_CREDENTIALS env var (JSON string).
-    Local: optional credentials.json file in same folder as app.py.
+    Render: GOOGLE_CREDENTIALS env var contains service-account JSON.
+    Local: optional credentials.json file (DO NOT commit).
     """
-    if "GOOGLE_CREDENTIALS" in os.environ and os.environ["GOOGLE_CREDENTIALS"].strip():
-        return json.loads(os.environ["GOOGLE_CREDENTIALS"])
-    # Local fallback (DO NOT commit credentials.json)
+    raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
+    if raw:
+        return json.loads(raw)
+
+    # Local fallback
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -32,13 +34,22 @@ creds_dict = load_google_creds_dict()
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
 client = gspread.authorize(creds)
 
-# Spreadsheet + worksheet names (must match your Google Sheets)
+# Names must match your Google Sheet
 spreadsheet = client.open("WorkHours")
 employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 
-# ================= GLOBAL STYLE =================
+# WorkHours columns (0-based in python list)
+# Username | Date | ClockIn | ClockOut | Hours | Pay | Notes(optional)
+COL_USER = 0
+COL_DATE = 1
+COL_IN = 2
+COL_OUT = 3
+COL_HOURS = 4
+COL_PAY = 5
+
+# ================= STYLE =================
 
 STYLE = """
 <style>
@@ -52,10 +63,6 @@ button{padding:10px 20px; border:none; border-radius:6px; font-weight:bold; curs
 .adminbtn{background:#007bff;color:white;}
 .reportbtn{background:#6f42c1;color:white;}
 button:hover{opacity:0.9;}
-table{width:100%; border-collapse:collapse; margin-top:20px;}
-th,td{padding:8px; border-bottom:1px solid #ddd; text-align:center;}
-th{background:#f1f1f1;}
-form input, form select{padding:6px; margin:5px;}
 .link{text-align:center; margin-top:20px;}
 .message{text-align:center; font-weight:bold; color:green;}
 .message.error{color:#dc3545;}
@@ -64,20 +71,17 @@ form input, form select{padding:6px; margin:5px;}
 
 # ================= HELPERS =================
 
-# WorkHours columns (0-based in Python list)
-# Username | Date | ClockIn | ClockOut | Hours | Pay | (optional notes)
-COL_USER = 0
-COL_DATE = 1
-COL_IN = 2
-COL_OUT = 3
-COL_HOURS = 4
-COL_PAY = 5
+def safe_float(x, default=0.0):
+    try:
+        return float(x)
+    except Exception:
+        return default
 
 def require_login():
     if "username" not in session:
         return redirect(url_for("login"))
-    # if session got invalidated, force fresh login
-    if "role" not in session or "rate" not in session:
+    # If session is broken/expired, force re-login
+    if session.get("role") is None or session.get("rate") is None:
         session.clear()
         return redirect(url_for("login"))
     return None
@@ -90,22 +94,24 @@ def require_admin():
         return redirect(url_for("home"))
     return None
 
-def safe_float(x, default=0.0):
-    try:
-        return float(x)
-    except Exception:
-        return default
+# ================= ROUTES =================
 
-# ================= LOGIN =================
+@app.get("/ping")
+def ping():
+    return "pong", 200
+
+# -------- LOGIN --------
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
     message = ""
+    message_class = "message error"
+
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        users = employees_sheet.get_all_records()  # expects headers in row 1
+        users = employees_sheet.get_all_records()  # headers: Username, Password, Role, Rate
         for user in users:
             if user.get("Username") == username and user.get("Password") == password:
                 session.clear()
@@ -113,6 +119,7 @@ def login():
                 session["role"] = user.get("Role", "employee")
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
                 return redirect(url_for("home"))
+
         message = "Invalid login"
 
     return render_template_string(f"""
@@ -121,21 +128,19 @@ def login():
       <h2>Login</h2>
       <form method="POST">
         <input name="username" placeholder="Username" required><br>
-        <input type="password" name="password" placeholder="Password" required><br>
+        <input type="password" name="password" placeholder="Password" required><br><br>
         <button class="adminbtn" type="submit">Login</button>
       </form>
-      <p class="message error">{message}</p>
+      <p class="{message_class}">{message}</p>
     </div>
     """)
 
-# ================= LOGOUT =================
-
-@app.route("/logout")
+@app.get("/logout")
 def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# ================= HOME =================
+# -------- HOME (NO PAY SHOWN) --------
 
 @app.route("/", methods=["GET", "POST"])
 def home():
@@ -148,7 +153,10 @@ def home():
     rate = safe_float(session.get("rate", 0), 0.0)
 
     now = datetime.now()
+    today = now.date()
     today_str = now.strftime("%Y-%m-%d")
+    week_start = today - timedelta(days=today.weekday())
+
     message = ""
     message_class = "message"
 
@@ -158,7 +166,7 @@ def home():
         action = request.form.get("action")
 
         if action == "in":
-            # prevent double clock-in if last shift has no clock_out
+            # prevent double clock-in if last shift not closed
             for i in range(len(rows) - 1, 0, -1):
                 if rows[i][COL_USER] == username and rows[i][COL_OUT] == "":
                     message = "You are already clocked in."
@@ -176,44 +184,45 @@ def home():
                         "%Y-%m-%d %H:%M:%S"
                     )
                     hours = round((now - clock_in).total_seconds() / 3600, 2)
+
+                    # Pay is calculated + stored, but NEVER displayed on home UI
                     pay = round(hours * rate, 2)
 
-                    sheet_row = i + 1  # gspread is 1-based
+                    sheet_row = i + 1  # gspread rows are 1-based
                     work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                     work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours)
                     work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
 
-                    message = f"Shift: {hours}h | Pay: {pay}"
+                    message = f"Shift: {hours}h"
                     break
             else:
                 message = "No active shift found to clock out."
                 message_class = "message error"
 
-    # totals
-    daily_hours = weekly_hours = daily_pay = weekly_pay = 0.0
-    today = now.date()
-    week_start = today - timedelta(days=today.weekday())
+    # Compute totals (hours only for UI)
+    daily_hours = 0.0
+    weekly_hours = 0.0
 
     rows = work_sheet.get_all_values()
     for row in rows[1:]:
-        if len(row) <= COL_PAY:
+        if len(row) <= COL_HOURS:
             continue
-        if row[COL_USER] == username and row[COL_HOURS] != "":
-            row_date = None
-            try:
-                row_date = datetime.strptime(row[COL_DATE], "%Y-%m-%d").date()
-            except Exception:
-                continue
+        if row[COL_USER] != username:
+            continue
+        if row[COL_HOURS] == "":
+            continue
 
-            hours = safe_float(row[COL_HOURS], 0.0)
-            pay = safe_float(row[COL_PAY], 0.0)
+        try:
+            row_date = datetime.strptime(row[COL_DATE], "%Y-%m-%d").date()
+        except Exception:
+            continue
 
-            if row_date == today:
-                daily_hours += hours
-                daily_pay += pay
-            if row_date >= week_start:
-                weekly_hours += hours
-                weekly_pay += pay
+        h = safe_float(row[COL_HOURS], 0.0)
+
+        if row_date == today:
+            daily_hours += h
+        if row_date >= week_start:
+            weekly_hours += h
 
     admin_link = (
         "<a href='/admin'><button class='adminbtn'>Admin Dashboard</button></a>"
@@ -231,9 +240,7 @@ def home():
       </form>
 
       <p>Today Hours: {round(daily_hours, 2)}</p>
-      <p>Today Pay: {round(daily_pay, 2)}</p>
       <p>Week Hours: {round(weekly_hours, 2)}</p>
-      <p>Week Pay: {round(weekly_pay, 2)}</p>
 
       <p class="{message_class}">{message}</p>
 
@@ -242,9 +249,9 @@ def home():
     </div>
     """)
 
-# ================= ADMIN DASHBOARD =================
+# -------- ADMIN --------
 
-@app.route("/admin")
+@app.get("/admin")
 def admin():
     gate = require_admin()
     if gate:
@@ -262,9 +269,9 @@ def admin():
     </div>
     """)
 
-# ================= WEEKLY REPORT =================
+# -------- WEEKLY REPORT (STORES PAY IN SHEET, NOT HOME UI) --------
 
-@app.route("/weekly")
+@app.get("/weekly")
 def weekly_report():
     gate = require_admin()
     if gate:
@@ -307,7 +314,7 @@ def weekly_report():
 
     return "Weekly payroll stored successfully."
 
-# ================= MONTHLY REPORT =================
+# -------- MONTHLY REPORT --------
 
 @app.route("/monthly", methods=["GET", "POST"])
 def monthly_report():
@@ -323,7 +330,7 @@ def monthly_report():
 
         existing = payroll_sheet.get_all_records()
         for row in existing:
-            # Keeping your structure: using "Week" column to store the month number for Monthly rows
+            # Uses "Week" column to store month number for Monthly rows (keeps your structure)
             if row.get("Type") == "Monthly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == month:
                 return "Monthly payroll already generated."
 
@@ -367,10 +374,7 @@ def monthly_report():
     """)
 
 # ================= LOCAL RUN =================
-# On Render you use Gunicorn, so this block is only for local runs.
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
