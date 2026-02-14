@@ -32,14 +32,12 @@ creds_dict = load_google_creds_dict()
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
 client = gspread.authorize(creds)
 
-# Names must match your Google Sheet
 spreadsheet = client.open("WorkHours")
 employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 
 # WorkHours columns (0-based)
-# Username | Date | ClockIn | ClockOut | Hours | Pay | Notes(optional)
 COL_USER = 0
 COL_DATE = 1
 COL_IN = 2
@@ -47,78 +45,144 @@ COL_OUT = 3
 COL_HOURS = 4
 COL_PAY = 5
 
-# ================= MOBILE-FRIENDLY STYLE =================
+# ================= BIG, RESPONSIVE UI STYLE =================
+# - Uses clamp() so text scales nicely on both phone and desktop
+# - Big buttons (thumb-friendly), big inputs
+# - Increased spacing, improved readability
 STYLE = """
 <style>
-* { box-sizing: border-box; }
-body {
+:root{
+  --bg:#f4f6f9;
+  --card:#ffffff;
+  --text:#111827;
+  --muted:#6b7280;
+  --border:#e5e7eb;
+  --shadow: 0 12px 30px rgba(0,0,0,.10);
+  --radius: 18px;
+
+  /* Typography that scales with screen size */
+  --h2: clamp(28px, 4vw, 44px);
+  --h3: clamp(20px, 3vw, 30px);
+  --p:  clamp(18px, 2.1vw, 24px);
+  --btn: clamp(18px, 2.2vw, 22px);
+  --input: clamp(18px, 2.2vw, 22px);
+}
+
+*{ box-sizing:border-box; }
+html, body { height:100%; }
+body{
+  margin:0;
   font-family: Arial, sans-serif;
-  background:#f4f6f9;
-  padding: 16px;
-  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  padding: clamp(14px, 3vw, 34px);
   -webkit-text-size-adjust: 100%;
 }
-.container {
+
+.container{
   width: 100%;
-  max-width: 900px;
+  max-width: 980px;
   margin: 0 auto;
-  background: white;
-  padding: 18px;
-  border-radius: 14px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: clamp(18px, 3.2vw, 40px);
+  box-shadow: var(--shadow);
+  border: 1px solid var(--border);
 }
-h2 { text-align:center; margin: 6px 0 14px; font-size: 28px; }
-h3 { text-align:center; margin: 6px 0 12px; font-size: 22px; }
+
+h2{
+  text-align:center;
+  margin: 0 0 18px;
+  font-size: var(--h2);
+  letter-spacing: .2px;
+}
+
+h3{
+  text-align:center;
+  margin: 0 0 14px;
+  font-size: var(--h3);
+}
+
+p{
+  font-size: var(--p);
+  line-height: 1.55;
+  margin: 12px 0;
+}
 
 .buttons{
   display:flex;
   justify-content:center;
-  gap:12px;
-  margin:16px 0;
-  flex-wrap:wrap;
+  gap: 14px;
+  margin: 18px 0 12px;
+  flex-wrap: wrap;
 }
-button{
-  padding: 14px 18px;
-  border:none;
-  border-radius: 10px;
-  font-weight:700;
-  cursor:pointer;
-  font-size: 18px;
-  min-height: 48px;
-}
-.clockin{background:#28a745;color:white;}
-.clockout{background:#dc3545;color:white;}
-.adminbtn{background:#007bff;color:white;}
-.reportbtn{background:#6f42c1;color:white;}
-button:hover{opacity:0.92;}
 
-p { font-size: 18px; line-height: 1.4; }
+button{
+  border: none;
+  border-radius: 16px;
+  padding: 18px 22px;
+  font-weight: 800;
+  cursor: pointer;
+  font-size: var(--btn);
+  min-height: 56px;
+  min-width: min(420px, 100%);
+  box-shadow: 0 10px 18px rgba(0,0,0,.08);
+  transition: transform .05s ease, opacity .1s ease;
+}
+
+button:active{ transform: translateY(1px); }
+button:hover{ opacity: .95; }
+
+.clockin{ background:#16a34a; color:#fff; }
+.clockout{ background:#dc2626; color:#fff; }
+.adminbtn{ background:#2563eb; color:#fff; }
+.reportbtn{ background:#7c3aed; color:#fff; }
 
 form input, form select{
-  width: 100%;
-  max-width: 420px;
-  padding: 12px 12px;
-  margin: 8px auto;
+  width: min(520px, 100%);
   display:block;
-  font-size: 18px;
-  border: 1px solid #d9d9d9;
-  border-radius: 10px;
+  margin: 12px auto;
+  padding: 16px 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  font-size: var(--input);
+  outline: none;
 }
 
-table{width:100%; border-collapse:collapse; margin-top:16px; font-size: 16px;}
-th,td{padding:10px; border-bottom:1px solid #ddd; text-align:center;}
-th{background:#f1f1f1;}
+form input:focus, form select:focus{
+  border-color:#93c5fd;
+  box-shadow: 0 0 0 4px rgba(59,130,246,.15);
+}
 
-.link{text-align:center; margin-top:16px; font-size: 18px;}
-.message{text-align:center; font-weight:bold; color:green; font-size: 18px;}
-.message.error{color:#dc3545;}
+.link{
+  text-align:center;
+  margin-top: 18px;
+  font-size: var(--p);
+}
 
+.link a{ color:#2563eb; text-decoration:none; font-weight:700; }
+.link a:hover{ text-decoration:underline; }
+
+.message{
+  text-align:center;
+  font-weight: 800;
+  font-size: var(--p);
+  margin-top: 14px;
+  color:#16a34a;
+}
+
+.message.error{ color:#dc2626; }
+
+/* On very large screens, keep things balanced */
+@media (min-width: 1200px){
+  .container{ max-width: 1050px; }
+  button{ min-width: 460px; }
+}
+
+/* On small phones, keep buttons full width */
 @media (max-width: 520px){
-  body { padding: 12px; }
-  .container { padding: 16px; border-radius: 12px; }
-  h2 { font-size: 26px; }
-  button { width: 100%; max-width: 420px; }
-  .buttons { gap: 10px; }
+  .buttons{ gap: 12px; }
+  button{ width: 100%; }
 }
 </style>
 """
@@ -162,7 +226,7 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        users = employees_sheet.get_all_records()  # headers: Username, Password, Role, Rate
+        users = employees_sheet.get_all_records()
         for user in users:
             if user.get("Username") == username and user.get("Password") == password:
                 session.clear()
@@ -181,7 +245,9 @@ def login():
       <form method="POST">
         <input name="username" placeholder="Username" required>
         <input type="password" name="password" placeholder="Password" required>
-        <button class="adminbtn" type="submit">Login</button>
+        <div class="buttons">
+          <button class="adminbtn" type="submit">Login</button>
+        </div>
       </form>
       <p class="message error">{message}</p>
     </div>
@@ -234,7 +300,9 @@ def home():
                         "%Y-%m-%d %H:%M:%S"
                     )
                     hours = round((now - clock_in).total_seconds() / 3600, 2)
-                    pay = round(hours * rate, 2)  # stored only
+
+                    # Pay stored only (not shown)
+                    pay = round(hours * rate, 2)
 
                     sheet_row = i + 1
                     work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
@@ -286,8 +354,8 @@ def home():
         <button name="action" value="out" class="clockout">Clock Out</button>
       </form>
 
-      <p>Today Hours: {round(daily_hours, 2)}</p>
-      <p>Week Hours: {round(weekly_hours, 2)}</p>
+      <p><b>Today Hours:</b> {round(daily_hours, 2)}</p>
+      <p><b>Week Hours:</b> {round(weekly_hours, 2)}</p>
 
       <p class="{message_class}">{message}</p>
 
@@ -368,7 +436,7 @@ def monthly_report():
         return gate
 
     if request.method == "POST":
-        selected = request.form["month"]  # YYYY-MM
+        selected = request.form["month"]
         year = int(selected.split("-")[0])
         month = int(selected.split("-")[1])
         generated_on = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -412,7 +480,9 @@ def monthly_report():
       <h2>Select Month</h2>
       <form method="POST">
         <input type="month" name="month" required>
-        <button class="adminbtn" type="submit">Generate Monthly Payroll</button>
+        <div class="buttons">
+          <button class="adminbtn" type="submit">Generate Monthly Payroll</button>
+        </div>
       </form>
       <div class="link"><a href="/admin">Back</a></div>
     </div>
