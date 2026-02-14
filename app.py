@@ -1,3 +1,5 @@
+import os
+import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, render_template_string, request, redirect, session
@@ -6,20 +8,23 @@ from datetime import datetime, timedelta
 app = Flask(__name__)
 app.secret_key = "supersecretkey"
 
-# ===== GOOGLE SHEETS =====
+# ================= GOOGLE SHEETS CONNECTION =================
+
 scope = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive"
 ]
 
-creds = ServiceAccountCredentials.from_json_keyfile_name("credentials.json", scope)
+creds_dict = json.loads(os.environ["GOOGLE_CREDENTIALS"])
+creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
 client = gspread.authorize(creds)
 
 spreadsheet = client.open("WorkHours")
 employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 
-# ===== LOGIN PAGE =====
+# ================= LOGIN PAGE =================
+
 LOGIN_HTML = """
 <h2>Login</h2>
 <form method="POST">
@@ -30,7 +35,8 @@ LOGIN_HTML = """
 <p style="color:red;">{{ message }}</p>
 """
 
-# ===== CLOCK PAGE =====
+# ================= CLOCK PAGE =================
+
 CLOCK_HTML = """
 <h2>Clock In System</h2>
 <p>Welcome {{ username }}</p>
@@ -47,7 +53,8 @@ CLOCK_HTML = """
 <a href="/logout">Logout</a>
 """
 
-# ===== LOGIN =====
+# ================= LOGIN =================
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     message = ""
@@ -67,55 +74,55 @@ def login():
 
     return render_template_string(LOGIN_HTML, message=message)
 
-# ===== LOGOUT =====
+# ================= LOGOUT =================
+
 @app.route("/logout")
 def logout():
     session.clear()
     return redirect("/login")
 
-# ===== HOME =====
+# ================= HOME =================
+
 @app.route("/", methods=["GET", "POST"])
 def home():
+
     if "username" not in session:
         return redirect("/login")
 
     username = session["username"]
     message = ""
     now = datetime.now()
+    today_str = now.strftime("%Y-%m-%d")
 
     rows = work_sheet.get_all_values()
 
-    # ===== CLOCK IN =====
+    # ================= CLOCK ACTIONS =================
+
     if request.method == "POST":
         action = request.form["action"]
 
+        # -------- CLOCK IN --------
         if action == "in":
 
-            today_str = now.strftime("%Y-%m-%d")
-
-            # Check if user already has entry today
+            # Prevent double clock in same day
             for row in rows[1:]:
                 if row[0] == username and row[1] == today_str:
-                    message = "You already worked today"
+                    message = "You already clocked in today"
                     break
             else:
                 work_sheet.append_row([
                     username,
                     today_str,
                     now.strftime("%H:%M:%S"),
-                    "",
-                    "",
-                    "",
-                    ""
+                    "",   # Clock Out
+                    ""    # Hours
                 ])
                 message = "Clocked In"
 
-
-
-
-        # ===== CLOCK OUT =====
+        # -------- CLOCK OUT --------
         elif action == "out":
-            for i in range(len(rows)-1, 0, -1):
+
+            for i in range(len(rows) - 1, 0, -1):
                 if rows[i][0] == username and rows[i][3] == "":
                     clock_in_time = datetime.strptime(
                         rows[i][1] + " " + rows[i][2],
@@ -123,11 +130,8 @@ def home():
                     )
 
                     seconds = (now - clock_in_time).total_seconds()
-                    minutes = seconds / 60
-                    rounded = round(minutes / 15) * 15
-                    hours = round(rounded / 60, 2)
+                    hours = round(seconds / 3600, 2)
 
-                    # Update sheet (Hours column)
                     work_sheet.update_cell(i + 1, 4, now.strftime("%H:%M:%S"))
                     work_sheet.update_cell(i + 1, 5, hours)
 
@@ -136,11 +140,12 @@ def home():
             else:
                 message = "No active shift"
 
-    # ===== CALCULATE TOTALS =====
+    # ================= CALCULATE TOTALS =================
+
     daily_hours = 0
     weekly_hours = 0
 
-    today = datetime.now().date()
+    today = now.date()
     week_start = today - timedelta(days=today.weekday())
 
     rows = work_sheet.get_all_values()
@@ -164,6 +169,9 @@ def home():
         weekly_hours=round(weekly_hours, 2)
     )
 
-# ===== RUN =====
+# ================= RUN =================
+
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run()
+
+
