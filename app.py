@@ -46,30 +46,22 @@ COL_HOURS = 4
 COL_PAY = 5
 
 # ================= BIG, RESPONSIVE UI STYLE =================
-# - Uses clamp() so text scales nicely on both phone and desktop
-# - Big buttons (thumb-friendly), big inputs
-# - Increased spacing, improved readability
 STYLE = """
 <style>
 :root{
   --bg:#f4f6f9;
   --card:#ffffff;
   --text:#111827;
-  --muted:#6b7280;
   --border:#e5e7eb;
   --shadow: 0 12px 30px rgba(0,0,0,.10);
   --radius: 18px;
 
-  /* Typography that scales with screen size */
   --h2: clamp(28px, 4vw, 44px);
-  --h3: clamp(20px, 3vw, 30px);
   --p:  clamp(18px, 2.1vw, 24px);
   --btn: clamp(18px, 2.2vw, 22px);
   --input: clamp(18px, 2.2vw, 22px);
 }
-
 *{ box-sizing:border-box; }
-html, body { height:100%; }
 body{
   margin:0;
   font-family: Arial, sans-serif;
@@ -78,7 +70,6 @@ body{
   padding: clamp(14px, 3vw, 34px);
   -webkit-text-size-adjust: 100%;
 }
-
 .container{
   width: 100%;
   max-width: 980px;
@@ -89,26 +80,16 @@ body{
   box-shadow: var(--shadow);
   border: 1px solid var(--border);
 }
-
 h2{
   text-align:center;
   margin: 0 0 18px;
   font-size: var(--h2);
-  letter-spacing: .2px;
 }
-
-h3{
-  text-align:center;
-  margin: 0 0 14px;
-  font-size: var(--h3);
-}
-
 p{
   font-size: var(--p);
   line-height: 1.55;
   margin: 12px 0;
 }
-
 .buttons{
   display:flex;
   justify-content:center;
@@ -116,7 +97,6 @@ p{
   margin: 18px 0 12px;
   flex-wrap: wrap;
 }
-
 button{
   border: none;
   border-radius: 16px;
@@ -127,18 +107,14 @@ button{
   min-height: 56px;
   min-width: min(420px, 100%);
   box-shadow: 0 10px 18px rgba(0,0,0,.08);
-  transition: transform .05s ease, opacity .1s ease;
 }
-
-button:active{ transform: translateY(1px); }
 button:hover{ opacity: .95; }
-
 .clockin{ background:#16a34a; color:#fff; }
 .clockout{ background:#dc2626; color:#fff; }
 .adminbtn{ background:#2563eb; color:#fff; }
 .reportbtn{ background:#7c3aed; color:#fff; }
 
-form input, form select{
+form input{
   width: min(520px, 100%);
   display:block;
   margin: 12px auto;
@@ -146,23 +122,14 @@ form input, form select{
   border-radius: 16px;
   border: 1px solid var(--border);
   font-size: var(--input);
-  outline: none;
 }
-
-form input:focus, form select:focus{
-  border-color:#93c5fd;
-  box-shadow: 0 0 0 4px rgba(59,130,246,.15);
-}
-
 .link{
   text-align:center;
   margin-top: 18px;
   font-size: var(--p);
 }
-
 .link a{ color:#2563eb; text-decoration:none; font-weight:700; }
 .link a:hover{ text-decoration:underline; }
-
 .message{
   text-align:center;
   font-weight: 800;
@@ -170,18 +137,9 @@ form input:focus, form select:focus{
   margin-top: 14px;
   color:#16a34a;
 }
-
 .message.error{ color:#dc2626; }
 
-/* On very large screens, keep things balanced */
-@media (min-width: 1200px){
-  .container{ max-width: 1050px; }
-  button{ min-width: 460px; }
-}
-
-/* On small phones, keep buttons full width */
 @media (max-width: 520px){
-  .buttons{ gap: 12px; }
   button{ width: 100%; }
 }
 </style>
@@ -212,6 +170,16 @@ def require_admin():
         return redirect(url_for("home"))
     return None
 
+def hours_minutes_str(decimal_hours: float) -> str:
+    """
+    Convert 2.5 -> '2h 30m'
+    Convert 0.81 -> '0h 49m'
+    """
+    total_minutes = int(round(decimal_hours * 60))
+    h = total_minutes // 60
+    m = total_minutes % 60
+    return f"{h}h {m}m"
+
 # ================= ROUTES =================
 @app.get("/ping")
 def ping():
@@ -221,7 +189,6 @@ def ping():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     message = ""
-
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
@@ -299,22 +266,23 @@ def home():
                         rows[i][COL_DATE] + " " + rows[i][COL_IN],
                         "%Y-%m-%d %H:%M:%S"
                     )
-                    hours = round((now - clock_in).total_seconds() / 3600, 2)
+                    hours = round((now - clock_in).total_seconds() / 3600, 4)
 
-                    # Pay stored only (not shown)
+                    # Pay stored only (not shown on UI)
                     pay = round(hours * rate, 2)
 
                     sheet_row = i + 1
                     work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
-                    work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours)
+                    work_sheet.update_cell(sheet_row, COL_HOURS + 1, round(hours, 2))
                     work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
 
-                    message = f"Shift: {hours}h"
+                    message = f"Shift: {hours_minutes_str(hours)}"
                     break
             else:
                 message = "No active shift found to clock out."
                 message_class = "message error"
 
+    # Totals (hours only, displayed as H/M)
     daily_hours = 0.0
     weekly_hours = 0.0
 
@@ -338,6 +306,9 @@ def home():
         if row_date >= week_start:
             weekly_hours += h
 
+    today_display = hours_minutes_str(daily_hours)
+    week_display = hours_minutes_str(weekly_hours)
+
     admin_link = (
         "<a href='/admin'><button class='adminbtn'>Admin Dashboard</button></a>"
         if role == "admin" else ""
@@ -354,8 +325,8 @@ def home():
         <button name="action" value="out" class="clockout">Clock Out</button>
       </form>
 
-      <p><b>Today Hours:</b> {round(daily_hours, 2)}</p>
-      <p><b>Week Hours:</b> {round(weekly_hours, 2)}</p>
+      <p><b>Today Time:</b> {today_display}</p>
+      <p><b>Week Time:</b> {week_display}</p>
 
       <p class="{message_class}">{message}</p>
 
@@ -492,3 +463,4 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
