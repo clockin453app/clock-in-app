@@ -171,14 +171,20 @@ def require_admin():
     return None
 
 def hours_minutes_str(decimal_hours: float) -> str:
-    """
-    Convert 2.5 -> '2h 30m'
-    Convert 0.81 -> '0h 49m'
-    """
     total_minutes = int(round(decimal_hours * 60))
     h = total_minutes // 60
     m = total_minutes % 60
     return f"{h}h {m}m"
+
+def has_any_row_today(rows, username: str, today_str: str) -> bool:
+    """
+    Returns True if user already has ANY row in WorkHours for today (clocked in once already).
+    This enforces: max 1 clock-in per day (even if they clocked out).
+    """
+    for row in rows[1:]:
+        if len(row) > COL_DATE and row[COL_USER] == username and row[COL_DATE] == today_str:
+            return True
+    return False
 
 # ================= ROUTES =================
 @app.get("/ping")
@@ -250,11 +256,10 @@ def home():
         action = request.form.get("action")
 
         if action == "in":
-            for i in range(len(rows) - 1, 0, -1):
-                if rows[i][COL_USER] == username and rows[i][COL_OUT] == "":
-                    message = "You are already clocked in."
-                    message_class = "message error"
-                    break
+            # Rule 1: cannot clock in more than once per day
+            if has_any_row_today(rows, username, today_str):
+                message = "You already clocked in today. Only 1 clock-in per day is allowed."
+                message_class = "message error"
             else:
                 work_sheet.append_row([username, today_str, now.strftime("%H:%M:%S"), "", "", "", ""])
                 message = "Clocked In"
@@ -268,7 +273,7 @@ def home():
                     )
                     hours = round((now - clock_in).total_seconds() / 3600, 4)
 
-                    # Pay stored only (not shown on UI)
+                    # Pay stored only (not shown)
                     pay = round(hours * rate, 2)
 
                     sheet_row = i + 1
@@ -463,4 +468,3 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
