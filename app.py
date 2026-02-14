@@ -6,12 +6,10 @@ from flask import Flask, render_template_string, request, redirect, session, url
 from datetime import datetime, timedelta
 
 # ================= APP =================
-
 app = Flask(__name__)
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
 # ================= GOOGLE SHEETS =================
-
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
@@ -40,7 +38,7 @@ employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 
-# WorkHours columns (0-based in python list)
+# WorkHours columns (0-based)
 # Username | Date | ClockIn | ClockOut | Hours | Pay | Notes(optional)
 COL_USER = 0
 COL_DATE = 1
@@ -49,28 +47,85 @@ COL_OUT = 3
 COL_HOURS = 4
 COL_PAY = 5
 
-# ================= STYLE =================
-
+# ================= MOBILE-FRIENDLY STYLE =================
 STYLE = """
 <style>
-body {font-family: Arial; background:#f4f6f9; padding:40px;}
-.container {max-width:900px; margin:auto; background:white; padding:30px; border-radius:12px; box-shadow:0 5px 20px rgba(0,0,0,0.08);}
-h2,h3{text-align:center;}
-.buttons{display:flex; justify-content:center; gap:15px; margin:20px 0; flex-wrap:wrap;}
-button{padding:10px 20px; border:none; border-radius:6px; font-weight:bold; cursor:pointer;}
+* { box-sizing: border-box; }
+body {
+  font-family: Arial, sans-serif;
+  background:#f4f6f9;
+  padding: 16px;
+  margin: 0;
+  -webkit-text-size-adjust: 100%;
+}
+.container {
+  width: 100%;
+  max-width: 900px;
+  margin: 0 auto;
+  background: white;
+  padding: 18px;
+  border-radius: 14px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.08);
+}
+h2 { text-align:center; margin: 6px 0 14px; font-size: 28px; }
+h3 { text-align:center; margin: 6px 0 12px; font-size: 22px; }
+
+.buttons{
+  display:flex;
+  justify-content:center;
+  gap:12px;
+  margin:16px 0;
+  flex-wrap:wrap;
+}
+button{
+  padding: 14px 18px;
+  border:none;
+  border-radius: 10px;
+  font-weight:700;
+  cursor:pointer;
+  font-size: 18px;
+  min-height: 48px;
+}
 .clockin{background:#28a745;color:white;}
 .clockout{background:#dc3545;color:white;}
 .adminbtn{background:#007bff;color:white;}
 .reportbtn{background:#6f42c1;color:white;}
-button:hover{opacity:0.9;}
-.link{text-align:center; margin-top:20px;}
-.message{text-align:center; font-weight:bold; color:green;}
+button:hover{opacity:0.92;}
+
+p { font-size: 18px; line-height: 1.4; }
+
+form input, form select{
+  width: 100%;
+  max-width: 420px;
+  padding: 12px 12px;
+  margin: 8px auto;
+  display:block;
+  font-size: 18px;
+  border: 1px solid #d9d9d9;
+  border-radius: 10px;
+}
+
+table{width:100%; border-collapse:collapse; margin-top:16px; font-size: 16px;}
+th,td{padding:10px; border-bottom:1px solid #ddd; text-align:center;}
+th{background:#f1f1f1;}
+
+.link{text-align:center; margin-top:16px; font-size: 18px;}
+.message{text-align:center; font-weight:bold; color:green; font-size: 18px;}
 .message.error{color:#dc3545;}
+
+@media (max-width: 520px){
+  body { padding: 12px; }
+  .container { padding: 16px; border-radius: 12px; }
+  h2 { font-size: 26px; }
+  button { width: 100%; max-width: 420px; }
+  .buttons { gap: 10px; }
+}
 </style>
 """
 
-# ================= HELPERS =================
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 
+# ================= HELPERS =================
 def safe_float(x, default=0.0):
     try:
         return float(x)
@@ -80,7 +135,6 @@ def safe_float(x, default=0.0):
 def require_login():
     if "username" not in session:
         return redirect(url_for("login"))
-    # If session is broken/expired, force re-login
     if session.get("role") is None or session.get("rate") is None:
         session.clear()
         return redirect(url_for("login"))
@@ -95,17 +149,14 @@ def require_admin():
     return None
 
 # ================= ROUTES =================
-
 @app.get("/ping")
 def ping():
     return "pong", 200
 
 # -------- LOGIN --------
-
 @app.route("/login", methods=["GET", "POST"])
 def login():
     message = ""
-    message_class = "message error"
 
     if request.method == "POST":
         username = request.form.get("username", "").strip()
@@ -124,14 +175,15 @@ def login():
 
     return render_template_string(f"""
     {STYLE}
+    {VIEWPORT}
     <div class="container">
       <h2>Login</h2>
       <form method="POST">
-        <input name="username" placeholder="Username" required><br>
-        <input type="password" name="password" placeholder="Password" required><br><br>
+        <input name="username" placeholder="Username" required>
+        <input type="password" name="password" placeholder="Password" required>
         <button class="adminbtn" type="submit">Login</button>
       </form>
-      <p class="{message_class}">{message}</p>
+      <p class="message error">{message}</p>
     </div>
     """)
 
@@ -141,7 +193,6 @@ def logout():
     return redirect(url_for("login"))
 
 # -------- HOME (NO PAY SHOWN) --------
-
 @app.route("/", methods=["GET", "POST"])
 def home():
     gate = require_login()
@@ -166,7 +217,6 @@ def home():
         action = request.form.get("action")
 
         if action == "in":
-            # prevent double clock-in if last shift not closed
             for i in range(len(rows) - 1, 0, -1):
                 if rows[i][COL_USER] == username and rows[i][COL_OUT] == "":
                     message = "You are already clocked in."
@@ -184,11 +234,9 @@ def home():
                         "%Y-%m-%d %H:%M:%S"
                     )
                     hours = round((now - clock_in).total_seconds() / 3600, 2)
+                    pay = round(hours * rate, 2)  # stored only
 
-                    # Pay is calculated + stored, but NEVER displayed on home UI
-                    pay = round(hours * rate, 2)
-
-                    sheet_row = i + 1  # gspread rows are 1-based
+                    sheet_row = i + 1
                     work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                     work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours)
                     work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
@@ -199,7 +247,6 @@ def home():
                 message = "No active shift found to clock out."
                 message_class = "message error"
 
-    # Compute totals (hours only for UI)
     daily_hours = 0.0
     weekly_hours = 0.0
 
@@ -218,7 +265,6 @@ def home():
             continue
 
         h = safe_float(row[COL_HOURS], 0.0)
-
         if row_date == today:
             daily_hours += h
         if row_date >= week_start:
@@ -231,6 +277,7 @@ def home():
 
     return render_template_string(f"""
     {STYLE}
+    {VIEWPORT}
     <div class="container">
       <h2>Welcome {username}</h2>
 
@@ -250,7 +297,6 @@ def home():
     """)
 
 # -------- ADMIN --------
-
 @app.get("/admin")
 def admin():
     gate = require_admin()
@@ -259,6 +305,7 @@ def admin():
 
     return render_template_string(f"""
     {STYLE}
+    {VIEWPORT}
     <div class="container">
       <h2>Admin Dashboard</h2>
       <div class="buttons">
@@ -269,8 +316,7 @@ def admin():
     </div>
     """)
 
-# -------- WEEKLY REPORT (STORES PAY IN SHEET, NOT HOME UI) --------
-
+# -------- WEEKLY REPORT --------
 @app.get("/weekly")
 def weekly_report():
     gate = require_admin()
@@ -315,7 +361,6 @@ def weekly_report():
     return "Weekly payroll stored successfully."
 
 # -------- MONTHLY REPORT --------
-
 @app.route("/monthly", methods=["GET", "POST"])
 def monthly_report():
     gate = require_admin()
@@ -330,7 +375,6 @@ def monthly_report():
 
         existing = payroll_sheet.get_all_records()
         for row in existing:
-            # Uses "Week" column to store month number for Monthly rows (keeps your structure)
             if row.get("Type") == "Monthly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == month:
                 return "Monthly payroll already generated."
 
@@ -363,6 +407,7 @@ def monthly_report():
 
     return render_template_string(f"""
     {STYLE}
+    {VIEWPORT}
     <div class="container">
       <h2>Select Month</h2>
       <form method="POST">
@@ -374,7 +419,6 @@ def monthly_report():
     """)
 
 # ================= LOCAL RUN =================
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
