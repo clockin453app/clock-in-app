@@ -19,7 +19,7 @@ def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
     if raw:
         return json.loads(raw)
-    # Local fallback (DO NOT commit this file)
+    # Local fallback (DO NOT commit)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -75,11 +75,7 @@ body{
   -webkit-text-size-adjust: 100%;
 }
 
-.app{
-  width: 100%;
-  max-width: 980px;
-  margin: 0 auto;
-}
+.app{ width:100%; max-width: 980px; margin: 0 auto; }
 
 .card{
   background: linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
@@ -96,30 +92,11 @@ body{
   gap: 16px;
   margin-bottom: 18px;
 }
+.title{ display:flex; flex-direction:column; gap: 6px; }
 
-.title{
-  display:flex;
-  flex-direction:column;
-  gap: 6px;
-}
-
-h1{
-  font-size: var(--h1);
-  margin:0;
-  letter-spacing: .2px;
-}
-
-h2{
-  font-size: var(--h2);
-  margin: 0;
-  color: var(--text);
-}
-
-.sub{
-  font-size: var(--small);
-  color: var(--muted);
-  margin: 0;
-}
+h1{ font-size: var(--h1); margin:0; letter-spacing: .2px; }
+h2{ font-size: var(--h2); margin: 0; color: var(--text); }
+.sub{ font-size: var(--small); color: var(--muted); margin: 0; }
 
 .kpis{
   display:grid;
@@ -127,23 +104,14 @@ h2{
   gap: 14px;
   margin-top: 18px;
 }
-
 .kpi{
   background: rgba(255,255,255,.04);
   border: 1px solid var(--border);
   border-radius: 18px;
   padding: 14px 14px;
 }
-
-.kpi .label{
-  font-size: var(--small);
-  color: var(--muted);
-  margin-bottom: 6px;
-}
-.kpi .value{
-  font-size: clamp(22px, 3vw, 30px);
-  font-weight: 900;
-}
+.kpi .label{ font-size: var(--small); color: var(--muted); margin-bottom: 6px; }
+.kpi .value{ font-size: clamp(22px, 3vw, 30px); font-weight: 900; }
 
 .message{
   margin-top: 14px;
@@ -203,17 +171,6 @@ button:hover{ opacity:.95; }
 .purple{ background: #a78bfa; color:#140726; }
 .gray{ background: rgba(255,255,255,.10); color: var(--text); border: 1px solid var(--border); }
 
-.footerlinks{
-  margin-top: 18px;
-  display:flex;
-  justify-content:center;
-  gap: 18px;
-  flex-wrap:wrap;
-  font-size: var(--p);
-  color: var(--muted);
-}
-
-/* Sticky bottom action bar for mobile feel */
 .actionbar{
   position: sticky;
   bottom: 12px;
@@ -274,6 +231,9 @@ th{
   font-size: clamp(14px, 2.1vw, 16px);
   flex: 0 0 auto;
 }
+@media (max-width: 520px){
+  .kpis{ grid-template-columns: 1fr; }
+}
 </style>
 """
 
@@ -309,19 +269,42 @@ def hours_to_hm(decimal_hours: float) -> str:
     return f"{h}h {m:02d}m"
 
 def has_any_row_today(rows, username: str, today_str: str) -> bool:
-    # Enforce: max 1 clock-in per day (even if they clocked out)
     for row in rows[1:]:
         if len(row) > COL_DATE and row[COL_USER] == username and row[COL_DATE] == today_str:
             return True
     return False
 
 def find_open_shift(rows, username: str):
-    # Return (row_index_in_values, date_str, clock_in_str) for the latest open shift
     for i in range(len(rows) - 1, 0, -1):
         r = rows[i]
         if len(r) > COL_OUT and r[COL_USER] == username and r[COL_OUT] == "":
             return i, r[COL_DATE], r[COL_IN]
     return None
+
+def find_employee_row_by_username(username: str):
+    """
+    Returns (row_number, headers) where row_number is 1-based in the sheet.
+    If not found, returns (None, headers).
+    """
+    values = employees_sheet.get_all_values()
+    if not values:
+        return None, []
+    headers = values[0]
+    for idx in range(1, len(values)):
+        row = values[idx]
+        if len(row) > 0 and row[0] == username:  # assumes Username is first column OR we handle headers below
+            pass
+    # Better: locate Username column by header
+    try:
+        user_col = headers.index("Username")
+    except ValueError:
+        return None, headers
+
+    for i in range(1, len(values)):
+        row = values[i]
+        if len(row) > user_col and row[user_col] == username:
+            return i + 1, headers  # sheet row number
+    return None, headers
 
 # ================= ROUTES =================
 @app.get("/ping")
@@ -338,7 +321,7 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        users = employees_sheet.get_all_records()  # headers: Username, Password, Role, Rate
+        users = employees_sheet.get_all_records()  # Username, Password, Role, Rate
         for user in users:
             if user.get("Username") == username and user.get("Password") == password:
                 session.clear()
@@ -357,7 +340,7 @@ def login():
           <div class="icon"><span>⏱</span></div>
           <div class="title">
             <h1>Clock In</h1>
-            <p class="sub">WorkHours • mobile style</p>
+            <p class="sub">Sign in to continue</p>
           </div>
         </div>
 
@@ -366,7 +349,6 @@ def login():
         <form method="POST" style="margin-top:14px;">
           <input class="input" name="username" placeholder="Username" required>
           <input class="input" type="password" name="password" placeholder="Password" required>
-
           <div class="btnrow actionbar">
             <button class="blue" type="submit">Login</button>
           </div>
@@ -381,6 +363,91 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
+# -------- CHANGE PASSWORD (EMPLOYEE SELF-SERVICE) --------
+@app.route("/change-password", methods=["GET", "POST"])
+def change_password():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    message = ""
+    msg_class = "message"
+
+    if request.method == "POST":
+        current_pw = request.form.get("current_password", "")
+        new_pw = request.form.get("new_password", "")
+        confirm_pw = request.form.get("confirm_password", "")
+
+        if not current_pw or not new_pw or not confirm_pw:
+            message = "All fields are required."
+            msg_class = "message error"
+        elif new_pw != confirm_pw:
+            message = "New passwords do not match."
+            msg_class = "message error"
+        elif len(new_pw) < 4:
+            message = "Password is too short."
+            msg_class = "message error"
+        else:
+            # Verify current password from sheet
+            records = employees_sheet.get_all_records()
+            user_row = None
+            for u in records:
+                if u.get("Username") == username:
+                    user_row = u
+                    break
+
+            if not user_row:
+                message = "User not found."
+                msg_class = "message error"
+            elif user_row.get("Password") != current_pw:
+                message = "Current password is incorrect."
+                msg_class = "message error"
+            else:
+                rownum, headers = find_employee_row_by_username(username)
+                if not rownum:
+                    message = "Could not locate your row in Employees sheet."
+                    msg_class = "message error"
+                else:
+                    try:
+                        pw_col = headers.index("Password") + 1
+                    except ValueError:
+                        message = "Employees sheet is missing a 'Password' column header."
+                        msg_class = "message error"
+                    else:
+                        employees_sheet.update_cell(rownum, pw_col, new_pw)
+                        message = "Password changed successfully."
+                        msg_class = "message"
+                        # keep them logged in; nothing else needed
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}
+    <div class="app">
+      <div class="card">
+        <div class="header">
+          <div class="icon"><span>🔒</span></div>
+          <div class="title">
+            <h1>Change Password</h1>
+            <p class="sub">Account: {username}</p>
+          </div>
+        </div>
+
+        <form method="POST">
+          <input class="input" type="password" name="current_password" placeholder="Current password" required>
+          <input class="input" type="password" name="new_password" placeholder="New password" required>
+          <input class="input" type="password" name="confirm_password" placeholder="Confirm new password" required>
+
+          <div class="btnrow actionbar">
+            <button class="green" type="submit">Save</button>
+            <a href="/"><button class="gray" type="button" onclick="window.location='/'">Back</button></a>
+          </div>
+        </form>
+
+        {"<div class='" + msg_class + "'>" + message + "</div>" if message else ""}
+      </div>
+    </div>
+    """)
 
 # -------- HOME (NO PAY SHOWN, LIVE TIMER) --------
 @app.route("/", methods=["GET", "POST"])
@@ -401,12 +468,11 @@ def home():
     message = ""
     msg_class = "message"
 
-    # PERFORMANCE: only one read per request
+    # PERFORMANCE: one read
     rows = work_sheet.get_all_values()
 
-    # Determine if user currently has an open shift (for live timer)
     open_shift = find_open_shift(rows, username)
-    active_clock_in_iso = ""  # passed to JS if active
+    active_clock_in_iso = ""
     if open_shift:
         _, d, t = open_shift
         try:
@@ -418,7 +484,6 @@ def home():
         action = request.form.get("action")
 
         if action == "in":
-            # 1 clock-in per day rule
             if has_any_row_today(rows, username, today_str):
                 message = "You already clocked in today. Only 1 clock-in per day is allowed."
                 msg_class = "message error"
@@ -426,14 +491,12 @@ def home():
                 work_sheet.append_row([username, today_str, now.strftime("%H:%M:%S"), "", "", "", ""])
                 message = "Clocked In"
                 msg_class = "message"
-                # update active clock-in immediately for UI
                 active_clock_in_iso = now.replace(microsecond=0).isoformat()
 
         elif action == "out":
-            # Refresh rows for accuracy after append, but keep minimal:
-            # (Only re-read if needed. Here it's safer to re-read because sheet changed)
             rows = work_sheet.get_all_values()
             open_shift = find_open_shift(rows, username)
+
             if not open_shift:
                 message = "No active shift found to clock out."
                 msg_class = "message error"
@@ -443,19 +506,18 @@ def home():
                 hours = round((now - clock_in_dt).total_seconds() / 3600, 4)
                 pay = round(hours * rate, 2)  # stored only
 
-                sheet_row = i + 1  # gspread is 1-based
+                sheet_row = i + 1
                 work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                 work_sheet.update_cell(sheet_row, COL_HOURS + 1, round(hours, 2))
                 work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
 
                 message = f"Shift time: {hours_to_hm(hours)}"
                 msg_class = "message"
-                active_clock_in_iso = ""  # no longer active
+                active_clock_in_iso = ""
 
-    # Totals (hours only, UI shows h/m)
+    # Totals (completed shifts)
     daily_hours = 0.0
     weekly_hours = 0.0
-
     for r in rows[1:]:
         if len(r) <= COL_HOURS:
             continue
@@ -480,7 +542,6 @@ def home():
     if role == "admin":
         admin_button = "<a href='/admin'><button class='purple'>Admin</button></a>"
 
-    # Live timer JS (only runs if active_clock_in_iso is set)
     live_timer_block = f"""
     <div class="kpi">
       <div class="label">Live shift timer</div>
@@ -528,7 +589,7 @@ def home():
           <div class="icon"><span>⏱</span></div>
           <div class="title">
             <h1>Hi, {username}</h1>
-            <p class="sub">Clock in / out • Pay stays only in sheets</p>
+            <p class="sub">Clock in / out</p>
           </div>
         </div>
 
@@ -536,7 +597,7 @@ def home():
           <div class="kpi">
             <div class="label">Today</div>
             <div class="value">{today_display}</div>
-            <div class="sub">Total completed shift time</div>
+            <div class="sub">Completed shift time</div>
           </div>
           <div class="kpi">
             <div class="label">This week</div>
@@ -560,7 +621,8 @@ def home():
           </form>
           <div class="btnrow" style="margin-top:12px;">
             {admin_button}
-            <a href="/logout"><button class="gray">Logout</button></a>
+            <a href="/change-password"><button class="blue" type="button" onclick="window.location='/change-password'">Change Password</button></a>
+            <a href="/logout"><button class="gray" type="button" onclick="window.location='/logout'">Logout</button></a>
           </div>
         </div>
       </div>
@@ -590,7 +652,7 @@ def admin():
           <a href="/weekly"><button class="purple">Generate Weekly Payroll</button></a>
           <a href="/monthly"><button class="purple">Generate Monthly Payroll</button></a>
           <a href="/employees"><button class="blue">Employees</button></a>
-          <a href="/"><button class="gray">Back</button></a>
+          <a href="/"><button class="gray" type="button" onclick="window.location='/'">Back</button></a>
         </div>
       </div>
     </div>
@@ -606,19 +668,15 @@ def employees():
     msg = ""
     msg_class = "message"
 
-    # Read header + records
     headers = employees_sheet.row_values(1)
     records = employees_sheet.get_all_records()
 
-    # Helpers for locating columns safely
     def col_index(name: str) -> int:
-        # returns 1-based index in sheet
         try:
             return headers.index(name) + 1
         except ValueError:
             return -1
 
-    # Ensure required columns exist (simple)
     required = ["Username", "Password", "Role", "Rate"]
     missing = [c for c in required if c not in headers]
     if missing:
@@ -636,18 +694,14 @@ def employees():
             if not u or not p:
                 msg = "Username and password are required."
                 msg_class = "message error"
+            elif any(rec.get("Username") == u for rec in records):
+                msg = "Username already exists."
+                msg_class = "message error"
             else:
-                # check duplicate username
-                if any(rec.get("Username") == u for rec in records):
-                    msg = "Username already exists."
-                    msg_class = "message error"
-                else:
-                    employees_sheet.append_row([u, p, r, rate])
-                    msg = "Employee added."
-                    msg_class = "message"
+                employees_sheet.append_row([u, p, r, rate])
+                msg = "Employee added."
 
         elif action == "update":
-            # Update an existing row by row number
             rownum = int(request.form.get("rownum", "0"))
             new_pass = request.form.get("password", "").strip()
             new_role = request.form.get("role", "employee").strip()
@@ -657,13 +711,11 @@ def employees():
                 msg = "Invalid row."
                 msg_class = "message error"
             else:
-                # only update provided values
                 if new_pass:
                     employees_sheet.update_cell(rownum, col_index("Password"), new_pass)
                 employees_sheet.update_cell(rownum, col_index("Role"), new_role)
                 employees_sheet.update_cell(rownum, col_index("Rate"), new_rate)
                 msg = "Employee updated."
-                msg_class = "message"
 
         elif action == "delete":
             rownum = int(request.form.get("rownum", "0"))
@@ -673,13 +725,10 @@ def employees():
             else:
                 employees_sheet.delete_rows(rownum)
                 msg = "Employee deleted."
-                msg_class = "message"
 
-        # refresh after changes
         headers = employees_sheet.row_values(1)
         records = employees_sheet.get_all_records()
 
-    # Build table rows with row numbers (row 2..)
     table_rows_html = ""
     for idx, rec in enumerate(records, start=2):
         u = rec.get("Username", "")
@@ -814,14 +863,13 @@ def monthly_report():
         return gate
 
     if request.method == "POST":
-        selected = request.form["month"]  # YYYY-MM
+        selected = request.form["month"]
         year = int(selected.split("-")[0])
         month = int(selected.split("-")[1])
         generated_on = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         existing = payroll_sheet.get_all_records()
         for row in existing:
-            # Using "Week" column to store month number for Monthly rows (keeps your structure)
             if row.get("Type") == "Monthly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == month:
                 return "Monthly payroll already generated."
 
@@ -835,7 +883,6 @@ def monthly_report():
                 row_date = datetime.strptime(r[COL_DATE], "%Y-%m-%d")
             except Exception:
                 continue
-
             if row_date.year == year and row_date.month == month:
                 emp = r[COL_USER]
                 payroll.setdefault(emp, {"hours": 0.0, "pay": 0.0})
