@@ -59,7 +59,7 @@ onboarding_sheet = spreadsheet.worksheet("Onboarding")
 # ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
 # We store the OAuth token in a small server-side file so employees can upload too.
 # (Otherwise, the token would exist only in the admin's browser session.)
-OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
 OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "").strip()
@@ -1723,4 +1723,5 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
