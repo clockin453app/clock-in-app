@@ -1,8 +1,10 @@
-# ===================== app.py (FULL - Premium UI + Dashboard Graph + Desktop Sidebar + Logout bottom separated) =====================
+# ===================== app.py (FULL - Premium UI + Dashboard Graph + Desktop Sidebar + Starter Form + Profile Details) =====================
 # Notes:
-# - NO reportlab / NO PDF exports (so Render won't fail).
+# - NO reportlab / NO PDF exports (Render-friendly).
 # - Admin Payroll page is printable in browser (Ctrl+P / Save as PDF).
-# - Logout is ONLY in sidebar bottom on desktop (separated) and also available on mobile bottom bar as an icon.
+# - Starter Form (Onboarding) is back at /onboarding and also viewable by Admin.
+# - Profile shows onboarding details (text only) + change password.
+# - Logout is separated at bottom of desktop sidebar; on mobile it's a small icon in bottom nav.
 
 import os
 import json
@@ -12,15 +14,7 @@ from urllib.parse import urlparse
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import (
-    Flask,
-    render_template_string,
-    request,
-    redirect,
-    session,
-    url_for,
-    abort,
-)
+from flask import Flask, render_template_string, request, redirect, session, url_for, abort
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 
@@ -252,7 +246,7 @@ body{
     radial-gradient(900px 500px at 80% 10%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 60%),
     var(--bg);
   color: var(--text);
-  padding: 16px 14px calc(130px + env(safe-area-inset-bottom)) 14px;
+  padding: 16px 14px calc(150px + env(safe-area-inset-bottom)) 14px;
 }
 a{color:inherit;text-decoration:none;}
 h1{font-size:var(--h1); margin:0;}
@@ -431,8 +425,30 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 
 .tablewrap{ margin-top:14px; overflow:auto; border-radius: 18px; border:1px solid rgba(15,23,42,.08); }
 table{ width:100%; border-collapse: collapse; min-width: 720px; background:#fff; }
-th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; }
+th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; vertical-align: top;}
 th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
+
+.contractBox{
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.08);
+  background: rgba(248,250,252,.90);
+  max-height: 320px;
+  overflow: auto;
+  white-space: pre-wrap;
+  font-size: 13px;
+  color: rgba(15,23,42,.88);
+  line-height: 1.4;
+}
+.bad{ border: 1px solid rgba(220,38,38,.55) !important; box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important; }
+.badLabel{ color: rgba(220,38,38,.92) !important; font-weight: 950 !important; }
+.uploadTitle{
+  margin-top: 12px;
+  font-weight: 950;
+  font-size: 15px;
+  color: rgba(109,40,217,.95);
+}
 
 .bottomNav{
   position: fixed;
@@ -459,7 +475,7 @@ th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
 .navIcon.active{ background: rgba(109,40,217,.10); }
 .navIcon svg{ width: 22px; height: 22px; }
 
-.safeBottom{ height: calc(180px + env(safe-area-inset-bottom)); }
+.safeBottom{ height: calc(220px + env(safe-area-inset-bottom)); }
 
 /* Desktop “gmail-style” left menu with logout separated at bottom */
 @media (min-width: 980px){
@@ -531,12 +547,8 @@ th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
     background: rgba(220,38,38,.08);
     border-color: rgba(220,38,38,.12);
   }
-  .logoutBtn .sideIcon, .logoutBtn .chev{
-    color: rgba(220,38,38,.95);
-  }
-  .logoutBtn .sideText{
-    color: rgba(220,38,38,.95);
-  }
+  .logoutBtn .sideIcon, .logoutBtn .chev{ color: rgba(220,38,38,.95); }
+  .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
 }
 </style>
 """
@@ -873,7 +885,6 @@ def get_onboarding_record(username: str):
             return rec
     return None
 
-# ✅ NEW: render onboarding details (text only) for Profile page
 def onboarding_details_block(username: str) -> str:
     rec = get_onboarding_record(username)
     if not rec:
@@ -962,7 +973,7 @@ def sidebar_html(active: str, role: str) -> str:
         ("clock", "/clock", "Clock In & Out", _svg_clock()),
         ("times", "/my-times", "Time logs", _svg_clipboard()),
         ("reports", "/my-reports", "Timesheets", _svg_chart()),
-        ("agreements", "/password", "Agreements", _svg_doc()),
+        ("agreements", "/onboarding", "Starter Form", _svg_doc()),
         ("profile", "/password", "Profile", _svg_user()),
     ]
     if role == "admin":
@@ -1228,8 +1239,8 @@ def home():
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" href="/password">
-          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Agreements</div></div>
+        <a class="menuItem" href="/onboarding">
+          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
           <div class="chev">›</div>
         </a>
         {admin_item}
@@ -1500,6 +1511,441 @@ def my_reports():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
 
+# ---------- STARTER FORM / ONBOARDING ----------
+@app.route("/onboarding", methods=["GET", "POST"])
+def onboarding():
+    gate = require_login()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    username = session["username"]
+    role = session.get("role", "employee")
+    display_name = get_employee_display_name(username)
+    existing = get_onboarding_record(username)
+
+    msg = ""
+    msg_ok = False
+
+    def v(key: str) -> str:
+        return (existing or {}).get(key, "")
+
+    def val(typed, input_name, existing_key):
+        if typed and input_name in typed and typed[input_name] is not None:
+            return typed[input_name]
+        return v(existing_key)
+
+    def bad(missing_fields, input_name):
+        return "bad" if input_name in (missing_fields or set()) else ""
+
+    def bad_label(missing_fields, input_name):
+        return "badLabel" if input_name in (missing_fields or set()) else ""
+
+    typed = None
+    missing_fields = set()
+
+    if request.method == "POST":
+        require_csrf()
+        typed = dict(request.form)
+        submit_type = request.form.get("submit_type", "draft")
+        is_final = (submit_type == "final")
+
+        def g(name): return (request.form.get(name, "") or "").strip()
+
+        # typed fields
+        first = g("first"); last = g("last"); birth = g("birth")
+        phone_cc = g("phone_cc") or "+44"; phone_num = g("phone_num")
+        street = g("street"); city = g("city"); postcode = g("postcode")
+        email = g("email")
+        ec_name = g("ec_name"); ec_cc = g("ec_cc") or "+44"; ec_phone = g("ec_phone")
+        medical = g("medical"); medical_details = g("medical_details")
+        position = g("position"); cscs_no = g("cscs_no"); cscs_exp = g("cscs_exp")
+        emp_type = g("emp_type"); rtw = g("rtw")
+        ni = g("ni"); utr = g("utr"); start_date = g("start_date")
+        acc_no = g("acc_no"); sort_code = g("sort_code"); acc_name = g("acc_name")
+        comp_trading = g("comp_trading"); comp_reg = g("comp_reg")
+        contract_date = g("contract_date"); site_address = g("site_address")
+        contract_accept = (request.form.get("contract_accept", "") == "yes")
+        signature_name = g("signature_name")
+
+        # files
+        passport_file = request.files.get("passport_file")
+        cscs_file = request.files.get("cscs_file")
+        pli_file = request.files.get("pli_file")
+        share_file = request.files.get("share_file")
+
+        missing = []
+
+        def req(value, input_name, label):
+            if not value:
+                missing.append(label)
+                missing_fields.add(input_name)
+
+        if is_final:
+            req(first, "first", "First Name")
+            req(last, "last", "Last Name")
+            req(birth, "birth", "Birth Date")
+            req(phone_num, "phone_num", "Phone Number")
+            req(email, "email", "Email")
+            req(ec_name, "ec_name", "Emergency Contact Name")
+            req(ec_phone, "ec_phone", "Emergency Contact Phone")
+
+            if medical not in ("yes", "no"):
+                missing.append("Medical condition (Yes/No)")
+                missing_fields.add("medical")
+
+            req(position, "position", "Position")
+            req(cscs_no, "cscs_no", "CSCS Number")
+            req(cscs_exp, "cscs_exp", "CSCS Expiry Date")
+            req(emp_type, "emp_type", "Employment Type")
+
+            if rtw not in ("yes", "no"):
+                missing.append("Right to work UK (Yes/No)")
+                missing_fields.add("rtw")
+
+            req(ni, "ni", "National Insurance")
+            req(utr, "utr", "UTR")
+            req(start_date, "start_date", "Start Date")
+            req(acc_no, "acc_no", "Bank Account Number")
+            req(sort_code, "sort_code", "Sort Code")
+            req(acc_name, "acc_name", "Account Holder Name")
+            req(contract_date, "contract_date", "Date of Contract")
+            req(site_address, "site_address", "Site address")
+
+            if not contract_accept:
+                missing.append("Contract acceptance")
+                missing_fields.add("contract_accept")
+
+            req(signature_name, "signature_name", "Signature name")
+
+            if not _load_drive_token() and not session.get("drive_token"):
+                missing.append("Upload system not connected (admin must click Connect Drive)")
+
+            # file requirements for final
+            if not passport_file or not passport_file.filename:
+                missing.append("Passport/Birth Certificate file")
+                missing_fields.add("passport_file")
+            if not cscs_file or not cscs_file.filename:
+                missing.append("CSCS (front/back) file")
+                missing_fields.add("cscs_file")
+            if not pli_file or not pli_file.filename:
+                missing.append("Public Liability file")
+                missing_fields.add("pli_file")
+            if not share_file or not share_file.filename:
+                missing.append("Share code file")
+                missing_fields.add("share_file")
+
+        if missing:
+            msg = "Missing required (final): " + ", ".join(missing)
+            msg_ok = False
+        else:
+            passport_link = v("PassportOrBirthCertLink")
+            cscs_link = v("CSCSFrontBackLink")
+            pli_link = v("PublicLiabilityLink")
+            share_link = v("ShareCodeLink")
+
+            try:
+                if passport_file and passport_file.filename:
+                    passport_link = upload_to_drive(passport_file, f"{username}_passport")
+                if cscs_file and cscs_file.filename:
+                    cscs_link = upload_to_drive(cscs_file, f"{username}_cscs")
+                if pli_file and pli_file.filename:
+                    pli_link = upload_to_drive(pli_file, f"{username}_pli")
+                if share_file and share_file.filename:
+                    share_link = upload_to_drive(share_file, f"{username}_share")
+            except Exception as e:
+                msg = f"Upload error: {e}"
+                msg_ok = False
+                existing = get_onboarding_record(username)
+                return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, set())))
+
+            now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+            data = {
+                "FirstName": first,
+                "LastName": last,
+                "BirthDate": birth,
+                "PhoneCountryCode": phone_cc,
+                "PhoneNumber": phone_num,
+                "StreetAddress": street,
+                "City": city,
+                "Postcode": postcode,
+                "Email": email,
+                "EmergencyContactName": ec_name,
+                "EmergencyContactPhoneCountryCode": ec_cc,
+                "EmergencyContactPhoneNumber": ec_phone,
+                "MedicalCondition": medical,
+                "MedicalDetails": medical_details,
+                "Position": position,
+                "CSCSNumber": cscs_no,
+                "CSCSExpiryDate": cscs_exp,
+                "EmploymentType": emp_type,
+                "RightToWorkUK": rtw,
+                "NationalInsurance": ni,
+                "UTR": utr,
+                "StartDate": start_date,
+                "BankAccountNumber": acc_no,
+                "SortCode": sort_code,
+                "AccountHolderName": acc_name,
+                "CompanyTradingName": comp_trading,
+                "CompanyRegistrationNo": comp_reg,
+                "DateOfContract": contract_date,
+                "SiteAddress": site_address,
+                "PassportOrBirthCertLink": passport_link,
+                "CSCSFrontBackLink": cscs_link,
+                "PublicLiabilityLink": pli_link,
+                "ShareCodeLink": share_link,
+                "ContractAccepted": "TRUE" if (is_final and contract_accept) else "FALSE",
+                "SignatureName": signature_name,
+                "SignatureDateTime": now_str if is_final else "",
+                "SubmittedAt": now_str,
+            }
+
+            update_or_append_onboarding(username, data)
+
+            # Copy name into Employees sheet if columns exist (optional but professional)
+            set_employee_first_last(username, first, last)
+
+            if is_final:
+                set_employee_field(username, "OnboardingCompleted", "TRUE")
+
+            existing = get_onboarding_record(username)
+            msg = "Saved draft." if not is_final else "Submitted final successfully."
+            msg_ok = True
+            typed = None
+            missing_fields = set()
+
+    content = _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields)
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, content))
+
+def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields):
+    typed = typed or {}
+
+    def val(input_name, existing_key):
+        if input_name in typed and typed[input_name] is not None:
+            return typed[input_name]
+        return (existing or {}).get(existing_key, "")
+
+    def bad(input_name):
+        return "bad" if input_name in (missing_fields or set()) else ""
+
+    def bad_label(input_name):
+        return "badLabel" if input_name in (missing_fields or set()) else ""
+
+    def checked_radio(input_name, existing_key, value):
+        return "checked" if val(input_name, existing_key) == value else ""
+
+    def selected(input_name, existing_key, value):
+        return "selected" if val(input_name, existing_key) == value else ""
+
+    drive_hint = ""
+    if role == "admin":
+        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive' style='color:var(--purple);font-weight:950;'>Connect Drive</a> once.</p>"
+
+    return f"""
+      <div class="headerTop">
+        <div>
+          <h1>Starter Form</h1>
+          <p class="sub">{escape(display_name)} • Save Draft anytime • Submit Final when complete</p>
+          {drive_hint}
+        </div>
+        <div class="badge">{escape(role.upper())}</div>
+      </div>
+
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not msg_ok) else ""}
+
+      <div class="card" style="padding:14px;">
+        <form method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+          <h2>Personal details</h2>
+          <div class="row2">
+            <div>
+              <label class="sub {bad_label('first')}">First Name</label>
+              <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('last')}">Last Name</label>
+              <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
+            </div>
+          </div>
+
+          <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
+          <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
+
+          <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
+          <div class="row2">
+            <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
+            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
+          </div>
+
+          <h2 style="margin-top:14px;">Address</h2>
+          <input class="input" name="street" placeholder="Street Address" value="{escape(val('street','StreetAddress'))}">
+          <div class="row2">
+            <input class="input" name="city" placeholder="City" value="{escape(val('city','City'))}">
+            <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode','Postcode'))}">
+          </div>
+
+          <div class="row2">
+            <div>
+              <label class="sub {bad_label('email')}">Email</label>
+              <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
+              <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
+            </div>
+          </div>
+
+          <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
+          <div class="row2">
+            <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
+            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
+          </div>
+
+          <h2 style="margin-top:14px;">Medical</h2>
+          <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
+          <div class="row2">
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
+            </label>
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
+            </label>
+          </div>
+          <label class="sub" style="margin-top:10px; display:block;">Details</label>
+          <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
+
+          <h2 style="margin-top:14px;">Position</h2>
+          <div class="row2">
+            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
+            </label>
+            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
+            </label>
+            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
+            </label>
+            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
+            </label>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
+              <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
+              <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
+            </div>
+          </div>
+
+          <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
+          <select class="input {bad('emp_type')}" name="emp_type">
+            <option value="">Please Select</option>
+            <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
+            <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
+            <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
+            <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
+          </select>
+
+          <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
+          <div class="row2">
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
+            </label>
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
+            </label>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label class="sub {bad_label('ni')}">National Insurance</label>
+              <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('utr')}">UTR</label>
+              <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
+            </div>
+          </div>
+
+          <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
+          <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
+
+          <h2 style="margin-top:14px;">Bank details</h2>
+          <div class="row2">
+            <div>
+              <label class="sub {bad_label('acc_no')}">Account Number</label>
+              <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('sort_code')}">Sort Code</label>
+              <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
+            </div>
+          </div>
+          <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
+          <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
+
+          <h2 style="margin-top:14px;">Company details</h2>
+          <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
+          <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
+
+          <h2 style="margin-top:14px;">Contract & site</h2>
+          <div class="row2">
+            <div>
+              <label class="sub {bad_label('contract_date')}">Date of Contract</label>
+              <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('site_address')}">Site address</label>
+              <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
+            </div>
+          </div>
+
+          <h2 style="margin-top:14px;">Upload documents</h2>
+          <p class="sub">Draft: optional uploads. Final: all 4 required. (If Final fails, re-select files.)</p>
+
+          <div class="uploadTitle {bad_label('passport_file')}">Passport or Birth Certificate</div>
+          <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
+
+          <div class="uploadTitle {bad_label('cscs_file')}">CSCS Card (front & back)</div>
+          <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
+
+          <div class="uploadTitle {bad_label('pli_file')}">Public Liability Insurance</div>
+          <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
+
+          <div class="uploadTitle {bad_label('share_file')}">Share Code / Confirmation</div>
+          <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
+
+          <h2 style="margin-top:14px;">Contract</h2>
+          <div class="contractBox">{escape(CONTRACT_TEXT)}</div>
+
+          <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+            <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
+            I have read and accept the contract terms (required for Final)
+          </label>
+
+          <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
+          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
+
+          <div class="row2" style="margin-top:14px;">
+            <button class="btnSoft" name="submit_type" value="draft" type="submit">Save Draft</button>
+            <button class="btnSoft" name="submit_type" value="final" type="submit" style="background:rgba(109,40,217,.18);">Submit Final</button>
+          </div>
+        </form>
+      </div>
+    """
+
+
 # ---------- PROFILE (DETAILS + CHANGE PASSWORD) ----------
 @app.route("/password", methods=["GET", "POST"])
 def change_password():
@@ -1512,7 +1958,6 @@ def change_password():
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
 
-    # ✅ NEW: build the details html from onboarding sheet
     details_html = onboarding_details_block(username)
 
     msg = ""
@@ -1543,7 +1988,6 @@ def change_password():
             ok = update_employee_password(username, new1)
             msg = "Password updated successfully." if ok else "Could not update password."
 
-        # refresh details (not required, but nice)
         details_html = onboarding_details_block(username)
 
     content = f"""
@@ -1560,7 +2004,7 @@ def change_password():
 
       <div class="card" style="padding:14px;">
         <h2>My Details</h2>
-        <p class="sub">These are taken from your Starter Form (Onboarding). Files are not shown here.</p>
+        <p class="sub">Saved from Starter Form (files not shown).</p>
         {details_html}
       </div>
 
@@ -1595,7 +2039,7 @@ def admin():
       <div class="headerTop">
         <div>
           <h1>Admin</h1>
-          <p class="sub">Payroll report (printable)</p>
+          <p class="sub">Payroll + onboarding</p>
         </div>
         <div class="badge">ADMIN</div>
       </div>
@@ -1603,6 +2047,10 @@ def admin():
       <div class="card menu">
         <a class="menuItem active" href="/admin/payroll">
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Payroll Report</div></div>
+          <div class="chev">›</div>
+        </a>
+        <a class="menuItem" href="/admin/onboarding">
+          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Onboarding</div></div>
           <div class="chev">›</div>
         </a>
         <a class="menuItem" href="/connect-drive">
@@ -1726,10 +2174,136 @@ def admin_payroll():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
+# ---------- ADMIN ONBOARDING LIST / DETAIL ----------
+@app.get("/admin/onboarding")
+def admin_onboarding_list():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    q = (request.args.get("q", "") or "").strip().lower()
+    vals = onboarding_sheet.get_all_values()
+    if not vals:
+        body = "<tr><td colspan='3'>No onboarding data.</td></tr>"
+    else:
+        headers = vals[0]
+
+        def idx(name):
+            return headers.index(name) if name in headers else None
+
+        i_user = idx("Username")
+        i_fn = idx("FirstName")
+        i_ln = idx("LastName")
+        i_sub = idx("SubmittedAt")
+
+        rows_html = []
+        for r in vals[1:]:
+            u = r[i_user] if i_user is not None and i_user < len(r) else ""
+            fn = r[i_fn] if i_fn is not None and i_fn < len(r) else ""
+            ln = r[i_ln] if i_ln is not None and i_ln < len(r) else ""
+            sub = r[i_sub] if i_sub is not None and i_sub < len(r) else ""
+            name = (fn + " " + ln).strip() or u
+            if q and (q not in u.lower() and q not in name.lower()):
+                continue
+            rows_html.append(
+                f"<tr><td><a href='/admin/onboarding/{escape(u)}' style='color:var(--purple);font-weight:950;'>{escape(name)}</a></td>"
+                f"<td>{escape(u)}</td><td>{escape(sub)}</td></tr>"
+            )
+        body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No matches.</td></tr>"
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Onboarding</h1>
+          <p class="sub">Click a name to view details</p>
+        </div>
+        <div class="badge">ADMIN</div>
+      </div>
+
+      <div class="card" style="padding:12px;">
+        <form method="GET">
+          <label class="sub">Search</label>
+          <div class="row2">
+            <input class="input" name="q" value="{escape(q)}" placeholder="name or username">
+            <button class="btnSoft" type="submit" style="margin-top:8px;">Search</button>
+          </div>
+        </form>
+
+        <div class="tablewrap" style="margin-top:12px;">
+          <table style="min-width: 640px;">
+            <thead><tr><th>Name</th><th>Username</th><th>Last saved</th></tr></thead>
+            <tbody>{body}</tbody>
+          </table>
+        </div>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+
+@app.get("/admin/onboarding/<username>")
+def admin_onboarding_detail(username):
+    gate = require_admin()
+    if gate:
+        return gate
+
+    rec = get_onboarding_record(username)
+    if not rec:
+        abort(404)
+
+    def row(label, key, link=False):
+        v_ = rec.get(key, "")
+        vv = linkify(v_) if link else escape(v_)
+        return f"<tr><th style='width:260px;'>{escape(label)}</th><td>{vv}</td></tr>"
+
+    details = ""
+    for label, key in [
+        ("Username","Username"),("First name","FirstName"),("Last name","LastName"),
+        ("Birth date","BirthDate"),("Phone CC","PhoneCountryCode"),("Phone","PhoneNumber"),
+        ("Email","Email"),("Street","StreetAddress"),("City","City"),("Postcode","Postcode"),
+        ("Emergency contact","EmergencyContactName"),("Emergency CC","EmergencyContactPhoneCountryCode"),
+        ("Emergency phone","EmergencyContactPhoneNumber"),
+        ("Medical","MedicalCondition"),("Medical details","MedicalDetails"),
+        ("Position","Position"),("CSCS number","CSCSNumber"),("CSCS expiry","CSCSExpiryDate"),
+        ("Employment type","EmploymentType"),("Right to work UK","RightToWorkUK"),
+        ("NI","NationalInsurance"),("UTR","UTR"),("Start date","StartDate"),
+        ("Bank account","BankAccountNumber"),("Sort code","SortCode"),("Account holder","AccountHolderName"),
+        ("Company trading","CompanyTradingName"),("Company reg","CompanyRegistrationNo"),
+        ("Date of contract","DateOfContract"),("Site address","SiteAddress"),
+    ]:
+        details += row(label, key)
+
+    details += row("Passport/Birth cert", "PassportOrBirthCertLink", link=True)
+    details += row("CSCS front/back", "CSCSFrontBackLink", link=True)
+    details += row("Public liability", "PublicLiabilityLink", link=True)
+    details += row("Share code", "ShareCodeLink", link=True)
+    details += row("Contract accepted", "ContractAccepted")
+    details += row("Signature name", "SignatureName")
+    details += row("Signature time", "SignatureDateTime")
+    details += row("Last saved", "SubmittedAt")
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Onboarding Details</h1>
+          <p class="sub">{escape(username)}</p>
+        </div>
+        <div class="badge">ADMIN</div>
+      </div>
+
+      <div class="card" style="padding:12px;">
+        <div class="tablewrap">
+          <table style="min-width: 720px;"><tbody>{details}</tbody></table>
+        </div>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+
+
 # ================= LOCAL RUN =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
+
 
 
 
