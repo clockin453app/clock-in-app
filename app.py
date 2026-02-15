@@ -15,6 +15,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials as UserCredentials
 from google.auth.transport.requests import Request
 
+
 # ================= APP =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
@@ -54,6 +55,127 @@ work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 onboarding_sheet = spreadsheet.worksheet("Onboarding")
 
+
+# ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
+# We store the OAuth token in a small server-side file so employees can upload too.
+# (Otherwise, the token would exist only in the admin's browser session.)
+OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+
+UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
+OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "").strip()
+OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
+OAUTH_REDIRECT_URI = os.environ.get("OAUTH_REDIRECT_URI", "").strip()
+
+DRIVE_TOKEN_PATH = os.path.join(BASE_DIR, "drive_token.json")
+DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()  # optional backup
+
+def _make_oauth_flow():
+    if not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
+        raise RuntimeError("Missing OAuth env vars: OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET / OAUTH_REDIRECT_URI")
+
+    client_config = {
+        "web": {
+            "client_id": OAUTH_CLIENT_ID,
+            "client_secret": OAUTH_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [OAUTH_REDIRECT_URI],
+        }
+    }
+    return Flow.from_client_config(client_config, scopes=OAUTH_SCOPES, redirect_uri=OAUTH_REDIRECT_URI)
+
+def _save_drive_token(token_dict: dict):
+    try:
+        with open(DRIVE_TOKEN_PATH, "w", encoding="utf-8") as f:
+            json.dump(token_dict, f)
+    except Exception:
+        # If disk is read-only or fails, uploads may still work in this process via session,
+        # but employees in other sessions may not.
+        pass
+
+def _load_drive_token() -> dict | None:
+    # 1) try file
+    try:
+        if os.path.exists(DRIVE_TOKEN_PATH):
+            with open(DRIVE_TOKEN_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+
+    # 2) try env (optional)
+    if DRIVE_TOKEN_ENV:
+        try:
+            return json.loads(DRIVE_TOKEN_ENV)
+        except Exception:
+            return None
+
+    return None
+
+def get_user_drive_service():
+    token_data = session.get("drive_token")
+    if not token_data:
+        token_data = _load_drive_token()
+    if not token_data:
+        return None
+
+    creds_user = UserCredentials(**token_data)
+
+    if creds_user.expired and creds_user.refresh_token:
+        creds_user.refresh(Request())
+        token_data["token"] = creds_user.token
+        # refresh_token can be None sometimes on refresh, so keep existing if missing
+        if creds_user.refresh_token:
+            token_data["refresh_token"] = creds_user.refresh_token
+        session["drive_token"] = token_data
+        _save_drive_token(token_data)
+
+    return build("drive", "v3", credentials=creds_user, cache_discovery=False)
+
+def upload_to_drive(file_storage, filename_prefix: str) -> str:
+    """
+    Upload using OAuth user (Drive quota exists).
+    Works without Shared Drives.
+    """
+    drive_service = get_user_drive_service()
+    if not drive_service:
+        raise RuntimeError("Drive not connected. Admin must visit /connect-drive once.")
+
+    # If user configured a folder id, validate it exists (gives clearer error than create())
+    if UPLOAD_FOLDER_ID:
+        try:
+            drive_service.files().get(fileId=UPLOAD_FOLDER_ID, fields="id,name").execute()
+        except Exception as e:
+            raise RuntimeError(
+                "Upload folder not found. Fix ONBOARDING_DRIVE_FOLDER_ID (use a FOLDER id from your Drive)."
+            ) from e
+
+    file_bytes = file_storage.read()
+    file_storage.stream.seek(0)
+
+    original = file_storage.filename or "upload"
+    name = f"{filename_prefix}_{original}"
+
+    media = MediaIoBaseUpload(
+        io.BytesIO(file_bytes),
+        mimetype=file_storage.mimetype or "application/octet-stream",
+        resumable=False,
+    )
+
+    metadata = {"name": name}
+    if UPLOAD_FOLDER_ID:
+        metadata["parents"] = [UPLOAD_FOLDER_ID]
+
+    created = drive_service.files().create(
+        body=metadata,
+        media_body=media,
+        fields="id, webViewLink",
+    ).execute()
+
+    file_id = created["id"]
+    # Important: passports/IDs should NOT be made public
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+
 # ================= CONSTANTS =================
 COL_USER = 0
 COL_DATE = 1
@@ -64,6 +186,33 @@ COL_PAY = 5
 
 TAX_RATE = 0.20
 CLOCKIN_EARLIEST = dtime(8, 0, 0)
+
+
+# ================= PWA =================
+@app.get("/manifest.webmanifest")
+def manifest():
+    return {
+        "name": "WorkHours",
+        "short_name": "WorkHours",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#0b1220",
+        "theme_color": "#0b1220",
+        "icons": [
+            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
+        ],
+    }, 200, {"Content-Type": "application/manifest+json"}
+
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
+PWA_TAGS = """
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+"""
+
 
 # ================= UI =================
 STYLE = """
@@ -181,6 +330,12 @@ th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
   background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.22);
 }
 .timerBig{font-weight: 950; font-size: clamp(18px, 3vw, 26px);}
+
+.bad{
+  border: 1px solid rgba(239,68,68,.85) !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important;
+}
+.badLabel{ color: #fca5a5 !important; font-weight: 900; }
 </style>
 """
 
@@ -188,14 +343,6 @@ HEADER_ICON = """
 <div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>
 """
 
-VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
-PWA_TAGS = """
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0b1220">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-"""
 
 # ================= CONTRACT TEXT =================
 CONTRACT_TEXT = """Contract
@@ -290,6 +437,7 @@ This agreement is governed by the laws of England and Wales
 
 If any part of this agreement is breached or found unenforceable, the remaining clauses will continue to apply
 """.strip()
+
 
 # ================= HELPERS =================
 def safe_float(x, default=0.0):
@@ -432,97 +580,12 @@ def get_onboarding_record(username: str):
             return rec
     return None
 
-# ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
-OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
-UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
-OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "").strip()
-OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
-OAUTH_REDIRECT_URI = os.environ.get("OAUTH_REDIRECT_URI", "").strip()
-
-def _make_oauth_flow():
-    if not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
-        raise RuntimeError("Missing OAuth env vars: OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET / OAUTH_REDIRECT_URI")
-
-    client_config = {
-        "web": {
-            "client_id": OAUTH_CLIENT_ID,
-            "client_secret": OAUTH_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [OAUTH_REDIRECT_URI],
-        }
-    }
-    return Flow.from_client_config(client_config, scopes=OAUTH_SCOPES, redirect_uri=OAUTH_REDIRECT_URI)
-
-def get_user_drive_service():
-    token_data = session.get("drive_token")
-    if not token_data:
-        return None
-
-    creds_user = UserCredentials(**token_data)
-
-    if creds_user.expired and creds_user.refresh_token:
-        creds_user.refresh(Request())
-        session["drive_token"]["token"] = creds_user.token
-
-    return build("drive", "v3", credentials=creds_user, cache_discovery=False)
-
-def upload_to_drive(file_storage, filename_prefix: str) -> str:
-    """
-    Upload using OAuth user (admin-connected Drive).
-    No Shared Drive needed. Uses real Google Drive quota.
-    """
-    drive_service = get_user_drive_service()
-    if not drive_service:
-        raise RuntimeError("Google Drive not connected. Admin must visit /connect-drive once.")
-
-    file_bytes = file_storage.read()
-    file_storage.stream.seek(0)
-
-    original = file_storage.filename or "upload"
-    name = f"{filename_prefix}_{original}"
-
-    media = MediaIoBaseUpload(
-        io.BytesIO(file_bytes),
-        mimetype=file_storage.mimetype or "application/octet-stream",
-        resumable=False,
-    )
-
-    metadata = {"name": name}
-    if UPLOAD_FOLDER_ID:
-        metadata["parents"] = [UPLOAD_FOLDER_ID]
-
-    created = drive_service.files().create(
-        body=metadata,
-        media_body=media,
-        fields="id, webViewLink",
-    ).execute()
-
-    file_id = created["id"]
-
-    # IMPORTANT: for passport/ID docs, don't make them public.
-    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
-
-# ================= PWA =================
-@app.get("/manifest.webmanifest")
-def manifest():
-    return {
-        "name": "WorkHours",
-        "short_name": "WorkHours",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#0b1220",
-        "theme_color": "#0b1220",
-        "icons": [
-            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
-        ],
-    }, 200, {"Content-Type": "application/manifest+json"}
 
 # ================= ROUTES =================
 @app.get("/ping")
 def ping():
     return "pong", 200
+
 
 # ----- OAUTH CONNECT (ADMIN ONLY) -----
 @app.get("/connect-drive")
@@ -554,7 +617,7 @@ def oauth2callback():
     flow.fetch_token(authorization_response=request.url)
     creds_user = flow.credentials
 
-    session["drive_token"] = {
+    token_dict = {
         "token": creds_user.token,
         "refresh_token": creds_user.refresh_token,
         "token_uri": creds_user.token_uri,
@@ -562,7 +625,10 @@ def oauth2callback():
         "client_secret": creds_user.client_secret,
         "scopes": creds_user.scopes,
     }
+    session["drive_token"] = token_dict
+    _save_drive_token(token_dict)
     return redirect(url_for("home"))
+
 
 # ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
@@ -603,6 +669,7 @@ def login():
 def logout():
     session.clear()
     return redirect(url_for("login"))
+
 
 # ---------- CHANGE PASSWORD ----------
 @app.route("/password", methods=["GET", "POST"])
@@ -670,6 +737,7 @@ def change_password():
       </form>
     </div></div>
     """)
+
 
 # ---------- HOME (LIVE SESSION TIMER) ----------
 @app.route("/", methods=["GET", "POST"])
@@ -807,6 +875,7 @@ def home():
     </div></div>
     """)
 
+
 # ---------- MY TIMES ----------
 @app.get("/my-times")
 def my_times():
@@ -851,6 +920,7 @@ def my_times():
       </div>
     </div></div>
     """)
+
 
 # ---------- MY REPORTS ----------
 @app.get("/my-reports")
@@ -933,7 +1003,8 @@ def my_reports():
     </div></div>
     """)
 
-# ---------- ONBOARDING (OPTIONAL) ----------
+
+# ---------- ONBOARDING ----------
 @app.route("/onboarding", methods=["GET", "POST"])
 def onboarding():
     gate = require_login()
@@ -956,6 +1027,7 @@ def onboarding():
 
         def g(name): return (request.form.get(name, "") or "").strip()
 
+        # typed fields
         first = g("first")
         last = g("last")
         birth = g("birth")
@@ -993,141 +1065,198 @@ def onboarding():
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
+        # files
         passport_file = request.files.get("passport_file")
         cscs_file = request.files.get("cscs_file")
         pli_file = request.files.get("pli_file")
         share_file = request.files.get("share_file")
 
-        missing = []
-        def req(val, label):
-            if not val:
+        missing = []                # labels for user message
+        missing_fields = set()      # form field names to highlight
+
+        def req(value, input_name, label):
+            if not value:
                 missing.append(label)
+                missing_fields.add(input_name)
 
         if is_final:
-            req(first, "First Name")
-            req(last, "Last Name")
-            req(birth, "Birth Date")
-            req(phone_num, "Phone Number")
-            req(email, "Email")
-            req(ec_name, "Emergency Contact Name")
-            req(ec_phone, "Emergency Contact Phone")
+            req(first, "first", "First Name")
+            req(last, "last", "Last Name")
+            req(birth, "birth", "Birth Date")
+            req(phone_num, "phone_num", "Phone Number")
+            req(email, "email", "Email")
+            req(ec_name, "ec_name", "Emergency Contact Name")
+            req(ec_phone, "ec_phone", "Emergency Contact Phone")
+
             if medical not in ("yes", "no"):
                 missing.append("Medical condition (Yes/No)")
-            req(position, "Position")
-            req(cscs_no, "CSCS Number")
-            req(cscs_exp, "CSCS Expiry Date")
-            req(emp_type, "Employment Type")
+                missing_fields.add("medical")
+
+            if not position:
+                missing.append("Position")
+                missing_fields.add("position")
+
+            req(cscs_no, "cscs_no", "CSCS Number")
+            req(cscs_exp, "cscs_exp", "CSCS Expiry Date")
+            req(emp_type, "emp_type", "Employment Type")
+
             if rtw not in ("yes", "no"):
                 missing.append("Right to work UK (Yes/No)")
-            req(ni, "National Insurance")
-            req(utr, "UTR")
-            req(start_date, "Start Date")
-            req(acc_no, "Bank Account Number")
-            req(sort_code, "Sort Code")
-            req(acc_name, "Account Holder Name")
-            req(contract_date, "Date of Contract")
-            req(site_address, "Site address")
+                missing_fields.add("rtw")
+
+            req(ni, "ni", "National Insurance")
+            req(utr, "utr", "UTR")
+            req(start_date, "start_date", "Start Date")
+            req(acc_no, "acc_no", "Bank Account Number")
+            req(sort_code, "sort_code", "Sort Code")
+            req(acc_name, "acc_name", "Account Holder Name")
+            req(contract_date, "contract_date", "Date of Contract")
+            req(site_address, "site_address", "Site address")
+
             if not contract_accept:
                 missing.append("Contract acceptance")
-            req(signature_name, "Signature name")
+                missing_fields.add("contract_accept")
 
-            if not session.get("drive_token"):
-                missing.append("Drive not connected (admin must click Connect Drive)")
+            req(signature_name, "signature_name", "Signature name")
 
+            # Drive config checks
+            if not _load_drive_token() and not session.get("drive_token"):
+                missing.append("Upload system not connected (admin must click Connect Drive)")
+
+            if UPLOAD_FOLDER_ID == "":
+                # still ok (uploads go to My Drive root), but typically you want a folder
+                pass
+
+            # file requirements for final
             if not passport_file or not passport_file.filename:
                 missing.append("Passport/Birth Certificate file")
+                missing_fields.add("passport_file")
             if not cscs_file or not cscs_file.filename:
                 missing.append("CSCS (front/back) file")
+                missing_fields.add("cscs_file")
             if not pli_file or not pli_file.filename:
                 missing.append("Public Liability file")
+                missing_fields.add("pli_file")
             if not share_file or not share_file.filename:
                 missing.append("Share code file")
+                missing_fields.add("share_file")
+
+        typed = dict(request.form)
 
         if missing:
             msg = "Missing required (final): " + ", ".join(missing)
             msg_ok = False
-        else:
-            passport_link = v("PassportOrBirthCertLink")
-            cscs_link = v("CSCSFrontBackLink")
-            pli_link = v("PublicLiabilityLink")
-            share_link = v("ShareCodeLink")
+            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, missing_fields))
 
-            try:
-                if passport_file and passport_file.filename:
-                    passport_link = upload_to_drive(passport_file, f"{username}_passport")
-                if cscs_file and cscs_file.filename:
-                    cscs_link = upload_to_drive(cscs_file, f"{username}_cscs")
-                if pli_file and pli_file.filename:
-                    pli_link = upload_to_drive(pli_file, f"{username}_pli")
-                if share_file and share_file.filename:
-                    share_link = upload_to_drive(share_file, f"{username}_share")
-            except Exception as e:
-                msg = f"Upload error: {e}"
-                msg_ok = False
-                existing = get_onboarding_record(username)
-                return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok))
+        # Keep existing links if draft/partial
+        passport_link = v("PassportOrBirthCertLink")
+        cscs_link = v("CSCSFrontBackLink")
+        pli_link = v("PublicLiabilityLink")
+        share_link = v("ShareCodeLink")
 
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-            data = {
-                "FirstName": first,
-                "LastName": last,
-                "BirthDate": birth,
-                "PhoneCountryCode": phone_cc,
-                "PhoneNumber": phone_num,
-                "StreetAddress": street,
-                "City": city,
-                "Postcode": postcode,
-                "Email": email,
-                "EmergencyContactName": ec_name,
-                "EmergencyContactPhoneCountryCode": ec_cc,
-                "EmergencyContactPhoneNumber": ec_phone,
-                "MedicalCondition": medical,
-                "MedicalDetails": medical_details,
-                "Position": position,
-                "CSCSNumber": cscs_no,
-                "CSCSExpiryDate": cscs_exp,
-                "EmploymentType": emp_type,
-                "RightToWorkUK": rtw,
-                "NationalInsurance": ni,
-                "UTR": utr,
-                "StartDate": start_date,
-                "BankAccountNumber": acc_no,
-                "SortCode": sort_code,
-                "AccountHolderName": acc_name,
-                "CompanyTradingName": comp_trading,
-                "CompanyRegistrationNo": comp_reg,
-                "DateOfContract": contract_date,
-                "SiteAddress": site_address,
-
-                "PassportOrBirthCertLink": passport_link,
-                "CSCSFrontBackLink": cscs_link,
-                "PublicLiabilityLink": pli_link,
-                "ShareCodeLink": share_link,
-
-                "ContractAccepted": "TRUE" if (is_final and contract_accept) else "FALSE",
-                "SignatureName": signature_name,
-                "SignatureDateTime": now_str if is_final else "",
-                "SubmittedAt": now_str,
-            }
-
-            update_or_append_onboarding(username, data)
-
-            if is_final:
-                set_employee_field(username, "OnboardingCompleted", "TRUE")
-
+        # Upload files if provided
+        try:
+            # NOTE: Browser security means file inputs CANNOT be preserved after submit.
+            # Users must re-select files if validation fails.
+            if passport_file and passport_file.filename:
+                passport_link = upload_to_drive(passport_file, f"{username}_passport")
+            if cscs_file and cscs_file.filename:
+                cscs_link = upload_to_drive(cscs_file, f"{username}_cscs")
+            if pli_file and pli_file.filename:
+                pli_link = upload_to_drive(pli_file, f"{username}_pli")
+            if share_file and share_file.filename:
+                share_link = upload_to_drive(share_file, f"{username}_share")
+        except Exception as e:
+            msg = f"Upload error: {e}"
+            msg_ok = False
             existing = get_onboarding_record(username)
-            msg = "Saved draft." if not is_final else "Submitted final successfully."
-            msg_ok = True
+            typed = dict(request.form)
+            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, set()))
 
-    return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok))
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-def _render_onboarding(username, role, existing, msg, msg_ok):
-    def vv(key): return (existing or {}).get(key, "")
-    def checked_radio(key, value): return "checked" if vv(key) == value else ""
-    def selected(key, value): return "selected" if vv(key) == value else ""
+        data = {
+            "FirstName": first,
+            "LastName": last,
+            "BirthDate": birth,
+            "PhoneCountryCode": phone_cc,
+            "PhoneNumber": phone_num,
+            "StreetAddress": street,
+            "City": city,
+            "Postcode": postcode,
+            "Email": email,
+            "EmergencyContactName": ec_name,
+            "EmergencyContactPhoneCountryCode": ec_cc,
+            "EmergencyContactPhoneNumber": ec_phone,
+            "MedicalCondition": medical,
+            "MedicalDetails": medical_details,
+            "Position": position,
+            "CSCSNumber": cscs_no,
+            "CSCSExpiryDate": cscs_exp,
+            "EmploymentType": emp_type,
+            "RightToWorkUK": rtw,
+            "NationalInsurance": ni,
+            "UTR": utr,
+            "StartDate": start_date,
+            "BankAccountNumber": acc_no,
+            "SortCode": sort_code,
+            "AccountHolderName": acc_name,
+            "CompanyTradingName": comp_trading,
+            "CompanyRegistrationNo": comp_reg,
+            "DateOfContract": contract_date,
+            "SiteAddress": site_address,
+
+            "PassportOrBirthCertLink": passport_link,
+            "CSCSFrontBackLink": cscs_link,
+            "PublicLiabilityLink": pli_link,
+            "ShareCodeLink": share_link,
+
+            "ContractAccepted": "TRUE" if (is_final and contract_accept) else "FALSE",
+            "SignatureName": signature_name,
+            "SignatureDateTime": now_str if is_final else "",
+            "SubmittedAt": now_str,
+        }
+
+        update_or_append_onboarding(username, data)
+
+        if is_final:
+            set_employee_field(username, "OnboardingCompleted", "TRUE")
+
+        existing = get_onboarding_record(username)
+        msg = "Saved draft." if not is_final else "Submitted final successfully."
+        msg_ok = True
+
+        return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, {}, set()))
+
+    # GET
+    return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, None, None))
+
+
+def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missing_fields=None):
+    typed = typed or {}
+    missing_fields = missing_fields or set()
+
+    def val(input_name, existing_key):
+        if input_name in typed and typed[input_name] is not None:
+            return typed[input_name]
+        return (existing or {}).get(existing_key, "")
+
+    def bad(input_name):
+        return "bad" if input_name in missing_fields else ""
+
+    def bad_label(input_name):
+        return "badLabel" if input_name in missing_fields else ""
+
+    def checked_radio(input_name, existing_key, value):
+        return "checked" if val(input_name, existing_key) == value else ""
+
+    def selected(input_name, existing_key, value):
+        return "selected" if val(input_name, existing_key) == value else ""
 
     admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
+    drive_hint = ""
+    if role == "admin":
+        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive'>Connect Drive</a> once.</p>"
 
     return f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
@@ -1136,6 +1265,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
         <div class="title">
           <h1>Starter Form</h1>
           <p class="sub">Optional. Save Draft anytime. Submit Final when complete (required + contract + uploads).</p>
+          {drive_hint}
         </div>
       </div>
 
@@ -1145,132 +1275,181 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
       <form method="POST" enctype="multipart/form-data">
         <h2>Personal details</h2>
         <div class="row2">
-          <div><label class="sub">First Name</label><input class="input" name="first" value="{escape(vv('FirstName'))}"></div>
-          <div><label class="sub">Last Name</label><input class="input" name="last" value="{escape(vv('LastName'))}"></div>
+          <div>
+            <label class="sub {bad_label('first')}">First Name</label>
+            <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('last')}">Last Name</label>
+            <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
+          </div>
         </div>
-        <label class="sub" style="margin-top:10px; display:block;">Birth Date</label>
-        <input class="input" type="date" name="birth" value="{escape(vv('BirthDate'))}">
 
-        <label class="sub" style="margin-top:10px; display:block;">Phone Number</label>
+        <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
+        <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
+
+        <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
         <div class="row2">
-          <input class="input" name="phone_cc" value="{escape(vv('PhoneCountryCode') or '+44')}">
-          <input class="input" name="phone_num" value="{escape(vv('PhoneNumber'))}">
+          <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
+          <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
         </div>
 
         <h2>Address</h2>
-        <input class="input" name="street" placeholder="Street Address" value="{escape(vv('StreetAddress'))}">
+        <input class="input" name="street" placeholder="Street Address" value="{escape(val('street','StreetAddress'))}">
         <div class="row2">
-          <input class="input" name="city" placeholder="City" value="{escape(vv('City'))}">
-          <input class="input" name="postcode" placeholder="Postcode" value="{escape(vv('Postcode'))}">
+          <input class="input" name="city" placeholder="City" value="{escape(val('city','City'))}">
+          <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode','Postcode'))}">
         </div>
 
         <div class="row2">
-          <div><label class="sub">Email</label><input class="input" name="email" type="email" value="{escape(vv('Email'))}"></div>
-          <div><label class="sub">Emergency Contact Name</label><input class="input" name="ec_name" value="{escape(vv('EmergencyContactName'))}"></div>
+          <div>
+            <label class="sub {bad_label('email')}">Email</label>
+            <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
+            <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
+          </div>
         </div>
 
-        <label class="sub" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
+        <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
         <div class="row2">
-          <input class="input" name="ec_cc" value="{escape(vv('EmergencyContactPhoneCountryCode') or '+44')}">
-          <input class="input" name="ec_phone" value="{escape(vv('EmergencyContactPhoneNumber'))}">
+          <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
+          <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
         </div>
 
         <h2>Medical</h2>
-        <label class="sub">Do you have any medical condition that may affect you at work?</label>
+        <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
         <div class="row2">
           <label class="sub" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="medical" value="no" {checked_radio('MedicalCondition','no')}> No
+            <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
           </label>
           <label class="sub" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="medical" value="yes" {checked_radio('MedicalCondition','yes')}> Yes
+            <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
           </label>
         </div>
         <label class="sub" style="margin-top:10px; display:block;">Details</label>
-        <input class="input" name="medical_details" value="{escape(vv('MedicalDetails'))}">
+        <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
 
         <h2>Position</h2>
         <div class="row2">
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Bricklayer" {"checked" if vv('Position')=='Bricklayer' else ""}> Bricklayer</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Labourer" {"checked" if vv('Position')=='Labourer' else ""}> Labourer</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Fixer" {"checked" if vv('Position')=='Fixer' else ""}> Fixer</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Supervisor/Foreman" {"checked" if vv('Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman</label>
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
+          </label>
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
+          </label>
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
+          </label>
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
+          </label>
         </div>
 
         <div class="row2">
-          <div><label class="sub">CSCS Number</label><input class="input" name="cscs_no" value="{escape(vv('CSCSNumber'))}"></div>
-          <div><label class="sub">CSCS Expiry</label><input class="input" type="date" name="cscs_exp" value="{escape(vv('CSCSExpiryDate'))}"></div>
+          <div>
+            <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
+            <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
+            <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
+          </div>
         </div>
 
-        <label class="sub" style="margin-top:10px; display:block;">Employment Type</label>
-        <select class="input" name="emp_type">
+        <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
+        <select class="input {bad('emp_type')}" name="emp_type">
           <option value="">Please Select</option>
-          <option value="Self-employed" {selected('EmploymentType','Self-employed')}>Self-employed</option>
-          <option value="Ltd Company" {selected('EmploymentType','Ltd Company')}>Ltd Company</option>
-          <option value="Agency" {selected('EmploymentType','Agency')}>Agency</option>
-          <option value="PAYE" {selected('EmploymentType','PAYE')}>PAYE</option>
+          <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
+          <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
+          <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
+          <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
         </select>
 
-        <label class="sub" style="margin-top:10px; display:block;">Right to work in UK?</label>
+        <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
         <div class="row2">
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="yes" {checked_radio('RightToWorkUK','yes')}> Yes</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="no" {checked_radio('RightToWorkUK','no')}> No</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
+          </label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
+          </label>
         </div>
 
         <div class="row2">
-          <div><label class="sub">National Insurance</label><input class="input" name="ni" value="{escape(vv('NationalInsurance'))}"></div>
-          <div><label class="sub">UTR</label><input class="input" name="utr" value="{escape(vv('UTR'))}"></div>
+          <div>
+            <label class="sub {bad_label('ni')}">National Insurance</label>
+            <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('utr')}">UTR</label>
+            <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
+          </div>
         </div>
 
-        <label class="sub" style="margin-top:10px; display:block;">Start Date</label>
-        <input class="input" type="date" name="start_date" value="{escape(vv('StartDate'))}">
+        <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
+        <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
 
         <h2>Bank details</h2>
         <div class="row2">
-          <div><label class="sub">Account Number</label><input class="input" name="acc_no" value="{escape(vv('BankAccountNumber'))}"></div>
-          <div><label class="sub">Sort Code</label><input class="input" name="sort_code" value="{escape(vv('SortCode'))}"></div>
+          <div>
+            <label class="sub {bad_label('acc_no')}">Account Number</label>
+            <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('sort_code')}">Sort Code</label>
+            <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
+          </div>
         </div>
-        <label class="sub" style="margin-top:10px; display:block;">Account Holder Name</label>
-        <input class="input" name="acc_name" value="{escape(vv('AccountHolderName'))}">
+        <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
+        <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
 
         <h2>Company details</h2>
-        <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(vv('CompanyTradingName'))}">
-        <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(vv('CompanyRegistrationNo'))}">
+        <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
+        <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
 
         <h2>Contract & site</h2>
         <div class="row2">
-          <div><label class="sub">Date of Contract</label><input class="input" type="date" name="contract_date" value="{escape(vv('DateOfContract'))}"></div>
-          <div><label class="sub">Site address</label><input class="input" name="site_address" value="{escape(vv('SiteAddress'))}"></div>
+          <div>
+            <label class="sub {bad_label('contract_date')}">Date of Contract</label>
+            <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('site_address')}">Site address</label>
+            <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
+          </div>
         </div>
 
         <h2>Upload documents</h2>
-        <p class="sub">Draft: optional uploads. Final: all 4 required.</p>
+        <p class="sub">Draft: optional uploads. Final: all 4 required. (Files must be re-selected if a Final submit fails.)</p>
 
-        <label class="sub">Passport or Birth Certificate</label>
-        <input class="input" type="file" name="passport_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify(vv('PassportOrBirthCertLink'))}</p>
+        <label class="sub {bad_label('passport_file')}">Passport or Birth Certificate</label>
+        <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
 
-        <label class="sub" style="margin-top:10px; display:block;">CSCS Card (front & back)</label>
-        <input class="input" type="file" name="cscs_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify(vv('CSCSFrontBackLink'))}</p>
+        <label class="sub {bad_label('cscs_file')}" style="margin-top:10px; display:block;">CSCS Card (front & back)</label>
+        <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
 
-        <label class="sub" style="margin-top:10px; display:block;">Public Liability Insurance</label>
-        <input class="input" type="file" name="pli_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify(vv('PublicLiabilityLink'))}</p>
+        <label class="sub {bad_label('pli_file')}" style="margin-top:10px; display:block;">Public Liability Insurance</label>
+        <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
 
-        <label class="sub" style="margin-top:10px; display:block;">Share Code / Confirmation</label>
-        <input class="input" type="file" name="share_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify(vv('ShareCodeLink'))}</p>
+        <label class="sub {bad_label('share_file')}" style="margin-top:10px; display:block;">Share Code / Confirmation</label>
+        <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
 
         <h2>Contract</h2>
         <div class="contract"><pre style="white-space:pre-wrap; margin:0;">{escape(CONTRACT_TEXT)}</pre></div>
 
-        <label class="sub" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-          <input type="checkbox" name="contract_accept" value="yes">
+        <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+          <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
           I have read and accept the contract terms (required for Final)
         </label>
 
-        <label class="sub" style="margin-top:10px; display:block;">Signature (type your full name)</label>
-        <input class="input" name="signature_name" value="{escape(vv('SignatureName'))}">
+        <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
+        <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
 
         <div class="btnrow actionbar">
           <button class="green" name="submit_type" value="draft" type="submit">Save Draft</button>
@@ -1284,6 +1463,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
       </form>
     </div></div>
     """
+
 
 # ---------- ADMIN DASHBOARD ----------
 @app.get("/admin")
@@ -1306,6 +1486,7 @@ def admin():
       </div>
     </div></div>
     """)
+
 
 # ---------- ADMIN ONBOARDING ----------
 @app.get("/admin/onboarding")
@@ -1376,8 +1557,8 @@ def admin_onboarding_detail(username):
         abort(404)
 
     def row(label, key, link=False):
-        v = rec.get(key, "")
-        vv = linkify(v) if link else escape(v)
+        v_ = rec.get(key, "")
+        vv = linkify(v_) if link else escape(v_)
         return f"<tr><th>{escape(label)}</th><td>{vv}</td></tr>"
 
     details = ""
@@ -1421,6 +1602,7 @@ def admin_onboarding_detail(username):
       </div>
     </div></div>
     """)
+
 
 # ---------- WEEKLY PAYROLL ----------
 @app.get("/weekly")
@@ -1470,6 +1652,7 @@ def weekly_report():
         ])
 
     return "Weekly payroll stored successfully."
+
 
 # ---------- MONTHLY PAYROLL ----------
 @app.route("/monthly", methods=["GET", "POST"])
@@ -1535,10 +1718,9 @@ def monthly_report():
     </div></div>
     """)
 
+
 # ================= LOCAL RUN =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
 
