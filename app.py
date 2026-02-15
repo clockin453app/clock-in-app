@@ -1228,7 +1228,7 @@ def home():
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" href="/onboarding">
+        <a class="menuItem" href="/password">
           <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Agreements</div></div>
           <div class="chev">›</div>
         </a>
@@ -1730,6 +1730,7 @@ def admin_payroll():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
