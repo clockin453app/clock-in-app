@@ -7,9 +7,13 @@ from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, render_template_string, request, redirect, session, url_for, abort
 from datetime import datetime, timedelta, time as dtime
 
-from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
+
+# OAuth (Drive as real user) - fixes: "Service Accounts do not have storage quota"
+from google_auth_oauthlib.flow import Flow
+from google.oauth2.credentials import Credentials as UserCredentials
+from google.auth.transport.requests import Request
 
 # ================= APP =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -21,7 +25,7 @@ app = Flask(
 )
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
-# ================= GOOGLE SHEETS =================
+# ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
@@ -50,63 +54,6 @@ work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 onboarding_sheet = spreadsheet.worksheet("Onboarding")
 
-# ================= GOOGLE DRIVE UPLOAD =================
-drive_creds = Credentials.from_service_account_info(
-    creds_dict,
-    scopes=["https://www.googleapis.com/auth/drive"],
-)
-drive_service = build("drive", "v3", credentials=drive_creds, cache_discovery=False)
-
-UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
-
-def upload_to_drive(file_storage, filename_prefix: str) -> str:
-    """
-    Upload to specific folder (shared with service account).
-    supportsAllDrives=True handles Shared Drives too.
-    """
-    if not UPLOAD_FOLDER_ID:
-        raise RuntimeError("Missing ONBOARDING_DRIVE_FOLDER_ID environment variable.")
-
-    # Access check: clearer error if folder isn't accessible
-    try:
-        drive_service.files().get(
-            fileId=UPLOAD_FOLDER_ID,
-            fields="id,name",
-            supportsAllDrives=True
-        ).execute()
-    except Exception as e:
-        raise RuntimeError(
-            "Drive folder not accessible. Check folder ID + share folder to service account as Editor."
-        ) from e
-
-    file_bytes = file_storage.read()
-    file_storage.stream.seek(0)
-
-    original = file_storage.filename or "upload"
-    name = f"{filename_prefix}_{original}"
-
-    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=file_storage.mimetype, resumable=False)
-    metadata = {"name": name, "parents": [UPLOAD_FOLDER_ID]}
-
-    created = drive_service.files().create(
-        body=metadata,
-        media_body=media,
-        fields="id, webViewLink",
-        supportsAllDrives=True
-    ).execute()
-
-    file_id = created["id"]
-
-    # Public read link (simple)
-    drive_service.permissions().create(
-        fileId=file_id,
-        body={"type": "anyone", "role": "reader"},
-        fields="id",
-        supportsAllDrives=True
-    ).execute()
-
-    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
-
 # ================= CONSTANTS =================
 COL_USER = 0
 COL_DATE = 1
@@ -117,31 +64,6 @@ COL_PAY = 5
 
 TAX_RATE = 0.20
 CLOCKIN_EARLIEST = dtime(8, 0, 0)
-
-# ================= PWA =================
-@app.get("/manifest.webmanifest")
-def manifest():
-    return {
-        "name": "WorkHours",
-        "short_name": "WorkHours",
-        "start_url": "/",
-        "display": "standalone",
-        "background_color": "#0b1220",
-        "theme_color": "#0b1220",
-        "icons": [
-            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
-        ],
-    }, 200, {"Content-Type": "application/manifest+json"}
-
-VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
-PWA_TAGS = """
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0b1220">
-<meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
-"""
 
 # ================= UI =================
 STYLE = """
@@ -253,11 +175,26 @@ th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
 @media (min-width: 720px){.kpi{grid-template-columns:repeat(4,minmax(0,1fr));}}
 .kpi .box{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:16px;padding:10px;}
 .kpi .big{font-size: clamp(16px,2.6vw,20px);font-weight:900;}
+
+.timerBox{
+  margin-top: 12px; padding: 12px; border-radius: 16px;
+  background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.22);
+}
+.timerBig{font-weight: 950; font-size: clamp(18px, 3vw, 26px);}
 </style>
 """
 
 HEADER_ICON = """
 <div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>
+"""
+
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
+PWA_TAGS = """
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b1220">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
 """
 
 # ================= CONTRACT TEXT =================
@@ -495,10 +432,137 @@ def get_onboarding_record(username: str):
             return rec
     return None
 
+# ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
+OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive.file"]
+UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
+OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "").strip()
+OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
+OAUTH_REDIRECT_URI = os.environ.get("OAUTH_REDIRECT_URI", "").strip()
+
+def _make_oauth_flow():
+    if not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
+        raise RuntimeError("Missing OAuth env vars: OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET / OAUTH_REDIRECT_URI")
+
+    client_config = {
+        "web": {
+            "client_id": OAUTH_CLIENT_ID,
+            "client_secret": OAUTH_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [OAUTH_REDIRECT_URI],
+        }
+    }
+    return Flow.from_client_config(client_config, scopes=OAUTH_SCOPES, redirect_uri=OAUTH_REDIRECT_URI)
+
+def get_user_drive_service():
+    token_data = session.get("drive_token")
+    if not token_data:
+        return None
+
+    creds_user = UserCredentials(**token_data)
+
+    if creds_user.expired and creds_user.refresh_token:
+        creds_user.refresh(Request())
+        session["drive_token"]["token"] = creds_user.token
+
+    return build("drive", "v3", credentials=creds_user, cache_discovery=False)
+
+def upload_to_drive(file_storage, filename_prefix: str) -> str:
+    """
+    Upload using OAuth user (admin-connected Drive).
+    No Shared Drive needed. Uses real Google Drive quota.
+    """
+    drive_service = get_user_drive_service()
+    if not drive_service:
+        raise RuntimeError("Google Drive not connected. Admin must visit /connect-drive once.")
+
+    file_bytes = file_storage.read()
+    file_storage.stream.seek(0)
+
+    original = file_storage.filename or "upload"
+    name = f"{filename_prefix}_{original}"
+
+    media = MediaIoBaseUpload(
+        io.BytesIO(file_bytes),
+        mimetype=file_storage.mimetype or "application/octet-stream",
+        resumable=False,
+    )
+
+    metadata = {"name": name}
+    if UPLOAD_FOLDER_ID:
+        metadata["parents"] = [UPLOAD_FOLDER_ID]
+
+    created = drive_service.files().create(
+        body=metadata,
+        media_body=media,
+        fields="id, webViewLink",
+    ).execute()
+
+    file_id = created["id"]
+
+    # IMPORTANT: for passport/ID docs, don't make them public.
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+# ================= PWA =================
+@app.get("/manifest.webmanifest")
+def manifest():
+    return {
+        "name": "WorkHours",
+        "short_name": "WorkHours",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#0b1220",
+        "theme_color": "#0b1220",
+        "icons": [
+            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
+        ],
+    }, 200, {"Content-Type": "application/manifest+json"}
+
 # ================= ROUTES =================
 @app.get("/ping")
 def ping():
     return "pong", 200
+
+# ----- OAUTH CONNECT (ADMIN ONLY) -----
+@app.get("/connect-drive")
+def connect_drive():
+    gate = require_login()
+    if gate:
+        return gate
+    if session.get("role") != "admin":
+        return redirect(url_for("home"))
+
+    flow = _make_oauth_flow()
+    auth_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+    )
+    session["oauth_state"] = state
+    return redirect(auth_url)
+
+@app.get("/oauth2callback")
+def oauth2callback():
+    gate = require_login()
+    if gate:
+        return gate
+    if session.get("role") != "admin":
+        return redirect(url_for("home"))
+
+    flow = _make_oauth_flow()
+    flow.fetch_token(authorization_response=request.url)
+    creds_user = flow.credentials
+
+    session["drive_token"] = {
+        "token": creds_user.token,
+        "refresh_token": creds_user.refresh_token,
+        "token_uri": creds_user.token_uri,
+        "client_id": creds_user.client_id,
+        "client_secret": creds_user.client_secret,
+        "scopes": creds_user.scopes,
+    }
+    return redirect(url_for("home"))
 
 # ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
@@ -556,7 +620,6 @@ def change_password():
         new1 = request.form.get("new1", "")
         new2 = request.form.get("new2", "")
 
-        # verify current password
         user_ok = False
         for user in employees_sheet.get_all_records():
             if user.get("Username") == username and user.get("Password") == current:
@@ -608,7 +671,7 @@ def change_password():
     </div></div>
     """)
 
-# ---------- HOME ----------
+# ---------- HOME (LIVE SESSION TIMER) ----------
 @app.route("/", methods=["GET", "POST"])
 def home():
     gate = require_login()
@@ -664,7 +727,52 @@ def home():
                 work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
                 msg = "Clocked Out"
 
+    # Determine active session start for live timer
+    rows2 = work_sheet.get_all_values()
+    osf2 = find_open_shift(rows2, username)
+    active_start_iso = ""
+    active_start_label = ""
+    if osf2:
+        _, d, t = osf2
+        try:
+            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+            active_start_iso = start_dt.isoformat()
+            active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            active_start_iso = ""
+            active_start_label = ""
+
+    timer_html = ""
+    if active_start_iso:
+        timer_html = f"""
+        <div class="timerBox">
+          <div class="sub">Active session started</div>
+          <div class="timerBig" id="timerDisplay">00:00:00</div>
+          <div class="sub" style="margin-top:6px;">Start: {escape(active_start_label)}</div>
+        </div>
+        <script>
+          (function() {{
+            const startIso = "{escape(active_start_iso)}";
+            const start = new Date(startIso);
+            const el = document.getElementById("timerDisplay");
+            function pad(n) {{ return String(n).padStart(2, "0"); }}
+            function tick() {{
+              const now = new Date();
+              let diff = Math.floor((now - start) / 1000);
+              if (diff < 0) diff = 0;
+              const h = Math.floor(diff / 3600);
+              const m = Math.floor((diff % 3600) / 60);
+              const s = diff % 60;
+              el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+            }}
+            tick();
+            setInterval(tick, 1000);
+          }})();
+        </script>
+        """
+
     admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
+    drive_btn = "<a href='/connect-drive'><button class='blue btnSmall' type='button'>Connect Drive</button></a>" if role == "admin" else ""
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
@@ -678,6 +786,8 @@ def home():
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
+      {timer_html}
+
       <div class="actionbar">
         <form method="POST" class="btnrow" style="margin:0;">
           <button class="green" name="action" value="in">Clock In</button>
@@ -686,6 +796,7 @@ def home():
 
         <div class="navgrid">
           {admin_btn if admin_btn else ""}
+          {drive_btn if drive_btn else ""}
           <a href="/my-times"><button class="blue btnSmall" type="button">My Times</button></a>
           <a href="/my-reports"><button class="blue btnSmall" type="button">My Reports</button></a>
           <a href="/onboarding"><button class="blue btnSmall" type="button">Starter Form</button></a>
@@ -716,7 +827,10 @@ def my_times():
         cout = r[COL_OUT]
         hrs = r[COL_HOURS]
         pay = r[COL_PAY]
-        body.append(f"<tr><td>{escape(date)}</td><td>{escape(cin)}</td><td>{escape(cout)}</td><td>{escape(hrs)}</td><td>{escape(pay)}</td></tr>")
+        body.append(
+            f"<tr><td>{escape(date)}</td><td>{escape(cin)}</td>"
+            f"<td>{escape(cout)}</td><td>{escape(hrs)}</td><td>{escape(pay)}</td></tr>"
+        )
 
     table = "".join(body) if body else "<tr><td colspan='5'>No records yet.</td></tr>"
 
@@ -917,8 +1031,9 @@ def onboarding():
                 missing.append("Contract acceptance")
             req(signature_name, "Signature name")
 
-            if not UPLOAD_FOLDER_ID:
-                missing.append("Upload system not configured (missing ONBOARDING_DRIVE_FOLDER_ID)")
+            if not session.get("drive_token"):
+                missing.append("Drive not connected (admin must click Connect Drive)")
+
             if not passport_file or not passport_file.filename:
                 missing.append("Passport/Birth Certificate file")
             if not cscs_file or not cscs_file.filename:
@@ -1183,6 +1298,7 @@ def admin():
         <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding</p></div>
       </div>
       <div class="navgrid actionbar">
+        <a href="/connect-drive"><button class="blue btnSmall" type="button">Connect Drive</button></a>
         <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
         <a href="/weekly"><button class="blue btnSmall" type="button">Weekly Payroll</button></a>
         <a href="/monthly"><button class="blue btnSmall" type="button">Monthly Payroll</button></a>
@@ -1344,7 +1460,6 @@ def weekly_report():
         tax = round(gross * TAX_RATE, 2)
         net = round(gross - tax, 2)
 
-        # PayrollReports header should be: Type,Year,Week,Employee,Hours,Gross,Tax,Net,GeneratedOn
         payroll_sheet.append_row([
             "Weekly", year, week_number, employee,
             round(data["hours"], 2),
@@ -1371,7 +1486,6 @@ def monthly_report():
 
         existing = payroll_sheet.get_all_records()
         for row in existing:
-            # using "Week" column to store the month number for Monthly rows
             if row.get("Type") == "Monthly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == month:
                 return "Monthly payroll already generated."
 
@@ -1425,5 +1539,6 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
