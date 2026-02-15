@@ -1,3 +1,4 @@
+# ===================== app.py (FULL) =====================
 import os
 import json
 import io
@@ -38,11 +39,16 @@ creds_dict = load_google_creds_dict()
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
 client = gspread.authorize(creds)
 
-spreadsheet = client.open("WorkHours")
+SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
+if SPREADSHEET_ID:
+    spreadsheet = client.open_by_key(SPREADSHEET_ID)
+else:
+    spreadsheet = client.open("WorkHours")
+
 employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
-onboarding_sheet = spreadsheet.worksheet("Onboarding")  # must exist
+onboarding_sheet = spreadsheet.worksheet("Onboarding")
 
 # ================= GOOGLE DRIVE UPLOAD =================
 drive_creds = Credentials.from_service_account_info(
@@ -52,15 +58,26 @@ drive_creds = Credentials.from_service_account_info(
 drive_service = build("drive", "v3", credentials=drive_creds, cache_discovery=False)
 
 UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
-if not UPLOAD_FOLDER_ID:
-    print("WARNING: ONBOARDING_DRIVE_FOLDER_ID not set. Final onboarding uploads will fail.")
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
     """
-    Uploads to a Drive folder and makes file public (view). Returns webViewLink.
+    Upload to specific folder (shared with service account).
+    supportsAllDrives=True handles Shared Drives too.
     """
     if not UPLOAD_FOLDER_ID:
         raise RuntimeError("Missing ONBOARDING_DRIVE_FOLDER_ID environment variable.")
+
+    # Access check: clearer error if folder isn't accessible
+    try:
+        drive_service.files().get(
+            fileId=UPLOAD_FOLDER_ID,
+            fields="id,name",
+            supportsAllDrives=True
+        ).execute()
+    except Exception as e:
+        raise RuntimeError(
+            "Drive folder not accessible. Check folder ID + share folder to service account as Editor."
+        ) from e
 
     file_bytes = file_storage.read()
     file_storage.stream.seek(0)
@@ -75,21 +92,22 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
         body=metadata,
         media_body=media,
         fields="id, webViewLink",
+        supportsAllDrives=True
     ).execute()
 
     file_id = created["id"]
 
-    # Anyone with link can view
+    # Public read link (simple)
     drive_service.permissions().create(
         fileId=file_id,
         body={"type": "anyone", "role": "reader"},
         fields="id",
+        supportsAllDrives=True
     ).execute()
 
     return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
 
 # ================= CONSTANTS =================
-# WorkHours columns (0-based)
 COL_USER = 0
 COL_DATE = 1
 COL_IN = 2
@@ -98,7 +116,7 @@ COL_HOURS = 4
 COL_PAY = 5
 
 TAX_RATE = 0.20
-CLOCKIN_EARLIEST = dtime(8, 0, 0)  # 08:00
+CLOCKIN_EARLIEST = dtime(8, 0, 0)
 
 # ================= PWA =================
 @app.get("/manifest.webmanifest")
@@ -129,12 +147,8 @@ PWA_TAGS = """
 STYLE = """
 <style>
 :root{
-  --bg:#0b1220;
-  --card:#111c33;
-  --card2:#0b1328;
-  --text:#e5e7eb;
-  --muted:#a7b0c0;
-  --border:rgba(255,255,255,.08);
+  --bg:#0b1220; --card:#111c33; --card2:#0b1328;
+  --text:#e5e7eb; --muted:#a7b0c0; --border:rgba(255,255,255,.08);
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --radius: 22px;
 
@@ -142,10 +156,9 @@ STYLE = """
   --h2: clamp(18px, 3vw, 24px);
   --p:  clamp(15px, 2.4vw, 19px);
   --small: clamp(13px, 2vw, 15px);
-  --btn: clamp(14px, 2.2vw, 16px);
+  --btn: clamp(13px, 2.2vw, 15px);
   --input: clamp(16px, 2.4vw, 19px);
 }
-
 *{ box-sizing:border-box; }
 html, body { height:100%; }
 body{
@@ -158,7 +171,6 @@ body{
   padding: clamp(12px, 3vw, 22px);
   -webkit-text-size-adjust: 100%;
 }
-
 .app{ width:100%; max-width: 980px; margin: 0 auto; }
 .card{
   background: linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
@@ -167,199 +179,88 @@ body{
   padding: clamp(16px, 3vw, 24px);
   box-shadow: var(--shadow);
 }
-
-.header{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-}
-.title{ display:flex; flex-direction:column; gap: 6px; }
-
-h1{ font-size: var(--h1); margin:0; letter-spacing: .2px; }
-h2{ font-size: var(--h2); margin: 0; color: var(--text); }
-.sub{ font-size: var(--small); color: var(--muted); margin: 0; line-height:1.35; }
-
+.header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;}
+.title{display:flex;flex-direction:column;gap:6px;}
+h1{font-size:var(--h1);margin:0;letter-spacing:.2px;}
+h2{font-size:var(--h2);margin: 14px 0 8px 0;}
+.sub{font-size:var(--small);color:var(--muted);margin:0;line-height:1.35;}
 .appIcon{
-  width: 64px;
-  height: 64px;
-  border-radius: 18px;
+  width: 58px;height: 58px;border-radius: 18px;
   background:
     radial-gradient(22px 22px at 30% 30%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%),
     linear-gradient(135deg, rgba(96,165,250,.95) 0%, rgba(167,139,250,.95) 55%, rgba(34,197,94,.95) 120%);
   border: 1px solid rgba(255,255,255,.14);
   box-shadow: 0 16px 26px rgba(0,0,0,.35);
-  display:grid;
-  place-items:center;
-  flex: 0 0 auto;
+  display:grid;place-items:center;flex: 0 0 auto;
 }
-.appIcon .glyph{ width: 30px; height: 30px; position: relative; }
-.appIcon .glyph:before,
-.appIcon .glyph:after{
-  content:"";
-  position:absolute;
-  inset:0;
-  border-radius: 12px;
+.appIcon .glyph{ width: 28px; height: 28px; position: relative; }
+.appIcon .glyph:before,.appIcon .glyph:after{
+  content:""; position:absolute; inset:0; border-radius: 12px;
   border: 3px solid rgba(10,15,30,.82);
 }
 .appIcon .glyph:after{ inset: 7px; border-radius: 9px; }
 .appIcon .dot{
-  position:absolute;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: rgba(10,15,30,.82);
-  left: 50%; top: 50%;
+  position:absolute; width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(10,15,30,.82); left: 50%; top: 50%;
   transform: translate(-50%,-50%);
 }
-
 .message{
-  margin-top: 12px;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(34,197,94,.12);
-  border: 1px solid rgba(34,197,94,.22);
-  font-size: var(--p);
-  font-weight: 700;
-  text-align:center;
+  margin-top: 12px; padding: 10px 12px; border-radius: 16px;
+  background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.22);
+  font-size: var(--p); font-weight: 800; text-align:center;
 }
-.message.error{
-  background: rgba(239,68,68,.12);
-  border: 1px solid rgba(239,68,68,.22);
-}
-
-a { color: #93c5fd; text-decoration:none; }
-a:hover { text-decoration:underline; }
-
+.message.error{background: rgba(239,68,68,.12);border: 1px solid rgba(239,68,68,.22);}
+a{color:#93c5fd;text-decoration:none;}
+a:hover{text-decoration:underline;}
 .input{
-  width: 100%;
-  padding: 12px 12px;
-  border-radius: 14px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.04);
-  color: var(--text);
-  font-size: var(--input);
-  outline:none;
-  margin-top: 10px;
+  width:100%;padding:12px 12px;border-radius:14px;border:1px solid var(--border);
+  background: rgba(255,255,255,.04);color: var(--text);font-size: var(--input);
+  outline:none;margin-top:10px;
 }
-.input::placeholder{ color: rgba(229,231,235,.55); }
-
-.row2{
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 10px;
-}
-@media (max-width: 640px){
-  .row2{ grid-template-columns: 1fr; }
-}
-
-.btnrow{
-  display:flex;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-top: 12px;
-}
-
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+@media (max-width: 640px){.row2{grid-template-columns:1fr;}}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
 button{
-  border: none;
-  border-radius: 14px;
-  padding: 11px 11px;
-  font-weight: 900;
-  cursor: pointer;
-  font-size: var(--btn);
-  min-height: 42px;
-  flex: 1 1 140px;
+  border:none;border-radius:14px;padding:10px 10px;font-weight:900;cursor:pointer;
+  font-size: var(--btn); min-height: 40px; flex: 1 1 130px;
   box-shadow: 0 10px 18px rgba(0,0,0,.22);
 }
-.btnSmall{
-  min-height: 38px !important;
-  padding: 9px 10px !important;
-  font-size: clamp(13px, 2vw, 14px) !important;
-  flex: 0 0 auto !important;
-}
-
-.green{ background: #22c55e; color:#06230f; }
-.red{ background: #ef4444; color:#2a0606; }
-.blue{ background: #60a5fa; color:#071527; }
-.purple{ background: #a78bfa; color:#140726; }
-.gray{ background: rgba(255,255,255,.10); color: var(--text); border: 1px solid var(--border); }
-
+.btnSmall{min-height: 34px !important;padding: 8px 10px !important;flex:0 0 auto !important;}
+.green{background:#22c55e;color:#06230f;}
+.red{background:#ef4444;color:#2a0606;}
+.blue{background:#60a5fa;color:#071527;}
+.purple{background:#a78bfa;color:#140726;}
+.gray{background:rgba(255,255,255,.10);color: var(--text); border:1px solid var(--border);}
 .actionbar{
-  position: sticky;
-  bottom: 10px;
-  margin-top: 14px;
-  padding: 10px;
-  border-radius: 18px;
-  background: rgba(15,23,42,.65);
-  border: 1px solid var(--border);
+  position: sticky; bottom: 10px; margin-top: 14px; padding: 10px;
+  border-radius: 18px; background: rgba(15,23,42,.65); border: 1px solid var(--border);
   backdrop-filter: blur(10px);
 }
-
-.navgrid{
-  display:grid;
-  grid-template-columns: repeat(3, minmax(0,1fr));
-  gap: 10px;
-  margin-top: 10px;
-}
-@media (min-width: 720px){
-  .navgrid{ grid-template-columns: repeat(6, minmax(0,1fr)); }
-}
-.navgrid a{ text-decoration:none; }
-.navgrid button{
-  width: 100%;
-  min-height: 40px;
-  padding: 9px 10px;
-  font-size: clamp(13px, 2vw, 14px);
-  flex: none;
-}
-
-.tablewrap{
-  margin-top: 14px;
-  overflow:auto;
-  border-radius: 18px;
-  border: 1px solid var(--border);
-}
-table{
-  width: 100%;
-  border-collapse: collapse;
-  min-width: 720px;
-  background: rgba(255,255,255,.03);
-}
-th, td{
-  padding: 10px 10px;
-  border-bottom: 1px solid var(--border);
-  text-align:left;
-  font-size: clamp(13px, 2vw, 15px);
-}
-th{
-  position: sticky;
-  top: 0;
-  background: rgba(0,0,0,.25);
-  backdrop-filter: blur(8px);
-}
-
+.navgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px;}
+@media (min-width: 720px){.navgrid{grid-template-columns:repeat(6,minmax(0,1fr));}}
+.navgrid a{text-decoration:none;}
+.navgrid button{width:100%;min-height:34px;padding:8px 10px;flex:none;}
+.tablewrap{margin-top:14px;overflow:auto;border-radius:18px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;min-width:720px;background:rgba(255,255,255,.03);}
+th,td{padding:10px 10px;border-bottom:1px solid var(--border);text-align:left;font-size: clamp(13px,2vw,15px);}
+th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
 .contract{
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: rgba(0,0,0,.20);
-  max-height: 280px;
-  overflow:auto;
-  font-size: var(--small);
-  color: var(--text);
-  line-height: 1.35;
+  margin-top:12px;padding:12px;border-radius:16px;border:1px solid var(--border);
+  background:rgba(0,0,0,.20);max-height:280px;overflow:auto;font-size: var(--small);
+  color: var(--text); line-height:1.35;
 }
+.kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;}
+@media (min-width: 720px){.kpi{grid-template-columns:repeat(4,minmax(0,1fr));}}
+.kpi .box{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:16px;padding:10px;}
+.kpi .big{font-size: clamp(16px,2.6vw,20px);font-weight:900;}
 </style>
 """
 
 HEADER_ICON = """
-<div class="appIcon" aria-hidden="true">
-  <div class="glyph"><div class="dot"></div></div>
-</div>
+<div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>
 """
 
-# ================= CONTRACT TEXT (YOUR FULL TEXT) =================
+# ================= CONTRACT TEXT =================
 CONTRACT_TEXT = """Contract
 
 By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
@@ -472,7 +373,7 @@ def linkify(url: str) -> str:
     if not u:
         return ""
     uesc = escape(u)
-    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>{uesc}</a>"
+    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>Open</a>"
 
 def require_login():
     if "username" not in session:
@@ -488,7 +389,6 @@ def require_admin():
     return None
 
 def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
-    # If EarlyAccess is FALSE and user clocks in before 08:00 -> store 08:00:00
     if (not early_access) and (now_dt.time() < CLOCKIN_EARLIEST):
         return CLOCKIN_EARLIEST.strftime("%H:%M:%S")
     return now_dt.strftime("%H:%M:%S")
@@ -528,7 +428,6 @@ def update_or_append_onboarding(username: str, data: dict):
     headers = get_sheet_headers(onboarding_sheet)
     if not headers or "Username" not in headers:
         raise RuntimeError("Onboarding sheet must have header row with 'Username'.")
-
     rownum = find_row_by_username(onboarding_sheet, username)
 
     row_values = []
@@ -538,9 +437,9 @@ def update_or_append_onboarding(username: str, data: dict):
         else:
             row_values.append(str(data.get(h, "")))
 
-    end_a1 = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")  # column letters
+    end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
     if rownum:
-        onboarding_sheet.update(f"A{rownum}:{end_a1}{rownum}", [row_values])
+        onboarding_sheet.update(f"A{rownum}:{end_col}{rownum}", [row_values])
     else:
         onboarding_sheet.append_row(row_values)
 
@@ -563,6 +462,23 @@ def set_employee_field(username: str, field: str, value: str):
         return False
     employees_sheet.update_cell(rownum, fcol, value)
     return True
+
+def update_employee_password(username: str, new_password: str) -> bool:
+    vals = employees_sheet.get_all_values()
+    if not vals:
+        return False
+    headers = vals[0]
+    if "Username" not in headers or "Password" not in headers:
+        return False
+    ucol = headers.index("Username")
+    pcol = headers.index("Password") + 1
+
+    for i in range(1, len(vals)):
+        row = vals[i]
+        if len(row) > ucol and row[ucol] == username:
+            employees_sheet.update_cell(i + 1, pcol, new_password)
+            return True
+    return False
 
 def get_onboarding_record(username: str):
     headers = get_sheet_headers(onboarding_sheet)
@@ -600,7 +516,6 @@ def login():
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
                 session["early_access"] = parse_bool(user.get("EarlyAccess", False))
                 return redirect(url_for("home"))
-
         msg = "Invalid login"
 
     return render_template_string(f"""
@@ -609,7 +524,6 @@ def login():
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>WorkHours</h1><p class="sub">Sign in</p></div>
       </div>
-      <h2>Login</h2>
       <form method="POST">
         <input class="input" name="username" placeholder="Username" required>
         <input class="input" type="password" name="password" placeholder="Password" required>
@@ -626,7 +540,75 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# ---------- HOME (clock in/out always available) ----------
+# ---------- CHANGE PASSWORD ----------
+@app.route("/password", methods=["GET", "POST"])
+def change_password():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    msg = ""
+    ok = False
+
+    if request.method == "POST":
+        current = request.form.get("current", "")
+        new1 = request.form.get("new1", "")
+        new2 = request.form.get("new2", "")
+
+        # verify current password
+        user_ok = False
+        for user in employees_sheet.get_all_records():
+            if user.get("Username") == username and user.get("Password") == current:
+                user_ok = True
+                break
+
+        if not user_ok:
+            msg = "Current password is incorrect."
+            ok = False
+        elif len(new1) < 4:
+            msg = "New password too short (min 4)."
+            ok = False
+        elif new1 != new2:
+            msg = "New passwords do not match."
+            ok = False
+        else:
+            if update_employee_password(username, new1):
+                msg = "Password updated successfully."
+                ok = True
+            else:
+                msg = "Could not update password (check Employees sheet headers)."
+                ok = False
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Change Password</h1><p class="sub">Update your login password</p></div>
+      </div>
+
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+
+      <form method="POST">
+        <label class="sub">Current password</label>
+        <input class="input" type="password" name="current" required>
+
+        <label class="sub" style="margin-top:10px; display:block;">New password</label>
+        <input class="input" type="password" name="new1" required>
+
+        <label class="sub" style="margin-top:10px; display:block;">Repeat new password</label>
+        <input class="input" type="password" name="new2" required>
+
+        <div class="btnrow actionbar">
+          <button class="blue" type="submit">Save</button>
+          <a href="/"><button class="gray" type="button">Back</button></a>
+        </div>
+      </form>
+    </div></div>
+    """)
+
+# ---------- HOME ----------
 @app.route("/", methods=["GET", "POST"])
 def home():
     gate = require_login()
@@ -651,7 +633,7 @@ def home():
 
         if action == "in":
             if has_any_row_today(rows, username, today_str):
-                msg = "You already clocked in today (1 clock-in per day)."
+                msg = "You already clocked in today (1 per day)."
                 msg_class = "message error"
             elif find_open_shift(rows, username):
                 msg = "You are already clocked in."
@@ -690,7 +672,7 @@ def home():
       <div class="header">{HEADER_ICON}
         <div class="title">
           <h1>Hi, {escape(username)}</h1>
-          <p class="sub">You can clock in/out anytime. Starter Form is optional.</p>
+          <p class="sub">Clock in/out + view your times & pay. Starter Form is optional.</p>
         </div>
       </div>
 
@@ -704,9 +686,135 @@ def home():
 
         <div class="navgrid">
           {admin_btn if admin_btn else ""}
+          <a href="/my-times"><button class="blue btnSmall" type="button">My Times</button></a>
+          <a href="/my-reports"><button class="blue btnSmall" type="button">My Reports</button></a>
           <a href="/onboarding"><button class="blue btnSmall" type="button">Starter Form</button></a>
+          <a href="/password"><button class="blue btnSmall" type="button">Password</button></a>
           <a href="/logout"><button class="gray btnSmall" type="button">Logout</button></a>
         </div>
+      </div>
+    </div></div>
+    """)
+
+# ---------- MY TIMES ----------
+@app.get("/my-times")
+def my_times():
+    gate = require_login()
+    if gate:
+        return gate
+    username = session["username"]
+
+    rows = work_sheet.get_all_values()
+    body = []
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+        if r[COL_USER] != username:
+            continue
+        date = r[COL_DATE]
+        cin = r[COL_IN]
+        cout = r[COL_OUT]
+        hrs = r[COL_HOURS]
+        pay = r[COL_PAY]
+        body.append(f"<tr><td>{escape(date)}</td><td>{escape(cin)}</td><td>{escape(cout)}</td><td>{escape(hrs)}</td><td>{escape(pay)}</td></tr>")
+
+    table = "".join(body) if body else "<tr><td colspan='5'>No records yet.</td></tr>"
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>My Times</h1><p class="sub">Your clock-in/out history</p></div>
+      </div>
+      <div class="btnrow">
+        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
+      </div>
+      <div class="tablewrap">
+        <table style="min-width:640px;">
+          <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+          <tbody>{table}</tbody>
+        </table>
+      </div>
+    </div></div>
+    """)
+
+# ---------- MY REPORTS ----------
+@app.get("/my-reports")
+def my_reports():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    now = datetime.now()
+    today = now.date()
+    week_start = today - timedelta(days=today.weekday())
+
+    rows = work_sheet.get_all_values()
+    daily_hours = daily_pay = 0.0
+    weekly_hours = weekly_pay = 0.0
+    monthly_hours = monthly_pay = 0.0
+
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+        if r[COL_USER] != username:
+            continue
+        if not r[COL_HOURS]:
+            continue
+        try:
+            d = datetime.strptime(r[COL_DATE], "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        hrs = safe_float(r[COL_HOURS], 0.0)
+        pay = safe_float(r[COL_PAY], 0.0)
+
+        if d == today:
+            daily_hours += hrs
+            daily_pay += pay
+        if d >= week_start:
+            weekly_hours += hrs
+            weekly_pay += pay
+        if d.year == today.year and d.month == today.month:
+            monthly_hours += hrs
+            monthly_pay += pay
+
+    def gross_tax_net(gross):
+        tax = round(gross * TAX_RATE, 2)
+        net = round(gross - tax, 2)
+        return round(gross, 2), tax, net
+
+    d_g, d_t, d_n = gross_tax_net(daily_pay)
+    w_g, w_t, w_n = gross_tax_net(weekly_pay)
+    m_g, m_t, m_n = gross_tax_net(monthly_pay)
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>My Reports</h1><p class="sub">Totals + tax (20%) + net</p></div>
+      </div>
+
+      <div class="kpi">
+        <div class="box"><div class="sub">Today Hours</div><div class="big">{round(daily_hours,2)}</div></div>
+        <div class="box"><div class="sub">Today Gross</div><div class="big">{d_g}</div></div>
+        <div class="box"><div class="sub">Today Tax</div><div class="big">{d_t}</div></div>
+        <div class="box"><div class="sub">Today Net</div><div class="big">{d_n}</div></div>
+
+        <div class="box"><div class="sub">Week Hours</div><div class="big">{round(weekly_hours,2)}</div></div>
+        <div class="box"><div class="sub">Week Gross</div><div class="big">{w_g}</div></div>
+        <div class="box"><div class="sub">Week Tax</div><div class="big">{w_t}</div></div>
+        <div class="box"><div class="sub">Week Net</div><div class="big">{w_n}</div></div>
+
+        <div class="box"><div class="sub">Month Hours</div><div class="big">{round(monthly_hours,2)}</div></div>
+        <div class="box"><div class="sub">Month Gross</div><div class="big">{m_g}</div></div>
+        <div class="box"><div class="sub">Month Tax</div><div class="big">{m_t}</div></div>
+        <div class="box"><div class="sub">Month Net</div><div class="big">{m_n}</div></div>
+      </div>
+
+      <div class="btnrow actionbar">
+        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
     </div></div>
     """)
@@ -734,7 +842,6 @@ def onboarding():
 
         def g(name): return (request.form.get(name, "") or "").strip()
 
-        # Fields (can be blank for draft)
         first = g("first")
         last = g("last")
         birth = g("birth")
@@ -748,14 +855,14 @@ def onboarding():
         ec_cc = g("ec_cc") or "+44"
         ec_phone = g("ec_phone")
 
-        medical = g("medical")  # yes/no/blank
+        medical = g("medical")
         medical_details = g("medical_details")
 
         position = g("position")
         cscs_no = g("cscs_no")
         cscs_exp = g("cscs_exp")
         emp_type = g("emp_type")
-        rtw = g("rtw")  # yes/no/blank
+        rtw = g("rtw")
         ni = g("ni")
         utr = g("utr")
         start_date = g("start_date")
@@ -772,7 +879,6 @@ def onboarding():
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
-        # Files (optional on draft, required on final)
         passport_file = request.files.get("passport_file")
         cscs_file = request.files.get("cscs_file")
         pli_file = request.files.get("pli_file")
@@ -783,7 +889,6 @@ def onboarding():
             if not val:
                 missing.append(label)
 
-        # FINAL validation only
         if is_final:
             req(first, "First Name")
             req(last, "Last Name")
@@ -812,7 +917,6 @@ def onboarding():
                 missing.append("Contract acceptance")
             req(signature_name, "Signature name")
 
-            # Files required on final
             if not UPLOAD_FOLDER_ID:
                 missing.append("Upload system not configured (missing ONBOARDING_DRIVE_FOLDER_ID)")
             if not passport_file or not passport_file.filename:
@@ -828,8 +932,6 @@ def onboarding():
             msg = "Missing required (final): " + ", ".join(missing)
             msg_ok = False
         else:
-            # Upload files only if provided (draft optional)
-            # Keep existing links if user saves draft without re-uploading
             passport_link = v("PassportOrBirthCertLink")
             cscs_link = v("CSCSFrontBackLink")
             pli_link = v("PublicLiabilityLink")
@@ -896,7 +998,6 @@ def onboarding():
 
             update_or_append_onboarding(username, data)
 
-            # Mark completed only on FINAL
             if is_final:
                 set_employee_field(username, "OnboardingCompleted", "TRUE")
 
@@ -919,7 +1020,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
       <div class="header">{HEADER_ICON}
         <div class="title">
           <h1>Starter Form</h1>
-          <p class="sub">Optional. Use <b>Save Draft</b> anytime. Use <b>Submit Final</b> when complete (required + contract + uploads).</p>
+          <p class="sub">Optional. Save Draft anytime. Submit Final when complete (required + contract + uploads).</p>
         </div>
       </div>
 
@@ -932,8 +1033,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
           <div><label class="sub">First Name</label><input class="input" name="first" value="{escape(vv('FirstName'))}"></div>
           <div><label class="sub">Last Name</label><input class="input" name="last" value="{escape(vv('LastName'))}"></div>
         </div>
-
-        <label class="sub" style="margin-top:10px; display:block;">Birth Date (YYYY-MM-DD)</label>
+        <label class="sub" style="margin-top:10px; display:block;">Birth Date</label>
         <input class="input" type="date" name="birth" value="{escape(vv('BirthDate'))}">
 
         <label class="sub" style="margin-top:10px; display:block;">Phone Number</label>
@@ -942,7 +1042,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
           <input class="input" name="phone_num" value="{escape(vv('PhoneNumber'))}">
         </div>
 
-        <h2 style="margin-top:18px;">Address</h2>
+        <h2>Address</h2>
         <input class="input" name="street" placeholder="Street Address" value="{escape(vv('StreetAddress'))}">
         <div class="row2">
           <input class="input" name="city" placeholder="City" value="{escape(vv('City'))}">
@@ -960,7 +1060,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
           <input class="input" name="ec_phone" value="{escape(vv('EmergencyContactPhoneNumber'))}">
         </div>
 
-        <h2 style="margin-top:18px;">Medical</h2>
+        <h2>Medical</h2>
         <label class="sub">Do you have any medical condition that may affect you at work?</label>
         <div class="row2">
           <label class="sub" style="display:flex; gap:10px; align-items:center;">
@@ -973,7 +1073,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
         <label class="sub" style="margin-top:10px; display:block;">Details</label>
         <input class="input" name="medical_details" value="{escape(vv('MedicalDetails'))}">
 
-        <h2 style="margin-top:18px;">Position</h2>
+        <h2>Position</h2>
         <div class="row2">
           <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Bricklayer" {"checked" if vv('Position')=='Bricklayer' else ""}> Bricklayer</label>
           <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Labourer" {"checked" if vv('Position')=='Labourer' else ""}> Labourer</label>
@@ -983,7 +1083,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
 
         <div class="row2">
           <div><label class="sub">CSCS Number</label><input class="input" name="cscs_no" value="{escape(vv('CSCSNumber'))}"></div>
-          <div><label class="sub">CSCS Expiry (YYYY-MM-DD)</label><input class="input" name="cscs_exp" value="{escape(vv('CSCSExpiryDate'))}"></div>
+          <div><label class="sub">CSCS Expiry</label><input class="input" type="date" name="cscs_exp" value="{escape(vv('CSCSExpiryDate'))}"></div>
         </div>
 
         <label class="sub" style="margin-top:10px; display:block;">Employment Type</label>
@@ -1009,7 +1109,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
         <label class="sub" style="margin-top:10px; display:block;">Start Date</label>
         <input class="input" type="date" name="start_date" value="{escape(vv('StartDate'))}">
 
-        <h2 style="margin-top:18px;">Bank details</h2>
+        <h2>Bank details</h2>
         <div class="row2">
           <div><label class="sub">Account Number</label><input class="input" name="acc_no" value="{escape(vv('BankAccountNumber'))}"></div>
           <div><label class="sub">Sort Code</label><input class="input" name="sort_code" value="{escape(vv('SortCode'))}"></div>
@@ -1017,36 +1117,36 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
         <label class="sub" style="margin-top:10px; display:block;">Account Holder Name</label>
         <input class="input" name="acc_name" value="{escape(vv('AccountHolderName'))}">
 
-        <h2 style="margin-top:18px;">Company details</h2>
+        <h2>Company details</h2>
         <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(vv('CompanyTradingName'))}">
         <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(vv('CompanyRegistrationNo'))}">
 
-        <h2 style="margin-top:18px;">Subcontractor details</h2>
+        <h2>Contract & site</h2>
         <div class="row2">
           <div><label class="sub">Date of Contract</label><input class="input" type="date" name="contract_date" value="{escape(vv('DateOfContract'))}"></div>
           <div><label class="sub">Site address</label><input class="input" name="site_address" value="{escape(vv('SiteAddress'))}"></div>
         </div>
 
-        <h2 style="margin-top:18px;">Upload documents</h2>
-        <p class="sub">You can upload now (draft) or later. For <b>Submit Final</b> all 4 files are required.</p>
+        <h2>Upload documents</h2>
+        <p class="sub">Draft: optional uploads. Final: all 4 required.</p>
 
         <label class="sub">Passport or Birth Certificate</label>
         <input class="input" type="file" name="passport_file" accept="image/*,.pdf">
-        <p class="sub">Saved link: {linkify(vv('PassportOrBirthCertLink'))}</p>
+        <p class="sub">Saved: {linkify(vv('PassportOrBirthCertLink'))}</p>
 
         <label class="sub" style="margin-top:10px; display:block;">CSCS Card (front & back)</label>
         <input class="input" type="file" name="cscs_file" accept="image/*,.pdf">
-        <p class="sub">Saved link: {linkify(vv('CSCSFrontBackLink'))}</p>
+        <p class="sub">Saved: {linkify(vv('CSCSFrontBackLink'))}</p>
 
         <label class="sub" style="margin-top:10px; display:block;">Public Liability Insurance</label>
         <input class="input" type="file" name="pli_file" accept="image/*,.pdf">
-        <p class="sub">Saved link: {linkify(vv('PublicLiabilityLink'))}</p>
+        <p class="sub">Saved: {linkify(vv('PublicLiabilityLink'))}</p>
 
         <label class="sub" style="margin-top:10px; display:block;">Share Code / Confirmation</label>
         <input class="input" type="file" name="share_file" accept="image/*,.pdf">
-        <p class="sub">Saved link: {linkify(vv('ShareCodeLink'))}</p>
+        <p class="sub">Saved: {linkify(vv('ShareCodeLink'))}</p>
 
-        <h2 style="margin-top:18px;">Contract</h2>
+        <h2>Contract</h2>
         <div class="contract"><pre style="white-space:pre-wrap; margin:0;">{escape(CONTRACT_TEXT)}</pre></div>
 
         <label class="sub" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
@@ -1070,7 +1170,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok):
     </div></div>
     """
 
-# ---------- ADMIN ----------
+# ---------- ADMIN DASHBOARD ----------
 @app.get("/admin")
 def admin():
     gate = require_admin()
@@ -1080,15 +1180,18 @@ def admin():
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
       <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Admin</h1><p class="sub">Onboarding records</p></div>
+        <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding</p></div>
       </div>
       <div class="navgrid actionbar">
         <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
+        <a href="/weekly"><button class="blue btnSmall" type="button">Weekly Payroll</button></a>
+        <a href="/monthly"><button class="blue btnSmall" type="button">Monthly Payroll</button></a>
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
     </div></div>
     """)
 
+# ---------- ADMIN ONBOARDING ----------
 @app.get("/admin/onboarding")
 def admin_onboarding_list():
     gate = require_admin()
@@ -1098,7 +1201,7 @@ def admin_onboarding_list():
     q = (request.args.get("q", "") or "").strip().lower()
     vals = onboarding_sheet.get_all_values()
     if not vals:
-        body = "<tr><td colspan='4'>No onboarding data.</td></tr>"
+        body = "<tr><td colspan='3'>No onboarding data.</td></tr>"
     else:
         headers = vals[0]
 
@@ -1116,18 +1219,14 @@ def admin_onboarding_list():
             fn = r[i_fn] if i_fn is not None and i_fn < len(r) else ""
             ln = r[i_ln] if i_ln is not None and i_ln < len(r) else ""
             sub = r[i_sub] if i_sub is not None and i_sub < len(r) else ""
-
             name = (fn + " " + ln).strip() or u
             if q and (q not in u.lower() and q not in name.lower()):
                 continue
-
             rows_html.append(
                 f"<tr><td><a href='/admin/onboarding/{escape(u)}'>{escape(name)}</a></td>"
-                f"<td>{escape(u)}</td><td>{escape(sub)}</td>"
-                f"<td>{escape('YES' if u else '')}</td></tr>"
+                f"<td>{escape(u)}</td><td>{escape(sub)}</td></tr>"
             )
-
-        body = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No matches.</td></tr>"
+        body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No matches.</td></tr>"
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
@@ -1144,7 +1243,7 @@ def admin_onboarding_list():
 
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Name</th><th>Username</th><th>Last saved</th><th>Record</th></tr></thead>
+          <thead><tr><th>Name</th><th>Username</th><th>Last saved</th></tr></thead>
           <tbody>{body}</tbody>
         </table>
       </div>
@@ -1156,7 +1255,6 @@ def admin_onboarding_detail(username):
     gate = require_admin()
     if gate:
         return gate
-
     rec = get_onboarding_record(username)
     if not rec:
         abort(404)
@@ -1167,51 +1265,27 @@ def admin_onboarding_detail(username):
         return f"<tr><th>{escape(label)}</th><td>{vv}</td></tr>"
 
     details = ""
-    # core
-    details += row("Username", "Username")
-    details += row("First name", "FirstName")
-    details += row("Last name", "LastName")
-    details += row("Birth date", "BirthDate")
-    details += row("Phone", "PhoneCountryCode")
-    details += row("Phone number", "PhoneNumber")
-    details += row("Email", "Email")
-    details += row("Street", "StreetAddress")
-    details += row("City", "City")
-    details += row("Postcode", "Postcode")
+    for label, key in [
+        ("Username","Username"),("First name","FirstName"),("Last name","LastName"),
+        ("Birth date","BirthDate"),("Phone CC","PhoneCountryCode"),("Phone","PhoneNumber"),
+        ("Email","Email"),("Street","StreetAddress"),("City","City"),("Postcode","Postcode"),
+        ("Emergency contact","EmergencyContactName"),("Emergency CC","EmergencyContactPhoneCountryCode"),
+        ("Emergency phone","EmergencyContactPhoneNumber"),
+        ("Medical","MedicalCondition"),("Medical details","MedicalDetails"),
+        ("Position","Position"),("CSCS number","CSCSNumber"),("CSCS expiry","CSCSExpiryDate"),
+        ("Employment type","EmploymentType"),("Right to work UK","RightToWorkUK"),
+        ("NI","NationalInsurance"),("UTR","UTR"),("Start date","StartDate"),
+        ("Bank account","BankAccountNumber"),("Sort code","SortCode"),("Account holder","AccountHolderName"),
+        ("Company trading","CompanyTradingName"),("Company reg","CompanyRegistrationNo"),
+        ("Date of contract","DateOfContract"),("Site address","SiteAddress"),
+    ]:
+        details += row(label, key)
 
-    details += row("Emergency contact", "EmergencyContactName")
-    details += row("Emergency CC", "EmergencyContactPhoneCountryCode")
-    details += row("Emergency phone", "EmergencyContactPhoneNumber")
-
-    details += row("Medical", "MedicalCondition")
-    details += row("Medical details", "MedicalDetails")
-
-    details += row("Position", "Position")
-    details += row("CSCS number", "CSCSNumber")
-    details += row("CSCS expiry", "CSCSExpiryDate")
-    details += row("Employment type", "EmploymentType")
-    details += row("Right to work UK", "RightToWorkUK")
-    details += row("NI", "NationalInsurance")
-    details += row("UTR", "UTR")
-    details += row("Start date", "StartDate")
-
-    details += row("Bank account", "BankAccountNumber")
-    details += row("Sort code", "SortCode")
-    details += row("Account holder", "AccountHolderName")
-
-    details += row("Company trading", "CompanyTradingName")
-    details += row("Company reg", "CompanyRegistrationNo")
-
-    details += row("Date of contract", "DateOfContract")
-    details += row("Site address", "SiteAddress")
-
-    # file links
     details += row("Passport/Birth cert", "PassportOrBirthCertLink", link=True)
     details += row("CSCS front/back", "CSCSFrontBackLink", link=True)
     details += row("Public liability", "PublicLiabilityLink", link=True)
     details += row("Share code", "ShareCodeLink", link=True)
 
-    # contract
     details += row("Contract accepted", "ContractAccepted")
     details += row("Signature name", "SignatureName")
     details += row("Signature time", "SignatureDateTime")
@@ -1223,16 +1297,127 @@ def admin_onboarding_detail(username):
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>Onboarding Details</h1><p class="sub">{escape(username)}</p></div>
       </div>
-
       <div class="btnrow">
         <a href="/admin/onboarding"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
-
       <div class="tablewrap">
-        <table style="min-width: 640px;">
-          <tbody>{details}</tbody>
-        </table>
+        <table style="min-width: 640px;"><tbody>{details}</tbody></table>
       </div>
+    </div></div>
+    """)
+
+# ---------- WEEKLY PAYROLL ----------
+@app.get("/weekly")
+def weekly_report():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    now = datetime.now()
+    year, week_number, _ = now.isocalendar()
+    generated_on = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    existing = payroll_sheet.get_all_records()
+    for row in existing:
+        if row.get("Type") == "Weekly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == week_number:
+            return "Weekly payroll already generated."
+
+    rows = work_sheet.get_all_values()
+    payroll = {}
+
+    for r in rows[1:]:
+        if len(r) <= COL_PAY or r[COL_HOURS] == "":
+            continue
+        try:
+            row_date = datetime.strptime(r[COL_DATE], "%Y-%m-%d")
+        except Exception:
+            continue
+        y, w, _ = row_date.isocalendar()
+        if y == year and w == week_number:
+            emp = r[COL_USER]
+            payroll.setdefault(emp, {"hours": 0.0, "pay": 0.0})
+            payroll[emp]["hours"] += safe_float(r[COL_HOURS], 0.0)
+            payroll[emp]["pay"] += safe_float(r[COL_PAY], 0.0)
+
+    for employee, data in payroll.items():
+        gross = round(data["pay"], 2)
+        tax = round(gross * TAX_RATE, 2)
+        net = round(gross - tax, 2)
+
+        # PayrollReports header should be: Type,Year,Week,Employee,Hours,Gross,Tax,Net,GeneratedOn
+        payroll_sheet.append_row([
+            "Weekly", year, week_number, employee,
+            round(data["hours"], 2),
+            gross,
+            tax,
+            net,
+            generated_on
+        ])
+
+    return "Weekly payroll stored successfully."
+
+# ---------- MONTHLY PAYROLL ----------
+@app.route("/monthly", methods=["GET", "POST"])
+def monthly_report():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    if request.method == "POST":
+        selected = request.form["month"]  # YYYY-MM
+        year = int(selected.split("-")[0])
+        month = int(selected.split("-")[1])
+        generated_on = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        existing = payroll_sheet.get_all_records()
+        for row in existing:
+            # using "Week" column to store the month number for Monthly rows
+            if row.get("Type") == "Monthly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == month:
+                return "Monthly payroll already generated."
+
+        rows = work_sheet.get_all_values()
+        payroll = {}
+
+        for r in rows[1:]:
+            if len(r) <= COL_PAY or r[COL_HOURS] == "":
+                continue
+            try:
+                row_date = datetime.strptime(r[COL_DATE], "%Y-%m-%d")
+            except Exception:
+                continue
+            if row_date.year == year and row_date.month == month:
+                emp = r[COL_USER]
+                payroll.setdefault(emp, {"hours": 0.0, "pay": 0.0})
+                payroll[emp]["hours"] += safe_float(r[COL_HOURS], 0.0)
+                payroll[emp]["pay"] += safe_float(r[COL_PAY], 0.0)
+
+        for employee, data in payroll.items():
+            gross = round(data["pay"], 2)
+            tax = round(gross * TAX_RATE, 2)
+            net = round(gross - tax, 2)
+
+            payroll_sheet.append_row([
+                "Monthly", year, month, employee,
+                round(data["hours"], 2),
+                gross,
+                tax,
+                net,
+                generated_on
+            ])
+
+        return "Monthly payroll stored successfully."
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Monthly Payroll</h1><p class="sub">Generate payroll for a month</p></div>
+      </div>
+      <form method="POST" class="btnrow">
+        <input class="input" type="month" name="month" required>
+        <button class="blue btnSmall" type="submit">Generate</button>
+        <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+      </form>
     </div></div>
     """)
 
