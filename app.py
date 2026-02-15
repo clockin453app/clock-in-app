@@ -1,4 +1,10 @@
-# ===================== app.py (FULL - REWRITE, LIGHT THEME + PAYROLL REPORT/PRINT) =====================
+# ===================== app.py (FULL - FINAL REWRITE) =====================
+# White/light professional theme
+# Admin "Payroll Report" (All Times) grouped by employee + print view + CSV
+# Mobile buttons fill the screen (2-column grid on phones)
+# Same Google Sheets + Drive OAuth flow as your working version
+# CSRF protection + password hashing with auto-migrate from plaintext
+
 import os
 import json
 import io
@@ -66,6 +72,7 @@ def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
     if raw:
         return json.loads(raw)
+    # local fallback (DO NOT COMMIT credentials.json)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -341,7 +348,7 @@ a:hover{text-decoration:underline;}
 .row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 @media (max-width: 640px){.row2{grid-template-columns:1fr;}}
 
-.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px; justify-content:center;}
 button{
   border: 1px solid rgba(15,23,42,.12);
   border-radius:12px;
@@ -448,6 +455,31 @@ th{position:sticky;top:0;background: rgba(248,250,252,.95);backdrop-filter: blur
   .onlyPrint{ display:block !important; }
   .tablewrap{ border:1px solid rgba(0,0,0,.15); }
   th{ background:#f3f4f6 !important; }
+}
+
+/* ---- Mobile: make buttons fill the phone width nicely ---- */
+@media (max-width: 640px){
+
+  .btnrow{
+    display: grid !important;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    width: 100%;
+    gap: 10px;
+  }
+
+  .btnrow button{
+    width: 100%;
+    flex: none !important;
+  }
+
+  .navgrid{
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    width: 100%;
+  }
+
+  .navgrid button{
+    width: 100%;
+  }
 }
 </style>
 """
@@ -1020,7 +1052,7 @@ def home():
 
       {timer_html}
 
-      <div class="actionbar noPrint">
+      <div class="actionbar">
         <form method="POST" class="btnrow" style="margin:0;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <button class="green" name="action" value="in">Clock In</button>
@@ -1074,7 +1106,7 @@ def my_times():
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>My Times</h1><p class="sub">Clock-in/out history</p></div>
       </div>
-      <div class="btnrow noPrint">
+      <div class="btnrow">
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
       <div class="tablewrap">
@@ -1162,7 +1194,7 @@ def my_reports():
         <div class="box"><div class="sub">Month Net</div><div class="big">{m_n}</div></div>
       </div>
 
-      <div class="btnrow actionbar noPrint">
+      <div class="btnrow actionbar">
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
     </div></div>
@@ -1194,6 +1226,7 @@ def onboarding():
 
         def g(name): return (request.form.get(name, "") or "").strip()
 
+        # typed fields
         first = g("first")
         last = g("last")
         birth = g("birth")
@@ -1231,6 +1264,7 @@ def onboarding():
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
+        # files
         passport_file = request.files.get("passport_file")
         cscs_file = request.files.get("cscs_file")
         pli_file = request.files.get("pli_file")
@@ -1307,11 +1341,13 @@ def onboarding():
             msg_ok = False
             return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, missing_fields, csrf))
 
+        # Keep existing links if draft/partial
         passport_link = v("PassportOrBirthCertLink")
         cscs_link = v("CSCSFrontBackLink")
         pli_link = v("PublicLiabilityLink")
         share_link = v("ShareCodeLink")
 
+        # Upload files if provided
         try:
             if passport_file and passport_file.filename:
                 passport_link = upload_to_drive(passport_file, f"{username}_passport")
@@ -1383,6 +1419,7 @@ def onboarding():
 
         return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, {}, set(), csrf))
 
+    # GET
     return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, None, None, csrf))
 
 
@@ -1410,7 +1447,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
     admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
     drive_hint = ""
     if role == "admin":
-        drive_hint = "<p class='sub noPrint'>Admin: if uploads fail, click <a href='/connect-drive'>Connect Drive</a> once.</p>"
+        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive'>Connect Drive</a> once.</p>"
 
     return f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
@@ -1620,13 +1657,13 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
         <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
         <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
 
-        <div class="btnrow actionbar noPrint">
+        <div class="btnrow actionbar">
           <button class="green" name="submit_type" value="draft" type="submit">Save Draft</button>
           <button class="purple" name="submit_type" value="final" type="submit">Submit Final</button>
           <a href="/"><button class="gray" type="button">Back</button></a>
         </div>
 
-        <div class="navgrid noPrint">
+        <div class="navgrid">
           {admin_btn if admin_btn else ""}
         </div>
       </form>
@@ -1647,10 +1684,10 @@ def admin():
         <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding + reports</p></div>
         <div class="badge">ADMIN</div>
       </div>
-      <div class="navgrid actionbar noPrint">
+      <div class="navgrid actionbar">
         <a href="/connect-drive"><button class="blue btnSmall" type="button">Connect Drive</button></a>
         <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
-        <a href="/admin/times"><button class="blue btnSmall" type="button">All Times</button></a>
+        <a href="/admin/times"><button class="blue btnSmall" type="button">Payroll Report</button></a>
         <a href="/weekly"><button class="blue btnSmall" type="button">Weekly Payroll</button></a>
         <a href="/monthly"><button class="blue btnSmall" type="button">Monthly Payroll</button></a>
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
@@ -1666,12 +1703,11 @@ def admin_times():
     if gate:
         return gate
 
-    # Filters
-    q = (request.args.get("q", "") or "").strip().lower()            # username contains
-    date_from = (request.args.get("from", "") or "").strip()         # YYYY-MM-DD
-    date_to = (request.args.get("to", "") or "").strip()             # YYYY-MM-DD
+    q = (request.args.get("q", "") or "").strip().lower()              # username contains
+    date_from = (request.args.get("from", "") or "").strip()           # YYYY-MM-DD
+    date_to = (request.args.get("to", "") or "").strip()               # YYYY-MM-DD
     group_mode = (request.args.get("group", "employee") or "").strip().lower()  # employee / none
-    download = (request.args.get("download", "") or "").strip()      # "1" => CSV
+    download = (request.args.get("download", "") or "").strip()        # "1" => CSV
 
     now = datetime.now(TZ)
     generated_on = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -1687,17 +1723,19 @@ def admin_times():
             return False
         return True
 
-    # Collect filtered rows
-    filtered = []  # list of dicts
+    filtered = []
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
+
         user = (r[COL_USER] or "").strip()
         d = (r[COL_DATE] or "").strip()
+
         if not in_range(d):
             continue
         if q and q not in user.lower():
             continue
+
         filtered.append({
             "user": user,
             "date": d,
@@ -1715,7 +1753,6 @@ def admin_times():
         for row in filtered:
             w.writerow([row["user"], row["date"], row["cin"], row["cout"], row["hours"], row["pay"]])
 
-        # Totals summary
         total_hours = 0.0
         total_gross = 0.0
         for row in filtered:
@@ -1737,7 +1774,7 @@ def admin_times():
             headers={"Content-Disposition": "attachment; filename=payroll_report.csv"},
         )
 
-    # Compute per-user grouping + totals
+    # Grouping + totals
     by_user = {}
     overall_hours = 0.0
     overall_gross = 0.0
@@ -1779,7 +1816,6 @@ def admin_times():
             net = round(gross - tax, 2)
 
             detail_rows = []
-            # Sort rows by date (then clock-in) for payroll-style print
             rows_sorted = sorted(block["rows"], key=lambda rr: (rr["date"], rr["cin"]))
             for rr in rows_sorted:
                 detail_rows.append(
@@ -1815,7 +1851,6 @@ def admin_times():
             """)
         grouped_html = "".join(grouped_html_parts)
     else:
-        # Flat detail view
         flat_rows = []
         for rr in sorted(filtered, key=lambda x: (x["user"], x["date"], x["cin"])):
             flat_rows.append(
@@ -1837,7 +1872,7 @@ def admin_times():
           </div>
         """
 
-    # Build safe query string for csv link (no need for urllib)
+    # Safe query pieces for CSV link
     q_q = escape(q)
     q_from = escape(date_from)
     q_to = escape(date_to)
@@ -1973,7 +2008,7 @@ def admin_onboarding_list():
         <div class="title"><h1>Onboarding</h1><p class="sub">Click a name to view full details</p></div>
       </div>
 
-      <form method="GET" class="btnrow noPrint">
+      <form method="GET" class="btnrow">
         <input class="input" name="q" placeholder="Search name or username" value="{escape(q)}">
         <button class="blue btnSmall" type="submit">Search</button>
         <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
@@ -2035,7 +2070,7 @@ def admin_onboarding_detail(username):
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>Onboarding Details</h1><p class="sub">{escape(username)}</p></div>
       </div>
-      <div class="btnrow noPrint">
+      <div class="btnrow">
         <a href="/admin/onboarding"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
       <div class="tablewrap">
@@ -2151,7 +2186,7 @@ def monthly_report():
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>Monthly Payroll</h1><p class="sub">Generate payroll for a month</p></div>
       </div>
-      <form method="POST" class="btnrow noPrint">
+      <form method="POST" class="btnrow">
         <input class="input" type="month" name="month" required>
         <button class="blue btnSmall" type="submit">Generate</button>
         <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
@@ -2164,5 +2199,4 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
 
