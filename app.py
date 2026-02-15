@@ -2,7 +2,7 @@ import os
 import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import Flask, render_template_string, request, redirect, session, url_for, send_from_directory
+from flask import Flask, render_template_string, request, redirect, session, url_for
 from datetime import datetime, timedelta, date
 
 # ================= APP =================
@@ -19,7 +19,7 @@ def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
     if raw:
         return json.loads(raw)
-    # Local fallback (DO NOT commit)
+    # Local fallback (DO NOT COMMIT credentials.json)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -32,7 +32,7 @@ employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 
-# WorkHours columns (0-based)
+# WorkHours columns (0-based indices)
 COL_USER = 0
 COL_DATE = 1
 COL_IN = 2
@@ -42,13 +42,8 @@ COL_PAY = 5
 
 TAX_RATE = 0.20
 
-# ================= PWA (Option A) =================
-# Put icons here:
-#   static/icon-192.png
-#   static/icon-512.png
-#
-# Flask serves /static/* automatically. We only add manifest route.
-
+# ================= PWA =================
+# Put these in: static/icon-192.png and static/icon-512.png
 @app.get("/manifest.webmanifest")
 def manifest():
     return {
@@ -65,6 +60,13 @@ def manifest():
     }, 200, {"Content-Type": "application/manifest+json"}
 
 # ================= UI =================
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
+PWA_TAGS = """
+<link rel="manifest" href="/manifest.webmanifest">
+<meta name="theme-color" content="#0b1220">
+<link rel="apple-touch-icon" href="/static/icon-192.png">
+"""
+
 STYLE = """
 <style>
 :root{
@@ -77,8 +79,8 @@ STYLE = """
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --radius: 22px;
 
-  --h1: clamp(30px, 4.5vw, 46px);
-  --h2: clamp(22px, 3.2vw, 30px);
+  --h1: clamp(28px, 4.2vw, 44px);
+  --h2: clamp(20px, 3.0vw, 28px);
   --p:  clamp(18px, 2.4vw, 22px);
   --small: clamp(14px, 2vw, 16px);
   --btn: clamp(18px, 2.5vw, 22px);
@@ -99,7 +101,6 @@ body{
 }
 
 .app{ width:100%; max-width: 980px; margin: 0 auto; }
-
 .card{
   background: linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
   border: 1px solid var(--border);
@@ -116,10 +117,51 @@ body{
   margin-bottom: 18px;
 }
 .title{ display:flex; flex-direction:column; gap: 6px; }
-
 h1{ font-size: var(--h1); margin:0; letter-spacing: .2px; }
 h2{ font-size: var(--h2); margin: 0; color: var(--text); }
 .sub{ font-size: var(--small); color: var(--muted); margin: 0; }
+
+/* Professional generic app icon (no initials) */
+.appIcon{
+  width: 86px;
+  height: 86px;
+  border-radius: 24px;
+  background:
+    radial-gradient(26px 26px at 30% 30%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(135deg, rgba(96,165,250,.95) 0%, rgba(167,139,250,.95) 55%, rgba(34,197,94,.95) 120%);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 18px 30px rgba(0,0,0,.35);
+  display:grid;
+  place-items:center;
+  flex: 0 0 auto;
+}
+.appIcon .glyph{
+  width: 40px;
+  height: 40px;
+  position: relative;
+}
+.appIcon .glyph:before,
+.appIcon .glyph:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  border-radius: 14px;
+  border: 3px solid rgba(10,15,30,.82);
+}
+.appIcon .glyph:after{
+  inset: 8px;
+  border-radius: 10px;
+}
+.appIcon .dot{
+  position:absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(10,15,30,.82);
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%,-50%);
+}
 
 .kpis{
   display:grid;
@@ -205,22 +247,6 @@ button:hover{ opacity:.95; }
   backdrop-filter: blur(10px);
 }
 
-.icon{
-  width: 74px;
-  height: 74px;
-  border-radius: 22px;
-  background: linear-gradient(135deg, #60a5fa 0%, #a78bfa 55%, #22c55e 120%);
-  box-shadow: 0 18px 30px rgba(0,0,0,.35);
-  display:grid;
-  place-items:center;
-  flex: 0 0 auto;
-}
-.icon span{
-  font-size: 34px;
-  font-weight: 1000;
-  color: rgba(10,15,30,.92);
-}
-
 /* Tables */
 .tablewrap{
   margin-top: 16px;
@@ -258,13 +284,10 @@ tfoot td{
 </style>
 """
 
-VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
-
-# PWA tags to include on every page
-PWA_TAGS = """
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0b1220">
-<link rel="apple-touch-icon" href="/static/icon-192.png">
+HEADER_ICON = """
+<div class="appIcon" aria-hidden="true">
+  <div class="glyph"><div class="dot"></div></div>
+</div>
 """
 
 # ================= HELPERS =================
@@ -273,6 +296,18 @@ def safe_float(x, default=0.0):
         return float(x)
     except Exception:
         return default
+
+def hours_to_hm(decimal_hours: float) -> str:
+    total_minutes = int(round(decimal_hours * 60))
+    h = total_minutes // 60
+    m = total_minutes % 60
+    return f"{h}h {m:02d}m"
+
+def parse_date(s: str):
+    try:
+        return datetime.strptime(s, "%Y-%m-%d").date()
+    except Exception:
+        return None
 
 def require_login():
     if "username" not in session:
@@ -290,25 +325,21 @@ def require_admin():
         return redirect(url_for("home"))
     return None
 
-def hours_to_hm(decimal_hours: float) -> str:
-    total_minutes = int(round(decimal_hours * 60))
-    h = total_minutes // 60
-    m = total_minutes % 60
-    return f"{h}h {m:02d}m"
-
-def parse_date(s: str):
-    try:
-        return datetime.strptime(s, "%Y-%m-%d").date()
-    except Exception:
-        return None
+def compute_money(gross: float):
+    gross = round(gross, 2)
+    tax = round(gross * TAX_RATE, 2)
+    net = round(gross - tax, 2)
+    return gross, tax, net
 
 def has_any_row_today(rows, username: str, today_str: str) -> bool:
-    for row in rows[1:]:
-        if len(row) > COL_DATE and row[COL_USER] == username and row[COL_DATE] == today_str:
+    # max 1 clock-in record per day
+    for r in rows[1:]:
+        if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
             return True
     return False
 
 def find_open_shift(rows, username: str):
+    # Find latest row for user where ClockOut is empty
     for i in range(len(rows) - 1, 0, -1):
         r = rows[i]
         if len(r) > COL_OUT and r[COL_USER] == username and r[COL_OUT] == "":
@@ -323,22 +354,18 @@ def get_rates_map():
             rates[u] = safe_float(rec.get("Rate", 0), 0.0)
     return rates
 
-def compute_money(gross: float):
-    gross = round(gross, 2)
-    tax = round(gross * TAX_RATE, 2)
-    net = round(gross - tax, 2)
-    return gross, tax, net
-
-def current_iso_week(d: date):
-    y, w, _ = d.isocalendar()
-    return y, w
+def get_employees_headers():
+    values = employees_sheet.get_all_values()
+    if not values:
+        return [], []
+    return values[0], values
 
 # ================= ROUTES =================
 @app.get("/ping")
 def ping():
     return "pong", 200
 
-# -------- LOGIN --------
+# ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     message = ""
@@ -348,8 +375,7 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        users = employees_sheet.get_all_records()
-        for user in users:
+        for user in employees_sheet.get_all_records():
             if user.get("Username") == username and user.get("Password") == password:
                 session.clear()
                 session["username"] = username
@@ -364,12 +390,13 @@ def login():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>⏱</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>WorkHours</h1>
             <p class="sub">Sign in</p>
           </div>
         </div>
+
         <h2>Login</h2>
         <form method="POST" style="margin-top:14px;">
           <input class="input" name="username" placeholder="Username" required>
@@ -378,6 +405,7 @@ def login():
             <button class="blue" type="submit">Login</button>
           </div>
         </form>
+
         {"<div class='" + msg_class + "'>" + message + "</div>" if message else ""}
       </div>
     </div>
@@ -388,7 +416,7 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# -------- CHANGE PASSWORD --------
+# ---------- CHANGE PASSWORD ----------
 @app.route("/change-password", methods=["GET", "POST"])
 def change_password():
     gate = require_login()
@@ -428,11 +456,10 @@ def change_password():
                 message = "Current password is incorrect."
                 msg_class = "message error"
             else:
-                values = employees_sheet.get_all_values()
-                headers = values[0] if values else []
+                headers, values = get_employees_headers()
                 try:
                     ucol = headers.index("Username")
-                    pcol = headers.index("Password") + 1
+                    pcol = headers.index("Password") + 1  # gspread 1-based
                 except ValueError:
                     message = "Employees sheet must have headers: Username, Password, Role, Rate"
                     msg_class = "message error"
@@ -456,7 +483,7 @@ def change_password():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>🔒</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>Change Password</h1>
             <p class="sub">Account: {username}</p>
@@ -479,7 +506,7 @@ def change_password():
     </div>
     """)
 
-# -------- HOME (NO PAY SHOWN, LIVE TIMER) --------
+# ---------- HOME (NO MONEY SHOWN) ----------
 @app.route("/", methods=["GET", "POST"])
 def home():
     gate = require_login()
@@ -500,6 +527,7 @@ def home():
 
     rows = work_sheet.get_all_values()
 
+    # Determine active shift start for live timer
     open_shift = find_open_shift(rows, username)
     active_clock_in_iso = ""
     if open_shift:
@@ -512,11 +540,16 @@ def home():
     if request.method == "POST":
         action = request.form.get("action")
         if action == "in":
+            # block: only 1 clock-in row per day
             if has_any_row_today(rows, username, today_str):
                 message = "You already clocked in today. Only 1 clock-in per day is allowed."
                 msg_class = "message error"
+            # block: if somehow already has open shift
+            elif find_open_shift(rows, username) is not None:
+                message = "You are already clocked in."
+                msg_class = "message error"
             else:
-                work_sheet.append_row([username, today_str, now.strftime("%H:%M:%S"), "", "", "", ""])
+                work_sheet.append_row([username, today_str, now.strftime("%H:%M:%S"), "", "", ""])
                 message = "Clocked In"
                 active_clock_in_iso = now.replace(microsecond=0).isoformat()
 
@@ -529,36 +562,40 @@ def home():
             else:
                 i, d, t = open_shift
                 clock_in_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
-                hours = round((now - clock_in_dt).total_seconds() / 3600, 4)
-                pay = round(hours * rate, 2)  # stored only
+                hours = (now - clock_in_dt).total_seconds() / 3600.0
+                hours_rounded = round(hours, 2)
+                pay = round(hours * rate, 2)  # stored in sheet only
 
                 sheet_row = i + 1
                 work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
-                work_sheet.update_cell(sheet_row, COL_HOURS + 1, round(hours, 2))
+                work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
                 work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
 
                 message = f"Shift time: {hours_to_hm(hours)}"
                 active_clock_in_iso = ""
 
-    # totals (completed shifts)
+    # totals from completed shifts (Hours column)
     daily_hours = 0.0
     weekly_hours = 0.0
+
+    rows = work_sheet.get_all_values()
     for r in rows[1:]:
         if len(r) <= COL_HOURS:
             continue
-        if r[COL_USER] != username or r[COL_HOURS] == "":
+        if r[COL_USER] != username:
             continue
+        if r[COL_HOURS] == "":
+            continue
+
         rd = parse_date(r[COL_DATE])
         if not rd:
             continue
+
         h = safe_float(r[COL_HOURS], 0.0)
         if rd == today:
             daily_hours += h
         if rd >= week_start:
             weekly_hours += h
-
-    today_display = hours_to_hm(daily_hours)
-    week_display = hours_to_hm(weekly_hours)
 
     admin_button = ""
     if role == "admin":
@@ -608,7 +645,7 @@ def home():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>⏱</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>Hi, {username}</h1>
             <p class="sub">Clock in / out</p>
@@ -618,12 +655,12 @@ def home():
         <div class="kpis">
           <div class="kpi">
             <div class="label">Today</div>
-            <div class="value">{today_display}</div>
+            <div class="value">{hours_to_hm(daily_hours)}</div>
             <div class="sub">Completed shift time</div>
           </div>
           <div class="kpi">
             <div class="label">This week</div>
-            <div class="value">{week_display}</div>
+            <div class="value">{hours_to_hm(weekly_hours)}</div>
             <div class="sub">From Monday to today</div>
           </div>
           {live_timer_block}
@@ -641,6 +678,7 @@ def home():
             <button class="green" name="action" value="in">Clock In</button>
             <button class="red" name="action" value="out">Clock Out</button>
           </form>
+
           <div class="btnrow" style="margin-top:12px;">
             {admin_button}
             <a href="/my-times"><button class="blue" type="button">My Times</button></a>
@@ -653,7 +691,7 @@ def home():
     </div>
     """)
 
-# -------- EMPLOYEE: DAILY CLOCK IN/OUT LIST --------
+# ---------- EMPLOYEE: MY TIMES ----------
 @app.get("/my-times")
 def my_times():
     gate = require_login()
@@ -677,6 +715,7 @@ def my_times():
         rd = parse_date(r[COL_DATE])
         if not rd or rd < start_date:
             continue
+
         cin = r[COL_IN] if len(r) > COL_IN else ""
         cout = r[COL_OUT] if len(r) > COL_OUT else ""
         hours = safe_float(r[COL_HOURS], 0.0) if len(r) > COL_HOURS and r[COL_HOURS] != "" else None
@@ -697,7 +736,7 @@ def my_times():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>🗓️</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>My Times</h1>
             <p class="sub">Last {days} days</p>
@@ -713,14 +752,7 @@ def my_times():
 
         <div class="tablewrap">
           <table>
-            <thead>
-              <tr>
-                <th>Date</th>
-                <th>Clock In</th>
-                <th>Clock Out</th>
-                <th>Hours</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th></tr></thead>
             <tbody>{rows_html}</tbody>
           </table>
         </div>
@@ -728,8 +760,8 @@ def my_times():
     </div>
     """)
 
-# -------- EMPLOYEE: WEEKLY/MONTHLY REPORTS (SELF ONLY) --------
-@app.route("/my-reports", methods=["GET"])
+# ---------- EMPLOYEE: MY REPORTS ----------
+@app.get("/my-reports")
 def my_reports():
     gate = require_login()
     if gate:
@@ -750,7 +782,6 @@ def my_reports():
     month = int(request.args.get("month", str(now.month)) or now.month)
 
     rows = work_sheet.get_all_values()
-
     total_hours = 0.0
     gross_sum = 0.0
 
@@ -758,7 +789,7 @@ def my_reports():
         for r in rows[1:]:
             if len(r) <= COL_DATE:
                 continue
-            if r[COL_USER] != username or (len(r) <= COL_HOURS or r[COL_HOURS] == ""):
+            if r[COL_USER] != username or len(r) <= COL_HOURS or r[COL_HOURS] == "":
                 continue
             rd = parse_date(r[COL_DATE])
             if not rd:
@@ -776,7 +807,7 @@ def my_reports():
         for r in rows[1:]:
             if len(r) <= COL_DATE:
                 continue
-            if r[COL_USER] != username or (len(r) <= COL_HOURS or r[COL_HOURS] == ""):
+            if r[COL_USER] != username or len(r) <= COL_HOURS or r[COL_HOURS] == "":
                 continue
             rd = parse_date(r[COL_DATE])
             if not rd:
@@ -792,12 +823,15 @@ def my_reports():
 
     gross, tax, net = compute_money(gross_sum)
 
+    week_input = f"<input class='input' name='week' value='{week}' placeholder='Week (1-53)'>" if mode == "weekly" else ""
+    month_input = f"<input class='input' name='month' value='{month}' placeholder='Month (1-12)'>" if mode == "monthly" else ""
+
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>📊</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>My Reports</h1>
             <p class="sub">{title}</p>
@@ -813,32 +847,16 @@ def my_reports():
         <form method="GET" class="btnrow" style="margin-top:10px;">
           <input type="hidden" name="mode" value="{mode}">
           <input class="input" name="year" value="{year}" placeholder="Year (e.g. 2026)">
-          {"<input class='input' name='week' value='" + str(week) + "' placeholder='Week (1-53)'>" if mode=="weekly" else ""}
-          {"<input class='input' name='month' value='" + str(month) + "' placeholder='Month (1-12)'>" if mode=="monthly" else ""}
+          {week_input}
+          {month_input}
           <button class="purple" type="submit">View</button>
         </form>
 
         <div class="kpis">
-          <div class="kpi">
-            <div class="label">Hours</div>
-            <div class="value">{hours_to_hm(total_hours)}</div>
-            <div class="sub">Total hours</div>
-          </div>
-          <div class="kpi">
-            <div class="label">Gross</div>
-            <div class="value">{gross:.2f}</div>
-            <div class="sub">Before tax</div>
-          </div>
-          <div class="kpi">
-            <div class="label">Tax (20%)</div>
-            <div class="value">{tax:.2f}</div>
-            <div class="sub">Deducted</div>
-          </div>
-          <div class="kpi">
-            <div class="label">Net</div>
-            <div class="value">{net:.2f}</div>
-            <div class="sub">After tax</div>
-          </div>
+          <div class="kpi"><div class="label">Hours</div><div class="value">{hours_to_hm(total_hours)}</div><div class="sub">Total hours</div></div>
+          <div class="kpi"><div class="label">Gross</div><div class="value">{gross:.2f}</div><div class="sub">Before tax</div></div>
+          <div class="kpi"><div class="label">Tax (20%)</div><div class="value">{tax:.2f}</div><div class="sub">Deducted</div></div>
+          <div class="kpi"><div class="label">Net</div><div class="value">{net:.2f}</div><div class="sub">After tax</div></div>
         </div>
 
         <div class="btnrow actionbar">
@@ -849,7 +867,7 @@ def my_reports():
     </div>
     """)
 
-# -------- ADMIN DASHBOARD --------
+# ---------- ADMIN DASHBOARD ----------
 @app.get("/admin")
 def admin():
     gate = require_admin()
@@ -861,10 +879,10 @@ def admin():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>🛠</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>Admin</h1>
-            <p class="sub">Reports + Employee management</p>
+            <p class="sub">Reports + employee management</p>
           </div>
         </div>
 
@@ -878,15 +896,15 @@ def admin():
     </div>
     """)
 
-# -------- ADMIN: WEEKLY REPORT VIEW --------
-@app.route("/admin/weekly-report", methods=["GET"])
+# ---------- ADMIN WEEKLY REPORT ----------
+@app.get("/admin/weekly-report")
 def admin_weekly_report():
     gate = require_admin()
     if gate:
         return gate
 
-    now = datetime.now().date()
-    y_now, w_now = current_iso_week(now)
+    nowd = datetime.now().date()
+    y_now, w_now, _ = nowd.isocalendar()
 
     year = int(request.args.get("year", str(y_now)) or y_now)
     week = int(request.args.get("week", str(w_now)) or w_now)
@@ -918,10 +936,9 @@ def admin_weekly_report():
         agg[user]["hours"] += h
         agg[user]["gross"] += g
 
-    total_gross = total_tax = total_net = 0.0
-    total_hours = 0.0
-
+    total_hours = total_gross = total_tax = total_net = 0.0
     body_html = ""
+
     for user in sorted(agg.keys()):
         h = agg[user]["hours"]
         gross, tax, net = compute_money(agg[user]["gross"])
@@ -939,10 +956,10 @@ def admin_weekly_report():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>📅</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>Weekly Report</h1>
-            <p class="sub">{year}-W{week}</p>
+            <p class="sub">{year}-W{week} • Gross / Tax / Net</p>
           </div>
         </div>
 
@@ -972,16 +989,16 @@ def admin_weekly_report():
     </div>
     """)
 
-# -------- ADMIN: MONTHLY REPORT VIEW --------
-@app.route("/admin/monthly-report", methods=["GET"])
+# ---------- ADMIN MONTHLY REPORT ----------
+@app.get("/admin/monthly-report")
 def admin_monthly_report():
     gate = require_admin()
     if gate:
         return gate
 
-    now = datetime.now().date()
-    year = int(request.args.get("year", str(now.year)) or now.year)
-    month = int(request.args.get("month", str(now.month)) or now.month)
+    nowd = datetime.now().date()
+    year = int(request.args.get("year", str(nowd.year)) or nowd.year)
+    month = int(request.args.get("month", str(nowd.month)) or nowd.month)
 
     rows = work_sheet.get_all_values()
     rates = get_rates_map()
@@ -1009,10 +1026,9 @@ def admin_monthly_report():
         agg[user]["hours"] += h
         agg[user]["gross"] += g
 
-    total_gross = total_tax = total_net = 0.0
-    total_hours = 0.0
-
+    total_hours = total_gross = total_tax = total_net = 0.0
     body_html = ""
+
     for user in sorted(agg.keys()):
         h = agg[user]["hours"]
         gross, tax, net = compute_money(agg[user]["gross"])
@@ -1030,10 +1046,10 @@ def admin_monthly_report():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>🧾</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>Monthly Report</h1>
-            <p class="sub">{year}-{month:02d}</p>
+            <p class="sub">{year}-{month:02d} • Gross / Tax / Net</p>
           </div>
         </div>
 
@@ -1063,7 +1079,7 @@ def admin_monthly_report():
     </div>
     """)
 
-# -------- EMPLOYEE MANAGEMENT (ADMIN) --------
+# ---------- EMPLOYEE MANAGEMENT (ADMIN) ----------
 @app.route("/employees", methods=["GET", "POST"])
 def employees():
     gate = require_admin()
@@ -1073,19 +1089,16 @@ def employees():
     msg = ""
     msg_class = "message"
 
-    headers = employees_sheet.row_values(1)
-    records = employees_sheet.get_all_records()
-
-    def col_index(name: str) -> int:
-        try:
-            return headers.index(name) + 1
-        except ValueError:
-            return -1
-
+    headers, values = get_employees_headers()
     required = ["Username", "Password", "Role", "Rate"]
     missing = [c for c in required if c not in headers]
     if missing:
-        return f"Employees sheet missing columns: {missing}. Add them as headers in row 1.", 500
+        return f"Employees sheet missing headers: {missing} (Row 1 must have Username, Password, Role, Rate)", 500
+
+    def col_index(name: str) -> int:
+        return headers.index(name) + 1  # 1-based for gspread
+
+    records = employees_sheet.get_all_records()
 
     if request.method == "POST":
         action = request.form.get("action", "")
@@ -1131,7 +1144,7 @@ def employees():
                 employees_sheet.delete_rows(rownum)
                 msg = "Employee deleted."
 
-        headers = employees_sheet.row_values(1)
+        headers, values = get_employees_headers()
         records = employees_sheet.get_all_records()
 
     table_rows_html = ""
@@ -1172,7 +1185,7 @@ def employees():
     <div class="app">
       <div class="card">
         <div class="header">
-          <div class="icon"><span>👥</span></div>
+          {HEADER_ICON}
           <div class="title">
             <h1>Employees</h1>
             <p class="sub">Add / edit / delete employees</p>
@@ -1191,6 +1204,7 @@ def employees():
             <option value="admin">admin</option>
           </select>
           <input class="input" name="new_rate" placeholder="Rate (e.g. 12.5)" required>
+
           <div class="btnrow actionbar">
             <button class="green" type="submit">Add</button>
             <a href="/admin"><button class="gray" type="button">Back</button></a>
@@ -1221,4 +1235,5 @@ def employees():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
