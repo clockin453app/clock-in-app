@@ -1,9 +1,11 @@
-# ===================== app.py (FULL - FINAL REWRITE) =====================
-# White/light professional theme
-# Admin "Payroll Report" (All Times) grouped by employee + print view + CSV
-# Mobile buttons fill the screen (2-column grid on phones)
-# Same Google Sheets + Drive OAuth flow as your working version
-# CSRF protection + password hashing with auto-migrate from plaintext
+# ===================== app.py (FULL - PROFESSIONAL MOBILE UI) =====================
+# - Dashboard home (like your screenshots: KPI cards + weekly bars + menu list + bottom nav)
+# - Separate Clock In/Out page with live session timer + professional buttons
+# - Admin Payroll Report (grouped + print + CSV)
+# - Onboarding upload titles bigger/clearer
+# - Removes "Starter Form is optional"
+# - Keeps your Google Sheets + Drive OAuth upload working (no new software)
+# - Adds CSRF + password hashing (auto-migrates from plaintext on next login)
 
 import os
 import json
@@ -35,7 +37,7 @@ from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials as UserCredentials
 from google.auth.transport.requests import Request
 
-# Built into Flask/Werkzeug (no new packages)
+# Built-in with Flask/Werkzeug (no extra install)
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -49,10 +51,7 @@ app = Flask(
 )
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
-# Upload size cap (adjust as needed)
 app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "15")) * 1024 * 1024
-
-# Cookie hardening
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
@@ -72,7 +71,6 @@ def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
     if raw:
         return json.loads(raw)
-    # local fallback (DO NOT COMMIT credentials.json)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -106,7 +104,6 @@ DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()  # optional bac
 def _make_oauth_flow():
     if not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
         raise RuntimeError("Missing OAuth env vars: OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET / OAUTH_REDIRECT_URI")
-
     client_config = {
         "web": {
             "client_id": OAUTH_CLIENT_ID,
@@ -132,24 +129,19 @@ def _load_drive_token() -> dict | None:
                 return json.load(f)
     except Exception:
         pass
-
     if DRIVE_TOKEN_ENV:
         try:
             return json.loads(DRIVE_TOKEN_ENV)
         except Exception:
             return None
-
     return None
 
 def get_user_drive_service():
-    token_data = session.get("drive_token")
-    if not token_data:
-        token_data = _load_drive_token()
+    token_data = session.get("drive_token") or _load_drive_token()
     if not token_data:
         return None
 
     creds_user = UserCredentials(**token_data)
-
     if creds_user.expired and creds_user.refresh_token:
         creds_user.refresh(Request())
         token_data["token"] = creds_user.token
@@ -169,9 +161,7 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
         try:
             drive_service.files().get(fileId=UPLOAD_FOLDER_ID, fields="id,name").execute()
         except Exception as e:
-            raise RuntimeError(
-                "Upload folder not found. Fix ONBOARDING_DRIVE_FOLDER_ID (use a FOLDER id from your Drive)."
-            ) from e
+            raise RuntimeError("Upload folder not found. Fix ONBOARDING_DRIVE_FOLDER_ID (use a FOLDER id).") from e
 
     file_bytes = file_storage.read()
     file_storage.stream.seek(0)
@@ -219,7 +209,7 @@ def manifest():
         "short_name": "WorkHours",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#f6f7fb",
+        "background_color": "#f4f6ff",
         "theme_color": "#ffffff",
         "icons": [
             {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
@@ -237,254 +227,307 @@ PWA_TAGS = """
 """
 
 
-# ================= UI (LIGHT / WHITE PROFESSIONAL THEME) =================
+# ================= UI (Dashboard style like your screenshots) =================
 STYLE = """
 <style>
 :root{
-  --bg:#f6f7fb;
+  --bg:#f4f6ff;
   --card:#ffffff;
   --text:#0f172a;
-  --muted:#475569;
-  --border:rgba(15,23,42,.10);
-  --shadow: 0 18px 48px rgba(15,23,42,.10);
-  --radius: 18px;
+  --muted:#64748b;
+  --border:rgba(15,23,42,.08);
+  --shadow: 0 10px 30px rgba(15,23,42,.08);
+  --radius: 22px;
 
-  --h1: clamp(22px, 4vw, 32px);
-  --h2: clamp(18px, 3vw, 22px);
-  --p:  clamp(15px, 2.4vw, 18px);
-  --small: clamp(13px, 2vw, 15px);
-  --btn: clamp(13px, 2.2vw, 15px);
-  --input: clamp(15px, 2.4vw, 17px);
+  --purple:#6d28d9;
+  --purpleSoft:#efe9ff;
+  --blue:#2563eb;
+  --green:#16a34a;
+  --red:#ef4444;
 
-  --primary:#2563eb;
-  --success:#16a34a;
-  --danger:#dc2626;
-  --purple:#7c3aed;
+  --h1: clamp(26px, 5vw, 36px);
+  --h2: clamp(16px, 3vw, 20px);
+  --p:  clamp(14px, 2.4vw, 17px);
+  --small: clamp(12px, 2vw, 14px);
 }
-
-*{ box-sizing:border-box; }
-html, body { height:100%; }
+*{box-sizing:border-box;}
+html,body{height:100%;}
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background:
-    radial-gradient(1200px 700px at 10% 0%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 60%),
-    radial-gradient(900px 650px at 90% 15%, rgba(124,58,237,.06) 0%, rgba(124,58,237,0) 55%),
-    var(--bg);
+  background: var(--bg);
   color: var(--text);
-  padding: clamp(12px, 3vw, 22px);
-  -webkit-text-size-adjust: 100%;
+  padding: 16px 14px 90px 14px; /* space for bottom nav */
 }
-.app{ width:100%; max-width: 1120px; margin: 0 auto; }
+a{color:inherit;text-decoration:none;}
+
+.app{max-width: 560px; margin: 0 auto;}
+
+.headerTop{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
+  margin-bottom: 14px;
+}
+h1{font-size:var(--h1); margin:0; letter-spacing:.2px;}
+.sub{color:var(--muted); margin:6px 0 0 0; font-size:var(--small);}
+
+.badge{
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.7);
+  color: rgba(15,23,42,.70);
+  font-weight: 900;
+  white-space: nowrap;
+}
 
 .card{
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: clamp(16px, 3vw, 24px);
   box-shadow: var(--shadow);
 }
 
-.header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;}
-.title{display:flex;flex-direction:column;gap:6px;}
-h1{font-size:var(--h1);margin:0;letter-spacing:.1px;}
-h2{font-size:var(--h2);margin: 18px 0 10px 0;}
-.sub{font-size:var(--small);color:var(--muted);margin:0;line-height:1.35;}
+.kpiRow{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:12px;
+  margin-top: 12px;
+}
+.kpi{
+  padding:14px;
+}
+.kpi .label{font-size:var(--small); color:var(--muted); margin:0;}
+.kpi .value{font-size: 26px; font-weight: 950; margin: 6px 0 0 0;}
 
-.badge{
-  font-size: 12px;
-  padding: 6px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: rgba(15,23,42,.03);
+.chartCard{ margin-top: 12px; padding: 14px;}
+.chartHead{
+  display:flex; justify-content:center; align-items:center; gap:14px;
+  font-weight: 950; font-size: 18px;
+}
+.chartBars{
+  margin-top: 12px;
+  height: 170px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-around;
+  gap: 12px;
+  padding: 10px 6px 0 6px;
+}
+.bar{
+  width: 16%;
+  border-radius: 12px 12px 6px 6px;
+  background: #0b0b0b;
+}
+.barLabelRow{
+  display:flex; justify-content:space-around; gap:12px;
+  margin-top: 10px;
   color: var(--muted);
-  white-space: nowrap;
+  font-weight: 800;
+  font-size: 13px;
 }
 
-.appIcon{
-  width: 54px;height: 54px;border-radius: 16px;
-  background:
-    radial-gradient(22px 22px at 30% 30%, rgba(255,255,255,.9) 0%, rgba(255,255,255,0) 70%),
-    linear-gradient(135deg, rgba(37,99,235,.95) 0%, rgba(124,58,237,.70) 55%, rgba(22,163,74,.75) 120%);
-  border: 1px solid rgba(15,23,42,.10);
-  box-shadow: 0 14px 24px rgba(15,23,42,.10);
-  display:grid;place-items:center;flex: 0 0 auto;
+/* Menu list */
+.menu{ margin-top: 14px; padding: 12px; }
+.menuItem{
+  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  padding: 14px 14px;
+  border-radius: 18px;
+  background: #f7f8ff;
+  border: 1px solid rgba(15,23,42,.06);
+  margin-top: 10px;
 }
-.appIcon .glyph{ width: 26px; height: 26px; position: relative; }
-.appIcon .glyph:before,.appIcon .glyph:after{
-  content:""; position:absolute; inset:0; border-radius: 12px;
-  border: 3px solid rgba(15,23,42,.80);
+.menuItem.active{
+  background: var(--purpleSoft);
+  border-color: rgba(109,40,217,.10);
 }
-.appIcon .glyph:after{ inset: 7px; border-radius: 9px; }
-.appIcon .dot{
-  position:absolute; width: 7px; height: 7px; border-radius: 50%;
-  background: rgba(15,23,42,.80); left: 50%; top: 50%;
-  transform: translate(-50%,-50%);
+.menuLeft{display:flex; align-items:center; gap:12px;}
+.icoBox{
+  width: 44px; height: 44px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.92);
+  border: 1px solid rgba(15,23,42,.06);
+  display:grid; place-items:center;
+}
+.icoBox svg{ width: 22px; height: 22px; }
+.menuText{
+  font-weight: 950;
+  font-size: 20px;
+  letter-spacing:.1px;
+}
+.chev{
+  font-size: 26px;
+  color: rgba(109,40,217,.90);
+  font-weight: 900;
 }
 
-.message{
-  margin-top: 12px; padding: 10px 12px; border-radius: 14px;
-  background: rgba(22,163,74,.08); border: 1px solid rgba(22,163,74,.18);
-  font-size: var(--p); font-weight: 800; text-align:center;
-}
-.message.error{ background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.18); }
-
-a{color:var(--primary);text-decoration:none;}
-a:hover{text-decoration:underline;}
-
+/* Forms */
 .input{
   width:100%;
-  padding:12px 12px;
-  border-radius:12px;
-  border:1px solid rgba(15,23,42,.14);
-  background:#fff;
-  color: var(--text);
-  font-size: var(--input);
-  outline:none;
-  margin-top:10px;
-}
-.input:focus{ border-color: rgba(37,99,235,.45); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
-
-.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
-@media (max-width: 640px){.row2{grid-template-columns:1fr;}}
-
-.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px; justify-content:center;}
-button{
-  border: 1px solid rgba(15,23,42,.12);
-  border-radius:12px;
-  padding:10px 10px;
-  font-weight:900;
-  cursor:pointer;
-  font-size: var(--btn);
-  min-height: 40px;
-  flex: 1 1 130px;
-  box-shadow: 0 10px 18px rgba(15,23,42,.08);
-  transition: transform .06s ease, filter .06s ease;
-}
-button:active{ transform: translateY(1px); filter: brightness(.99); }
-
-.btnSmall{min-height: 34px !important;padding: 8px 10px !important;flex:0 0 auto !important;}
-
-.green{background:rgba(22,163,74,1);color:white;border-color: rgba(22,163,74,.35);}
-.red{background:rgba(220,38,38,1);color:white;border-color: rgba(220,38,38,.35);}
-.blue{background:rgba(37,99,235,1);color:white;border-color: rgba(37,99,235,.35);}
-.purple{background:rgba(124,58,237,1);color:white;border-color: rgba(124,58,237,.35);}
-.gray{background:#ffffff;color: var(--text); border:1px solid rgba(15,23,42,.16);}
-
-.actionbar{
-  position: sticky; bottom: 10px; margin-top: 14px; padding: 10px;
+  padding: 12px 12px;
   border-radius: 16px;
-  background: rgba(255,255,255,.85);
   border: 1px solid rgba(15,23,42,.10);
-  backdrop-filter: blur(10px);
+  background: #fff;
+  font-size: 16px;
+  outline:none;
+  margin-top: 8px;
+}
+.input:focus{ border-color: rgba(109,40,217,.35); box-shadow: 0 0 0 3px rgba(109,40,217,.10); }
+
+.row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
+@media (max-width: 520px){ .row2{ grid-template-columns: 1fr; } }
+
+.message{
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  font-weight: 900;
+  text-align:center;
+  background: rgba(22,163,74,.10);
+  border: 1px solid rgba(22,163,74,.18);
+}
+.message.error{ background: rgba(239,68,68,.10); border-color: rgba(239,68,68,.18); }
+
+/* Clock page */
+.clockCard{ margin-top: 12px; padding: 14px; }
+.timerBig{
+  font-weight: 950;
+  font-size: clamp(26px, 6vw, 34px);
+  margin-top: 6px;
+}
+.timerSub{ color: var(--muted); font-weight: 800; font-size: 13px; margin-top: 6px; }
+.actionRow{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+.btn{
+  border:none;
+  border-radius: 18px;
+  padding: 14px 12px;
+  font-weight: 950;
+  font-size: 16px;
+  cursor:pointer;
+  box-shadow: 0 10px 18px rgba(15,23,42,.08);
+}
+.btnIn{ background: var(--green); color: white;}
+.btnOut{ background: var(--red); color: white;}
+.btnSoft{
+  width:100%;
+  border:none;
+  border-radius: 18px;
+  padding: 12px 12px;
+  font-weight: 950;
+  font-size: 15px;
+  cursor:pointer;
+  background: rgba(109,40,217,.10);
+  color: rgba(109,40,217,.95);
 }
 
-.navgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px;}
-@media (min-width: 720px){.navgrid{grid-template-columns:repeat(6,minmax(0,1fr));}}
-.navgrid a{text-decoration:none;}
-.navgrid button{width:100%;min-height:34px;padding:8px 10px;flex:none;}
+/* Tables */
+.tablewrap{ margin-top:14px; overflow:auto; border-radius: 18px; border:1px solid rgba(15,23,42,.08); }
+table{ width:100%; border-collapse: collapse; min-width: 720px; background:#fff; }
+th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; }
+th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
 
-.tablewrap{margin-top:14px;overflow:auto;border-radius:16px;border:1px solid rgba(15,23,42,.10);}
-table{width:100%;border-collapse:collapse;min-width:780px;background:#fff;}
-th,td{padding:10px 10px;border-bottom:1px solid rgba(15,23,42,.08);text-align:left;font-size: clamp(13px,2vw,15px);}
-th{position:sticky;top:0;background: rgba(248,250,252,.95);backdrop-filter: blur(8px);color: rgba(15,23,42,.85);}
-
-.kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;}
-@media (min-width: 720px){.kpi{grid-template-columns:repeat(4,minmax(0,1fr));}}
-.kpi .box{border:1px solid rgba(15,23,42,.10);background: rgba(248,250,252,.75);border-radius:14px;padding:12px;}
-.kpi .big{font-size: clamp(16px,2.6vw,20px);font-weight:950;}
-
-.timerBox{
-  margin-top: 12px; padding: 12px; border-radius: 14px;
-  background: rgba(37,99,235,.06);
-  border: 1px solid rgba(37,99,235,.16);
-}
-.timerBig{font-weight: 950; font-size: clamp(18px, 3vw, 26px);}
-
-.contract{
-  margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(15,23,42,.10);
-  background: rgba(248,250,252,.75);
-  max-height:320px;overflow:auto;font-size: var(--small);
-  color: var(--text); line-height:1.35;
-}
-
-/* Upload headers */
+/* Upload titles */
 .uploadLabel{
   display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
   margin-top: 14px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  border: 1px solid rgba(37,99,235,.18);
-  background: rgba(37,99,235,.06);
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(109,40,217,.12);
+  background: rgba(109,40,217,.08);
 }
-.uploadLabel .text{ font-weight: 950; font-size: clamp(15px, 2.6vw, 18px); color: rgba(15,23,42,.95); }
-.uploadLabel .hint{ font-size: var(--small); color: rgba(71,85,105,.9); }
+.uploadLabel .text{ font-weight: 950; font-size: 18px; color: rgba(15,23,42,.95); }
+.uploadLabel .hint{ font-size: 12px; color: rgba(100,116,139,.95); font-weight: 800; }
 
 .bad{
-  border: 1px solid rgba(220,38,38,.75) !important;
-  box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important;
+  border: 1px solid rgba(239,68,68,.70) !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.10) !important;
 }
-.badLabel{ color: rgba(220,38,38,.9) !important; font-weight: 900; }
+.badLabel{ color: rgba(239,68,68,.95) !important; font-weight: 900; }
 
-/* Payroll report blocks */
-.reportHeader{
-  display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
-  padding: 12px; border-radius: 14px; border: 1px solid rgba(15,23,42,.10);
-  background: rgba(248,250,252,.75);
-  margin-top: 10px;
+/* Bottom nav bar */
+.bottomNav{
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,.92);
+  border-top: 1px solid rgba(15,23,42,.08);
+  backdrop-filter: blur(10px);
+  padding: 10px 14px 14px 14px;
 }
-.reportTitle{ font-weight: 950; font-size: 18px; }
-.reportMeta{ color: var(--muted); font-size: var(--small); line-height: 1.4; }
-.reportStamp{
-  text-align:right;
-  color: rgba(15,23,42,.75);
-  font-size: var(--small);
+.navInner{
+  max-width:560px;
+  margin: 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-around;
 }
+.navIcon{
+  width: 46px; height: 46px;
+  border-radius: 16px;
+  display:grid; place-items:center;
+  color: rgba(109,40,217,.92);
+}
+.navIcon.active{ background: rgba(109,40,217,.10); }
+.navIcon svg{ width: 22px; height: 22px; }
 
-/* Print view */
+/* Print view for payroll report */
 .noPrint{ display:block; }
 .onlyPrint{ display:none; }
 @media print{
   body{ background:#fff; padding:0; }
-  .app{ max-width:none; }
-  .card{ border:none; box-shadow:none; border-radius:0; padding: 18px; }
-  .actionbar, .navgrid, .noPrint{ display:none !important; }
+  .bottomNav, .noPrint{ display:none !important; }
   .onlyPrint{ display:block !important; }
-  .tablewrap{ border:1px solid rgba(0,0,0,.15); }
-  th{ background:#f3f4f6 !important; }
-}
-
-/* ---- Mobile: make buttons fill the phone width nicely ---- */
-@media (max-width: 640px){
-
-  .btnrow{
-    display: grid !important;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    width: 100%;
-    gap: 10px;
-  }
-
-  .btnrow button{
-    width: 100%;
-    flex: none !important;
-  }
-
-  .navgrid{
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    width: 100%;
-  }
-
-  .navgrid button{
-    width: 100%;
-  }
+  .app{ max-width:none; }
+  .card{ box-shadow:none; }
 }
 </style>
 """
 
-HEADER_ICON = """<div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>"""
+def _svg_clock():
+    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="9"></circle>
+      <path d="M12 7v6l4 2"></path>
+    </svg>"""
+
+def _svg_clipboard():
+    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <rect x="8" y="2" width="8" height="4" rx="1"></rect>
+      <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"></path>
+    </svg>"""
+
+def _svg_chart():
+    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M4 19V5"></path>
+      <path d="M4 19h16"></path>
+      <path d="M8 17V9"></path>
+      <path d="M12 17V7"></path>
+      <path d="M16 17v-4"></path>
+    </svg>"""
+
+def _svg_doc():
+    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+      <path d="M14 2v6h6"></path>
+    </svg>"""
+
+def _svg_user():
+    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M20 21a8 8 0 1 0-16 0"></path>
+      <circle cx="12" cy="7" r="4"></circle>
+    </svg>"""
+
+def _svg_grid():
+    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M4 4h7v7H4z"></path><path d="M13 4h7v7h-7z"></path>
+      <path d="M4 13h7v7H4z"></path><path d="M13 13h7v7h-7z"></path>
+    </svg>"""
 
 
 # ================= CONTRACT TEXT =================
@@ -606,8 +649,8 @@ def linkify(url: str) -> str:
     u = (url or "").strip()
     if not u:
         return ""
-    parsed = urlparse(u)
-    if parsed.scheme not in ("http", "https"):
+    p = urlparse(u)
+    if p.scheme not in ("http", "https"):
         return ""
     uesc = escape(u)
     return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>Open</a>"
@@ -709,9 +752,7 @@ def update_employee_password(username: str, new_password: str) -> bool:
         return False
     ucol = headers.index("Username")
     pcol = headers.index("Password") + 1
-
     hashed = generate_password_hash(new_password)
-
     for i in range(1, len(vals)):
         row = vals[i]
         if len(row) > ucol and row[ucol] == username:
@@ -756,6 +797,26 @@ def require_csrf():
     if request.method == "POST":
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
+
+def bottom_nav(active: str, role: str) -> str:
+    # active: "home" / "clock" / "times" / "reports" / "profile"
+    admin_link = ""
+    if role == "admin":
+        admin_link = """
+        <a class="navIcon" href="/admin" title="Admin">""" + _svg_grid() + """</a>
+        """
+    return f"""
+    <div class="bottomNav">
+      <div class="navInner">
+        <a class="navIcon {'active' if active=='home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
+        <a class="navIcon {'active' if active=='clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
+        <a class="navIcon {'active' if active=='times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
+        <a class="navIcon {'active' if active=='reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
+        <a class="navIcon {'active' if active=='profile' else ''}" href="/password" title="Profile">{_svg_user()}</a>
+        {admin_link}
+      </div>
+    </div>
+    """
 
 
 # ================= ROUTES =================
@@ -839,21 +900,29 @@ def login():
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>WorkHours</h1><p class="sub">Sign in</p></div>
-        <div class="badge">Secure access</div>
-      </div>
-      <form method="POST">
-        <input type="hidden" name="csrf" value="{escape(csrf)}">
-        <input class="input" name="username" placeholder="Username" required>
-        <input class="input" type="password" name="password" placeholder="Password" required>
-        <div class="btnrow actionbar">
-          <button class="blue" type="submit">Login</button>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>WorkHours</h1>
+          <p class="sub">Sign in</p>
         </div>
-      </form>
-      {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
-    </div></div>
+        <div class="badge">Secure</div>
+      </div>
+
+      <div class="card" style="padding:14px;">
+        <form method="POST">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <label class="sub">Username</label>
+          <input class="input" name="username" placeholder="Username" required>
+          <label class="sub" style="margin-top:10px; display:block;">Password</label>
+          <input class="input" type="password" name="password" placeholder="Password" required>
+
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
+        </form>
+
+        {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
+      </div>
+    </div>
     """)
 
 @app.get("/logout")
@@ -871,6 +940,8 @@ def change_password():
 
     csrf = get_csrf()
     username = session["username"]
+    role = session.get("role", "employee")
+
     msg = ""
     ok = False
 
@@ -905,38 +976,194 @@ def change_password():
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Change Password</h1><p class="sub">Update your login password</p></div>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Profile</h1>
+          <p class="sub">Change password</p>
+        </div>
+        <div class="badge">{escape(username)}</div>
       </div>
 
-      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
-      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+      <div class="card" style="padding:14px;">
+        {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
+        {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
-      <form method="POST">
-        <input type="hidden" name="csrf" value="{escape(csrf)}">
+        <form method="POST">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
 
-        <label class="sub">Current password</label>
-        <input class="input" type="password" name="current" required>
+          <label class="sub">Current password</label>
+          <input class="input" type="password" name="current" required>
 
-        <label class="sub" style="margin-top:10px; display:block;">New password</label>
-        <input class="input" type="password" name="new1" required>
+          <label class="sub" style="margin-top:10px; display:block;">New password</label>
+          <input class="input" type="password" name="new1" required>
 
-        <label class="sub" style="margin-top:10px; display:block;">Repeat new password</label>
-        <input class="input" type="password" name="new2" required>
+          <label class="sub" style="margin-top:10px; display:block;">Repeat new password</label>
+          <input class="input" type="password" name="new2" required>
 
-        <div class="btnrow actionbar">
-          <button class="blue" type="submit">Save</button>
-          <a href="/"><button class="gray" type="button">Back</button></a>
-        </div>
-      </form>
-    </div></div>
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Save</button>
+        </form>
+
+        <a href="/logout" style="display:block;margin-top:12px;">
+          <button class="btnSoft" type="button" style="background: rgba(239,68,68,.10); color: rgba(239,68,68,.95);">Logout</button>
+        </a>
+      </div>
+
+      {bottom_nav("profile", role)}
+    </div>
     """)
 
 
-# ---------- HOME (LIVE SESSION TIMER) ----------
-@app.route("/", methods=["GET", "POST"])
+# ---------- DASHBOARD HOME ----------
+@app.get("/")
 def home():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    role = session.get("role", "employee")
+    now = datetime.now(TZ)
+    today = now.date()
+
+    # build last 5 ISO weeks gross for this user
+    rows = work_sheet.get_all_values()
+
+    y, w, _ = today.isocalendar()
+    monday = today - timedelta(days=today.weekday())
+
+    def week_key_for_n(n: int):
+        d2 = monday - timedelta(days=7*n)
+        yy, ww, _ = d2.isocalendar()
+        return yy, ww
+
+    # oldest -> newest
+    week_keys = [week_key_for_n(i) for i in range(4, -1, -1)]
+    week_labels = [str(k[1]) for k in week_keys]
+    weekly_gross = [0.0] * 5
+
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+        if (r[COL_USER] or "").strip() != username:
+            continue
+        if not r[COL_PAY]:
+            continue
+        try:
+            d = datetime.strptime(r[COL_DATE], "%Y-%m-%d").date()
+            yy, ww, _ = d.isocalendar()
+        except Exception:
+            continue
+        for idx, (yy2, ww2) in enumerate(week_keys):
+            if yy == yy2 and ww == ww2:
+                weekly_gross[idx] += safe_float(r[COL_PAY], 0.0)
+
+    max_g = max(weekly_gross) if weekly_gross else 0.0
+    max_g = max(max_g, 1.0)
+
+    bars_html = ""
+    for g in weekly_gross:
+        h = int((g / max_g) * 160)  # px
+        bars_html += f"<div class='bar' style='height:{h}px;'></div>"
+
+    labels_html = "".join([f"<div style='width:16%;text-align:center;'>{escape(x)}</div>" for x in week_labels])
+
+    prev_gross = round(sum(weekly_gross[:-1]), 2)
+    curr_gross = round(weekly_gross[-1], 2)
+
+    admin_item = ""
+    if role == "admin":
+        admin_item = f"""
+        <a class="menuItem" href="/admin">
+          <div class="menuLeft">
+            <div class="icoBox" style="color: var(--purple);">{_svg_grid()}</div>
+            <div class="menuText" style="color:var(--purple);">Admin</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+        """
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app">
+
+      <div class="headerTop">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="sub">Welcome, {escape(username)}</p>
+        </div>
+        <div class="badge">{escape(role.upper())}</div>
+      </div>
+
+      <div class="kpiRow">
+        <div class="card kpi">
+          <p class="label">Previous Gross</p>
+          <p class="value">£{prev_gross}</p>
+        </div>
+        <div class="card kpi">
+          <p class="label">Current Gross</p>
+          <p class="value">£{curr_gross}</p>
+        </div>
+      </div>
+
+      <div class="card chartCard">
+        <div class="chartHead">Weeks {escape(week_labels[0])} – {escape(week_labels[-1])}</div>
+        <div class="chartBars">{bars_html}</div>
+        <div class="barLabelRow">{labels_html}</div>
+      </div>
+
+      <div class="card menu">
+        <a class="menuItem active" href="/clock">
+          <div class="menuLeft">
+            <div class="icoBox" style="color: var(--purple);">{_svg_clock()}</div>
+            <div class="menuText" style="color:var(--purple);">Clock In & Out</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/my-times">
+          <div class="menuLeft">
+            <div class="icoBox" style="color: var(--purple);">{_svg_clipboard()}</div>
+            <div class="menuText" style="color:var(--purple);">Time logs</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/my-reports">
+          <div class="menuLeft">
+            <div class="icoBox" style="color: var(--blue);">{_svg_chart()}</div>
+            <div class="menuText" style="color:var(--blue);">Timesheets</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/onboarding">
+          <div class="menuLeft">
+            <div class="icoBox" style="color: var(--purple);">{_svg_doc()}</div>
+            <div class="menuText" style="color:var(--purple);">Agreements</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        {admin_item}
+
+        <a class="menuItem" href="/password">
+          <div class="menuLeft">
+            <div class="icoBox" style="color: var(--purple);">{_svg_user()}</div>
+            <div class="menuText" style="color:var(--purple);">Profile</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+      </div>
+
+      {bottom_nav("home", role)}
+    </div>
+    """)
+
+
+# ---------- CLOCK IN / OUT PAGE (LIVE SESSION) ----------
+@app.route("/clock", methods=["GET", "POST"])
+def clock_page():
     gate = require_login()
     if gate:
         return gate
@@ -991,9 +1218,10 @@ def home():
                 work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
                 msg = "Clocked Out"
 
-    # Determine active session start for live timer
+    # live session timer
     rows2 = work_sheet.get_all_values()
     osf2 = find_open_shift(rows2, username)
+
     active_start_iso = ""
     active_start_label = ""
     if osf2:
@@ -1008,11 +1236,9 @@ def home():
     timer_html = ""
     if active_start_iso:
         timer_html = f"""
-        <div class="timerBox">
-          <div class="sub">Active session</div>
-          <div class="timerBig" id="timerDisplay">00:00:00</div>
-          <div class="sub" style="margin-top:6px;">Start: {escape(active_start_label)}</div>
-        </div>
+        <div class="timerSub">Active session started</div>
+        <div class="timerBig" id="timerDisplay">00:00:00</div>
+        <div class="timerSub">Start: {escape(active_start_label)}</div>
         <script>
           (function() {{
             const startIso = "{escape(active_start_iso)}";
@@ -1033,43 +1259,43 @@ def home():
           }})();
         </script>
         """
-
-    admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
-    drive_btn = "<a href='/connect-drive'><button class='blue btnSmall' type='button'>Connect Drive</button></a>" if role == "admin" else ""
+    else:
+        timer_html = """
+        <div class="timerSub">No active session</div>
+        <div class="timerBig">00:00:00</div>
+        <div class="timerSub">Clock in to start the live timer.</div>
+        """
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title">
-          <h1>Hi, {escape(username)}</h1>
-          <p class="sub">Clock in/out • view your times & pay • starter form</p>
+    <div class="app">
+
+      <div class="headerTop">
+        <div>
+          <h1>Clock In & Out</h1>
+          <p class="sub">Live session timer</p>
         </div>
-        <div class="badge">{escape(role.upper())}</div>
+        <div class="badge">{escape(username)}</div>
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
-      {timer_html}
+      <div class="card clockCard">
+        {timer_html}
 
-      <div class="actionbar">
-        <form method="POST" class="btnrow" style="margin:0;">
+        <form method="POST" class="actionRow">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <button class="green" name="action" value="in">Clock In</button>
-          <button class="red" name="action" value="out">Clock Out</button>
+          <button class="btn btnIn" name="action" value="in">Clock In</button>
+          <button class="btn btnOut" name="action" value="out">Clock Out</button>
         </form>
 
-        <div class="navgrid">
-          {admin_btn if admin_btn else ""}
-          {drive_btn if drive_btn else ""}
-          <a href="/my-times"><button class="blue btnSmall" type="button">My Times</button></a>
-          <a href="/my-reports"><button class="blue btnSmall" type="button">My Reports</button></a>
-          <a href="/onboarding"><button class="blue btnSmall" type="button">Starter Form</button></a>
-          <a href="/password"><button class="blue btnSmall" type="button">Password</button></a>
-          <a href="/logout"><button class="gray btnSmall" type="button">Logout</button></a>
-        </div>
+        <a href="/my-times" style="display:block;margin-top:12px;">
+          <button class="btnSoft" type="button">View my time logs</button>
+        </a>
       </div>
-    </div></div>
+
+      {bottom_nav("clock", role)}
+    </div>
     """)
 
 
@@ -1080,13 +1306,14 @@ def my_times():
     if gate:
         return gate
     username = session["username"]
+    role = session.get("role", "employee")
 
     rows = work_sheet.get_all_values()
     body = []
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        if r[COL_USER] != username:
+        if (r[COL_USER] or "").strip() != username:
             continue
         date = r[COL_DATE]
         cin = r[COL_IN]
@@ -1102,20 +1329,26 @@ def my_times():
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>My Times</h1><p class="sub">Clock-in/out history</p></div>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Time logs</h1>
+          <p class="sub">Your clock history</p>
+        </div>
+        <div class="badge">{escape(username)}</div>
       </div>
-      <div class="btnrow">
-        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
+
+      <div class="card" style="padding:12px;">
+        <div class="tablewrap">
+          <table style="min-width:640px;">
+            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+            <tbody>{table}</tbody>
+          </table>
+        </div>
       </div>
-      <div class="tablewrap">
-        <table style="min-width:640px;">
-          <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
-          <tbody>{table}</tbody>
-        </table>
-      </div>
-    </div></div>
+
+      {bottom_nav("times", role)}
+    </div>
     """)
 
 
@@ -1127,6 +1360,7 @@ def my_reports():
         return gate
 
     username = session["username"]
+    role = session.get("role", "employee")
     now = datetime.now(TZ)
     today = now.date()
     week_start = today - timedelta(days=today.weekday())
@@ -1139,7 +1373,7 @@ def my_reports():
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        if r[COL_USER] != username:
+        if (r[COL_USER] or "").strip() != username:
             continue
         if not r[COL_HOURS]:
             continue
@@ -1172,32 +1406,36 @@ def my_reports():
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>My Reports</h1><p class="sub">Totals + tax (20%) + net</p></div>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Timesheets</h1>
+          <p class="sub">Totals + 20% tax + net</p>
+        </div>
+        <div class="badge">{escape(username)}</div>
       </div>
 
-      <div class="kpi">
-        <div class="box"><div class="sub">Today Hours</div><div class="big">{round(daily_hours,2)}</div></div>
-        <div class="box"><div class="sub">Today Gross</div><div class="big">{d_g}</div></div>
-        <div class="box"><div class="sub">Today Tax</div><div class="big">{d_t}</div></div>
-        <div class="box"><div class="sub">Today Net</div><div class="big">{d_n}</div></div>
-
-        <div class="box"><div class="sub">Week Hours</div><div class="big">{round(weekly_hours,2)}</div></div>
-        <div class="box"><div class="sub">Week Gross</div><div class="big">{w_g}</div></div>
-        <div class="box"><div class="sub">Week Tax</div><div class="big">{w_t}</div></div>
-        <div class="box"><div class="sub">Week Net</div><div class="big">{w_n}</div></div>
-
-        <div class="box"><div class="sub">Month Hours</div><div class="big">{round(monthly_hours,2)}</div></div>
-        <div class="box"><div class="sub">Month Gross</div><div class="big">{m_g}</div></div>
-        <div class="box"><div class="sub">Month Tax</div><div class="big">{m_t}</div></div>
-        <div class="box"><div class="sub">Month Net</div><div class="big">{m_n}</div></div>
+      <div class="kpiRow">
+        <div class="card kpi">
+          <p class="label">Today</p>
+          <p class="value">£{d_g}</p>
+          <p class="sub">Hours: {round(daily_hours,2)} • Tax: £{d_t} • Net: £{d_n}</p>
+        </div>
+        <div class="card kpi">
+          <p class="label">This Week</p>
+          <p class="value">£{w_g}</p>
+          <p class="sub">Hours: {round(weekly_hours,2)} • Tax: £{w_t} • Net: £{w_n}</p>
+        </div>
       </div>
 
-      <div class="btnrow actionbar">
-        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
+      <div class="card kpi" style="margin-top:12px;">
+        <p class="label">This Month</p>
+        <p class="value">£{m_g}</p>
+        <p class="sub">Hours: {round(monthly_hours,2)} • Tax: £{m_t} • Net: £{m_n}</p>
       </div>
-    </div></div>
+
+      {bottom_nav("reports", role)}
+    </div>
     """)
 
 
@@ -1226,45 +1464,23 @@ def onboarding():
 
         def g(name): return (request.form.get(name, "") or "").strip()
 
-        # typed fields
-        first = g("first")
-        last = g("last")
-        birth = g("birth")
-        phone_cc = g("phone_cc") or "+44"
-        phone_num = g("phone_num")
-        street = g("street")
-        city = g("city")
-        postcode = g("postcode")
+        first = g("first"); last = g("last"); birth = g("birth")
+        phone_cc = g("phone_cc") or "+44"; phone_num = g("phone_num")
+        street = g("street"); city = g("city"); postcode = g("postcode")
         email = g("email")
-        ec_name = g("ec_name")
-        ec_cc = g("ec_cc") or "+44"
-        ec_phone = g("ec_phone")
+        ec_name = g("ec_name"); ec_cc = g("ec_cc") or "+44"; ec_phone = g("ec_phone")
 
-        medical = g("medical")
-        medical_details = g("medical_details")
+        medical = g("medical"); medical_details = g("medical_details")
+        position = g("position"); cscs_no = g("cscs_no"); cscs_exp = g("cscs_exp")
+        emp_type = g("emp_type"); rtw = g("rtw"); ni = g("ni"); utr = g("utr"); start_date = g("start_date")
 
-        position = g("position")
-        cscs_no = g("cscs_no")
-        cscs_exp = g("cscs_exp")
-        emp_type = g("emp_type")
-        rtw = g("rtw")
-        ni = g("ni")
-        utr = g("utr")
-        start_date = g("start_date")
+        acc_no = g("acc_no"); sort_code = g("sort_code"); acc_name = g("acc_name")
+        comp_trading = g("comp_trading"); comp_reg = g("comp_reg")
 
-        acc_no = g("acc_no")
-        sort_code = g("sort_code")
-        acc_name = g("acc_name")
-        comp_trading = g("comp_trading")
-        comp_reg = g("comp_reg")
-
-        contract_date = g("contract_date")
-        site_address = g("site_address")
-
+        contract_date = g("contract_date"); site_address = g("site_address")
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
-        # files
         passport_file = request.files.get("passport_file")
         cscs_file = request.files.get("cscs_file")
         pli_file = request.files.get("pli_file")
@@ -1315,24 +1531,19 @@ def onboarding():
             if not contract_accept:
                 missing.append("Contract acceptance")
                 missing_fields.add("contract_accept")
-
             req(signature_name, "signature_name", "Signature name")
 
             if not _load_drive_token() and not session.get("drive_token"):
                 missing.append("Upload system not connected (admin must click Connect Drive)")
 
             if not passport_file or not passport_file.filename:
-                missing.append("Passport or Birth Certificate file")
-                missing_fields.add("passport_file")
+                missing.append("Passport or Birth Certificate file"); missing_fields.add("passport_file")
             if not cscs_file or not cscs_file.filename:
-                missing.append("CSCS Card (front & back) file")
-                missing_fields.add("cscs_file")
+                missing.append("CSCS Card (front & back) file"); missing_fields.add("cscs_file")
             if not pli_file or not pli_file.filename:
-                missing.append("Public Liability file")
-                missing_fields.add("pli_file")
+                missing.append("Public Liability file"); missing_fields.add("pli_file")
             if not share_file or not share_file.filename:
-                missing.append("Share Code / Confirmation file")
-                missing_fields.add("share_file")
+                missing.append("Share Code / Confirmation file"); missing_fields.add("share_file")
 
         typed = dict(request.form)
 
@@ -1341,13 +1552,11 @@ def onboarding():
             msg_ok = False
             return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, missing_fields, csrf))
 
-        # Keep existing links if draft/partial
         passport_link = v("PassportOrBirthCertLink")
         cscs_link = v("CSCSFrontBackLink")
         pli_link = v("PublicLiabilityLink")
         share_link = v("ShareCodeLink")
 
-        # Upload files if provided
         try:
             if passport_file and passport_file.filename:
                 passport_link = upload_to_drive(passport_file, f"{username}_passport")
@@ -1367,35 +1576,23 @@ def onboarding():
         now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
 
         data = {
-            "FirstName": first,
-            "LastName": last,
-            "BirthDate": birth,
-            "PhoneCountryCode": phone_cc,
-            "PhoneNumber": phone_num,
-            "StreetAddress": street,
-            "City": city,
-            "Postcode": postcode,
-            "Email": email,
+            "FirstName": first, "LastName": last, "BirthDate": birth,
+            "PhoneCountryCode": phone_cc, "PhoneNumber": phone_num,
+            "StreetAddress": street, "City": city, "Postcode": postcode, "Email": email,
             "EmergencyContactName": ec_name,
             "EmergencyContactPhoneCountryCode": ec_cc,
             "EmergencyContactPhoneNumber": ec_phone,
-            "MedicalCondition": medical,
-            "MedicalDetails": medical_details,
+            "MedicalCondition": medical, "MedicalDetails": medical_details,
             "Position": position,
-            "CSCSNumber": cscs_no,
-            "CSCSExpiryDate": cscs_exp,
+            "CSCSNumber": cscs_no, "CSCSExpiryDate": cscs_exp,
             "EmploymentType": emp_type,
             "RightToWorkUK": rtw,
-            "NationalInsurance": ni,
-            "UTR": utr,
-            "StartDate": start_date,
-            "BankAccountNumber": acc_no,
-            "SortCode": sort_code,
-            "AccountHolderName": acc_name,
-            "CompanyTradingName": comp_trading,
-            "CompanyRegistrationNo": comp_reg,
-            "DateOfContract": contract_date,
-            "SiteAddress": site_address,
+            "NationalInsurance": ni, "UTR": utr, "StartDate": start_date,
+
+            "BankAccountNumber": acc_no, "SortCode": sort_code, "AccountHolderName": acc_name,
+            "CompanyTradingName": comp_trading, "CompanyRegistrationNo": comp_reg,
+
+            "DateOfContract": contract_date, "SiteAddress": site_address,
 
             "PassportOrBirthCertLink": passport_link,
             "CSCSFrontBackLink": cscs_link,
@@ -1419,7 +1616,6 @@ def onboarding():
 
         return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, {}, set(), csrf))
 
-    # GET
     return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, None, None, csrf))
 
 
@@ -1444,18 +1640,17 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
     def selected(input_name, existing_key, value):
         return "selected" if val(input_name, existing_key) == value else ""
 
-    admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
     drive_hint = ""
     if role == "admin":
-        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive'>Connect Drive</a> once.</p>"
+        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive' style='color:var(--purple);font-weight:900;'>Connect Drive</a> once.</p>"
 
     return f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title">
-          <h1>Starter Form</h1>
-          <p class="sub">Save Draft anytime. Submit Final when complete (required + contract + uploads).</p>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Agreements</h1>
+          <p class="sub">Starter form • contract • document uploads</p>
           {drive_hint}
         </div>
         <div class="badge">{escape(username)}</div>
@@ -1464,210 +1659,200 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not msg_ok) else ""}
 
-      <form method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="csrf" value="{escape(csrf)}">
+      <div class="card" style="padding:14px;">
+        <form method="POST" enctype="multipart/form-data">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
 
-        <h2>Personal details</h2>
-        <div class="row2">
-          <div>
-            <label class="sub {bad_label('first')}">First Name</label>
-            <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
+          <div class="row2">
+            <div>
+              <label class="sub {bad_label('first')}">First Name</label>
+              <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('last')}">Last Name</label>
+              <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
+            </div>
           </div>
-          <div>
-            <label class="sub {bad_label('last')}">Last Name</label>
-            <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
+
+          <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
+          <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
+
+          <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
+          <div class="row2">
+            <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
+            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
           </div>
-        </div>
 
-        <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
-        <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
-
-        <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
-        <div class="row2">
-          <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
-          <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
-        </div>
-
-        <h2>Address</h2>
-        <input class="input" name="street" placeholder="Street Address" value="{escape(val('street','StreetAddress'))}">
-        <div class="row2">
-          <input class="input" name="city" placeholder="City" value="{escape(val('city','City'))}">
-          <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode','Postcode'))}">
-        </div>
-
-        <div class="row2">
-          <div>
-            <label class="sub {bad_label('email')}">Email</label>
-            <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
+          <div class="row2" style="margin-top:10px;">
+            <div>
+              <label class="sub {bad_label('email')}">Email</label>
+              <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
+              <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
+            </div>
           </div>
-          <div>
-            <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
-            <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
+
+          <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
+          <div class="row2">
+            <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
+            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
           </div>
-        </div>
 
-        <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
-        <div class="row2">
-          <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
-          <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
-        </div>
+          <label class="sub {bad_label('medical')}" style="margin-top:12px; display:block;">Medical condition that may affect work?</label>
+          <div class="row2">
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
+            </label>
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
+            </label>
+          </div>
+          <label class="sub" style="margin-top:8px; display:block;">Details</label>
+          <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
 
-        <h2>Medical</h2>
-        <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
-        <div class="row2">
-          <label class="sub" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
+          <label class="sub {bad_label('position')}" style="margin-top:12px; display:block;">Position</label>
+          <div class="row2">
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
+            </label>
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
+            </label>
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
+            </label>
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
+            </label>
+          </div>
+
+          <div class="row2" style="margin-top:10px;">
+            <div>
+              <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
+              <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
+              <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
+            </div>
+          </div>
+
+          <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
+          <select class="input {bad('emp_type')}" name="emp_type">
+            <option value="">Please Select</option>
+            <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
+            <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
+            <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
+            <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
+          </select>
+
+          <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
+          <div class="row2">
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
+            </label>
+            <label class="sub" style="display:flex; gap:10px; align-items:center;">
+              <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
+            </label>
+          </div>
+
+          <div class="row2" style="margin-top:10px;">
+            <div>
+              <label class="sub {bad_label('ni')}">National Insurance</label>
+              <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('utr')}">UTR</label>
+              <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
+            </div>
+          </div>
+
+          <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
+          <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
+
+          <div class="row2" style="margin-top:10px;">
+            <div>
+              <label class="sub {bad_label('acc_no')}">Bank Account Number</label>
+              <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('sort_code')}">Sort Code</label>
+              <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
+            </div>
+          </div>
+          <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
+          <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
+
+          <label class="sub" style="margin-top:12px; display:block;">Company details (optional)</label>
+          <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
+          <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
+
+          <div class="row2" style="margin-top:10px;">
+            <div>
+              <label class="sub {bad_label('contract_date')}">Date of Contract</label>
+              <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
+            </div>
+            <div>
+              <label class="sub {bad_label('site_address')}">Site address</label>
+              <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
+            </div>
+          </div>
+
+          <label class="sub" style="margin-top:14px; display:block; font-weight:900;">Upload documents</label>
+          <p class="sub">Draft: optional uploads. Final: all 4 required. (Files must be re-selected if a Final submit fails.)</p>
+
+          <div class="uploadLabel {bad('passport_file')}">
+            <div class="text">Passport or Birth Certificate</div>
+            <div class="hint">Required for Final</div>
+          </div>
+          <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
+
+          <div class="uploadLabel {bad('cscs_file')}">
+            <div class="text">CSCS Card (front &amp; back)</div>
+            <div class="hint">Required for Final</div>
+          </div>
+          <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
+
+          <div class="uploadLabel {bad('pli_file')}">
+            <div class="text">Public Liability</div>
+            <div class="hint">Required for Final</div>
+          </div>
+          <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
+
+          <div class="uploadLabel {bad('share_file')}">
+            <div class="text">Share Code / Confirmation</div>
+            <div class="hint">Required for Final</div>
+          </div>
+          <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
+          <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
+
+          <label class="sub" style="margin-top:14px; display:block; font-weight:900;">Contract</label>
+          <div class="card" style="padding:12px; background:#f7f8ff; border:1px solid rgba(15,23,42,.06); box-shadow:none;">
+            <pre style="white-space:pre-wrap; margin:0; font-size:13px; color:rgba(15,23,42,.92);">{escape(CONTRACT_TEXT)}</pre>
+          </div>
+
+          <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+            <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
+            I have read and accept the contract terms (required for Final)
           </label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
-          </label>
-        </div>
-        <label class="sub" style="margin-top:10px; display:block;">Details</label>
-        <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
 
-        <h2>Position</h2>
-        <div class="row2">
-          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
-          </label>
-          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
-          </label>
-          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
-          </label>
-          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
-          </label>
-        </div>
+          <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
+          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
 
-        <div class="row2">
-          <div>
-            <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
-            <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
+          <div class="row2" style="margin-top:14px;">
+            <button class="btnSoft" name="submit_type" value="draft" type="submit">Save Draft</button>
+            <button class="btnSoft" name="submit_type" value="final" type="submit" style="background: rgba(109,40,217,.14); color: rgba(109,40,217,.98);">Submit Final</button>
           </div>
-          <div>
-            <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
-            <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
-          </div>
-        </div>
+        </form>
+      </div>
 
-        <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
-        <select class="input {bad('emp_type')}" name="emp_type">
-          <option value="">Please Select</option>
-          <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
-          <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
-          <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
-          <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
-        </select>
-
-        <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
-        <div class="row2">
-          <label class="sub" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
-          </label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;">
-            <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
-          </label>
-        </div>
-
-        <div class="row2">
-          <div>
-            <label class="sub {bad_label('ni')}">National Insurance</label>
-            <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
-          </div>
-          <div>
-            <label class="sub {bad_label('utr')}">UTR</label>
-            <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
-          </div>
-        </div>
-
-        <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
-        <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
-
-        <h2>Bank details</h2>
-        <div class="row2">
-          <div>
-            <label class="sub {bad_label('acc_no')}">Account Number</label>
-            <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
-          </div>
-          <div>
-            <label class="sub {bad_label('sort_code')}">Sort Code</label>
-            <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
-          </div>
-        </div>
-        <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
-        <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
-
-        <h2>Company details</h2>
-        <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
-        <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
-
-        <h2>Contract & site</h2>
-        <div class="row2">
-          <div>
-            <label class="sub {bad_label('contract_date')}">Date of Contract</label>
-            <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
-          </div>
-          <div>
-            <label class="sub {bad_label('site_address')}">Site address</label>
-            <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
-          </div>
-        </div>
-
-        <h2>Upload documents</h2>
-        <p class="sub">Draft: optional uploads. Final: all 4 required. (Files must be re-selected if a Final submit fails.)</p>
-
-        <div class="uploadLabel {bad('passport_file')}">
-          <div class="text">Passport or Birth Certificate</div>
-          <div class="hint">Required for Final</div>
-        </div>
-        <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
-
-        <div class="uploadLabel {bad('cscs_file')}">
-          <div class="text">CSCS Card (front & back)</div>
-          <div class="hint">Required for Final</div>
-        </div>
-        <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
-
-        <div class="uploadLabel {bad('pli_file')}">
-          <div class="text">Public Liability</div>
-          <div class="hint">Required for Final</div>
-        </div>
-        <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
-
-        <div class="uploadLabel {bad('share_file')}">
-          <div class="text">Share Code / Confirmation</div>
-          <div class="hint">Required for Final</div>
-        </div>
-        <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
-        <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
-
-        <h2>Contract</h2>
-        <div class="contract"><pre style="white-space:pre-wrap; margin:0;">{escape(CONTRACT_TEXT)}</pre></div>
-
-        <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-          <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
-          I have read and accept the contract terms (required for Final)
-        </label>
-
-        <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
-        <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
-
-        <div class="btnrow actionbar">
-          <button class="green" name="submit_type" value="draft" type="submit">Save Draft</button>
-          <button class="purple" name="submit_type" value="final" type="submit">Submit Final</button>
-          <a href="/"><button class="gray" type="button">Back</button></a>
-        </div>
-
-        <div class="navgrid">
-          {admin_btn if admin_btn else ""}
-        </div>
-      </form>
-    </div></div>
+      {bottom_nav("home", role)}
+    </div>
     """
 
 
@@ -1677,37 +1862,86 @@ def admin():
     gate = require_admin()
     if gate:
         return gate
+    role = session.get("role", "employee")
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding + reports</p></div>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Admin</h1>
+          <p class="sub">Payroll • onboarding • reports</p>
+        </div>
         <div class="badge">ADMIN</div>
       </div>
-      <div class="navgrid actionbar">
-        <a href="/connect-drive"><button class="blue btnSmall" type="button">Connect Drive</button></a>
-        <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
-        <a href="/admin/times"><button class="blue btnSmall" type="button">Payroll Report</button></a>
-        <a href="/weekly"><button class="blue btnSmall" type="button">Weekly Payroll</button></a>
-        <a href="/monthly"><button class="blue btnSmall" type="button">Monthly Payroll</button></a>
-        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
+
+      <div class="card menu">
+        <a class="menuItem active" href="/admin/times">
+          <div class="menuLeft">
+            <div class="icoBox" style="color:var(--purple);">{_svg_chart()}</div>
+            <div class="menuText" style="color:var(--purple);">Payroll Report</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/admin/onboarding">
+          <div class="menuLeft">
+            <div class="icoBox" style="color:var(--purple);">{_svg_doc()}</div>
+            <div class="menuText" style="color:var(--purple);">Onboarding</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/weekly">
+          <div class="menuLeft">
+            <div class="icoBox" style="color:var(--blue);">{_svg_clipboard()}</div>
+            <div class="menuText" style="color:var(--blue);">Generate Weekly Payroll</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/monthly">
+          <div class="menuLeft">
+            <div class="icoBox" style="color:var(--blue);">{_svg_clipboard()}</div>
+            <div class="menuText" style="color:var(--blue);">Generate Monthly Payroll</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/connect-drive">
+          <div class="menuLeft">
+            <div class="icoBox" style="color:var(--purple);">{_svg_grid()}</div>
+            <div class="menuText" style="color:var(--purple);">Connect Drive</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
+
+        <a class="menuItem" href="/">
+          <div class="menuLeft">
+            <div class="icoBox" style="color:var(--purple);">{_svg_grid()}</div>
+            <div class="menuText" style="color:var(--purple);">Back to Dashboard</div>
+          </div>
+          <div class="chev">›</div>
+        </a>
       </div>
-    </div></div>
+
+      {bottom_nav("home", role)}
+    </div>
     """)
 
 
-# ---------- ADMIN: REAL PAYROLL REPORT (GROUPED + PRINT VIEW) ----------
+# ---------- ADMIN: PAYROLL REPORT (GROUPED + PRINT + CSV) ----------
 @app.get("/admin/times")
 def admin_times():
     gate = require_admin()
     if gate:
         return gate
 
-    q = (request.args.get("q", "") or "").strip().lower()              # username contains
-    date_from = (request.args.get("from", "") or "").strip()           # YYYY-MM-DD
-    date_to = (request.args.get("to", "") or "").strip()               # YYYY-MM-DD
-    group_mode = (request.args.get("group", "employee") or "").strip().lower()  # employee / none
-    download = (request.args.get("download", "") or "").strip()        # "1" => CSV
+    role = session.get("role", "employee")
+    q = (request.args.get("q", "") or "").strip().lower()
+    date_from = (request.args.get("from", "") or "").strip()
+    date_to = (request.args.get("to", "") or "").strip()
+    group_mode = (request.args.get("group", "employee") or "").strip().lower()
+    download = (request.args.get("download", "") or "").strip()
 
     now = datetime.now(TZ)
     generated_on = now.strftime("%Y-%m-%d %H:%M:%S")
@@ -1727,15 +1961,12 @@ def admin_times():
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-
         user = (r[COL_USER] or "").strip()
         d = (r[COL_DATE] or "").strip()
-
         if not in_range(d):
             continue
         if q and q not in user.lower():
             continue
-
         filtered.append({
             "user": user,
             "date": d,
@@ -1745,36 +1976,18 @@ def admin_times():
             "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
         })
 
-    # CSV export
     if download == "1":
         out = io.StringIO()
         w = csv.writer(out)
         w.writerow(["Username", "Date", "Clock In", "Clock Out", "Hours", "Pay"])
         for row in filtered:
             w.writerow([row["user"], row["date"], row["cin"], row["cout"], row["hours"], row["pay"]])
-
-        total_hours = 0.0
-        total_gross = 0.0
-        for row in filtered:
-            if row["hours"] != "":
-                total_hours += safe_float(row["hours"], 0.0)
-                total_gross += safe_float(row["pay"], 0.0)
-
-        total_tax = round(total_gross * TAX_RATE, 2)
-        total_net = round(total_gross - total_tax, 2)
-        w.writerow([])
-        w.writerow(["TOTAL HOURS", round(total_hours, 2)])
-        w.writerow(["TOTAL GROSS", round(total_gross, 2)])
-        w.writerow(["TOTAL TAX (20%)", total_tax])
-        w.writerow(["TOTAL NET", total_net])
-
         return Response(
             out.getvalue(),
             mimetype="text/csv",
             headers={"Content-Disposition": "attachment; filename=payroll_report.csv"},
         )
 
-    # Grouping + totals
     by_user = {}
     overall_hours = 0.0
     overall_gross = 0.0
@@ -1783,7 +1996,6 @@ def admin_times():
         u = row["user"] or "Unknown"
         by_user.setdefault(u, {"rows": [], "hours": 0.0, "gross": 0.0})
         by_user[u]["rows"].append(row)
-
         if row["hours"] != "":
             h = safe_float(row["hours"], 0.0)
             g = safe_float(row["pay"], 0.0)
@@ -1795,7 +2007,6 @@ def admin_times():
     overall_tax = round(overall_gross * TAX_RATE, 2)
     overall_net = round(overall_gross - overall_tax, 2)
 
-    # Summary table
     summary_rows = []
     for u in sorted(by_user.keys(), key=lambda s: s.lower()):
         gross = round(by_user[u]["gross"], 2)
@@ -1806,7 +2017,6 @@ def admin_times():
         )
     summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='5'>No data for this range.</td></tr>"
 
-    # Grouped detail sections
     grouped_html_parts = []
     if group_mode != "none":
         for u in sorted(by_user.keys(), key=lambda s: s.lower()):
@@ -1830,18 +2040,18 @@ def admin_times():
             detail_html = "".join(detail_rows) if detail_rows else "<tr><td colspan='5'>No rows.</td></tr>"
 
             grouped_html_parts.append(f"""
-              <div style="margin-top:16px;">
-                <div class="reportHeader">
+              <div class="card" style="padding:12px; margin-top:12px;">
+                <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-end;">
                   <div>
-                    <div class="reportTitle">{escape(u)}</div>
-                    <div class="reportMeta">
+                    <div style="font-weight:950;font-size:18px;color:var(--purple);">{escape(u)}</div>
+                    <div class="sub" style="margin-top:4px;">
                       Hours: <b>{round(block["hours"],2)}</b> • Gross: <b>{gross}</b> • Tax: <b>{tax}</b> • Net: <b>{net}</b>
                     </div>
                   </div>
-                  <div class="reportStamp">Generated: {escape(generated_on)}</div>
+                  <div class="sub" style="text-align:right;">Generated: {escape(generated_on)}</div>
                 </div>
 
-                <div class="tablewrap">
+                <div class="tablewrap" style="margin-top:10px;">
                   <table style="min-width:760px;">
                     <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
                     <tbody>{detail_html}</tbody>
@@ -1864,103 +2074,81 @@ def admin_times():
                 "</tr>"
             )
         grouped_html = f"""
-          <div class="tablewrap" style="margin-top:16px;">
-            <table>
-              <thead><tr><th>Username</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
-              <tbody>{''.join(flat_rows) if flat_rows else "<tr><td colspan='6'>No rows.</td></tr>"}</tbody>
-            </table>
+          <div class="card" style="padding:12px;margin-top:12px;">
+            <div class="tablewrap">
+              <table>
+                <thead><tr><th>Username</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+                <tbody>{''.join(flat_rows) if flat_rows else "<tr><td colspan='6'>No rows.</td></tr>"}</tbody>
+              </table>
+            </div>
           </div>
         """
 
-    # Safe query pieces for CSV link
-    q_q = escape(q)
-    q_from = escape(date_from)
-    q_to = escape(date_to)
-    q_group = escape(group_mode)
-
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
+    <div class="app">
 
-      <div class="header">
-        {HEADER_ICON}
-        <div class="title">
+      <div class="headerTop">
+        <div>
           <h1>Payroll Report</h1>
-          <p class="sub">Grouped payroll view with print-ready layout (and CSV export)</p>
+          <p class="sub">Grouped report • print-ready • CSV export</p>
         </div>
         <div class="badge">ADMIN</div>
       </div>
 
-      <div class="reportHeader onlyPrint">
-        <div>
-          <div class="reportTitle">Payroll Report</div>
-          <div class="reportMeta">
-            Range: <b>{escape(date_from or "All")}</b> to <b>{escape(date_to or "All")}</b><br>
-            Filter: <b>{escape(q or "None")}</b> • Grouping: <b>{escape(group_mode)}</b>
-          </div>
-        </div>
-        <div class="reportStamp">
-          Generated: {escape(generated_on)}<br>
-          Totals — Hours: <b>{round(overall_hours,2)}</b> • Gross: <b>{round(overall_gross,2)}</b> • Tax: <b>{overall_tax}</b> • Net: <b>{overall_net}</b>
-        </div>
-      </div>
-
-      <div class="noPrint">
-        <form method="GET" style="margin-top:10px;">
-          <div class="row2">
-            <div>
-              <label class="sub">Username contains</label>
-              <input class="input" name="q" placeholder="e.g. john" value="{escape(q)}">
-            </div>
-            <div>
-              <label class="sub">Date range</label>
-              <div class="row2">
-                <input class="input" type="date" name="from" value="{escape(date_from)}">
-                <input class="input" type="date" name="to" value="{escape(date_to)}">
+      <div class="card" style="padding:12px;">
+        <div class="noPrint">
+          <form method="GET">
+            <div class="row2">
+              <div>
+                <label class="sub">Username contains</label>
+                <input class="input" name="q" value="{escape(q)}" placeholder="e.g. john">
+              </div>
+              <div>
+                <label class="sub">Date range</label>
+                <div class="row2">
+                  <input class="input" type="date" name="from" value="{escape(date_from)}">
+                  <input class="input" type="date" name="to" value="{escape(date_to)}">
+                </div>
               </div>
             </div>
-          </div>
 
-          <label class="sub" style="margin-top:10px; display:block;">Grouping</label>
-          <select class="input" name="group">
-            <option value="employee" {"selected" if group_mode=="employee" else ""}>Group by employee (recommended)</option>
-            <option value="none" {"selected" if group_mode=="none" else ""}>No grouping (flat)</option>
-          </select>
+            <label class="sub" style="margin-top:10px;display:block;">Grouping</label>
+            <select class="input" name="group">
+              <option value="employee" {"selected" if group_mode=="employee" else ""}>Group by employee</option>
+              <option value="none" {"selected" if group_mode=="none" else ""}>No grouping</option>
+            </select>
 
-          <div class="btnrow" style="margin-top:10px;">
-            <button class="blue btnSmall" type="submit">Apply</button>
+            <div class="row2" style="margin-top:12px;">
+              <button class="btnSoft" type="submit">Apply</button>
+              <a href="/admin/times?q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}&group={escape(group_mode)}&download=1">
+                <button class="btnSoft" type="button" style="background: rgba(109,40,217,.14); color: rgba(109,40,217,.98);">Download CSV</button>
+              </a>
+            </div>
 
-            <a href="/admin/times?q={q_q}&from={q_from}&to={q_to}&group={q_group}&download=1">
-              <button class="purple btnSmall" type="button">Download CSV</button>
-            </a>
-
-            <button class="gray btnSmall" type="button" onclick="window.print()">Print</button>
-
-            <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
-          </div>
-        </form>
-
-        <div class="kpi">
-          <div class="box"><div class="sub">Total Hours</div><div class="big">{round(overall_hours,2)}</div></div>
-          <div class="box"><div class="sub">Total Gross</div><div class="big">{round(overall_gross,2)}</div></div>
-          <div class="box"><div class="sub">Total Tax (20%)</div><div class="big">{overall_tax}</div></div>
-          <div class="box"><div class="sub">Total Net</div><div class="big">{overall_net}</div></div>
+            <div class="row2" style="margin-top:10px;">
+              <button class="btnSoft" type="button" onclick="window.print()">Print</button>
+              <a href="/admin"><button class="btnSoft" type="button">Back</button></a>
+            </div>
+          </form>
         </div>
 
-        <h2>Summary by employee</h2>
+        <div style="margin-top:12px;">
+          <div class="sub"><b>Totals:</b> Hours {round(overall_hours,2)} • Gross £{round(overall_gross,2)} • Tax £{overall_tax} • Net £{overall_net}</div>
+        </div>
+
         <div class="tablewrap">
           <table style="min-width:720px;">
             <thead><tr><th>Username</th><th>Hours</th><th>Gross</th><th>Tax</th><th>Net</th></tr></thead>
             <tbody>{summary_html}</tbody>
           </table>
         </div>
-
-        <h2>Detailed report</h2>
       </div>
 
       {grouped_html}
 
-    </div></div>
+      {bottom_nav("home", role)}
+    </div>
     """)
 
 
@@ -1971,20 +2159,15 @@ def admin_onboarding_list():
     if gate:
         return gate
 
+    role = session.get("role", "employee")
     q = (request.args.get("q", "") or "").strip().lower()
     vals = onboarding_sheet.get_all_values()
     if not vals:
         body = "<tr><td colspan='3'>No onboarding data.</td></tr>"
     else:
         headers = vals[0]
-
-        def idx(name):
-            return headers.index(name) if name in headers else None
-
-        i_user = idx("Username")
-        i_fn = idx("FirstName")
-        i_ln = idx("LastName")
-        i_sub = idx("SubmittedAt")
+        def idx(name): return headers.index(name) if name in headers else None
+        i_user = idx("Username"); i_fn = idx("FirstName"); i_ln = idx("LastName"); i_sub = idx("SubmittedAt")
 
         rows_html = []
         for r in vals[1:]:
@@ -1996,31 +2179,41 @@ def admin_onboarding_list():
             if q and (q not in u.lower() and q not in name.lower()):
                 continue
             rows_html.append(
-                f"<tr><td><a href='/admin/onboarding/{escape(u)}'>{escape(name)}</a></td>"
+                f"<tr><td><a href='/admin/onboarding/{escape(u)}' style='color:var(--purple);font-weight:900;'>{escape(name)}</a></td>"
                 f"<td>{escape(u)}</td><td>{escape(sub)}</td></tr>"
             )
         body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No matches.</td></tr>"
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Onboarding</h1><p class="sub">Click a name to view full details</p></div>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Onboarding</h1>
+          <p class="sub">Click a name to view full details</p>
+        </div>
+        <div class="badge">ADMIN</div>
       </div>
 
-      <form method="GET" class="btnrow">
-        <input class="input" name="q" placeholder="Search name or username" value="{escape(q)}">
-        <button class="blue btnSmall" type="submit">Search</button>
-        <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
-      </form>
+      <div class="card" style="padding:12px;">
+        <form method="GET">
+          <label class="sub">Search name or username</label>
+          <div class="row2">
+            <input class="input" name="q" value="{escape(q)}" placeholder="Search...">
+            <button class="btnSoft" type="submit">Search</button>
+          </div>
+        </form>
 
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Name</th><th>Username</th><th>Last saved</th></tr></thead>
-          <tbody>{body}</tbody>
-        </table>
+        <div class="tablewrap" style="margin-top:12px;">
+          <table>
+            <thead><tr><th>Name</th><th>Username</th><th>Last saved</th></tr></thead>
+            <tbody>{body}</tbody>
+          </table>
+        </div>
       </div>
-    </div></div>
+
+      {bottom_nav("home", role)}
+    </div>
     """)
 
 @app.get("/admin/onboarding/<username>")
@@ -2028,6 +2221,8 @@ def admin_onboarding_detail(username):
     gate = require_admin()
     if gate:
         return gate
+
+    role = session.get("role", "employee")
     rec = get_onboarding_record(username)
     if not rec:
         abort(404)
@@ -2066,17 +2261,26 @@ def admin_onboarding_detail(username):
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Onboarding Details</h1><p class="sub">{escape(username)}</p></div>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Onboarding</h1>
+          <p class="sub">{escape(username)}</p>
+        </div>
+        <div class="badge">ADMIN</div>
       </div>
-      <div class="btnrow">
-        <a href="/admin/onboarding"><button class="gray btnSmall" type="button">Back</button></a>
+
+      <div class="card" style="padding:12px;">
+        <div class="tablewrap">
+          <table style="min-width: 680px;"><tbody>{details}</tbody></table>
+        </div>
+        <a href="/admin/onboarding" style="display:block;margin-top:12px;">
+          <button class="btnSoft" type="button">Back</button>
+        </a>
       </div>
-      <div class="tablewrap">
-        <table style="min-width: 640px;"><tbody>{details}</tbody></table>
-      </div>
-    </div></div>
+
+      {bottom_nav("home", role)}
+    </div>
     """)
 
 
@@ -2182,16 +2386,28 @@ def monthly_report():
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Monthly Payroll</h1><p class="sub">Generate payroll for a month</p></div>
+    <div class="app">
+      <div class="headerTop">
+        <div>
+          <h1>Monthly Payroll</h1>
+          <p class="sub">Generate payroll for a month</p>
+        </div>
+        <div class="badge">ADMIN</div>
       </div>
-      <form method="POST" class="btnrow">
-        <input class="input" type="month" name="month" required>
-        <button class="blue btnSmall" type="submit">Generate</button>
-        <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
-      </form>
-    </div></div>
+
+      <div class="card" style="padding:12px;">
+        <form method="POST">
+          <label class="sub">Select month</label>
+          <input class="input" type="month" name="month" required>
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Generate</button>
+          <a href="/admin" style="display:block;margin-top:10px;">
+            <button class="btnSoft" type="button">Back</button>
+          </a>
+        </form>
+      </div>
+
+      {bottom_nav("home", "admin")}
+    </div>
     """)
 
 
@@ -2199,4 +2415,3 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
