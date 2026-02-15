@@ -1,9 +1,14 @@
 import os
 import json
+import io
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, render_template_string, request, redirect, session, url_for, abort
-from datetime import datetime, timedelta, time
+from datetime import datetime, timedelta, time as dtime
+
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.http import MediaIoBaseUpload
 
 # ================= APP =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -21,14 +26,13 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-
 def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
     if raw:
         return json.loads(raw)
+    # local fallback (DO NOT COMMIT credentials.json)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
-
 
 creds_dict = load_google_creds_dict()
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
@@ -38,8 +42,53 @@ spreadsheet = client.open("WorkHours")
 employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
-onboarding_sheet = spreadsheet.worksheet("Onboarding")  # MUST EXIST
+onboarding_sheet = spreadsheet.worksheet("Onboarding")  # must exist
 
+# ================= GOOGLE DRIVE UPLOAD =================
+drive_creds = Credentials.from_service_account_info(
+    creds_dict,
+    scopes=["https://www.googleapis.com/auth/drive"],
+)
+drive_service = build("drive", "v3", credentials=drive_creds, cache_discovery=False)
+
+UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
+if not UPLOAD_FOLDER_ID:
+    print("WARNING: ONBOARDING_DRIVE_FOLDER_ID not set. Final onboarding uploads will fail.")
+
+def upload_to_drive(file_storage, filename_prefix: str) -> str:
+    """
+    Uploads to a Drive folder and makes file public (view). Returns webViewLink.
+    """
+    if not UPLOAD_FOLDER_ID:
+        raise RuntimeError("Missing ONBOARDING_DRIVE_FOLDER_ID environment variable.")
+
+    file_bytes = file_storage.read()
+    file_storage.stream.seek(0)
+
+    original = file_storage.filename or "upload"
+    name = f"{filename_prefix}_{original}"
+
+    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=file_storage.mimetype, resumable=False)
+    metadata = {"name": name, "parents": [UPLOAD_FOLDER_ID]}
+
+    created = drive_service.files().create(
+        body=metadata,
+        media_body=media,
+        fields="id, webViewLink",
+    ).execute()
+
+    file_id = created["id"]
+
+    # Anyone with link can view
+    drive_service.permissions().create(
+        fileId=file_id,
+        body={"type": "anyone", "role": "reader"},
+        fields="id",
+    ).execute()
+
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+# ================= CONSTANTS =================
 # WorkHours columns (0-based)
 COL_USER = 0
 COL_DATE = 1
@@ -49,8 +98,7 @@ COL_HOURS = 4
 COL_PAY = 5
 
 TAX_RATE = 0.20
-CLOCKIN_EARLIEST = time(8, 0, 0)  # 08:00
-
+CLOCKIN_EARLIEST = dtime(8, 0, 0)  # 08:00
 
 # ================= PWA =================
 @app.get("/manifest.webmanifest")
@@ -67,7 +115,6 @@ def manifest():
             {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
         ],
     }, 200, {"Content-Type": "application/manifest+json"}
-
 
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 PWA_TAGS = """
@@ -132,7 +179,7 @@ body{
 
 h1{ font-size: var(--h1); margin:0; letter-spacing: .2px; }
 h2{ font-size: var(--h2); margin: 0; color: var(--text); }
-.sub{ font-size: var(--small); color: var(--muted); margin: 0; }
+.sub{ font-size: var(--small); color: var(--muted); margin: 0; line-height:1.35; }
 
 .appIcon{
   width: 64px;
@@ -297,26 +344,12 @@ th{
   border-radius: 16px;
   border: 1px solid var(--border);
   background: rgba(0,0,0,.20);
-  max-height: 260px;
+  max-height: 280px;
   overflow:auto;
   font-size: var(--small);
   color: var(--text);
   line-height: 1.35;
 }
-
-.installBanner{
-  margin-top: 14px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: rgba(255,255,255,.06);
-  border: 1px solid var(--border);
-}
-.installBanner h3{ margin: 0 0 6px 0; font-size: clamp(16px, 2.4vw, 18px); }
-.installBanner p{ margin: 0; color: var(--muted); font-size: clamp(14px, 2.2vw, 16px); line-height: 1.35; }
-.installSteps{ margin-top: 10px; display:flex; flex-direction:column; gap: 8px; }
-.step{ display:flex; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(0,0,0,.20); border: 1px solid var(--border); }
-.step .num{ width: 26px; height: 26px; border-radius: 10px; display:grid; place-items:center; background: rgba(96,165,250,.25); border: 1px solid rgba(96,165,250,.35); font-weight: 900; }
-.step .txt{ color: var(--text); font-size: clamp(14px, 2.2vw, 16px); }
 </style>
 """
 
@@ -325,6 +358,100 @@ HEADER_ICON = """
   <div class="glyph"><div class="dot"></div></div>
 </div>
 """
+
+# ================= CONTRACT TEXT (YOUR FULL TEXT) =================
+CONTRACT_TEXT = """Contract
+
+By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
+
+You agree to:
+
+Behave professionally at all times while on site
+
+Use reasonable efforts to complete all work within agreed timeframes
+
+Comply with all Health & Safety requirements, including rules on working hours, site conduct, and site security
+
+Be responsible for the standard of your work and rectify any defects at your own cost and in your own time
+
+Maintain valid public liability insurance
+
+Supply your own hand tools
+
+Manage and pay your own Tax and National Insurance contributions (CIS tax will be deducted by us and submitted to HMRC)
+
+You are not required to:
+
+Transfer to another site unless you choose to do so and agree a revised rate
+
+Submit written quotations or tenders; all rates will be agreed verbally
+
+Supply major equipment or materials
+
+Carry out work you do not wish to accept; there is no obligation to accept work offered
+
+Work set or fixed hours
+
+Submit invoices; all payments will be processed under the CIS scheme and a payment statement will be provided
+
+You have the right to:
+
+Decide how the work is performed
+
+Leave the site without seeking permission (subject to notifying us for Health & Safety reasons)
+
+Provide a substitute with similar skills and experience, provided you inform us in advance. You will remain responsible for paying them
+
+Terminate this agreement at any time without notice
+
+Seek independent legal advice before signing and retain a copy of this agreement
+
+You do not have the right to:
+
+Receive sick pay or payment for work cancelled due to adverse weather
+
+Use our internal grievance procedure
+
+Describe yourself as an employee of our company
+
+By signing this agreement, you accept these terms and acknowledge that they define the working relationship between you and us.
+
+You also agree that this document represents the entire agreement between both parties, excluding any verbal discussions relating solely to pricing or work location.
+
+Contractor Relationship
+
+For the purposes of this agreement, you are the subcontractor, and we are the contractor.
+
+We agree to:
+
+Confirm payment rates verbally, either as a fixed price or an hourly rate, before work begins
+
+We are not required to:
+
+Guarantee or offer work at any time
+
+We have the right to:
+
+End this agreement without notice
+
+Obtain legal advice prior to signing
+
+We do not have the right to:
+
+Direct or control how you carry out your work
+
+Expect immediate availability or require you to prioritise our work over other commitments
+
+By signing this agreement, we confirm our acceptance of its terms and that they govern the relationship between both parties.
+
+This document represents the full agreement between us, excluding verbal discussions relating only to pricing or work location.
+
+General Terms
+
+This agreement is governed by the laws of England and Wales
+
+If any part of this agreement is breached or found unenforceable, the remaining clauses will continue to apply
+""".strip()
 
 # ================= HELPERS =================
 def safe_float(x, default=0.0):
@@ -336,6 +463,16 @@ def safe_float(x, default=0.0):
 def parse_bool(v) -> bool:
     s = str(v).strip().lower()
     return s in ("1", "true", "yes", "y", "on")
+
+def escape(s: str) -> str:
+    return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
+
+def linkify(url: str) -> str:
+    u = (url or "").strip()
+    if not u:
+        return ""
+    uesc = escape(u)
+    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>{uesc}</a>"
 
 def require_login():
     if "username" not in session:
@@ -351,9 +488,16 @@ def require_admin():
     return None
 
 def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
+    # If EarlyAccess is FALSE and user clocks in before 08:00 -> store 08:00:00
     if (not early_access) and (now_dt.time() < CLOCKIN_EARLIEST):
         return CLOCKIN_EARLIEST.strftime("%H:%M:%S")
     return now_dt.strftime("%H:%M:%S")
+
+def has_any_row_today(rows, username: str, today_str: str) -> bool:
+    for r in rows[1:]:
+        if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
+            return True
+    return False
 
 def find_open_shift(rows, username: str):
     for i in range(len(rows) - 1, 0, -1):
@@ -361,12 +505,6 @@ def find_open_shift(rows, username: str):
         if len(r) > COL_OUT and r[COL_USER] == username and r[COL_OUT] == "":
             return i, r[COL_DATE], r[COL_IN]
     return None
-
-def has_any_row_today(rows, username: str, today_str: str) -> bool:
-    for r in rows[1:]:
-        if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
-            return True
-    return False
 
 def get_sheet_headers(sheet):
     vals = sheet.get_all_values()
@@ -400,7 +538,7 @@ def update_or_append_onboarding(username: str, data: dict):
         else:
             row_values.append(str(data.get(h, "")))
 
-    end_a1 = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")  # like "AG"
+    end_a1 = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")  # column letters
     if rownum:
         onboarding_sheet.update(f"A{rownum}:{end_a1}{rownum}", [row_values])
     else:
@@ -426,12 +564,6 @@ def set_employee_field(username: str, field: str, value: str):
     employees_sheet.update_cell(rownum, fcol, value)
     return True
 
-def get_employee_record(username: str):
-    for rec in employees_sheet.get_all_records():
-        if rec.get("Username") == username:
-            return rec
-    return None
-
 def get_onboarding_record(username: str):
     headers = get_sheet_headers(onboarding_sheet)
     vals = onboarding_sheet.get_all_values()
@@ -447,51 +579,19 @@ def get_onboarding_record(username: str):
             return rec
     return None
 
-def escape(s: str) -> str:
-    return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
-
-def linkify(url: str) -> str:
-    u = (url or "").strip()
-    if not u:
-        return ""
-    uesc = escape(u)
-    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>{uesc}</a>"
-
-# ================= CONTRACT =================
-CONTRACT_TEXT = """
-Contract
-
-By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
-
-You agree to:
-• Behave professionally at all times while on site
-• Use reasonable efforts to complete all work within agreed timeframes
-• Comply with all Health & Safety requirements
-• Be responsible for the standard of your work and rectify any defects at your own cost
-• Maintain valid public liability insurance
-• Supply your own hand tools
-• Manage and pay your own Tax and National Insurance contributions (CIS tax will be deducted by us and submitted to HMRC)
-
-You do not have the right to:
-• Receive sick pay or payment for work cancelled due to adverse weather
-• Use our internal grievance procedure
-• Describe yourself as an employee of our company
-
-General Terms
-This agreement is governed by the laws of England and Wales.
-""".strip()
-
 # ================= ROUTES =================
 @app.get("/ping")
 def ping():
     return "pong", 200
 
+# ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
     msg = ""
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+
         for user in employees_sheet.get_all_records():
             if user.get("Username") == username and user.get("Password") == password:
                 session.clear()
@@ -499,41 +599,25 @@ def login():
                 session["role"] = user.get("Role", "employee")
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
                 session["early_access"] = parse_bool(user.get("EarlyAccess", False))
-                session["onboarding_completed"] = parse_bool(user.get("OnboardingCompleted", False))
-                if not session["onboarding_completed"]:
-                    return redirect(url_for("onboarding"))
                 return redirect(url_for("home"))
+
         msg = "Invalid login"
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}<div class="title"><h1>WorkHours</h1><p class="sub">Sign in</p></div></div>
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>WorkHours</h1><p class="sub">Sign in</p></div>
+      </div>
       <h2>Login</h2>
       <form method="POST">
         <input class="input" name="username" placeholder="Username" required>
         <input class="input" type="password" name="password" placeholder="Password" required>
-        <div class="btnrow actionbar"><button class="blue" type="submit">Login</button></div>
-      </form>
-
-      <div id="iosInstall" class="installBanner" style="display:none;">
-        <h3>Install on iPhone</h3>
-        <p>Add this app to your Home Screen and open it like a normal app.</p>
-        <div class="installSteps">
-          <div class="step"><div class="num">1</div><div class="txt">Open this page in <b>Safari</b>.</div></div>
-          <div class="step"><div class="num">2</div><div class="txt">Tap <b>Share</b> (square with arrow).</div></div>
-          <div class="step"><div class="num">3</div><div class="txt">Tap <b>Add to Home Screen</b>.</div></div>
+        <div class="btnrow actionbar">
+          <button class="blue" type="submit">Login</button>
         </div>
-      </div>
-      <script>
-      (function(){{
-        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator.standalone === true);
-        if (isIOS && !isStandalone) document.getElementById('iosInstall').style.display = 'block';
-      }})();
-      </script>
-
-      {("<div class='message error'>" + msg + "</div>") if msg else ""}
+      </form>
+      {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
     </div></div>
     """)
 
@@ -542,7 +626,7 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# ---------- EMPLOYEE HOME (minimal, with link to onboarding if needed) ----------
+# ---------- HOME (clock in/out always available) ----------
 @app.route("/", methods=["GET", "POST"])
 def home():
     gate = require_login()
@@ -551,7 +635,9 @@ def home():
 
     username = session["username"]
     role = session.get("role", "employee")
+    rate = safe_float(session.get("rate", 0), 0.0)
     early_access = bool(session.get("early_access", False))
+
     now = datetime.now()
     today_str = now.strftime("%Y-%m-%d")
 
@@ -559,23 +645,16 @@ def home():
     msg_class = "message"
 
     rows = work_sheet.get_all_values()
-    open_shift = find_open_shift(rows, username)
-    active_clock_in_iso = ""
-    if open_shift:
-        _, d, t = open_shift
-        try:
-            active_clock_in_iso = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").isoformat()
-        except Exception:
-            active_clock_in_iso = ""
 
     if request.method == "POST":
         action = request.form.get("action")
+
         if action == "in":
             if has_any_row_today(rows, username, today_str):
-                msg = "Already clocked in today (1 per day)."
+                msg = "You already clocked in today (1 clock-in per day)."
                 msg_class = "message error"
             elif find_open_shift(rows, username):
-                msg = "Already clocked in."
+                msg = "You are already clocked in."
                 msg_class = "message error"
             else:
                 cin = normalized_clock_in_time(now, early_access)
@@ -583,18 +662,20 @@ def home():
                 msg = "Clocked In"
                 if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                     msg = "Clocked In (counted from 08:00)"
+
         elif action == "out":
             rows = work_sheet.get_all_values()
             osf = find_open_shift(rows, username)
             if not osf:
-                msg = "No active shift."
+                msg = "No active shift found."
                 msg_class = "message error"
             else:
                 i, d, t = osf
                 cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
                 hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
                 hours_rounded = round(hours, 2)
-                pay = round(hours_rounded * float(session.get("rate", 0.0)), 2)
+                pay = round(hours_rounded * rate, 2)
+
                 sheet_row = i + 1
                 work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                 work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
@@ -607,7 +688,10 @@ def home():
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
       <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Hi, {escape(username)}</h1><p class="sub">Clock in/out</p></div>
+        <div class="title">
+          <h1>Hi, {escape(username)}</h1>
+          <p class="sub">You can clock in/out anytime. Starter Form is optional.</p>
+        </div>
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
@@ -620,14 +704,14 @@ def home():
 
         <div class="navgrid">
           {admin_btn if admin_btn else ""}
-          <a href="/onboarding"><button class="blue btnSmall" type="button">My Starter Form</button></a>
+          <a href="/onboarding"><button class="blue btnSmall" type="button">Starter Form</button></a>
           <a href="/logout"><button class="gray btnSmall" type="button">Logout</button></a>
         </div>
       </div>
     </div></div>
     """)
 
-# ---------- ONBOARDING (employee can view/edit; option 1 updates same row) ----------
+# ---------- ONBOARDING (OPTIONAL) ----------
 @app.route("/onboarding", methods=["GET", "POST"])
 def onboarding():
     gate = require_login()
@@ -635,16 +719,25 @@ def onboarding():
         return gate
 
     username = session["username"]
+    role = session.get("role", "employee")
     existing = get_onboarding_record(username)
 
     msg = ""
+    msg_ok = False
+
+    def v(key: str) -> str:
+        return (existing or {}).get(key, "")
 
     if request.method == "POST":
-        def g(name): return request.form.get(name, "").strip()
+        submit_type = request.form.get("submit_type", "draft")
+        is_final = (submit_type == "final")
 
+        def g(name): return (request.form.get(name, "") or "").strip()
+
+        # Fields (can be blank for draft)
         first = g("first")
         last = g("last")
-        birth = g("birth")  # YYYY-MM-DD
+        birth = g("birth")
         phone_cc = g("phone_cc") or "+44"
         phone_num = g("phone_num")
         street = g("street")
@@ -655,14 +748,14 @@ def onboarding():
         ec_cc = g("ec_cc") or "+44"
         ec_phone = g("ec_phone")
 
-        medical = g("medical")  # yes/no
+        medical = g("medical")  # yes/no/blank
         medical_details = g("medical_details")
 
         position = g("position")
         cscs_no = g("cscs_no")
         cscs_exp = g("cscs_exp")
         emp_type = g("emp_type")
-        rtw = g("rtw")  # yes/no
+        rtw = g("rtw")  # yes/no/blank
         ni = g("ni")
         utr = g("utr")
         start_date = g("start_date")
@@ -675,48 +768,90 @@ def onboarding():
 
         contract_date = g("contract_date")
         site_address = g("site_address")
-        docs_folder = g("docs_folder")
 
-        contract_accept = request.form.get("contract_accept", "") == "yes"
+        contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
+        # Files (optional on draft, required on final)
+        passport_file = request.files.get("passport_file")
+        cscs_file = request.files.get("cscs_file")
+        pli_file = request.files.get("pli_file")
+        share_file = request.files.get("share_file")
+
         missing = []
-        def req(v, label):
-            if not v:
+        def req(val, label):
+            if not val:
                 missing.append(label)
 
-        req(first, "First Name")
-        req(last, "Last Name")
-        req(birth, "Birth Date")
-        req(phone_num, "Phone Number")
-        req(email, "Email")
-        req(ec_name, "Emergency Contact Name")
-        req(ec_phone, "Emergency Contact Phone")
-        if medical not in ("yes", "no"):
-            missing.append("Medical (Yes/No)")
-        req(position, "Position")
-        req(cscs_no, "CSCS Number")
-        req(cscs_exp, "CSCS Expiry Date")
-        req(emp_type, "Employment Type")
-        if rtw not in ("yes", "no"):
-            missing.append("Right to work UK (Yes/No)")
-        req(ni, "National Insurance")
-        req(utr, "UTR")
-        req(start_date, "Start Date")
-        req(acc_no, "Bank Account Number")
-        req(sort_code, "Sort Code")
-        req(acc_name, "Account Holder Name")
-        req(contract_date, "Date of Contract")
-        req(site_address, "Site address")
-        req(docs_folder, "DocsFolderLink (Drive folder)")
-        if not contract_accept:
-            missing.append("Contract acceptance")
-        req(signature_name, "Signature name")
+        # FINAL validation only
+        if is_final:
+            req(first, "First Name")
+            req(last, "Last Name")
+            req(birth, "Birth Date")
+            req(phone_num, "Phone Number")
+            req(email, "Email")
+            req(ec_name, "Emergency Contact Name")
+            req(ec_phone, "Emergency Contact Phone")
+            if medical not in ("yes", "no"):
+                missing.append("Medical condition (Yes/No)")
+            req(position, "Position")
+            req(cscs_no, "CSCS Number")
+            req(cscs_exp, "CSCS Expiry Date")
+            req(emp_type, "Employment Type")
+            if rtw not in ("yes", "no"):
+                missing.append("Right to work UK (Yes/No)")
+            req(ni, "National Insurance")
+            req(utr, "UTR")
+            req(start_date, "Start Date")
+            req(acc_no, "Bank Account Number")
+            req(sort_code, "Sort Code")
+            req(acc_name, "Account Holder Name")
+            req(contract_date, "Date of Contract")
+            req(site_address, "Site address")
+            if not contract_accept:
+                missing.append("Contract acceptance")
+            req(signature_name, "Signature name")
+
+            # Files required on final
+            if not UPLOAD_FOLDER_ID:
+                missing.append("Upload system not configured (missing ONBOARDING_DRIVE_FOLDER_ID)")
+            if not passport_file or not passport_file.filename:
+                missing.append("Passport/Birth Certificate file")
+            if not cscs_file or not cscs_file.filename:
+                missing.append("CSCS (front/back) file")
+            if not pli_file or not pli_file.filename:
+                missing.append("Public Liability file")
+            if not share_file or not share_file.filename:
+                missing.append("Share code file")
 
         if missing:
-            msg = "Missing required: " + ", ".join(missing)
+            msg = "Missing required (final): " + ", ".join(missing)
+            msg_ok = False
         else:
+            # Upload files only if provided (draft optional)
+            # Keep existing links if user saves draft without re-uploading
+            passport_link = v("PassportOrBirthCertLink")
+            cscs_link = v("CSCSFrontBackLink")
+            pli_link = v("PublicLiabilityLink")
+            share_link = v("ShareCodeLink")
+
+            try:
+                if passport_file and passport_file.filename:
+                    passport_link = upload_to_drive(passport_file, f"{username}_passport")
+                if cscs_file and cscs_file.filename:
+                    cscs_link = upload_to_drive(cscs_file, f"{username}_cscs")
+                if pli_file and pli_file.filename:
+                    pli_link = upload_to_drive(pli_file, f"{username}_pli")
+                if share_file and share_file.filename:
+                    share_link = upload_to_drive(share_file, f"{username}_share")
+            except Exception as e:
+                msg = f"Upload error: {e}"
+                msg_ok = False
+                existing = get_onboarding_record(username)
+                return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok))
+
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
             data = {
                 "FirstName": first,
                 "LastName": last,
@@ -747,95 +882,112 @@ def onboarding():
                 "CompanyRegistrationNo": comp_reg,
                 "DateOfContract": contract_date,
                 "SiteAddress": site_address,
-                "DocsFolderLink": docs_folder,
-                "ContractAccepted": "TRUE",
+
+                "PassportOrBirthCertLink": passport_link,
+                "CSCSFrontBackLink": cscs_link,
+                "PublicLiabilityLink": pli_link,
+                "ShareCodeLink": share_link,
+
+                "ContractAccepted": "TRUE" if (is_final and contract_accept) else "FALSE",
                 "SignatureName": signature_name,
-                "SignatureDateTime": now_str,
+                "SignatureDateTime": now_str if is_final else "",
                 "SubmittedAt": now_str,
             }
+
             update_or_append_onboarding(username, data)
-            set_employee_field(username, "OnboardingCompleted", "TRUE")
-            session["onboarding_completed"] = True
+
+            # Mark completed only on FINAL
+            if is_final:
+                set_employee_field(username, "OnboardingCompleted", "TRUE")
+
             existing = get_onboarding_record(username)
-            msg = "Saved successfully."
+            msg = "Saved draft." if not is_final else "Submitted final successfully."
+            msg_ok = True
 
-    # Prefill
-    def val(key):
-        return (existing or {}).get(key, "")
+    return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok))
 
-    def checked_radio(key, v):
-        return "checked" if val(key) == v else ""
+def _render_onboarding(username, role, existing, msg, msg_ok):
+    def vv(key): return (existing or {}).get(key, "")
+    def checked_radio(key, value): return "checked" if vv(key) == value else ""
+    def selected(key, value): return "selected" if vv(key) == value else ""
 
-    def selected(key, v):
-        return "selected" if val(key) == v else ""
+    admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
 
-    return render_template_string(f"""
+    return f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
       <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Starter Form</h1><p class="sub">Your details (admin can view)</p></div>
+        <div class="title">
+          <h1>Starter Form</h1>
+          <p class="sub">Optional. Use <b>Save Draft</b> anytime. Use <b>Submit Final</b> when complete (required + contract + uploads).</p>
+        </div>
       </div>
 
-      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and "Missing" in msg) else ""}
-      {("<div class='message'>" + escape(msg) + "</div>") if (msg and "Saved" in msg) else ""}
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not msg_ok) else ""}
 
-      <form method="POST">
+      <form method="POST" enctype="multipart/form-data">
         <h2>Personal details</h2>
         <div class="row2">
-          <div><label class="sub">First Name *</label><input class="input" name="first" value="{escape(val('FirstName'))}" required></div>
-          <div><label class="sub">Last Name *</label><input class="input" name="last" value="{escape(val('LastName'))}" required></div>
+          <div><label class="sub">First Name</label><input class="input" name="first" value="{escape(vv('FirstName'))}"></div>
+          <div><label class="sub">Last Name</label><input class="input" name="last" value="{escape(vv('LastName'))}"></div>
         </div>
 
-        <label class="sub" style="margin-top:10px; display:block;">Birth Date *</label>
-        <input class="input" type="date" name="birth" value="{escape(val('BirthDate'))}" required>
+        <label class="sub" style="margin-top:10px; display:block;">Birth Date (YYYY-MM-DD)</label>
+        <input class="input" type="date" name="birth" value="{escape(vv('BirthDate'))}">
 
-        <label class="sub" style="margin-top:10px; display:block;">Phone Number *</label>
+        <label class="sub" style="margin-top:10px; display:block;">Phone Number</label>
         <div class="row2">
-          <input class="input" name="phone_cc" value="{escape(val('PhoneCountryCode') or '+44')}" required>
-          <input class="input" name="phone_num" value="{escape(val('PhoneNumber'))}" required>
+          <input class="input" name="phone_cc" value="{escape(vv('PhoneCountryCode') or '+44')}">
+          <input class="input" name="phone_num" value="{escape(vv('PhoneNumber'))}">
         </div>
 
         <h2 style="margin-top:18px;">Address</h2>
-        <input class="input" name="street" placeholder="Street Address" value="{escape(val('StreetAddress'))}">
+        <input class="input" name="street" placeholder="Street Address" value="{escape(vv('StreetAddress'))}">
         <div class="row2">
-          <input class="input" name="city" placeholder="City" value="{escape(val('City'))}">
-          <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('Postcode'))}">
+          <input class="input" name="city" placeholder="City" value="{escape(vv('City'))}">
+          <input class="input" name="postcode" placeholder="Postcode" value="{escape(vv('Postcode'))}">
         </div>
 
         <div class="row2">
-          <div><label class="sub">E-mail *</label><input class="input" name="email" type="email" value="{escape(val('Email'))}" required></div>
-          <div><label class="sub">Emergency Contact Name *</label><input class="input" name="ec_name" value="{escape(val('EmergencyContactName'))}" required></div>
+          <div><label class="sub">Email</label><input class="input" name="email" type="email" value="{escape(vv('Email'))}"></div>
+          <div><label class="sub">Emergency Contact Name</label><input class="input" name="ec_name" value="{escape(vv('EmergencyContactName'))}"></div>
         </div>
 
-        <label class="sub" style="margin-top:10px; display:block;">Emergency Contact Phone Number *</label>
+        <label class="sub" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
         <div class="row2">
-          <input class="input" name="ec_cc" value="{escape(val('EmergencyContactPhoneCountryCode') or '+44')}" required>
-          <input class="input" name="ec_phone" value="{escape(val('EmergencyContactPhoneNumber'))}" required>
+          <input class="input" name="ec_cc" value="{escape(vv('EmergencyContactPhoneCountryCode') or '+44')}">
+          <input class="input" name="ec_phone" value="{escape(vv('EmergencyContactPhoneNumber'))}">
         </div>
 
-        <h2 style="margin-top:18px;">Medical *</h2>
+        <h2 style="margin-top:18px;">Medical</h2>
+        <label class="sub">Do you have any medical condition that may affect you at work?</label>
         <div class="row2">
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="medical" value="no" {checked_radio('MedicalCondition','no')} required> No</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="medical" value="yes" {checked_radio('MedicalCondition','yes')} required> Yes</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="medical" value="no" {checked_radio('MedicalCondition','no')}> No
+          </label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="medical" value="yes" {checked_radio('MedicalCondition','yes')}> Yes
+          </label>
         </div>
-        <label class="sub" style="margin-top:10px; display:block;">Details (optional)</label>
-        <input class="input" name="medical_details" value="{escape(val('MedicalDetails'))}">
+        <label class="sub" style="margin-top:10px; display:block;">Details</label>
+        <input class="input" name="medical_details" value="{escape(vv('MedicalDetails'))}">
 
-        <h2 style="margin-top:18px;">Position *</h2>
+        <h2 style="margin-top:18px;">Position</h2>
         <div class="row2">
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Bricklayer" {"checked" if val('Position')=='Bricklayer' else ""} required> Bricklayer</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Labourer" {"checked" if val('Position')=='Labourer' else ""} required> Labourer</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Fixer" {"checked" if val('Position')=='Fixer' else ""} required> Fixer</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('Position')=='Supervisor/Foreman' else ""} required> Supervisor/Foreman</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Bricklayer" {"checked" if vv('Position')=='Bricklayer' else ""}> Bricklayer</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Labourer" {"checked" if vv('Position')=='Labourer' else ""}> Labourer</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Fixer" {"checked" if vv('Position')=='Fixer' else ""}> Fixer</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Supervisor/Foreman" {"checked" if vv('Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman</label>
         </div>
 
         <div class="row2">
-          <div><label class="sub">CSCS Number *</label><input class="input" name="cscs_no" value="{escape(val('CSCSNumber'))}" required></div>
-          <div><label class="sub">CSCS Expiry (YYYY-MM-DD) *</label><input class="input" name="cscs_exp" value="{escape(val('CSCSExpiryDate'))}" required></div>
+          <div><label class="sub">CSCS Number</label><input class="input" name="cscs_no" value="{escape(vv('CSCSNumber'))}"></div>
+          <div><label class="sub">CSCS Expiry (YYYY-MM-DD)</label><input class="input" name="cscs_exp" value="{escape(vv('CSCSExpiryDate'))}"></div>
         </div>
 
-        <label class="sub" style="margin-top:10px; display:block;">Employment Type *</label>
-        <select class="input" name="emp_type" required>
+        <label class="sub" style="margin-top:10px; display:block;">Employment Type</label>
+        <select class="input" name="emp_type">
           <option value="">Please Select</option>
           <option value="Self-employed" {selected('EmploymentType','Self-employed')}>Self-employed</option>
           <option value="Ltd Company" {selected('EmploymentType','Ltd Company')}>Ltd Company</option>
@@ -843,62 +995,82 @@ def onboarding():
           <option value="PAYE" {selected('EmploymentType','PAYE')}>PAYE</option>
         </select>
 
-        <label class="sub" style="margin-top:10px; display:block;">Right to work in UK? *</label>
+        <label class="sub" style="margin-top:10px; display:block;">Right to work in UK?</label>
         <div class="row2">
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="yes" {checked_radio('RightToWorkUK','yes')} required> Yes</label>
-          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="no" {checked_radio('RightToWorkUK','no')} required> No</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="yes" {checked_radio('RightToWorkUK','yes')}> Yes</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="no" {checked_radio('RightToWorkUK','no')}> No</label>
         </div>
 
         <div class="row2">
-          <div><label class="sub">National Insurance *</label><input class="input" name="ni" value="{escape(val('NationalInsurance'))}" required></div>
-          <div><label class="sub">UTR *</label><input class="input" name="utr" value="{escape(val('UTR'))}" required></div>
+          <div><label class="sub">National Insurance</label><input class="input" name="ni" value="{escape(vv('NationalInsurance'))}"></div>
+          <div><label class="sub">UTR</label><input class="input" name="utr" value="{escape(vv('UTR'))}"></div>
         </div>
 
-        <label class="sub" style="margin-top:10px; display:block;">Start Date *</label>
-        <input class="input" type="date" name="start_date" value="{escape(val('StartDate'))}" required>
+        <label class="sub" style="margin-top:10px; display:block;">Start Date</label>
+        <input class="input" type="date" name="start_date" value="{escape(vv('StartDate'))}">
 
-        <h2 style="margin-top:18px;">Bank details *</h2>
+        <h2 style="margin-top:18px;">Bank details</h2>
         <div class="row2">
-          <div><label class="sub">Account Number *</label><input class="input" name="acc_no" value="{escape(val('BankAccountNumber'))}" required></div>
-          <div><label class="sub">Sort Code *</label><input class="input" name="sort_code" value="{escape(val('SortCode'))}" required></div>
+          <div><label class="sub">Account Number</label><input class="input" name="acc_no" value="{escape(vv('BankAccountNumber'))}"></div>
+          <div><label class="sub">Sort Code</label><input class="input" name="sort_code" value="{escape(vv('SortCode'))}"></div>
         </div>
-        <label class="sub" style="margin-top:10px; display:block;">Account Holder Name *</label>
-        <input class="input" name="acc_name" value="{escape(val('AccountHolderName'))}" required>
+        <label class="sub" style="margin-top:10px; display:block;">Account Holder Name</label>
+        <input class="input" name="acc_name" value="{escape(vv('AccountHolderName'))}">
 
         <h2 style="margin-top:18px;">Company details</h2>
-        <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('CompanyTradingName'))}">
-        <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('CompanyRegistrationNo'))}">
+        <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(vv('CompanyTradingName'))}">
+        <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(vv('CompanyRegistrationNo'))}">
 
-        <h2 style="margin-top:18px;">Subcontractor details *</h2>
+        <h2 style="margin-top:18px;">Subcontractor details</h2>
         <div class="row2">
-          <div><label class="sub">Date of Contract *</label><input class="input" type="date" name="contract_date" value="{escape(val('DateOfContract'))}" required></div>
-          <div><label class="sub">Site address *</label><input class="input" name="site_address" value="{escape(val('SiteAddress'))}" required></div>
+          <div><label class="sub">Date of Contract</label><input class="input" type="date" name="contract_date" value="{escape(vv('DateOfContract'))}"></div>
+          <div><label class="sub">Site address</label><input class="input" name="site_address" value="{escape(vv('SiteAddress'))}"></div>
         </div>
 
-        <h2 style="margin-top:18px;">Documents folder (Drive link) *</h2>
-        <p class="sub">Create a Drive folder, upload all documents, share “Anyone with link can view”, paste link.</p>
-        <input class="input" name="docs_folder" placeholder="https://drive.google.com/..." value="{escape(val('DocsFolderLink'))}" required>
+        <h2 style="margin-top:18px;">Upload documents</h2>
+        <p class="sub">You can upload now (draft) or later. For <b>Submit Final</b> all 4 files are required.</p>
 
-        <h2 style="margin-top:18px;">Contract acceptance *</h2>
-        <div class="contract"><pre style="white-space:pre-wrap; margin:0;">{CONTRACT_TEXT}</pre></div>
+        <label class="sub">Passport or Birth Certificate</label>
+        <input class="input" type="file" name="passport_file" accept="image/*,.pdf">
+        <p class="sub">Saved link: {linkify(vv('PassportOrBirthCertLink'))}</p>
+
+        <label class="sub" style="margin-top:10px; display:block;">CSCS Card (front & back)</label>
+        <input class="input" type="file" name="cscs_file" accept="image/*,.pdf">
+        <p class="sub">Saved link: {linkify(vv('CSCSFrontBackLink'))}</p>
+
+        <label class="sub" style="margin-top:10px; display:block;">Public Liability Insurance</label>
+        <input class="input" type="file" name="pli_file" accept="image/*,.pdf">
+        <p class="sub">Saved link: {linkify(vv('PublicLiabilityLink'))}</p>
+
+        <label class="sub" style="margin-top:10px; display:block;">Share Code / Confirmation</label>
+        <input class="input" type="file" name="share_file" accept="image/*,.pdf">
+        <p class="sub">Saved link: {linkify(vv('ShareCodeLink'))}</p>
+
+        <h2 style="margin-top:18px;">Contract</h2>
+        <div class="contract"><pre style="white-space:pre-wrap; margin:0;">{escape(CONTRACT_TEXT)}</pre></div>
 
         <label class="sub" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-          <input type="checkbox" name="contract_accept" value="yes" required>
-          I have read and accept the contract terms *
+          <input type="checkbox" name="contract_accept" value="yes">
+          I have read and accept the contract terms (required for Final)
         </label>
 
-        <label class="sub" style="margin-top:10px; display:block;">Signature (type your full name) *</label>
-        <input class="input" name="signature_name" value="{escape(val('SignatureName'))}" required>
+        <label class="sub" style="margin-top:10px; display:block;">Signature (type your full name)</label>
+        <input class="input" name="signature_name" value="{escape(vv('SignatureName'))}">
 
         <div class="btnrow actionbar">
-          <button class="green" type="submit">Save</button>
+          <button class="green" name="submit_type" value="draft" type="submit">Save Draft</button>
+          <button class="purple" name="submit_type" value="final" type="submit">Submit Final</button>
           <a href="/"><button class="gray" type="button">Back</button></a>
+        </div>
+
+        <div class="navgrid">
+          {admin_btn if admin_btn else ""}
         </div>
       </form>
     </div></div>
-    """)
+    """
 
-# ---------- ADMIN: list onboarding records ----------
+# ---------- ADMIN ----------
 @app.get("/admin")
 def admin():
     gate = require_admin()
@@ -908,7 +1080,7 @@ def admin():
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
       <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Admin</h1><p class="sub">Onboarding list</p></div>
+        <div class="title"><h1>Admin</h1><p class="sub">Onboarding records</p></div>
       </div>
       <div class="navgrid actionbar">
         <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
@@ -929,6 +1101,7 @@ def admin_onboarding_list():
         body = "<tr><td colspan='4'>No onboarding data.</td></tr>"
     else:
         headers = vals[0]
+
         def idx(name):
             return headers.index(name) if name in headers else None
 
@@ -937,19 +1110,24 @@ def admin_onboarding_list():
         i_ln = idx("LastName")
         i_sub = idx("SubmittedAt")
 
-        body_rows = []
+        rows_html = []
         for r in vals[1:]:
             u = r[i_user] if i_user is not None and i_user < len(r) else ""
             fn = r[i_fn] if i_fn is not None and i_fn < len(r) else ""
             ln = r[i_ln] if i_ln is not None and i_ln < len(r) else ""
             sub = r[i_sub] if i_sub is not None and i_sub < len(r) else ""
+
             name = (fn + " " + ln).strip() or u
             if q and (q not in u.lower() and q not in name.lower()):
                 continue
-            body_rows.append(
-                f"<tr><td><a href='/admin/onboarding/{escape(u)}'>{escape(name)}</a></td><td>{escape(u)}</td><td>{escape(sub)}</td><td>{linkify(get_onboarding_record(u).get('DocsFolderLink','') if get_onboarding_record(u) else '')}</td></tr>"
+
+            rows_html.append(
+                f"<tr><td><a href='/admin/onboarding/{escape(u)}'>{escape(name)}</a></td>"
+                f"<td>{escape(u)}</td><td>{escape(sub)}</td>"
+                f"<td>{escape('YES' if u else '')}</td></tr>"
             )
-        body = "".join(body_rows) if body_rows else "<tr><td colspan='4'>No matches.</td></tr>"
+
+        body = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No matches.</td></tr>"
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
@@ -966,7 +1144,7 @@ def admin_onboarding_list():
 
       <div class="tablewrap">
         <table>
-          <thead><tr><th>Name</th><th>Username</th><th>Submitted</th><th>Docs folder</th></tr></thead>
+          <thead><tr><th>Name</th><th>Username</th><th>Last saved</th><th>Record</th></tr></thead>
           <tbody>{body}</tbody>
         </table>
       </div>
@@ -983,27 +1161,31 @@ def admin_onboarding_detail(username):
     if not rec:
         abort(404)
 
-    # Show important groups
     def row(label, key, link=False):
         v = rec.get(key, "")
         vv = linkify(v) if link else escape(v)
         return f"<tr><th>{escape(label)}</th><td>{vv}</td></tr>"
 
     details = ""
+    # core
     details += row("Username", "Username")
     details += row("First name", "FirstName")
     details += row("Last name", "LastName")
     details += row("Birth date", "BirthDate")
-    details += row("Phone", "PhoneCountryCode")  # show cc + num below
-    details += f"<tr><th>Phone number</th><td>{escape(rec.get('PhoneNumber',''))}</td></tr>"
+    details += row("Phone", "PhoneCountryCode")
+    details += row("Phone number", "PhoneNumber")
     details += row("Email", "Email")
-    details += row("Address", "StreetAddress")
+    details += row("Street", "StreetAddress")
     details += row("City", "City")
     details += row("Postcode", "Postcode")
+
     details += row("Emergency contact", "EmergencyContactName")
-    details += f"<tr><th>Emergency phone</th><td>{escape(rec.get('EmergencyContactPhoneCountryCode',''))} {escape(rec.get('EmergencyContactPhoneNumber',''))}</td></tr>"
+    details += row("Emergency CC", "EmergencyContactPhoneCountryCode")
+    details += row("Emergency phone", "EmergencyContactPhoneNumber")
+
     details += row("Medical", "MedicalCondition")
     details += row("Medical details", "MedicalDetails")
+
     details += row("Position", "Position")
     details += row("CSCS number", "CSCSNumber")
     details += row("CSCS expiry", "CSCSExpiryDate")
@@ -1012,18 +1194,28 @@ def admin_onboarding_detail(username):
     details += row("NI", "NationalInsurance")
     details += row("UTR", "UTR")
     details += row("Start date", "StartDate")
+
     details += row("Bank account", "BankAccountNumber")
     details += row("Sort code", "SortCode")
     details += row("Account holder", "AccountHolderName")
+
     details += row("Company trading", "CompanyTradingName")
     details += row("Company reg", "CompanyRegistrationNo")
+
     details += row("Date of contract", "DateOfContract")
     details += row("Site address", "SiteAddress")
-    details += row("Docs folder", "DocsFolderLink", link=True)
+
+    # file links
+    details += row("Passport/Birth cert", "PassportOrBirthCertLink", link=True)
+    details += row("CSCS front/back", "CSCSFrontBackLink", link=True)
+    details += row("Public liability", "PublicLiabilityLink", link=True)
+    details += row("Share code", "ShareCodeLink", link=True)
+
+    # contract
     details += row("Contract accepted", "ContractAccepted")
     details += row("Signature name", "SignatureName")
     details += row("Signature time", "SignatureDateTime")
-    details += row("Submitted at", "SubmittedAt")
+    details += row("Last saved", "SubmittedAt")
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
@@ -1048,4 +1240,5 @@ def admin_onboarding_detail(username):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
