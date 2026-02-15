@@ -962,7 +962,7 @@ def sidebar_html(active: str, role: str) -> str:
         ("clock", "/clock", "Clock In & Out", _svg_clock()),
         ("times", "/my-times", "Time logs", _svg_clipboard()),
         ("reports", "/my-reports", "Timesheets", _svg_chart()),
-        ("agreements", "/onboarding", "Agreements", _svg_doc()),
+        ("agreements", "/password", "Agreements", _svg_doc()),
         ("profile", "/password", "Profile", _svg_user()),
     ]
     if role == "admin":
@@ -1730,5 +1730,6 @@ def admin_payroll():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
