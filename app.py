@@ -873,6 +873,62 @@ def get_onboarding_record(username: str):
             return rec
     return None
 
+# ✅ NEW: render onboarding details (text only) for Profile page
+def onboarding_details_block(username: str) -> str:
+    rec = get_onboarding_record(username)
+    if not rec:
+        return "<div class='sub'>No onboarding details saved yet.</div>"
+
+    fields = [
+        ("First name", "FirstName"),
+        ("Last name", "LastName"),
+        ("Birth date", "BirthDate"),
+        ("Phone", "PhoneNumber"),
+        ("Email", "Email"),
+        ("Street address", "StreetAddress"),
+        ("City", "City"),
+        ("Postcode", "Postcode"),
+        ("Emergency contact", "EmergencyContactName"),
+        ("Emergency phone", "EmergencyContactPhoneNumber"),
+        ("Medical condition", "MedicalCondition"),
+        ("Medical details", "MedicalDetails"),
+        ("Position", "Position"),
+        ("CSCS number", "CSCSNumber"),
+        ("CSCS expiry", "CSCSExpiryDate"),
+        ("Employment type", "EmploymentType"),
+        ("Right to work UK", "RightToWorkUK"),
+        ("National Insurance", "NationalInsurance"),
+        ("UTR", "UTR"),
+        ("Start date", "StartDate"),
+        ("Bank account", "BankAccountNumber"),
+        ("Sort code", "SortCode"),
+        ("Account holder", "AccountHolderName"),
+        ("Company trading name", "CompanyTradingName"),
+        ("Company reg no.", "CompanyRegistrationNo"),
+        ("Date of contract", "DateOfContract"),
+        ("Site address", "SiteAddress"),
+        ("Last saved", "SubmittedAt"),
+    ]
+
+    rows = []
+    for label, key in fields:
+        val = (rec.get(key, "") or "").strip()
+        if val:
+            rows.append(f"<tr><th style='width:260px;'>{escape(label)}</th><td>{escape(val)}</td></tr>")
+
+    if not rows:
+        return "<div class='sub'>Onboarding record exists, but no details were found.</div>"
+
+    return f"""
+      <div class="tablewrap" style="margin-top:10px;">
+        <table style="min-width:640px;">
+          <tbody>
+            {''.join(rows)}
+          </tbody>
+        </table>
+      </div>
+    """
+
 def get_csrf() -> str:
     tok = session.get("csrf")
     if not tok:
@@ -888,8 +944,6 @@ def require_csrf():
 
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
-    # Mobile bottom nav includes logout as last icon (users asked logout only at bottom of sidebar separated on desktop;
-    # mobile still needs a way to log out, so we keep a small logout icon here.)
     return f"""
     <div class="bottomNav">
       <div class="navInner">
@@ -926,7 +980,6 @@ def sidebar_html(active: str, role: str) -> str:
           </a>
         """)
 
-    # Logout ONLY at bottom, separated
     logout_html = f"""
       <div class="sideDivider"></div>
       <a class="sideItem logoutBtn" href="/logout">
@@ -1447,7 +1500,7 @@ def my_reports():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
 
-# ---------- PROFILE (CHANGE PASSWORD) ----------
+# ---------- PROFILE (DETAILS + CHANGE PASSWORD) ----------
 @app.route("/password", methods=["GET", "POST"])
 def change_password():
     gate = require_login()
@@ -1458,6 +1511,9 @@ def change_password():
     username = session["username"]
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
+
+    # ✅ NEW: build the details html from onboarding sheet
+    details_html = onboarding_details_block(username)
 
     msg = ""
     ok = False
@@ -1487,6 +1543,9 @@ def change_password():
             ok = update_employee_password(username, new1)
             msg = "Password updated successfully." if ok else "Could not update password."
 
+        # refresh details (not required, but nice)
+        details_html = onboarding_details_block(username)
+
     content = f"""
       <div class="headerTop">
         <div>
@@ -1500,14 +1559,24 @@ def change_password():
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
       <div class="card" style="padding:14px;">
+        <h2>My Details</h2>
+        <p class="sub">These are taken from your Starter Form (Onboarding). Files are not shown here.</p>
+        {details_html}
+      </div>
+
+      <div class="card" style="padding:14px; margin-top:12px;">
+        <h2>Change Password</h2>
         <form method="POST">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <label class="sub">Current password</label>
           <input class="input" type="password" name="current" required>
+
           <label class="sub" style="margin-top:10px; display:block;">New password</label>
           <input class="input" type="password" name="new1" required>
+
           <label class="sub" style="margin-top:10px; display:block;">Repeat new password</label>
           <input class="input" type="password" name="new2" required>
+
           <button class="btnSoft" type="submit" style="margin-top:12px;">Save</button>
         </form>
       </div>
@@ -1661,4 +1730,5 @@ def admin_payroll():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
