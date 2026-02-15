@@ -2,8 +2,8 @@ import os
 import json
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import Flask, render_template_string, request, redirect, session, url_for
-from datetime import datetime, timedelta, date, time
+from flask import Flask, render_template_string, request, redirect, session, url_for, abort
+from datetime import datetime, timedelta, time
 
 # ================= APP =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -21,12 +21,14 @@ SCOPE = [
     "https://www.googleapis.com/auth/drive",
 ]
 
+
 def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
     if raw:
         return json.loads(raw)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
+
 
 creds_dict = load_google_creds_dict()
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
@@ -36,6 +38,7 @@ spreadsheet = client.open("WorkHours")
 employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
+onboarding_sheet = spreadsheet.worksheet("Onboarding")  # MUST EXIST
 
 # WorkHours columns (0-based)
 COL_USER = 0
@@ -47,6 +50,7 @@ COL_PAY = 5
 
 TAX_RATE = 0.20
 CLOCKIN_EARLIEST = time(8, 0, 0)  # 08:00
+
 
 # ================= PWA =================
 @app.get("/manifest.webmanifest")
@@ -64,11 +68,11 @@ def manifest():
         ],
     }, 200, {"Content-Type": "application/manifest+json"}
 
+
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 PWA_TAGS = """
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#0b1220">
-
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
@@ -87,12 +91,12 @@ STYLE = """
   --shadow: 0 18px 50px rgba(0,0,0,.45);
   --radius: 22px;
 
-  --h1: clamp(26px, 4.2vw, 40px);
-  --h2: clamp(18px, 3.0vw, 24px);
-  --p:  clamp(16px, 2.4vw, 20px);
+  --h1: clamp(22px, 4vw, 34px);
+  --h2: clamp(18px, 3vw, 24px);
+  --p:  clamp(15px, 2.4vw, 19px);
   --small: clamp(13px, 2vw, 15px);
   --btn: clamp(14px, 2.2vw, 16px);
-  --input: clamp(16px, 2.4vw, 20px);
+  --input: clamp(16px, 2.4vw, 19px);
 }
 
 *{ box-sizing:border-box; }
@@ -104,7 +108,7 @@ body{
               radial-gradient(900px 700px at 80% 10%, #2a1b5a 0%, rgba(42,27,90,0) 60%),
               var(--bg);
   color: var(--text);
-  padding: clamp(12px, 3vw, 28px);
+  padding: clamp(12px, 3vw, 22px);
   -webkit-text-size-adjust: 100%;
 }
 
@@ -113,7 +117,7 @@ body{
   background: linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: clamp(16px, 3vw, 28px);
+  padding: clamp(16px, 3vw, 24px);
   box-shadow: var(--shadow);
 }
 
@@ -130,11 +134,10 @@ h1{ font-size: var(--h1); margin:0; letter-spacing: .2px; }
 h2{ font-size: var(--h2); margin: 0; color: var(--text); }
 .sub{ font-size: var(--small); color: var(--muted); margin: 0; }
 
-/* Generic app icon */
 .appIcon{
-  width: 72px;
-  height: 72px;
-  border-radius: 20px;
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
   background:
     radial-gradient(22px 22px at 30% 30%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%),
     linear-gradient(135deg, rgba(96,165,250,.95) 0%, rgba(167,139,250,.95) 55%, rgba(34,197,94,.95) 120%);
@@ -144,7 +147,7 @@ h2{ font-size: var(--h2); margin: 0; color: var(--text); }
   place-items:center;
   flex: 0 0 auto;
 }
-.appIcon .glyph{ width: 34px; height: 34px; position: relative; }
+.appIcon .glyph{ width: 30px; height: 30px; position: relative; }
 .appIcon .glyph:before,
 .appIcon .glyph:after{
   content:"";
@@ -162,21 +165,6 @@ h2{ font-size: var(--h2); margin: 0; color: var(--text); }
   left: 50%; top: 50%;
   transform: translate(-50%,-50%);
 }
-
-.kpis{
-  display:grid;
-  grid-template-columns: repeat(2, minmax(0,1fr));
-  gap: 12px;
-  margin-top: 14px;
-}
-.kpi{
-  background: rgba(255,255,255,.04);
-  border: 1px solid var(--border);
-  border-radius: 18px;
-  padding: 12px 12px;
-}
-.kpi .label{ font-size: var(--small); color: var(--muted); margin-bottom: 6px; }
-.kpi .value{ font-size: clamp(20px, 3vw, 28px); font-weight: 900; }
 
 .message{
   margin-top: 12px;
@@ -198,8 +186,8 @@ a:hover { text-decoration:underline; }
 
 .input{
   width: 100%;
-  padding: 14px 14px;
-  border-radius: 16px;
+  padding: 12px 12px;
+  border-radius: 14px;
   border: 1px solid var(--border);
   background: rgba(255,255,255,.04);
   color: var(--text);
@@ -209,6 +197,15 @@ a:hover { text-decoration:underline; }
 }
 .input::placeholder{ color: rgba(229,231,235,.55); }
 
+.row2{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap: 10px;
+}
+@media (max-width: 640px){
+  .row2{ grid-template-columns: 1fr; }
+}
+
 .btnrow{
   display:flex;
   gap: 10px;
@@ -216,25 +213,20 @@ a:hover { text-decoration:underline; }
   margin-top: 12px;
 }
 
-/* Smaller buttons: ~30% screen */
 button{
   border: none;
-  border-radius: 16px;
-  padding: 12px 12px;
+  border-radius: 14px;
+  padding: 11px 11px;
   font-weight: 900;
   cursor: pointer;
   font-size: var(--btn);
-  min-height: 44px;
+  min-height: 42px;
   flex: 1 1 140px;
   box-shadow: 0 10px 18px rgba(0,0,0,.22);
-  transition: transform .05s ease, opacity .12s ease;
 }
-button:active{ transform: translateY(1px); }
-button:hover{ opacity:.95; }
-
 .btnSmall{
-  min-height: 40px !important;
-  padding: 10px 10px !important;
+  min-height: 38px !important;
+  padding: 9px 10px !important;
   font-size: clamp(13px, 2vw, 14px) !important;
   flex: 0 0 auto !important;
 }
@@ -268,13 +260,12 @@ button:hover{ opacity:.95; }
 .navgrid a{ text-decoration:none; }
 .navgrid button{
   width: 100%;
-  min-height: 42px;
-  padding: 10px 10px;
-  font-size: clamp(13px, 2vw, 15px);
+  min-height: 40px;
+  padding: 9px 10px;
+  font-size: clamp(13px, 2vw, 14px);
   flex: none;
 }
 
-/* Tables smaller */
 .tablewrap{
   margin-top: 14px;
   overflow:auto;
@@ -299,9 +290,20 @@ th{
   background: rgba(0,0,0,.25);
   backdrop-filter: blur(8px);
 }
-tfoot td{ font-weight: 900; background: rgba(0,0,0,.18); }
 
-/* iPhone install banner */
+.contract{
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(0,0,0,.20);
+  max-height: 260px;
+  overflow:auto;
+  font-size: var(--small);
+  color: var(--text);
+  line-height: 1.35;
+}
+
 .installBanner{
   margin-top: 14px;
   padding: 12px 14px;
@@ -309,38 +311,12 @@ tfoot td{ font-weight: 900; background: rgba(0,0,0,.18); }
   background: rgba(255,255,255,.06);
   border: 1px solid var(--border);
 }
-.installBanner h3{
-  margin: 0 0 6px 0;
-  font-size: clamp(16px, 2.4vw, 18px);
-}
-.installBanner p{
-  margin: 0;
-  color: var(--muted);
-  font-size: clamp(14px, 2.2vw, 16px);
-  line-height: 1.35;
-}
+.installBanner h3{ margin: 0 0 6px 0; font-size: clamp(16px, 2.4vw, 18px); }
+.installBanner p{ margin: 0; color: var(--muted); font-size: clamp(14px, 2.2vw, 16px); line-height: 1.35; }
 .installSteps{ margin-top: 10px; display:flex; flex-direction:column; gap: 8px; }
-.step{
-  display:flex; gap: 10px; align-items:flex-start;
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(0,0,0,.20);
-  border: 1px solid var(--border);
-}
-.step .num{
-  width: 26px; height: 26px;
-  border-radius: 10px;
-  display:grid; place-items:center;
-  background: rgba(96,165,250,.25);
-  border: 1px solid rgba(96,165,250,.35);
-  font-weight: 900;
-}
+.step{ display:flex; gap: 10px; padding: 10px 12px; border-radius: 16px; background: rgba(0,0,0,.20); border: 1px solid var(--border); }
+.step .num{ width: 26px; height: 26px; border-radius: 10px; display:grid; place-items:center; background: rgba(96,165,250,.25); border: 1px solid rgba(96,165,250,.35); font-weight: 900; }
 .step .txt{ color: var(--text); font-size: clamp(14px, 2.2vw, 16px); }
-
-@media (max-width: 520px){
-  .kpis{ grid-template-columns: 1fr; }
-  table{ min-width: 680px; }
-}
 </style>
 """
 
@@ -361,23 +337,8 @@ def parse_bool(v) -> bool:
     s = str(v).strip().lower()
     return s in ("1", "true", "yes", "y", "on")
 
-def hours_to_hm(decimal_hours: float) -> str:
-    total_minutes = int(round(decimal_hours * 60))
-    h = total_minutes // 60
-    m = total_minutes % 60
-    return f"{h}h {m:02d}m"
-
-def parse_date(s: str):
-    try:
-        return datetime.strptime(s, "%Y-%m-%d").date()
-    except Exception:
-        return None
-
 def require_login():
     if "username" not in session:
-        return redirect(url_for("login"))
-    if session.get("role") is None or session.get("rate") is None:
-        session.clear()
         return redirect(url_for("login"))
     return None
 
@@ -389,17 +350,10 @@ def require_admin():
         return redirect(url_for("home"))
     return None
 
-def compute_money(gross: float):
-    gross = round(gross, 2)
-    tax = round(gross * TAX_RATE, 2)
-    net = round(gross - tax, 2)
-    return gross, tax, net
-
-def has_any_row_today(rows, username: str, today_str: str) -> bool:
-    for r in rows[1:]:
-        if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
-            return True
-    return False
+def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
+    if (not early_access) and (now_dt.time() < CLOCKIN_EARLIEST):
+        return CLOCKIN_EARLIEST.strftime("%H:%M:%S")
+    return now_dt.strftime("%H:%M:%S")
 
 def find_open_shift(rows, username: str):
     for i in range(len(rows) - 1, 0, -1):
@@ -408,99 +362,179 @@ def find_open_shift(rows, username: str):
             return i, r[COL_DATE], r[COL_IN]
     return None
 
-def get_rates_map():
-    rates = {}
+def has_any_row_today(rows, username: str, today_str: str) -> bool:
+    for r in rows[1:]:
+        if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
+            return True
+    return False
+
+def get_sheet_headers(sheet):
+    vals = sheet.get_all_values()
+    return vals[0] if vals else []
+
+def find_row_by_username(sheet, username: str):
+    vals = sheet.get_all_values()
+    if not vals:
+        return None
+    headers = vals[0]
+    if "Username" not in headers:
+        return None
+    ucol = headers.index("Username")
+    for i in range(1, len(vals)):
+        row = vals[i]
+        if len(row) > ucol and row[ucol] == username:
+            return i + 1
+    return None
+
+def update_or_append_onboarding(username: str, data: dict):
+    headers = get_sheet_headers(onboarding_sheet)
+    if not headers or "Username" not in headers:
+        raise RuntimeError("Onboarding sheet must have header row with 'Username'.")
+
+    rownum = find_row_by_username(onboarding_sheet, username)
+
+    row_values = []
+    for h in headers:
+        if h == "Username":
+            row_values.append(username)
+        else:
+            row_values.append(str(data.get(h, "")))
+
+    end_a1 = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")  # like "AG"
+    if rownum:
+        onboarding_sheet.update(f"A{rownum}:{end_a1}{rownum}", [row_values])
+    else:
+        onboarding_sheet.append_row(row_values)
+
+def set_employee_field(username: str, field: str, value: str):
+    vals = employees_sheet.get_all_values()
+    if not vals:
+        return False
+    headers = vals[0]
+    if "Username" not in headers or field not in headers:
+        return False
+    ucol = headers.index("Username")
+    fcol = headers.index(field) + 1
+    rownum = None
+    for i in range(1, len(vals)):
+        row = vals[i]
+        if len(row) > ucol and row[ucol] == username:
+            rownum = i + 1
+            break
+    if not rownum:
+        return False
+    employees_sheet.update_cell(rownum, fcol, value)
+    return True
+
+def get_employee_record(username: str):
     for rec in employees_sheet.get_all_records():
-        u = rec.get("Username")
-        if u:
-            rates[u] = safe_float(rec.get("Rate", 0), 0.0)
-    return rates
+        if rec.get("Username") == username:
+            return rec
+    return None
 
-def get_employees_headers_and_values():
-    values = employees_sheet.get_all_values()
-    if not values:
-        return [], []
-    return values[0], values
+def get_onboarding_record(username: str):
+    headers = get_sheet_headers(onboarding_sheet)
+    vals = onboarding_sheet.get_all_values()
+    if not vals or "Username" not in headers:
+        return None
+    ucol = headers.index("Username")
+    for i in range(1, len(vals)):
+        row = vals[i]
+        if len(row) > ucol and row[ucol] == username:
+            rec = {}
+            for j, h in enumerate(headers):
+                rec[h] = row[j] if j < len(row) else ""
+            return rec
+    return None
 
-def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
-    """
-    If EarlyAccess is FALSE and user clocks in before 08:00, store 08:00:00 as clock-in time.
-    If EarlyAccess is TRUE, store actual time.
-    """
-    if (not early_access) and (now_dt.time() < CLOCKIN_EARLIEST):
-        return CLOCKIN_EARLIEST.strftime("%H:%M:%S")  # 08:00:00
-    return now_dt.strftime("%H:%M:%S")
+def escape(s: str) -> str:
+    return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
+
+def linkify(url: str) -> str:
+    u = (url or "").strip()
+    if not u:
+        return ""
+    uesc = escape(u)
+    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>{uesc}</a>"
+
+# ================= CONTRACT =================
+CONTRACT_TEXT = """
+Contract
+
+By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
+
+You agree to:
+• Behave professionally at all times while on site
+• Use reasonable efforts to complete all work within agreed timeframes
+• Comply with all Health & Safety requirements
+• Be responsible for the standard of your work and rectify any defects at your own cost
+• Maintain valid public liability insurance
+• Supply your own hand tools
+• Manage and pay your own Tax and National Insurance contributions (CIS tax will be deducted by us and submitted to HMRC)
+
+You do not have the right to:
+• Receive sick pay or payment for work cancelled due to adverse weather
+• Use our internal grievance procedure
+• Describe yourself as an employee of our company
+
+General Terms
+This agreement is governed by the laws of England and Wales.
+""".strip()
 
 # ================= ROUTES =================
 @app.get("/ping")
 def ping():
     return "pong", 200
 
-# ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    message = ""
-    msg_class = "message error"
-
+    msg = ""
     if request.method == "POST":
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-
         for user in employees_sheet.get_all_records():
             if user.get("Username") == username and user.get("Password") == password:
                 session.clear()
                 session["username"] = username
                 session["role"] = user.get("Role", "employee")
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
-                session["early_access"] = parse_bool(user.get("EarlyAccess", False))  # optional column
+                session["early_access"] = parse_bool(user.get("EarlyAccess", False))
+                session["onboarding_completed"] = parse_bool(user.get("OnboardingCompleted", False))
+                if not session["onboarding_completed"]:
+                    return redirect(url_for("onboarding"))
                 return redirect(url_for("home"))
-
-        message = "Invalid login"
+        msg = "Invalid login"
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>WorkHours</h1>
-            <p class="sub">Sign in</p>
-          </div>
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}<div class="title"><h1>WorkHours</h1><p class="sub">Sign in</p></div></div>
+      <h2>Login</h2>
+      <form method="POST">
+        <input class="input" name="username" placeholder="Username" required>
+        <input class="input" type="password" name="password" placeholder="Password" required>
+        <div class="btnrow actionbar"><button class="blue" type="submit">Login</button></div>
+      </form>
+
+      <div id="iosInstall" class="installBanner" style="display:none;">
+        <h3>Install on iPhone</h3>
+        <p>Add this app to your Home Screen and open it like a normal app.</p>
+        <div class="installSteps">
+          <div class="step"><div class="num">1</div><div class="txt">Open this page in <b>Safari</b>.</div></div>
+          <div class="step"><div class="num">2</div><div class="txt">Tap <b>Share</b> (square with arrow).</div></div>
+          <div class="step"><div class="num">3</div><div class="txt">Tap <b>Add to Home Screen</b>.</div></div>
         </div>
-
-        <h2>Login</h2>
-        <form method="POST" style="margin-top:10px;">
-          <input class="input" name="username" placeholder="Username" required>
-          <input class="input" type="password" name="password" placeholder="Password" required>
-          <div class="btnrow actionbar">
-            <button class="blue" type="submit">Login</button>
-          </div>
-        </form>
-
-        <div id="iosInstall" class="installBanner" style="display:none;">
-          <h3>Install on iPhone</h3>
-          <p>Add this app to your Home Screen and open it like a normal app.</p>
-          <div class="installSteps">
-            <div class="step"><div class="num">1</div><div class="txt">Open this page in <b>Safari</b>.</div></div>
-            <div class="step"><div class="num">2</div><div class="txt">Tap <b>Share</b> (square with arrow).</div></div>
-            <div class="step"><div class="num">3</div><div class="txt">Tap <b>Add to Home Screen</b>.</div></div>
-          </div>
-        </div>
-
-        <script>
-        (function(){{
-          const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
-          const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator.standalone === true);
-          if (isIOS && !isStandalone) {{
-            document.getElementById('iosInstall').style.display = 'block';
-          }}
-        }})();
-        </script>
-
-        {"<div class='" + msg_class + "'>" + message + "</div>" if message else ""}
       </div>
-    </div>
+      <script>
+      (function(){{
+        const isIOS = /iPhone|iPad|iPod/i.test(navigator.userAgent);
+        const isStandalone = (window.matchMedia && window.matchMedia('(display-mode: standalone)').matches) || (window.navigator.standalone === true);
+        if (isIOS && !isStandalone) document.getElementById('iosInstall').style.display = 'block';
+      }})();
+      </script>
+
+      {("<div class='message error'>" + msg + "</div>") if msg else ""}
+    </div></div>
     """)
 
 @app.get("/logout")
@@ -508,97 +542,7 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
-# ---------- CHANGE PASSWORD ----------
-@app.route("/change-password", methods=["GET", "POST"])
-def change_password():
-    gate = require_login()
-    if gate:
-        return gate
-
-    username = session["username"]
-    message = ""
-    msg_class = "message"
-
-    if request.method == "POST":
-        current_pw = request.form.get("current_password", "")
-        new_pw = request.form.get("new_password", "")
-        confirm_pw = request.form.get("confirm_password", "")
-
-        if not current_pw or not new_pw or not confirm_pw:
-            message = "All fields are required."
-            msg_class = "message error"
-        elif new_pw != confirm_pw:
-            message = "New passwords do not match."
-            msg_class = "message error"
-        elif len(new_pw) < 4:
-            message = "Password is too short."
-            msg_class = "message error"
-        else:
-            records = employees_sheet.get_all_records()
-            found = None
-            for u in records:
-                if u.get("Username") == username:
-                    found = u
-                    break
-
-            if not found:
-                message = "User not found."
-                msg_class = "message error"
-            elif found.get("Password") != current_pw:
-                message = "Current password is incorrect."
-                msg_class = "message error"
-            else:
-                headers, values = get_employees_headers_and_values()
-                try:
-                    ucol = headers.index("Username")
-                    pcol = headers.index("Password") + 1
-                except ValueError:
-                    message = "Employees sheet must have headers: Username, Password, Role, Rate"
-                    msg_class = "message error"
-                else:
-                    rownum = None
-                    for i in range(1, len(values)):
-                        row = values[i]
-                        if len(row) > ucol and row[ucol] == username:
-                            rownum = i + 1
-                            break
-                    if not rownum:
-                        message = "Could not locate your row in Employees sheet."
-                        msg_class = "message error"
-                    else:
-                        employees_sheet.update_cell(rownum, pcol, new_pw)
-                        message = "Password changed successfully."
-                        msg_class = "message"
-
-    return render_template_string(f"""
-    {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>Change Password</h1>
-            <p class="sub">Account: {username}</p>
-          </div>
-        </div>
-
-        <form method="POST">
-          <input class="input" type="password" name="current_password" placeholder="Current password" required>
-          <input class="input" type="password" name="new_password" placeholder="New password" required>
-          <input class="input" type="password" name="confirm_password" placeholder="Confirm new password" required>
-
-          <div class="btnrow actionbar">
-            <button class="green" type="submit">Save</button>
-            <a href="/"><button class="gray" type="button">Back</button></a>
-          </div>
-        </form>
-
-        {"<div class='" + msg_class + "'>" + message + "</div>" if message else ""}
-      </div>
-    </div>
-    """)
-
-# ---------- HOME ----------
+# ---------- EMPLOYEE HOME (minimal, with link to onboarding if needed) ----------
 @app.route("/", methods=["GET", "POST"])
 def home():
     gate = require_login()
@@ -607,19 +551,14 @@ def home():
 
     username = session["username"]
     role = session.get("role", "employee")
-    rate = safe_float(session.get("rate", 0), 0.0)
     early_access = bool(session.get("early_access", False))
-
     now = datetime.now()
-    today = now.date()
     today_str = now.strftime("%Y-%m-%d")
-    week_start = today - timedelta(days=today.weekday())
 
-    message = ""
+    msg = ""
     msg_class = "message"
 
     rows = work_sheet.get_all_values()
-
     open_shift = find_open_shift(rows, username)
     active_clock_in_iso = ""
     if open_shift:
@@ -633,732 +572,476 @@ def home():
         action = request.form.get("action")
         if action == "in":
             if has_any_row_today(rows, username, today_str):
-                message = "You already clocked in today. Only 1 clock-in per day is allowed."
+                msg = "Already clocked in today (1 per day)."
                 msg_class = "message error"
-            elif find_open_shift(rows, username) is not None:
-                message = "You are already clocked in."
+            elif find_open_shift(rows, username):
+                msg = "Already clocked in."
                 msg_class = "message error"
             else:
-                clock_in_str = normalized_clock_in_time(now, early_access)
-                work_sheet.append_row([username, today_str, clock_in_str, "", "", ""])
-                message = "Clocked In"
-
-                # Live timer: if normalized to 08:00, start timer from 08:00 (so it matches counted time)
-                try:
-                    active_clock_in_iso = datetime.strptime(f"{today_str} {clock_in_str}", "%Y-%m-%d %H:%M:%S").isoformat()
-                except Exception:
-                    active_clock_in_iso = ""
-
+                cin = normalized_clock_in_time(now, early_access)
+                work_sheet.append_row([username, today_str, cin, "", "", ""])
+                msg = "Clocked In"
                 if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
-                    message = "Clocked In (counted from 08:00)"
-
+                    msg = "Clocked In (counted from 08:00)"
         elif action == "out":
             rows = work_sheet.get_all_values()
-            open_shift = find_open_shift(rows, username)
-            if not open_shift:
-                message = "No active shift found to clock out."
+            osf = find_open_shift(rows, username)
+            if not osf:
+                msg = "No active shift."
                 msg_class = "message error"
             else:
-                i, d, t = open_shift
-                clock_in_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
-                hours = (now - clock_in_dt).total_seconds() / 3600.0
-                if hours < 0:
-                    hours = 0.0
+                i, d, t = osf
+                cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+                hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
                 hours_rounded = round(hours, 2)
-                pay = round(hours * rate, 2)  # stored
-
+                pay = round(hours_rounded * float(session.get("rate", 0.0)), 2)
                 sheet_row = i + 1
                 work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                 work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
                 work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
+                msg = "Clocked Out"
 
-                message = f"Shift time: {hours_to_hm(hours)}"
-                active_clock_in_iso = ""
-
-    # Totals (completed)
-    rows = work_sheet.get_all_values()
-    daily_hours = 0.0
-    weekly_hours = 0.0
-    for r in rows[1:]:
-        if len(r) <= COL_HOURS:
-            continue
-        if r[COL_USER] != username or r[COL_HOURS] == "":
-            continue
-        rd = parse_date(r[COL_DATE])
-        if not rd:
-            continue
-        h = safe_float(r[COL_HOURS], 0.0)
-        if rd == today:
-            daily_hours += h
-        if rd >= week_start:
-            weekly_hours += h
-
-    admin_link = "<a href='/admin'><button class='purple' type='button'>Admin</button></a>" if role == "admin" else ""
-
-    live_timer_block = f"""
-    <div class="kpi">
-      <div class="label">Live shift timer</div>
-      <div class="value" id="liveTimer">—</div>
-      <div class="sub" id="liveSince" style="margin-top:6px;">Since: —</div>
-    </div>
-
-    <script>
-      const startIso = "{active_clock_in_iso}";
-      const liveTimer = document.getElementById("liveTimer");
-      const liveSince = document.getElementById("liveSince");
-
-      function pad(n){{ return String(n).padStart(2,"0"); }}
-
-      function tick(){{
-        if(!startIso) return;
-        const start = new Date(startIso);
-        const now = new Date();
-        let sec = Math.max(0, Math.floor((now - start) / 1000));
-        const h = Math.floor(sec / 3600);
-        sec = sec % 3600;
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-
-        liveTimer.textContent = `${{h}}h ${{pad(m)}}m ${{pad(s)}}s`;
-        liveSince.textContent = "Since: " + start.toLocaleTimeString();
-      }}
-
-      tick();
-      setInterval(tick, 1000);
-    </script>
-    """ if active_clock_in_iso else """
-    <div class="kpi">
-      <div class="label">Live shift timer</div>
-      <div class="value">Not clocked in</div>
-      <div class="sub" style="margin-top:6px;">Clock in to start timer</div>
-    </div>
-    """
-
-    clock_in_hint = "Before 08:00 is counted from 08:00 (unless early access)." if not early_access else "Early clock-in enabled for your account."
+    admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>Hi, {username}</h1>
-            <p class="sub">{clock_in_hint}</p>
-          </div>
-        </div>
-
-        <div class="kpis">
-          <div class="kpi">
-            <div class="label">Today</div>
-            <div class="value">{hours_to_hm(daily_hours)}</div>
-            <div class="sub">Completed shift time</div>
-          </div>
-          <div class="kpi">
-            <div class="label">This week</div>
-            <div class="value">{hours_to_hm(weekly_hours)}</div>
-            <div class="sub">From Monday to today</div>
-          </div>
-          {live_timer_block}
-          <div class="kpi">
-            <div class="label">Status</div>
-            <div class="value">{'Clocked in' if active_clock_in_iso else 'Clocked out'}</div>
-            <div class="sub">{'Timer running' if active_clock_in_iso else 'No active shift'}</div>
-          </div>
-        </div>
-
-        {"<div class='" + msg_class + "'>" + message + "</div>" if message else ""}
-
-        <div class="actionbar">
-          <form method="POST" class="btnrow" style="margin:0;">
-            <button class="green" name="action" value="in">Clock In</button>
-            <button class="red" name="action" value="out">Clock Out</button>
-          </form>
-
-          <div class="navgrid">
-            {admin_link if admin_link else ""}
-            <a href="/my-times"><button class="blue" type="button">My Times</button></a>
-            <a href="/my-reports"><button class="blue" type="button">My Reports</button></a>
-            <a href="/change-password"><button class="gray" type="button">Password</button></a>
-            <a href="/logout"><button class="gray" type="button">Logout</button></a>
-          </div>
-        </div>
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Hi, {escape(username)}</h1><p class="sub">Clock in/out</p></div>
       </div>
-    </div>
-    """)
 
-# ---------- EMPLOYEE: MY TIMES (now includes Pay) ----------
-@app.get("/my-times")
-def my_times():
-    gate = require_login()
-    if gate:
-        return gate
+      {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
-    username = session["username"]
-    days = int(request.args.get("days", "14") or "14")
-    days = max(1, min(days, 90))
-
-    rows = work_sheet.get_all_values()
-    today = datetime.now().date()
-    start_date = today - timedelta(days=days - 1)
-
-    items = []
-    for r in rows[1:]:
-        if len(r) <= COL_OUT:
-            continue
-        if r[COL_USER] != username:
-            continue
-        rd = parse_date(r[COL_DATE])
-        if not rd or rd < start_date:
-            continue
-
-        cin = r[COL_IN] if len(r) > COL_IN else ""
-        cout = r[COL_OUT] if len(r) > COL_OUT else ""
-        hours = safe_float(r[COL_HOURS], 0.0) if len(r) > COL_HOURS and r[COL_HOURS] != "" else None
-        pay = safe_float(r[COL_PAY], 0.0) if len(r) > COL_PAY and r[COL_PAY] != "" else None
-        items.append((rd, cin, cout, hours, pay))
-
-    items.sort(key=lambda x: x[0], reverse=True)
-
-    rows_html = ""
-    total_pay = 0.0
-    total_hours = 0.0
-
-    for rd, cin, cout, hours, pay in items:
-        htxt = hours_to_hm(hours) if hours is not None else "—"
-        ptxt = f"{pay:.2f}" if pay is not None else "—"
-        if hours is not None:
-            total_hours += hours
-        if pay is not None:
-            total_pay += pay
-        rows_html += f"<tr><td>{rd.isoformat()}</td><td>{cin}</td><td>{cout or '—'}</td><td>{htxt}</td><td>{ptxt}</td></tr>"
-
-    if not rows_html:
-        rows_html = "<tr><td colspan='5'>No entries found.</td></tr>"
-
-    gross, tax, net = compute_money(total_pay)
-
-    return render_template_string(f"""
-    {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>My Times</h1>
-            <p class="sub">Last {days} days</p>
-          </div>
-        </div>
-
-        <div class="btnrow">
-          <a href="/my-times?days=7"><button class="gray btnSmall" type="button">7 days</button></a>
-          <a href="/my-times?days=14"><button class="gray btnSmall" type="button">14 days</button></a>
-          <a href="/my-times?days=30"><button class="gray btnSmall" type="button">30 days</button></a>
-          <a href="/"><button class="blue btnSmall" type="button">Back</button></a>
-        </div>
-
-        <div class="kpis">
-          <div class="kpi"><div class="label">Total hours</div><div class="value">{hours_to_hm(total_hours)}</div><div class="sub">In this range</div></div>
-          <div class="kpi"><div class="label">Gross</div><div class="value">{gross:.2f}</div><div class="sub">Sum of pay</div></div>
-          <div class="kpi"><div class="label">Tax (20%)</div><div class="value">{tax:.2f}</div><div class="sub">Estimated</div></div>
-          <div class="kpi"><div class="label">Net</div><div class="value">{net:.2f}</div><div class="sub">Estimated</div></div>
-        </div>
-
-        <div class="tablewrap">
-          <table>
-            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
-            <tbody>{rows_html}</tbody>
-          </table>
-        </div>
-      </div>
-    </div>
-    """)
-
-# ---------- EMPLOYEE: MY REPORTS (View button smaller + money visible) ----------
-@app.get("/my-reports")
-def my_reports():
-    gate = require_login()
-    if gate:
-        return gate
-
-    username = session["username"]
-    rate = safe_float(session.get("rate", 0), 0.0)
-
-    now = datetime.now()
-    y_now, w_now, _ = now.isocalendar()
-
-    mode = request.args.get("mode", "weekly")
-    if mode not in ("weekly", "monthly"):
-        mode = "weekly"
-
-    year = int(request.args.get("year", str(y_now)) or y_now)
-    week = int(request.args.get("week", str(w_now)) or w_now)
-    month = int(request.args.get("month", str(now.month)) or now.month)
-
-    rows = work_sheet.get_all_values()
-    total_hours = 0.0
-    gross_sum = 0.0
-
-    if mode == "weekly":
-        for r in rows[1:]:
-            if len(r) <= COL_DATE:
-                continue
-            if r[COL_USER] != username or len(r) <= COL_HOURS or r[COL_HOURS] == "":
-                continue
-            rd = parse_date(r[COL_DATE])
-            if not rd:
-                continue
-            yy, ww, _ = rd.isocalendar()
-            if yy == year and ww == week:
-                h = safe_float(r[COL_HOURS], 0.0)
-                total_hours += h
-                if len(r) > COL_PAY and r[COL_PAY] != "":
-                    gross_sum += safe_float(r[COL_PAY], 0.0)
-                else:
-                    gross_sum += h * rate
-        title = f"My Weekly Report • {year}-W{week}"
-    else:
-        for r in rows[1:]:
-            if len(r) <= COL_DATE:
-                continue
-            if r[COL_USER] != username or len(r) <= COL_HOURS or r[COL_HOURS] == "":
-                continue
-            rd = parse_date(r[COL_DATE])
-            if not rd:
-                continue
-            if rd.year == year and rd.month == month:
-                h = safe_float(r[COL_HOURS], 0.0)
-                total_hours += h
-                if len(r) > COL_PAY and r[COL_PAY] != "":
-                    gross_sum += safe_float(r[COL_PAY], 0.0)
-                else:
-                    gross_sum += h * rate
-        title = f"My Monthly Report • {year}-{month:02d}"
-
-    gross, tax, net = compute_money(gross_sum)
-
-    week_input = f"<input class='input' name='week' value='{week}' placeholder='Week (1-53)'>" if mode == "weekly" else ""
-    month_input = f"<input class='input' name='month' value='{month}' placeholder='Month (1-12)'>" if mode == "monthly" else ""
-
-    return render_template_string(f"""
-    {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>My Reports</h1>
-            <p class="sub">{title}</p>
-          </div>
-        </div>
-
-        <div class="btnrow">
-          <a href="/my-reports?mode=weekly"><button class="blue btnSmall" type="button">Weekly</button></a>
-          <a href="/my-reports?mode=monthly"><button class="blue btnSmall" type="button">Monthly</button></a>
-          <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
-        </div>
-
-        <form method="GET" class="btnrow" style="margin-top:10px;">
-          <input type="hidden" name="mode" value="{mode}">
-          <input class="input" name="year" value="{year}" placeholder="Year (e.g. 2026)">
-          {week_input}
-          {month_input}
-          <button class="purple btnSmall" type="submit">View</button>
+      <div class="actionbar">
+        <form method="POST" class="btnrow" style="margin:0;">
+          <button class="green" name="action" value="in">Clock In</button>
+          <button class="red" name="action" value="out">Clock Out</button>
         </form>
 
-        <div class="kpis">
-          <div class="kpi"><div class="label">Hours</div><div class="value">{hours_to_hm(total_hours)}</div><div class="sub">Total hours</div></div>
-          <div class="kpi"><div class="label">Gross</div><div class="value">{gross:.2f}</div><div class="sub">Before tax</div></div>
-          <div class="kpi"><div class="label">Tax (20%)</div><div class="value">{tax:.2f}</div><div class="sub">Deducted</div></div>
-          <div class="kpi"><div class="label">Net</div><div class="value">{net:.2f}</div><div class="sub">After tax</div></div>
+        <div class="navgrid">
+          {admin_btn if admin_btn else ""}
+          <a href="/onboarding"><button class="blue btnSmall" type="button">My Starter Form</button></a>
+          <a href="/logout"><button class="gray btnSmall" type="button">Logout</button></a>
         </div>
       </div>
-    </div>
+    </div></div>
     """)
 
-# ---------- ADMIN DASHBOARD ----------
+# ---------- ONBOARDING (employee can view/edit; option 1 updates same row) ----------
+@app.route("/onboarding", methods=["GET", "POST"])
+def onboarding():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    existing = get_onboarding_record(username)
+
+    msg = ""
+
+    if request.method == "POST":
+        def g(name): return request.form.get(name, "").strip()
+
+        first = g("first")
+        last = g("last")
+        birth = g("birth")  # YYYY-MM-DD
+        phone_cc = g("phone_cc") or "+44"
+        phone_num = g("phone_num")
+        street = g("street")
+        city = g("city")
+        postcode = g("postcode")
+        email = g("email")
+        ec_name = g("ec_name")
+        ec_cc = g("ec_cc") or "+44"
+        ec_phone = g("ec_phone")
+
+        medical = g("medical")  # yes/no
+        medical_details = g("medical_details")
+
+        position = g("position")
+        cscs_no = g("cscs_no")
+        cscs_exp = g("cscs_exp")
+        emp_type = g("emp_type")
+        rtw = g("rtw")  # yes/no
+        ni = g("ni")
+        utr = g("utr")
+        start_date = g("start_date")
+
+        acc_no = g("acc_no")
+        sort_code = g("sort_code")
+        acc_name = g("acc_name")
+        comp_trading = g("comp_trading")
+        comp_reg = g("comp_reg")
+
+        contract_date = g("contract_date")
+        site_address = g("site_address")
+        docs_folder = g("docs_folder")
+
+        contract_accept = request.form.get("contract_accept", "") == "yes"
+        signature_name = g("signature_name")
+
+        missing = []
+        def req(v, label):
+            if not v:
+                missing.append(label)
+
+        req(first, "First Name")
+        req(last, "Last Name")
+        req(birth, "Birth Date")
+        req(phone_num, "Phone Number")
+        req(email, "Email")
+        req(ec_name, "Emergency Contact Name")
+        req(ec_phone, "Emergency Contact Phone")
+        if medical not in ("yes", "no"):
+            missing.append("Medical (Yes/No)")
+        req(position, "Position")
+        req(cscs_no, "CSCS Number")
+        req(cscs_exp, "CSCS Expiry Date")
+        req(emp_type, "Employment Type")
+        if rtw not in ("yes", "no"):
+            missing.append("Right to work UK (Yes/No)")
+        req(ni, "National Insurance")
+        req(utr, "UTR")
+        req(start_date, "Start Date")
+        req(acc_no, "Bank Account Number")
+        req(sort_code, "Sort Code")
+        req(acc_name, "Account Holder Name")
+        req(contract_date, "Date of Contract")
+        req(site_address, "Site address")
+        req(docs_folder, "DocsFolderLink (Drive folder)")
+        if not contract_accept:
+            missing.append("Contract acceptance")
+        req(signature_name, "Signature name")
+
+        if missing:
+            msg = "Missing required: " + ", ".join(missing)
+        else:
+            now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            data = {
+                "FirstName": first,
+                "LastName": last,
+                "BirthDate": birth,
+                "PhoneCountryCode": phone_cc,
+                "PhoneNumber": phone_num,
+                "StreetAddress": street,
+                "City": city,
+                "Postcode": postcode,
+                "Email": email,
+                "EmergencyContactName": ec_name,
+                "EmergencyContactPhoneCountryCode": ec_cc,
+                "EmergencyContactPhoneNumber": ec_phone,
+                "MedicalCondition": medical,
+                "MedicalDetails": medical_details,
+                "Position": position,
+                "CSCSNumber": cscs_no,
+                "CSCSExpiryDate": cscs_exp,
+                "EmploymentType": emp_type,
+                "RightToWorkUK": rtw,
+                "NationalInsurance": ni,
+                "UTR": utr,
+                "StartDate": start_date,
+                "BankAccountNumber": acc_no,
+                "SortCode": sort_code,
+                "AccountHolderName": acc_name,
+                "CompanyTradingName": comp_trading,
+                "CompanyRegistrationNo": comp_reg,
+                "DateOfContract": contract_date,
+                "SiteAddress": site_address,
+                "DocsFolderLink": docs_folder,
+                "ContractAccepted": "TRUE",
+                "SignatureName": signature_name,
+                "SignatureDateTime": now_str,
+                "SubmittedAt": now_str,
+            }
+            update_or_append_onboarding(username, data)
+            set_employee_field(username, "OnboardingCompleted", "TRUE")
+            session["onboarding_completed"] = True
+            existing = get_onboarding_record(username)
+            msg = "Saved successfully."
+
+    # Prefill
+    def val(key):
+        return (existing or {}).get(key, "")
+
+    def checked_radio(key, v):
+        return "checked" if val(key) == v else ""
+
+    def selected(key, v):
+        return "selected" if val(key) == v else ""
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Starter Form</h1><p class="sub">Your details (admin can view)</p></div>
+      </div>
+
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and "Missing" in msg) else ""}
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and "Saved" in msg) else ""}
+
+      <form method="POST">
+        <h2>Personal details</h2>
+        <div class="row2">
+          <div><label class="sub">First Name *</label><input class="input" name="first" value="{escape(val('FirstName'))}" required></div>
+          <div><label class="sub">Last Name *</label><input class="input" name="last" value="{escape(val('LastName'))}" required></div>
+        </div>
+
+        <label class="sub" style="margin-top:10px; display:block;">Birth Date *</label>
+        <input class="input" type="date" name="birth" value="{escape(val('BirthDate'))}" required>
+
+        <label class="sub" style="margin-top:10px; display:block;">Phone Number *</label>
+        <div class="row2">
+          <input class="input" name="phone_cc" value="{escape(val('PhoneCountryCode') or '+44')}" required>
+          <input class="input" name="phone_num" value="{escape(val('PhoneNumber'))}" required>
+        </div>
+
+        <h2 style="margin-top:18px;">Address</h2>
+        <input class="input" name="street" placeholder="Street Address" value="{escape(val('StreetAddress'))}">
+        <div class="row2">
+          <input class="input" name="city" placeholder="City" value="{escape(val('City'))}">
+          <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('Postcode'))}">
+        </div>
+
+        <div class="row2">
+          <div><label class="sub">E-mail *</label><input class="input" name="email" type="email" value="{escape(val('Email'))}" required></div>
+          <div><label class="sub">Emergency Contact Name *</label><input class="input" name="ec_name" value="{escape(val('EmergencyContactName'))}" required></div>
+        </div>
+
+        <label class="sub" style="margin-top:10px; display:block;">Emergency Contact Phone Number *</label>
+        <div class="row2">
+          <input class="input" name="ec_cc" value="{escape(val('EmergencyContactPhoneCountryCode') or '+44')}" required>
+          <input class="input" name="ec_phone" value="{escape(val('EmergencyContactPhoneNumber'))}" required>
+        </div>
+
+        <h2 style="margin-top:18px;">Medical *</h2>
+        <div class="row2">
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="medical" value="no" {checked_radio('MedicalCondition','no')} required> No</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="medical" value="yes" {checked_radio('MedicalCondition','yes')} required> Yes</label>
+        </div>
+        <label class="sub" style="margin-top:10px; display:block;">Details (optional)</label>
+        <input class="input" name="medical_details" value="{escape(val('MedicalDetails'))}">
+
+        <h2 style="margin-top:18px;">Position *</h2>
+        <div class="row2">
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Bricklayer" {"checked" if val('Position')=='Bricklayer' else ""} required> Bricklayer</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Labourer" {"checked" if val('Position')=='Labourer' else ""} required> Labourer</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Fixer" {"checked" if val('Position')=='Fixer' else ""} required> Fixer</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('Position')=='Supervisor/Foreman' else ""} required> Supervisor/Foreman</label>
+        </div>
+
+        <div class="row2">
+          <div><label class="sub">CSCS Number *</label><input class="input" name="cscs_no" value="{escape(val('CSCSNumber'))}" required></div>
+          <div><label class="sub">CSCS Expiry (YYYY-MM-DD) *</label><input class="input" name="cscs_exp" value="{escape(val('CSCSExpiryDate'))}" required></div>
+        </div>
+
+        <label class="sub" style="margin-top:10px; display:block;">Employment Type *</label>
+        <select class="input" name="emp_type" required>
+          <option value="">Please Select</option>
+          <option value="Self-employed" {selected('EmploymentType','Self-employed')}>Self-employed</option>
+          <option value="Ltd Company" {selected('EmploymentType','Ltd Company')}>Ltd Company</option>
+          <option value="Agency" {selected('EmploymentType','Agency')}>Agency</option>
+          <option value="PAYE" {selected('EmploymentType','PAYE')}>PAYE</option>
+        </select>
+
+        <label class="sub" style="margin-top:10px; display:block;">Right to work in UK? *</label>
+        <div class="row2">
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="yes" {checked_radio('RightToWorkUK','yes')} required> Yes</label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;"><input type="radio" name="rtw" value="no" {checked_radio('RightToWorkUK','no')} required> No</label>
+        </div>
+
+        <div class="row2">
+          <div><label class="sub">National Insurance *</label><input class="input" name="ni" value="{escape(val('NationalInsurance'))}" required></div>
+          <div><label class="sub">UTR *</label><input class="input" name="utr" value="{escape(val('UTR'))}" required></div>
+        </div>
+
+        <label class="sub" style="margin-top:10px; display:block;">Start Date *</label>
+        <input class="input" type="date" name="start_date" value="{escape(val('StartDate'))}" required>
+
+        <h2 style="margin-top:18px;">Bank details *</h2>
+        <div class="row2">
+          <div><label class="sub">Account Number *</label><input class="input" name="acc_no" value="{escape(val('BankAccountNumber'))}" required></div>
+          <div><label class="sub">Sort Code *</label><input class="input" name="sort_code" value="{escape(val('SortCode'))}" required></div>
+        </div>
+        <label class="sub" style="margin-top:10px; display:block;">Account Holder Name *</label>
+        <input class="input" name="acc_name" value="{escape(val('AccountHolderName'))}" required>
+
+        <h2 style="margin-top:18px;">Company details</h2>
+        <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('CompanyTradingName'))}">
+        <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('CompanyRegistrationNo'))}">
+
+        <h2 style="margin-top:18px;">Subcontractor details *</h2>
+        <div class="row2">
+          <div><label class="sub">Date of Contract *</label><input class="input" type="date" name="contract_date" value="{escape(val('DateOfContract'))}" required></div>
+          <div><label class="sub">Site address *</label><input class="input" name="site_address" value="{escape(val('SiteAddress'))}" required></div>
+        </div>
+
+        <h2 style="margin-top:18px;">Documents folder (Drive link) *</h2>
+        <p class="sub">Create a Drive folder, upload all documents, share “Anyone with link can view”, paste link.</p>
+        <input class="input" name="docs_folder" placeholder="https://drive.google.com/..." value="{escape(val('DocsFolderLink'))}" required>
+
+        <h2 style="margin-top:18px;">Contract acceptance *</h2>
+        <div class="contract"><pre style="white-space:pre-wrap; margin:0;">{CONTRACT_TEXT}</pre></div>
+
+        <label class="sub" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+          <input type="checkbox" name="contract_accept" value="yes" required>
+          I have read and accept the contract terms *
+        </label>
+
+        <label class="sub" style="margin-top:10px; display:block;">Signature (type your full name) *</label>
+        <input class="input" name="signature_name" value="{escape(val('SignatureName'))}" required>
+
+        <div class="btnrow actionbar">
+          <button class="green" type="submit">Save</button>
+          <a href="/"><button class="gray" type="button">Back</button></a>
+        </div>
+      </form>
+    </div></div>
+    """)
+
+# ---------- ADMIN: list onboarding records ----------
 @app.get("/admin")
 def admin():
     gate = require_admin()
     if gate:
         return gate
-
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>Admin</h1>
-            <p class="sub">Reports + employee management</p>
-          </div>
-        </div>
-
-        <div class="navgrid actionbar">
-          <a href="/admin/weekly-report"><button class="purple btnSmall" type="button">Weekly</button></a>
-          <a href="/admin/monthly-report"><button class="purple btnSmall" type="button">Monthly</button></a>
-          <a href="/employees"><button class="blue btnSmall" type="button">Employees</button></a>
-          <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
-        </div>
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Admin</h1><p class="sub">Onboarding list</p></div>
       </div>
-    </div>
+      <div class="navgrid actionbar">
+        <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
+        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
+      </div>
+    </div></div>
     """)
 
-# ---------- ADMIN WEEKLY REPORT ----------
-@app.get("/admin/weekly-report")
-def admin_weekly_report():
+@app.get("/admin/onboarding")
+def admin_onboarding_list():
     gate = require_admin()
     if gate:
         return gate
 
-    nowd = datetime.now().date()
-    y_now, w_now, _ = nowd.isocalendar()
+    q = (request.args.get("q", "") or "").strip().lower()
+    vals = onboarding_sheet.get_all_values()
+    if not vals:
+        body = "<tr><td colspan='4'>No onboarding data.</td></tr>"
+    else:
+        headers = vals[0]
+        def idx(name):
+            return headers.index(name) if name in headers else None
 
-    year = int(request.args.get("year", str(y_now)) or y_now)
-    week = int(request.args.get("week", str(w_now)) or w_now)
+        i_user = idx("Username")
+        i_fn = idx("FirstName")
+        i_ln = idx("LastName")
+        i_sub = idx("SubmittedAt")
 
-    rows = work_sheet.get_all_values()
-    rates = get_rates_map()
-
-    agg = {}
-    for r in rows[1:]:
-        if len(r) <= COL_DATE:
-            continue
-        rd = parse_date(r[COL_DATE])
-        if not rd:
-            continue
-        y, w, _ = rd.isocalendar()
-        if y != year or w != week:
-            continue
-        if len(r) <= COL_HOURS or r[COL_HOURS] == "":
-            continue
-
-        user = r[COL_USER]
-        h = safe_float(r[COL_HOURS], 0.0)
-        g = safe_float(r[COL_PAY], 0.0) if len(r) > COL_PAY and r[COL_PAY] != "" else h * rates.get(user, 0.0)
-
-        agg.setdefault(user, {"hours": 0.0, "gross": 0.0})
-        agg[user]["hours"] += h
-        agg[user]["gross"] += g
-
-    total_hours = total_gross = total_tax = total_net = 0.0
-    body_html = ""
-
-    for user in sorted(agg.keys()):
-        h = agg[user]["hours"]
-        gross, tax, net = compute_money(agg[user]["gross"])
-        total_hours += h
-        total_gross += gross
-        total_tax += tax
-        total_net += net
-        body_html += f"<tr><td>{user}</td><td>{hours_to_hm(h)}</td><td>{gross:.2f}</td><td>{tax:.2f}</td><td>{net:.2f}</td></tr>"
-
-    if not body_html:
-        body_html = "<tr><td colspan='5'>No data for this week.</td></tr>"
+        body_rows = []
+        for r in vals[1:]:
+            u = r[i_user] if i_user is not None and i_user < len(r) else ""
+            fn = r[i_fn] if i_fn is not None and i_fn < len(r) else ""
+            ln = r[i_ln] if i_ln is not None and i_ln < len(r) else ""
+            sub = r[i_sub] if i_sub is not None and i_sub < len(r) else ""
+            name = (fn + " " + ln).strip() or u
+            if q and (q not in u.lower() and q not in name.lower()):
+                continue
+            body_rows.append(
+                f"<tr><td><a href='/admin/onboarding/{escape(u)}'>{escape(name)}</a></td><td>{escape(u)}</td><td>{escape(sub)}</td><td>{linkify(get_onboarding_record(u).get('DocsFolderLink','') if get_onboarding_record(u) else '')}</td></tr>"
+            )
+        body = "".join(body_rows) if body_rows else "<tr><td colspan='4'>No matches.</td></tr>"
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>Weekly Report</h1>
-            <p class="sub">{year}-W{week}</p>
-          </div>
-        </div>
-
-        <form method="GET" class="btnrow">
-          <input class="input" name="year" value="{year}" placeholder="Year">
-          <input class="input" name="week" value="{week}" placeholder="Week">
-          <button class="purple btnSmall" type="submit">View</button>
-          <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
-        </form>
-
-        <div class="tablewrap">
-          <table>
-            <thead><tr><th>Employee</th><th>Hours</th><th>Gross</th><th>Tax (20%)</th><th>Net</th></tr></thead>
-            <tbody>{body_html}</tbody>
-            <tfoot>
-              <tr>
-                <td>Totals</td>
-                <td>{hours_to_hm(total_hours)}</td>
-                <td>{total_gross:.2f}</td>
-                <td>{total_tax:.2f}</td>
-                <td>{total_net:.2f}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Onboarding</h1><p class="sub">Click a name to view full details</p></div>
       </div>
-    </div>
+
+      <form method="GET" class="btnrow">
+        <input class="input" name="q" placeholder="Search name or username" value="{escape(q)}">
+        <button class="blue btnSmall" type="submit">Search</button>
+        <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+      </form>
+
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Name</th><th>Username</th><th>Submitted</th><th>Docs folder</th></tr></thead>
+          <tbody>{body}</tbody>
+        </table>
+      </div>
+    </div></div>
     """)
 
-# ---------- ADMIN MONTHLY REPORT ----------
-@app.get("/admin/monthly-report")
-def admin_monthly_report():
+@app.get("/admin/onboarding/<username>")
+def admin_onboarding_detail(username):
     gate = require_admin()
     if gate:
         return gate
 
-    nowd = datetime.now().date()
-    year = int(request.args.get("year", str(nowd.year)) or nowd.year)
-    month = int(request.args.get("month", str(nowd.month)) or nowd.month)
+    rec = get_onboarding_record(username)
+    if not rec:
+        abort(404)
 
-    rows = work_sheet.get_all_values()
-    rates = get_rates_map()
+    # Show important groups
+    def row(label, key, link=False):
+        v = rec.get(key, "")
+        vv = linkify(v) if link else escape(v)
+        return f"<tr><th>{escape(label)}</th><td>{vv}</td></tr>"
 
-    agg = {}
-    for r in rows[1:]:
-        if len(r) <= COL_DATE:
-            continue
-        rd = parse_date(r[COL_DATE])
-        if not rd:
-            continue
-        if rd.year != year or rd.month != month:
-            continue
-        if len(r) <= COL_HOURS or r[COL_HOURS] == "":
-            continue
-
-        user = r[COL_USER]
-        h = safe_float(r[COL_HOURS], 0.0)
-        g = safe_float(r[COL_PAY], 0.0) if len(r) > COL_PAY and r[COL_PAY] != "" else h * rates.get(user, 0.0)
-
-        agg.setdefault(user, {"hours": 0.0, "gross": 0.0})
-        agg[user]["hours"] += h
-        agg[user]["gross"] += g
-
-    total_hours = total_gross = total_tax = total_net = 0.0
-    body_html = ""
-
-    for user in sorted(agg.keys()):
-        h = agg[user]["hours"]
-        gross, tax, net = compute_money(agg[user]["gross"])
-        total_hours += h
-        total_gross += gross
-        total_tax += tax
-        total_net += net
-        body_html += f"<tr><td>{user}</td><td>{hours_to_hm(h)}</td><td>{gross:.2f}</td><td>{tax:.2f}</td><td>{net:.2f}</td></tr>"
-
-    if not body_html:
-        body_html = "<tr><td colspan='5'>No data for this month.</td></tr>"
-
-    return render_template_string(f"""
-    {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>Monthly Report</h1>
-            <p class="sub">{year}-{month:02d}</p>
-          </div>
-        </div>
-
-        <form method="GET" class="btnrow">
-          <input class="input" name="year" value="{year}" placeholder="Year">
-          <input class="input" name="month" value="{month}" placeholder="Month (1-12)">
-          <button class="purple btnSmall" type="submit">View</button>
-          <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
-        </form>
-
-        <div class="tablewrap">
-          <table>
-            <thead><tr><th>Employee</th><th>Hours</th><th>Gross</th><th>Tax (20%)</th><th>Net</th></tr></thead>
-            <tbody>{body_html}</tbody>
-            <tfoot>
-              <tr>
-                <td>Totals</td>
-                <td>{hours_to_hm(total_hours)}</td>
-                <td>{total_gross:.2f}</td>
-                <td>{total_tax:.2f}</td>
-                <td>{total_net:.2f}</td>
-              </tr>
-            </tfoot>
-          </table>
-        </div>
-      </div>
-    </div>
-    """)
-
-# ---------- EMPLOYEE MANAGEMENT (ADMIN) ----------
-@app.route("/employees", methods=["GET", "POST"])
-def employees():
-    gate = require_admin()
-    if gate:
-        return gate
-
-    msg = ""
-    msg_class = "message"
-
-    headers, values = get_employees_headers_and_values()
-    required = ["Username", "Password", "Role", "Rate"]
-    missing = [c for c in required if c not in headers]
-    if missing:
-        return f"Employees sheet missing headers: {missing} (Row 1 must have Username, Password, Role, Rate)", 500
-
-    has_early_col = "EarlyAccess" in headers
-
-    def col_index(name: str) -> int:
-        return headers.index(name) + 1
-
-    records = employees_sheet.get_all_records()
-
-    if request.method == "POST":
-        action = request.form.get("action", "")
-
-        if action == "add":
-            u = request.form.get("new_username", "").strip()
-            p = request.form.get("new_password", "").strip()
-            r = request.form.get("new_role", "employee").strip()
-            rate = request.form.get("new_rate", "0").strip()
-            early = request.form.get("new_early", "no").strip().lower()
-
-            if not u or not p:
-                msg = "Username and password are required."
-                msg_class = "message error"
-            elif any(rec.get("Username") == u for rec in records):
-                msg = "Username already exists."
-                msg_class = "message error"
-            else:
-                row = [u, p, r, rate]
-                if has_early_col:
-                    row.append("TRUE" if early == "yes" else "FALSE")
-                employees_sheet.append_row(row)
-                msg = "Employee added."
-
-        elif action == "update":
-            rownum = int(request.form.get("rownum", "0"))
-            new_pass = request.form.get("password", "").strip()
-            new_role = request.form.get("role", "employee").strip()
-            new_rate = request.form.get("rate", "0").strip()
-            new_early = request.form.get("early", "no").strip().lower()
-
-            if rownum <= 1:
-                msg = "Invalid row."
-                msg_class = "message error"
-            else:
-                if new_pass:
-                    employees_sheet.update_cell(rownum, col_index("Password"), new_pass)
-                employees_sheet.update_cell(rownum, col_index("Role"), new_role)
-                employees_sheet.update_cell(rownum, col_index("Rate"), new_rate)
-                if has_early_col:
-                    employees_sheet.update_cell(rownum, col_index("EarlyAccess"), "TRUE" if new_early == "yes" else "FALSE")
-                msg = "Employee updated."
-
-        elif action == "delete":
-            rownum = int(request.form.get("rownum", "0"))
-            if rownum <= 1:
-                msg = "Invalid row."
-                msg_class = "message error"
-            else:
-                employees_sheet.delete_rows(rownum)
-                msg = "Employee deleted."
-
-        headers, values = get_employees_headers_and_values()
-        records = employees_sheet.get_all_records()
-        has_early_col = "EarlyAccess" in headers
-
-    early_field_add = ""
-    if has_early_col:
-        early_field_add = """
-        <select class="input" name="new_early">
-          <option value="no">Early clock-in: No</option>
-          <option value="yes">Early clock-in: Yes</option>
-        </select>
-        """
-
-    table_rows_html = ""
-    for idx, rec in enumerate(records, start=2):
-        u = rec.get("Username", "")
-        role = rec.get("Role", "employee")
-        rate = rec.get("Rate", "")
-        early_val = "yes" if parse_bool(rec.get("EarlyAccess", False)) else "no"
-
-        early_select = ""
-        if has_early_col:
-            early_select = f"""
-            <select class="input" name="early" style="max-width:200px; margin-top:0;">
-              <option value="no" {"selected" if early_val=="no" else ""}>Early: No</option>
-              <option value="yes" {"selected" if early_val=="yes" else ""}>Early: Yes</option>
-            </select>
-            """
-
-        table_rows_html += f"""
-        <tr>
-          <td>{idx}</td>
-          <td>{u}</td>
-          <td>
-            <form method="POST" style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-              <input type="hidden" name="action" value="update">
-              <input type="hidden" name="rownum" value="{idx}">
-              <input class="input" name="password" placeholder="New password" style="max-width:200px; margin-top:0;">
-              <select class="input" name="role" style="max-width:150px; margin-top:0;">
-                <option value="employee" {"selected" if role=="employee" else ""}>employee</option>
-                <option value="admin" {"selected" if role=="admin" else ""}>admin</option>
-              </select>
-              <input class="input" name="rate" value="{rate}" placeholder="Rate" style="max-width:120px; margin-top:0;">
-              {early_select}
-              <button class="blue btnSmall" type="submit">Save</button>
-            </form>
-          </td>
-          <td>
-            <form method="POST" onsubmit="return confirm('Delete {u}?');">
-              <input type="hidden" name="action" value="delete">
-              <input type="hidden" name="rownum" value="{idx}">
-              <button class="red btnSmall" type="submit">Delete</button>
-            </form>
-          </td>
-        </tr>
-        """
+    details = ""
+    details += row("Username", "Username")
+    details += row("First name", "FirstName")
+    details += row("Last name", "LastName")
+    details += row("Birth date", "BirthDate")
+    details += row("Phone", "PhoneCountryCode")  # show cc + num below
+    details += f"<tr><th>Phone number</th><td>{escape(rec.get('PhoneNumber',''))}</td></tr>"
+    details += row("Email", "Email")
+    details += row("Address", "StreetAddress")
+    details += row("City", "City")
+    details += row("Postcode", "Postcode")
+    details += row("Emergency contact", "EmergencyContactName")
+    details += f"<tr><th>Emergency phone</th><td>{escape(rec.get('EmergencyContactPhoneCountryCode',''))} {escape(rec.get('EmergencyContactPhoneNumber',''))}</td></tr>"
+    details += row("Medical", "MedicalCondition")
+    details += row("Medical details", "MedicalDetails")
+    details += row("Position", "Position")
+    details += row("CSCS number", "CSCSNumber")
+    details += row("CSCS expiry", "CSCSExpiryDate")
+    details += row("Employment type", "EmploymentType")
+    details += row("Right to work UK", "RightToWorkUK")
+    details += row("NI", "NationalInsurance")
+    details += row("UTR", "UTR")
+    details += row("Start date", "StartDate")
+    details += row("Bank account", "BankAccountNumber")
+    details += row("Sort code", "SortCode")
+    details += row("Account holder", "AccountHolderName")
+    details += row("Company trading", "CompanyTradingName")
+    details += row("Company reg", "CompanyRegistrationNo")
+    details += row("Date of contract", "DateOfContract")
+    details += row("Site address", "SiteAddress")
+    details += row("Docs folder", "DocsFolderLink", link=True)
+    details += row("Contract accepted", "ContractAccepted")
+    details += row("Signature name", "SignatureName")
+    details += row("Signature time", "SignatureDateTime")
+    details += row("Submitted at", "SubmittedAt")
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
-    <div class="app">
-      <div class="card">
-        <div class="header">
-          {HEADER_ICON}
-          <div class="title">
-            <h1>Employees</h1>
-            <p class="sub">Add / edit / delete employees</p>
-          </div>
-        </div>
-
-        {"<div class='" + msg_class + "'>" + msg + "</div>" if msg else ""}
-
-        <h2 style="margin-top:10px;">Add employee</h2>
-        <form method="POST">
-          <input type="hidden" name="action" value="add">
-          <input class="input" name="new_username" placeholder="Username" required>
-          <input class="input" name="new_password" placeholder="Password" required>
-          <select class="input" name="new_role">
-            <option value="employee">employee</option>
-            <option value="admin">admin</option>
-          </select>
-          <input class="input" name="new_rate" placeholder="Rate (e.g. 12.5)" required>
-          {early_field_add}
-
-          <div class="btnrow actionbar">
-            <button class="green btnSmall" type="submit">Add</button>
-            <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
-          </div>
-        </form>
-
-        <h2 style="margin-top:18px;">Manage</h2>
-        <div class="tablewrap">
-          <table>
-            <thead><tr><th>Row</th><th>Username</th><th>Edit</th><th>Delete</th></tr></thead>
-            <tbody>{table_rows_html if table_rows_html else "<tr><td colspan='4'>No employees found.</td></tr>"}</tbody>
-          </table>
-        </div>
-
-        <p class="sub" style="margin-top:12px;">
-          EarlyAccess column (TRUE/FALSE) lets some users clock in before 08:00 with real time.
-          If EarlyAccess is FALSE and they clock in before 08:00, it is counted from 08:00.
-        </p>
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Onboarding Details</h1><p class="sub">{escape(username)}</p></div>
       </div>
-    </div>
+
+      <div class="btnrow">
+        <a href="/admin/onboarding"><button class="gray btnSmall" type="button">Back</button></a>
+      </div>
+
+      <div class="tablewrap">
+        <table style="min-width: 640px;">
+          <tbody>{details}</tbody>
+        </table>
+      </div>
+    </div></div>
     """)
 
 # ================= LOCAL RUN =================
