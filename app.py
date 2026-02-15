@@ -1,4 +1,4 @@
-# ===================== app.py (FULL - REWRITE) =====================
+# ===================== app.py (FULL - REWRITE, LIGHT THEME + PAYROLL REPORT/PRINT) =====================
 import os
 import json
 import io
@@ -46,7 +46,7 @@ app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 # Upload size cap (adjust as needed)
 app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "15")) * 1024 * 1024
 
-# Cookie hardening (works with no extra software)
+# Cookie hardening
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
@@ -212,8 +212,8 @@ def manifest():
         "short_name": "WorkHours",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#0b1220",
-        "theme_color": "#0b1220",
+        "background_color": "#f6f7fb",
+        "theme_color": "#ffffff",
         "icons": [
             {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
@@ -223,32 +223,36 @@ def manifest():
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 PWA_TAGS = """
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#0b1220">
+<meta name="theme-color" content="#ffffff">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 """
 
 
-# ================= UI (more professional) =================
+# ================= UI (LIGHT / WHITE PROFESSIONAL THEME) =================
 STYLE = """
 <style>
 :root{
-  --bg:#070b14;
-  --panel:#0e1630;
-  --panel2:#0a1126;
-  --text:#eef2ff;
-  --muted:#aab4d6;
-  --border:rgba(255,255,255,.08);
-  --shadow: 0 22px 60px rgba(0,0,0,.55);
-  --radius: 22px;
+  --bg:#f6f7fb;
+  --card:#ffffff;
+  --text:#0f172a;
+  --muted:#475569;
+  --border:rgba(15,23,42,.10);
+  --shadow: 0 18px 48px rgba(15,23,42,.10);
+  --radius: 18px;
 
-  --h1: clamp(22px, 4vw, 34px);
-  --h2: clamp(18px, 3vw, 24px);
+  --h1: clamp(22px, 4vw, 32px);
+  --h2: clamp(18px, 3vw, 22px);
   --p:  clamp(15px, 2.4vw, 18px);
   --small: clamp(13px, 2vw, 15px);
   --btn: clamp(13px, 2.2vw, 15px);
-  --input: clamp(16px, 2.4vw, 18px);
+  --input: clamp(15px, 2.4vw, 17px);
+
+  --primary:#2563eb;
+  --success:#16a34a;
+  --danger:#dc2626;
+  --purple:#7c3aed;
 }
 
 *{ box-sizing:border-box; }
@@ -257,31 +261,26 @@ body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background:
-    radial-gradient(1200px 800px at 20% 0%, rgba(99,102,241,.25) 0%, rgba(99,102,241,0) 60%),
-    radial-gradient(900px 700px at 85% 12%, rgba(34,197,94,.14) 0%, rgba(34,197,94,0) 55%),
-    radial-gradient(900px 700px at 70% 90%, rgba(56,189,248,.12) 0%, rgba(56,189,248,0) 55%),
+    radial-gradient(1200px 700px at 10% 0%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 60%),
+    radial-gradient(900px 650px at 90% 15%, rgba(124,58,237,.06) 0%, rgba(124,58,237,0) 55%),
     var(--bg);
   color: var(--text);
   padding: clamp(12px, 3vw, 22px);
   -webkit-text-size-adjust: 100%;
 }
-
-.app{ width:100%; max-width: 1080px; margin: 0 auto; }
+.app{ width:100%; max-width: 1120px; margin: 0 auto; }
 
 .card{
-  background: linear-gradient(180deg, rgba(14,22,48,.92) 0%, rgba(10,17,38,.92) 100%);
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: clamp(16px, 3vw, 26px);
+  padding: clamp(16px, 3vw, 24px);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
 }
 
-.header{
-  display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;
-}
+.header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;}
 .title{display:flex;flex-direction:column;gap:6px;}
-h1{font-size:var(--h1);margin:0;letter-spacing:.2px;}
+h1{font-size:var(--h1);margin:0;letter-spacing:.1px;}
 h2{font-size:var(--h2);margin: 18px 0 10px 0;}
 .sub{font-size:var(--small);color:var(--muted);margin:0;line-height:1.35;}
 
@@ -290,73 +289,86 @@ h2{font-size:var(--h2);margin: 18px 0 10px 0;}
   padding: 6px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: rgba(255,255,255,.04);
+  background: rgba(15,23,42,.03);
   color: var(--muted);
+  white-space: nowrap;
 }
 
 .appIcon{
-  width: 56px;height: 56px;border-radius: 18px;
+  width: 54px;height: 54px;border-radius: 16px;
   background:
-    radial-gradient(22px 22px at 30% 30%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%),
-    linear-gradient(135deg, rgba(99,102,241,.95) 0%, rgba(56,189,248,.75) 50%, rgba(34,197,94,.85) 120%);
-  border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 18px 28px rgba(0,0,0,.35);
+    radial-gradient(22px 22px at 30% 30%, rgba(255,255,255,.9) 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(135deg, rgba(37,99,235,.95) 0%, rgba(124,58,237,.70) 55%, rgba(22,163,74,.75) 120%);
+  border: 1px solid rgba(15,23,42,.10);
+  box-shadow: 0 14px 24px rgba(15,23,42,.10);
   display:grid;place-items:center;flex: 0 0 auto;
 }
 .appIcon .glyph{ width: 26px; height: 26px; position: relative; }
 .appIcon .glyph:before,.appIcon .glyph:after{
   content:""; position:absolute; inset:0; border-radius: 12px;
-  border: 3px solid rgba(10,15,30,.82);
+  border: 3px solid rgba(15,23,42,.80);
 }
 .appIcon .glyph:after{ inset: 7px; border-radius: 9px; }
 .appIcon .dot{
   position:absolute; width: 7px; height: 7px; border-radius: 50%;
-  background: rgba(10,15,30,.82); left: 50%; top: 50%;
+  background: rgba(15,23,42,.80); left: 50%; top: 50%;
   transform: translate(-50%,-50%);
 }
 
 .message{
-  margin-top: 12px; padding: 10px 12px; border-radius: 16px;
-  background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.22);
+  margin-top: 12px; padding: 10px 12px; border-radius: 14px;
+  background: rgba(22,163,74,.08); border: 1px solid rgba(22,163,74,.18);
   font-size: var(--p); font-weight: 800; text-align:center;
 }
-.message.error{background: rgba(239,68,68,.12);border: 1px solid rgba(239,68,68,.22);}
+.message.error{ background: rgba(220,38,38,.08); border: 1px solid rgba(220,38,38,.18); }
 
-a{color:#93c5fd;text-decoration:none;}
+a{color:var(--primary);text-decoration:none;}
 a:hover{text-decoration:underline;}
 
 .input{
-  width:100%;padding:12px 12px;border-radius:14px;border:1px solid var(--border);
-  background: rgba(255,255,255,.04);color: var(--text);font-size: var(--input);
-  outline:none;margin-top:10px;
+  width:100%;
+  padding:12px 12px;
+  border-radius:12px;
+  border:1px solid rgba(15,23,42,.14);
+  background:#fff;
+  color: var(--text);
+  font-size: var(--input);
+  outline:none;
+  margin-top:10px;
 }
-.input:focus{
-  border-color: rgba(56,189,248,.55);
-  box-shadow: 0 0 0 3px rgba(56,189,248,.12);
-}
+.input:focus{ border-color: rgba(37,99,235,.45); box-shadow: 0 0 0 3px rgba(37,99,235,.12); }
 
 .row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 @media (max-width: 640px){.row2{grid-template-columns:1fr;}}
 
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
 button{
-  border:none;border-radius:14px;padding:10px 10px;font-weight:900;cursor:pointer;
-  font-size: var(--btn); min-height: 40px; flex: 1 1 130px;
-  box-shadow: 0 10px 18px rgba(0,0,0,.22);
+  border: 1px solid rgba(15,23,42,.12);
+  border-radius:12px;
+  padding:10px 10px;
+  font-weight:900;
+  cursor:pointer;
+  font-size: var(--btn);
+  min-height: 40px;
+  flex: 1 1 130px;
+  box-shadow: 0 10px 18px rgba(15,23,42,.08);
   transition: transform .06s ease, filter .06s ease;
 }
-button:active{ transform: translateY(1px); filter: brightness(.98); }
+button:active{ transform: translateY(1px); filter: brightness(.99); }
 
 .btnSmall{min-height: 34px !important;padding: 8px 10px !important;flex:0 0 auto !important;}
-.green{background:#22c55e;color:#06230f;}
-.red{background:#ef4444;color:#2a0606;}
-.blue{background:#60a5fa;color:#071527;}
-.purple{background:#a78bfa;color:#140726;}
-.gray{background:rgba(255,255,255,.10);color: var(--text); border:1px solid var(--border);}
+
+.green{background:rgba(22,163,74,1);color:white;border-color: rgba(22,163,74,.35);}
+.red{background:rgba(220,38,38,1);color:white;border-color: rgba(220,38,38,.35);}
+.blue{background:rgba(37,99,235,1);color:white;border-color: rgba(37,99,235,.35);}
+.purple{background:rgba(124,58,237,1);color:white;border-color: rgba(124,58,237,.35);}
+.gray{background:#ffffff;color: var(--text); border:1px solid rgba(15,23,42,.16);}
 
 .actionbar{
   position: sticky; bottom: 10px; margin-top: 14px; padding: 10px;
-  border-radius: 18px; background: rgba(7,11,20,.55); border: 1px solid var(--border);
+  border-radius: 16px;
+  background: rgba(255,255,255,.85);
+  border: 1px solid rgba(15,23,42,.10);
   backdrop-filter: blur(10px);
 }
 
@@ -365,30 +377,31 @@ button:active{ transform: translateY(1px); filter: brightness(.98); }
 .navgrid a{text-decoration:none;}
 .navgrid button{width:100%;min-height:34px;padding:8px 10px;flex:none;}
 
-.tablewrap{margin-top:14px;overflow:auto;border-radius:18px;border:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;min-width:820px;background:rgba(255,255,255,.03);}
-th,td{padding:10px 10px;border-bottom:1px solid var(--border);text-align:left;font-size: clamp(13px,2vw,15px);}
-th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
+.tablewrap{margin-top:14px;overflow:auto;border-radius:16px;border:1px solid rgba(15,23,42,.10);}
+table{width:100%;border-collapse:collapse;min-width:780px;background:#fff;}
+th,td{padding:10px 10px;border-bottom:1px solid rgba(15,23,42,.08);text-align:left;font-size: clamp(13px,2vw,15px);}
+th{position:sticky;top:0;background: rgba(248,250,252,.95);backdrop-filter: blur(8px);color: rgba(15,23,42,.85);}
 
 .kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;}
 @media (min-width: 720px){.kpi{grid-template-columns:repeat(4,minmax(0,1fr));}}
-.kpi .box{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:16px;padding:12px;}
+.kpi .box{border:1px solid rgba(15,23,42,.10);background: rgba(248,250,252,.75);border-radius:14px;padding:12px;}
 .kpi .big{font-size: clamp(16px,2.6vw,20px);font-weight:950;}
 
 .timerBox{
-  margin-top: 12px; padding: 12px; border-radius: 16px;
-  background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.22);
+  margin-top: 12px; padding: 12px; border-radius: 14px;
+  background: rgba(37,99,235,.06);
+  border: 1px solid rgba(37,99,235,.16);
 }
 .timerBig{font-weight: 950; font-size: clamp(18px, 3vw, 26px);}
 
-.sectionCard{
-  border:1px solid var(--border);
-  background: rgba(255,255,255,.03);
-  border-radius: 18px;
-  padding: 12px;
-  margin-top: 10px;
+.contract{
+  margin-top:12px;padding:12px;border-radius:14px;border:1px solid rgba(15,23,42,.10);
+  background: rgba(248,250,252,.75);
+  max-height:320px;overflow:auto;font-size: var(--small);
+  color: var(--text); line-height:1.35;
 }
 
+/* Upload headers */
 .uploadLabel{
   display:flex;
   align-items:center;
@@ -396,38 +409,53 @@ th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
   gap:10px;
   margin-top: 14px;
   padding: 10px 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(56,189,248,.18);
-  background: rgba(56,189,248,.08);
+  border-radius: 12px;
+  border: 1px solid rgba(37,99,235,.18);
+  background: rgba(37,99,235,.06);
 }
-.uploadLabel .text{
-  font-weight: 950;
-  font-size: clamp(15px, 2.6vw, 18px);
-  color: #eaf4ff;
-}
-.uploadLabel .hint{
-  font-size: var(--small);
-  color: rgba(255,255,255,.65);
-}
-
-.contract{
-  margin-top:12px;padding:12px;border-radius:16px;border:1px solid var(--border);
-  background:rgba(0,0,0,.20);max-height:320px;overflow:auto;font-size: var(--small);
-  color: var(--text); line-height:1.35;
-}
+.uploadLabel .text{ font-weight: 950; font-size: clamp(15px, 2.6vw, 18px); color: rgba(15,23,42,.95); }
+.uploadLabel .hint{ font-size: var(--small); color: rgba(71,85,105,.9); }
 
 .bad{
-  border: 1px solid rgba(239,68,68,.85) !important;
-  box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important;
+  border: 1px solid rgba(220,38,38,.75) !important;
+  box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important;
 }
-.badLabel{ color: #fca5a5 !important; font-weight: 900; }
+.badLabel{ color: rgba(220,38,38,.9) !important; font-weight: 900; }
+
+/* Payroll report blocks */
+.reportHeader{
+  display:flex; align-items:flex-end; justify-content:space-between; gap:12px;
+  padding: 12px; border-radius: 14px; border: 1px solid rgba(15,23,42,.10);
+  background: rgba(248,250,252,.75);
+  margin-top: 10px;
+}
+.reportTitle{ font-weight: 950; font-size: 18px; }
+.reportMeta{ color: var(--muted); font-size: var(--small); line-height: 1.4; }
+.reportStamp{
+  text-align:right;
+  color: rgba(15,23,42,.75);
+  font-size: var(--small);
+}
+
+/* Print view */
+.noPrint{ display:block; }
+.onlyPrint{ display:none; }
+@media print{
+  body{ background:#fff; padding:0; }
+  .app{ max-width:none; }
+  .card{ border:none; box-shadow:none; border-radius:0; padding: 18px; }
+  .actionbar, .navgrid, .noPrint{ display:none !important; }
+  .onlyPrint{ display:block !important; }
+  .tablewrap{ border:1px solid rgba(0,0,0,.15); }
+  th{ background:#f3f4f6 !important; }
+}
 </style>
 """
 
 HEADER_ICON = """<div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>"""
 
 
-# ================= CONTRACT TEXT (UPDATED) =================
+# ================= CONTRACT TEXT =================
 CONTRACT_TEXT = """Contract
 
 By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
@@ -661,13 +689,11 @@ def update_employee_password(username: str, new_password: str) -> bool:
 
 def is_password_valid(stored: str, provided: str) -> bool:
     stored = stored or ""
-    # Migration support: if old plain text exists, allow once
     if stored.startswith("pbkdf2:") or stored.startswith("scrypt:"):
         return check_password_hash(stored, provided)
     return stored == provided
 
 def migrate_password_if_plain(username: str, stored: str, provided: str):
-    # If login succeeded with plain text, immediately upgrade it to hashed.
     stored = stored or ""
     if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
         update_employee_password(username, provided)
@@ -768,11 +794,10 @@ def login():
 
         for user in employees_sheet.get_all_records():
             if user.get("Username") == username and is_password_valid(user.get("Password", ""), password):
-                # Upgrade plain passwords to hashed
                 migrate_password_if_plain(username, user.get("Password", ""), password)
 
                 session.clear()
-                session["csrf"] = csrf  # keep csrf
+                session["csrf"] = csrf
                 session["username"] = username
                 session["role"] = user.get("Role", "employee")
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
@@ -901,7 +926,7 @@ def home():
         action = request.form.get("action")
 
         if action == "in":
-            rows = work_sheet.get_all_values()  # re-fetch to reduce race issues
+            rows = work_sheet.get_all_values()
             if has_any_row_today(rows, username, today_str):
                 msg = "You already clocked in today (1 per day)."
                 msg_class = "message error"
@@ -923,8 +948,7 @@ def home():
                 msg_class = "message error"
             else:
                 i, d, t = osf
-                cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
-                cin_dt = cin_dt.replace(tzinfo=TZ)
+                cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                 hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
                 hours_rounded = round(hours, 2)
                 pay = round(hours_rounded * rate, 2)
@@ -947,8 +971,7 @@ def home():
             active_start_iso = start_dt.isoformat()
             active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
-            active_start_iso = ""
-            active_start_label = ""
+            pass
 
     timer_html = ""
     if active_start_iso:
@@ -997,7 +1020,7 @@ def home():
 
       {timer_html}
 
-      <div class="actionbar">
+      <div class="actionbar noPrint">
         <form method="POST" class="btnrow" style="margin:0;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <button class="green" name="action" value="in">Clock In</button>
@@ -1051,7 +1074,7 @@ def my_times():
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>My Times</h1><p class="sub">Clock-in/out history</p></div>
       </div>
-      <div class="btnrow">
+      <div class="btnrow noPrint">
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
       <div class="tablewrap">
@@ -1139,7 +1162,7 @@ def my_reports():
         <div class="box"><div class="sub">Month Net</div><div class="big">{m_n}</div></div>
       </div>
 
-      <div class="btnrow actionbar">
+      <div class="btnrow actionbar noPrint">
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
     </div></div>
@@ -1171,7 +1194,6 @@ def onboarding():
 
         def g(name): return (request.form.get(name, "") or "").strip()
 
-        # typed fields
         first = g("first")
         last = g("last")
         birth = g("birth")
@@ -1209,7 +1231,6 @@ def onboarding():
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
-        # files
         passport_file = request.files.get("passport_file")
         cscs_file = request.files.get("cscs_file")
         pli_file = request.files.get("pli_file")
@@ -1389,7 +1410,7 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
     admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
     drive_hint = ""
     if role == "admin":
-        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive'>Connect Drive</a> once.</p>"
+        drive_hint = "<p class='sub noPrint'>Admin: if uploads fail, click <a href='/connect-drive'>Connect Drive</a> once.</p>"
 
     return f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
@@ -1560,7 +1581,6 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
         <h2>Upload documents</h2>
         <p class="sub">Draft: optional uploads. Final: all 4 required. (Files must be re-selected if a Final submit fails.)</p>
 
-        <!-- MORE VISIBLE UPLOAD TITLES -->
         <div class="uploadLabel {bad('passport_file')}">
           <div class="text">Passport or Birth Certificate</div>
           <div class="hint">Required for Final</div>
@@ -1600,13 +1620,13 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
         <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
         <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
 
-        <div class="btnrow actionbar">
+        <div class="btnrow actionbar noPrint">
           <button class="green" name="submit_type" value="draft" type="submit">Save Draft</button>
           <button class="purple" name="submit_type" value="final" type="submit">Submit Final</button>
           <a href="/"><button class="gray" type="button">Back</button></a>
         </div>
 
-        <div class="navgrid">
+        <div class="navgrid noPrint">
           {admin_btn if admin_btn else ""}
         </div>
       </form>
@@ -1627,7 +1647,7 @@ def admin():
         <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding + reports</p></div>
         <div class="badge">ADMIN</div>
       </div>
-      <div class="navgrid actionbar">
+      <div class="navgrid actionbar noPrint">
         <a href="/connect-drive"><button class="blue btnSmall" type="button">Connect Drive</button></a>
         <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
         <a href="/admin/times"><button class="blue btnSmall" type="button">All Times</button></a>
@@ -1639,158 +1659,272 @@ def admin():
     """)
 
 
-# ---------- ADMIN: PROFESSIONAL PAYROLL SHEET (ALL TIMES) ----------
+# ---------- ADMIN: REAL PAYROLL REPORT (GROUPED + PRINT VIEW) ----------
 @app.get("/admin/times")
 def admin_times():
     gate = require_admin()
     if gate:
         return gate
 
-    q = (request.args.get("q", "") or "").strip().lower()           # username search
-    date_from = (request.args.get("from", "") or "").strip()        # YYYY-MM-DD
-    date_to = (request.args.get("to", "") or "").strip()            # YYYY-MM-DD
-    download = (request.args.get("download", "") or "").strip()     # "1" => CSV
+    # Filters
+    q = (request.args.get("q", "") or "").strip().lower()            # username contains
+    date_from = (request.args.get("from", "") or "").strip()         # YYYY-MM-DD
+    date_to = (request.args.get("to", "") or "").strip()             # YYYY-MM-DD
+    group_mode = (request.args.get("group", "employee") or "").strip().lower()  # employee / none
+    download = (request.args.get("download", "") or "").strip()      # "1" => CSV
+
+    now = datetime.now(TZ)
+    generated_on = now.strftime("%Y-%m-%d %H:%M:%S")
 
     rows = work_sheet.get_all_values()
 
     def in_range(d: str) -> bool:
         if not d:
             return False
-        # Stored as YYYY-MM-DD, safe to compare as strings
         if date_from and d < date_from:
             return False
         if date_to and d > date_to:
             return False
         return True
 
-    filtered = []
-    per_user = {}  # user -> {"hours": float, "gross": float}
-    total_hours = 0.0
-    total_gross = 0.0
-
+    # Collect filtered rows
+    filtered = []  # list of dicts
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-
-        user = r[COL_USER]
-        d = r[COL_DATE]
-        cin = r[COL_IN]
-        cout = r[COL_OUT]
-        hrs = r[COL_HOURS]
-        pay = r[COL_PAY]
-
+        user = (r[COL_USER] or "").strip()
+        d = (r[COL_DATE] or "").strip()
         if not in_range(d):
             continue
-        if q and q not in (user or "").lower():
+        if q and q not in user.lower():
             continue
+        filtered.append({
+            "user": user,
+            "date": d,
+            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
+            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
+            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
+            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
+        })
 
-        filtered.append([user, d, cin, cout, hrs, pay])
-
-        if hrs != "":
-            h = safe_float(hrs, 0.0)
-            g = safe_float(pay, 0.0)
-            per_user.setdefault(user, {"hours": 0.0, "gross": 0.0})
-            per_user[user]["hours"] += h
-            per_user[user]["gross"] += g
-            total_hours += h
-            total_gross += g
-
+    # CSV export
     if download == "1":
         out = io.StringIO()
         w = csv.writer(out)
         w.writerow(["Username", "Date", "Clock In", "Clock Out", "Hours", "Pay"])
         for row in filtered:
-            w.writerow(row)
+            w.writerow([row["user"], row["date"], row["cin"], row["cout"], row["hours"], row["pay"]])
+
+        # Totals summary
+        total_hours = 0.0
+        total_gross = 0.0
+        for row in filtered:
+            if row["hours"] != "":
+                total_hours += safe_float(row["hours"], 0.0)
+                total_gross += safe_float(row["pay"], 0.0)
+
+        total_tax = round(total_gross * TAX_RATE, 2)
+        total_net = round(total_gross - total_tax, 2)
         w.writerow([])
         w.writerow(["TOTAL HOURS", round(total_hours, 2)])
         w.writerow(["TOTAL GROSS", round(total_gross, 2)])
+        w.writerow(["TOTAL TAX (20%)", total_tax])
+        w.writerow(["TOTAL NET", total_net])
+
         return Response(
             out.getvalue(),
             mimetype="text/csv",
-            headers={"Content-Disposition": "attachment; filename=all_times.csv"},
+            headers={"Content-Disposition": "attachment; filename=payroll_report.csv"},
         )
 
-    # Summary table by user
+    # Compute per-user grouping + totals
+    by_user = {}
+    overall_hours = 0.0
+    overall_gross = 0.0
+
+    for row in filtered:
+        u = row["user"] or "Unknown"
+        by_user.setdefault(u, {"rows": [], "hours": 0.0, "gross": 0.0})
+        by_user[u]["rows"].append(row)
+
+        if row["hours"] != "":
+            h = safe_float(row["hours"], 0.0)
+            g = safe_float(row["pay"], 0.0)
+            by_user[u]["hours"] += h
+            by_user[u]["gross"] += g
+            overall_hours += h
+            overall_gross += g
+
+    overall_tax = round(overall_gross * TAX_RATE, 2)
+    overall_net = round(overall_gross - overall_tax, 2)
+
+    # Summary table
     summary_rows = []
-    for user, dct in sorted(per_user.items(), key=lambda x: x[0].lower()):
-        gross = round(dct["gross"], 2)
+    for u in sorted(by_user.keys(), key=lambda s: s.lower()):
+        gross = round(by_user[u]["gross"], 2)
         tax = round(gross * TAX_RATE, 2)
         net = round(gross - tax, 2)
         summary_rows.append(
-            f"<tr><td>{escape(user)}</td><td>{round(dct['hours'],2)}</td><td>{gross}</td><td>{tax}</td><td>{net}</td></tr>"
+            f"<tr><td>{escape(u)}</td><td>{round(by_user[u]['hours'],2)}</td><td>{gross}</td><td>{tax}</td><td>{net}</td></tr>"
         )
-    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='5'>No data.</td></tr>"
+    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='5'>No data for this range.</td></tr>"
 
-    # Detail table
-    body_rows = []
-    for user, d, cin, cout, hrs, pay in filtered[-600:]:  # keep UI fast; last 600 rows shown
-        body_rows.append(
-            f"<tr><td>{escape(user)}</td><td>{escape(d)}</td><td>{escape(cin)}</td><td>{escape(cout)}</td>"
-            f"<td>{escape(hrs)}</td><td>{escape(pay)}</td></tr>"
-        )
-    details_html = "".join(body_rows) if body_rows else "<tr><td colspan='6'>No rows.</td></tr>"
+    # Grouped detail sections
+    grouped_html_parts = []
+    if group_mode != "none":
+        for u in sorted(by_user.keys(), key=lambda s: s.lower()):
+            block = by_user[u]
+            gross = round(block["gross"], 2)
+            tax = round(gross * TAX_RATE, 2)
+            net = round(gross - tax, 2)
 
-    # KPI totals
-    total_tax = round(total_gross * TAX_RATE, 2)
-    total_net = round(total_gross - total_tax, 2)
+            detail_rows = []
+            # Sort rows by date (then clock-in) for payroll-style print
+            rows_sorted = sorted(block["rows"], key=lambda rr: (rr["date"], rr["cin"]))
+            for rr in rows_sorted:
+                detail_rows.append(
+                    "<tr>"
+                    f"<td>{escape(rr['date'])}</td>"
+                    f"<td>{escape(rr['cin'])}</td>"
+                    f"<td>{escape(rr['cout'])}</td>"
+                    f"<td>{escape(rr['hours'])}</td>"
+                    f"<td>{escape(rr['pay'])}</td>"
+                    "</tr>"
+                )
+            detail_html = "".join(detail_rows) if detail_rows else "<tr><td colspan='5'>No rows.</td></tr>"
+
+            grouped_html_parts.append(f"""
+              <div style="margin-top:16px;">
+                <div class="reportHeader">
+                  <div>
+                    <div class="reportTitle">{escape(u)}</div>
+                    <div class="reportMeta">
+                      Hours: <b>{round(block["hours"],2)}</b> • Gross: <b>{gross}</b> • Tax: <b>{tax}</b> • Net: <b>{net}</b>
+                    </div>
+                  </div>
+                  <div class="reportStamp">Generated: {escape(generated_on)}</div>
+                </div>
+
+                <div class="tablewrap">
+                  <table style="min-width:760px;">
+                    <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+                    <tbody>{detail_html}</tbody>
+                  </table>
+                </div>
+              </div>
+            """)
+        grouped_html = "".join(grouped_html_parts)
+    else:
+        # Flat detail view
+        flat_rows = []
+        for rr in sorted(filtered, key=lambda x: (x["user"], x["date"], x["cin"])):
+            flat_rows.append(
+                "<tr>"
+                f"<td>{escape(rr['user'])}</td>"
+                f"<td>{escape(rr['date'])}</td>"
+                f"<td>{escape(rr['cin'])}</td>"
+                f"<td>{escape(rr['cout'])}</td>"
+                f"<td>{escape(rr['hours'])}</td>"
+                f"<td>{escape(rr['pay'])}</td>"
+                "</tr>"
+            )
+        grouped_html = f"""
+          <div class="tablewrap" style="margin-top:16px;">
+            <table>
+              <thead><tr><th>Username</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+              <tbody>{''.join(flat_rows) if flat_rows else "<tr><td colspan='6'>No rows.</td></tr>"}</tbody>
+            </table>
+          </div>
+        """
+
+    # Build safe query string for csv link (no need for urllib)
+    q_q = escape(q)
+    q_from = escape(date_from)
+    q_to = escape(date_to)
+    q_group = escape(group_mode)
 
     return render_template_string(f"""
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
-      <div class="header">{HEADER_ICON}
+
+      <div class="header">
+        {HEADER_ICON}
         <div class="title">
-          <h1>All Times</h1>
-          <p class="sub">Payroll-style view for all employees (filters + totals + CSV export)</p>
+          <h1>Payroll Report</h1>
+          <p class="sub">Grouped payroll view with print-ready layout (and CSV export)</p>
         </div>
-        <div class="badge">CSV ready</div>
+        <div class="badge">ADMIN</div>
       </div>
 
-      <form method="GET" class="sectionCard">
-        <div class="row2">
-          <div>
-            <label class="sub">Username contains</label>
-            <input class="input" name="q" placeholder="e.g. john" value="{escape(q)}">
+      <div class="reportHeader onlyPrint">
+        <div>
+          <div class="reportTitle">Payroll Report</div>
+          <div class="reportMeta">
+            Range: <b>{escape(date_from or "All")}</b> to <b>{escape(date_to or "All")}</b><br>
+            Filter: <b>{escape(q or "None")}</b> • Grouping: <b>{escape(group_mode)}</b>
           </div>
-          <div>
-            <label class="sub">Date range</label>
-            <div class="row2">
-              <input class="input" type="date" name="from" value="{escape(date_from)}">
-              <input class="input" type="date" name="to" value="{escape(date_to)}">
+        </div>
+        <div class="reportStamp">
+          Generated: {escape(generated_on)}<br>
+          Totals — Hours: <b>{round(overall_hours,2)}</b> • Gross: <b>{round(overall_gross,2)}</b> • Tax: <b>{overall_tax}</b> • Net: <b>{overall_net}</b>
+        </div>
+      </div>
+
+      <div class="noPrint">
+        <form method="GET" style="margin-top:10px;">
+          <div class="row2">
+            <div>
+              <label class="sub">Username contains</label>
+              <input class="input" name="q" placeholder="e.g. john" value="{escape(q)}">
+            </div>
+            <div>
+              <label class="sub">Date range</label>
+              <div class="row2">
+                <input class="input" type="date" name="from" value="{escape(date_from)}">
+                <input class="input" type="date" name="to" value="{escape(date_to)}">
+              </div>
             </div>
           </div>
+
+          <label class="sub" style="margin-top:10px; display:block;">Grouping</label>
+          <select class="input" name="group">
+            <option value="employee" {"selected" if group_mode=="employee" else ""}>Group by employee (recommended)</option>
+            <option value="none" {"selected" if group_mode=="none" else ""}>No grouping (flat)</option>
+          </select>
+
+          <div class="btnrow" style="margin-top:10px;">
+            <button class="blue btnSmall" type="submit">Apply</button>
+
+            <a href="/admin/times?q={q_q}&from={q_from}&to={q_to}&group={q_group}&download=1">
+              <button class="purple btnSmall" type="button">Download CSV</button>
+            </a>
+
+            <button class="gray btnSmall" type="button" onclick="window.print()">Print</button>
+
+            <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+          </div>
+        </form>
+
+        <div class="kpi">
+          <div class="box"><div class="sub">Total Hours</div><div class="big">{round(overall_hours,2)}</div></div>
+          <div class="box"><div class="sub">Total Gross</div><div class="big">{round(overall_gross,2)}</div></div>
+          <div class="box"><div class="sub">Total Tax (20%)</div><div class="big">{overall_tax}</div></div>
+          <div class="box"><div class="sub">Total Net</div><div class="big">{overall_net}</div></div>
         </div>
 
-        <div class="btnrow" style="margin-top:10px;">
-          <button class="blue btnSmall" type="submit">Apply</button>
-          <a href="/admin/times?{('q='+escape(q)+'&from='+escape(date_from)+'&to='+escape(date_to)+'&download=1')}">
-            <button class="purple btnSmall" type="button">Download CSV</button>
-          </a>
-          <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+        <h2>Summary by employee</h2>
+        <div class="tablewrap">
+          <table style="min-width:720px;">
+            <thead><tr><th>Username</th><th>Hours</th><th>Gross</th><th>Tax</th><th>Net</th></tr></thead>
+            <tbody>{summary_html}</tbody>
+          </table>
         </div>
-      </form>
 
-      <div class="kpi">
-        <div class="box"><div class="sub">Total Hours</div><div class="big">{round(total_hours,2)}</div></div>
-        <div class="box"><div class="sub">Total Gross</div><div class="big">{round(total_gross,2)}</div></div>
-        <div class="box"><div class="sub">Total Tax (20%)</div><div class="big">{total_tax}</div></div>
-        <div class="box"><div class="sub">Total Net</div><div class="big">{total_net}</div></div>
+        <h2>Detailed report</h2>
       </div>
 
-      <h2>Summary by employee</h2>
-      <div class="tablewrap">
-        <table style="min-width:720px;">
-          <thead><tr><th>Username</th><th>Hours</th><th>Gross</th><th>Tax</th><th>Net</th></tr></thead>
-          <tbody>{summary_html}</tbody>
-        </table>
-      </div>
+      {grouped_html}
 
-      <h2>Detailed rows (latest 600)</h2>
-      <div class="tablewrap">
-        <table>
-          <thead><tr><th>Username</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
-          <tbody>{details_html}</tbody>
-        </table>
-      </div>
     </div></div>
     """)
 
@@ -1839,7 +1973,7 @@ def admin_onboarding_list():
         <div class="title"><h1>Onboarding</h1><p class="sub">Click a name to view full details</p></div>
       </div>
 
-      <form method="GET" class="btnrow">
+      <form method="GET" class="btnrow noPrint">
         <input class="input" name="q" placeholder="Search name or username" value="{escape(q)}">
         <button class="blue btnSmall" type="submit">Search</button>
         <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
@@ -1901,7 +2035,7 @@ def admin_onboarding_detail(username):
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>Onboarding Details</h1><p class="sub">{escape(username)}</p></div>
       </div>
-      <div class="btnrow">
+      <div class="btnrow noPrint">
         <a href="/admin/onboarding"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
       <div class="tablewrap">
@@ -2017,7 +2151,7 @@ def monthly_report():
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>Monthly Payroll</h1><p class="sub">Generate payroll for a month</p></div>
       </div>
-      <form method="POST" class="btnrow">
+      <form method="POST" class="btnrow noPrint">
         <input class="input" type="month" name="month" required>
         <button class="blue btnSmall" type="submit">Generate</button>
         <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
@@ -2030,6 +2164,5 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
 
 
