@@ -1,11 +1,25 @@
-# ===================== app.py (FULL) =====================
+# ===================== app.py (FULL - REWRITE) =====================
 import os
 import json
 import io
+import csv
+import secrets
+from urllib.parse import urlparse
+
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import Flask, render_template_string, request, redirect, session, url_for, abort
+from flask import (
+    Flask,
+    render_template_string,
+    request,
+    redirect,
+    session,
+    url_for,
+    abort,
+    Response,
+)
 from datetime import datetime, timedelta, time as dtime
+from zoneinfo import ZoneInfo
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
@@ -14,6 +28,9 @@ from googleapiclient.http import MediaIoBaseUpload
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials as UserCredentials
 from google.auth.transport.requests import Request
+
+# Built into Flask/Werkzeug (no new packages)
+from werkzeug.security import generate_password_hash, check_password_hash
 
 
 # ================= APP =================
@@ -26,6 +43,19 @@ app = Flask(
 )
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
 
+# Upload size cap (adjust as needed)
+app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "15")) * 1024 * 1024
+
+# Cookie hardening (works with no extra software)
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE="Lax",
+    SESSION_COOKIE_SECURE=bool(os.environ.get("SESSION_COOKIE_SECURE", "1") == "1"),
+)
+
+TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
+
+
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
@@ -36,7 +66,6 @@ def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
     if raw:
         return json.loads(raw)
-    # local fallback (DO NOT COMMIT credentials.json)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
 
@@ -57,8 +86,6 @@ onboarding_sheet = spreadsheet.worksheet("Onboarding")
 
 
 # ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
-# We store the OAuth token in a small server-side file so employees can upload too.
-# (Otherwise, the token would exist only in the admin's browser session.)
 OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive"]
 
 UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
@@ -89,12 +116,9 @@ def _save_drive_token(token_dict: dict):
         with open(DRIVE_TOKEN_PATH, "w", encoding="utf-8") as f:
             json.dump(token_dict, f)
     except Exception:
-        # If disk is read-only or fails, uploads may still work in this process via session,
-        # but employees in other sessions may not.
         pass
 
 def _load_drive_token() -> dict | None:
-    # 1) try file
     try:
         if os.path.exists(DRIVE_TOKEN_PATH):
             with open(DRIVE_TOKEN_PATH, "r", encoding="utf-8") as f:
@@ -102,7 +126,6 @@ def _load_drive_token() -> dict | None:
     except Exception:
         pass
 
-    # 2) try env (optional)
     if DRIVE_TOKEN_ENV:
         try:
             return json.loads(DRIVE_TOKEN_ENV)
@@ -123,7 +146,6 @@ def get_user_drive_service():
     if creds_user.expired and creds_user.refresh_token:
         creds_user.refresh(Request())
         token_data["token"] = creds_user.token
-        # refresh_token can be None sometimes on refresh, so keep existing if missing
         if creds_user.refresh_token:
             token_data["refresh_token"] = creds_user.refresh_token
         session["drive_token"] = token_data
@@ -132,15 +154,10 @@ def get_user_drive_service():
     return build("drive", "v3", credentials=creds_user, cache_discovery=False)
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
-    """
-    Upload using OAuth user (Drive quota exists).
-    Works without Shared Drives.
-    """
     drive_service = get_user_drive_service()
     if not drive_service:
         raise RuntimeError("Drive not connected. Admin must visit /connect-drive once.")
 
-    # If user configured a folder id, validate it exists (gives clearer error than create())
     if UPLOAD_FOLDER_ID:
         try:
             drive_service.files().get(fileId=UPLOAD_FOLDER_ID, fields="id,name").execute()
@@ -172,7 +189,6 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
     ).execute()
 
     file_id = created["id"]
-    # Important: passports/IDs should NOT be made public
     return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
 
 
@@ -214,57 +230,80 @@ PWA_TAGS = """
 """
 
 
-# ================= UI =================
+# ================= UI (more professional) =================
 STYLE = """
 <style>
 :root{
-  --bg:#0b1220; --card:#111c33; --card2:#0b1328;
-  --text:#e5e7eb; --muted:#a7b0c0; --border:rgba(255,255,255,.08);
-  --shadow: 0 18px 50px rgba(0,0,0,.45);
+  --bg:#070b14;
+  --panel:#0e1630;
+  --panel2:#0a1126;
+  --text:#eef2ff;
+  --muted:#aab4d6;
+  --border:rgba(255,255,255,.08);
+  --shadow: 0 22px 60px rgba(0,0,0,.55);
   --radius: 22px;
 
   --h1: clamp(22px, 4vw, 34px);
   --h2: clamp(18px, 3vw, 24px);
-  --p:  clamp(15px, 2.4vw, 19px);
+  --p:  clamp(15px, 2.4vw, 18px);
   --small: clamp(13px, 2vw, 15px);
   --btn: clamp(13px, 2.2vw, 15px);
-  --input: clamp(16px, 2.4vw, 19px);
+  --input: clamp(16px, 2.4vw, 18px);
 }
+
 *{ box-sizing:border-box; }
 html, body { height:100%; }
 body{
   margin:0;
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  background: radial-gradient(1200px 800px at 20% 0%, #1b2b5a 0%, rgba(27,43,90,0) 65%),
-              radial-gradient(900px 700px at 80% 10%, #2a1b5a 0%, rgba(42,27,90,0) 60%),
-              var(--bg);
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  background:
+    radial-gradient(1200px 800px at 20% 0%, rgba(99,102,241,.25) 0%, rgba(99,102,241,0) 60%),
+    radial-gradient(900px 700px at 85% 12%, rgba(34,197,94,.14) 0%, rgba(34,197,94,0) 55%),
+    radial-gradient(900px 700px at 70% 90%, rgba(56,189,248,.12) 0%, rgba(56,189,248,0) 55%),
+    var(--bg);
   color: var(--text);
   padding: clamp(12px, 3vw, 22px);
   -webkit-text-size-adjust: 100%;
 }
-.app{ width:100%; max-width: 980px; margin: 0 auto; }
+
+.app{ width:100%; max-width: 1080px; margin: 0 auto; }
+
 .card{
-  background: linear-gradient(180deg, var(--card) 0%, var(--card2) 100%);
+  background: linear-gradient(180deg, rgba(14,22,48,.92) 0%, rgba(10,17,38,.92) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: clamp(16px, 3vw, 24px);
+  padding: clamp(16px, 3vw, 26px);
   box-shadow: var(--shadow);
+  backdrop-filter: blur(10px);
 }
-.header{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;}
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;
+}
 .title{display:flex;flex-direction:column;gap:6px;}
 h1{font-size:var(--h1);margin:0;letter-spacing:.2px;}
-h2{font-size:var(--h2);margin: 14px 0 8px 0;}
+h2{font-size:var(--h2);margin: 18px 0 10px 0;}
 .sub{font-size:var(--small);color:var(--muted);margin:0;line-height:1.35;}
+
+.badge{
+  font-size: 12px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.04);
+  color: var(--muted);
+}
+
 .appIcon{
-  width: 58px;height: 58px;border-radius: 18px;
+  width: 56px;height: 56px;border-radius: 18px;
   background:
     radial-gradient(22px 22px at 30% 30%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%),
-    linear-gradient(135deg, rgba(96,165,250,.95) 0%, rgba(167,139,250,.95) 55%, rgba(34,197,94,.95) 120%);
+    linear-gradient(135deg, rgba(99,102,241,.95) 0%, rgba(56,189,248,.75) 50%, rgba(34,197,94,.85) 120%);
   border: 1px solid rgba(255,255,255,.14);
-  box-shadow: 0 16px 26px rgba(0,0,0,.35);
+  box-shadow: 0 18px 28px rgba(0,0,0,.35);
   display:grid;place-items:center;flex: 0 0 auto;
 }
-.appIcon .glyph{ width: 28px; height: 28px; position: relative; }
+.appIcon .glyph{ width: 26px; height: 26px; position: relative; }
 .appIcon .glyph:before,.appIcon .glyph:after{
   content:""; position:absolute; inset:0; border-radius: 12px;
   border: 3px solid rgba(10,15,30,.82);
@@ -275,61 +314,107 @@ h2{font-size:var(--h2);margin: 14px 0 8px 0;}
   background: rgba(10,15,30,.82); left: 50%; top: 50%;
   transform: translate(-50%,-50%);
 }
+
 .message{
   margin-top: 12px; padding: 10px 12px; border-radius: 16px;
   background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.22);
   font-size: var(--p); font-weight: 800; text-align:center;
 }
 .message.error{background: rgba(239,68,68,.12);border: 1px solid rgba(239,68,68,.22);}
+
 a{color:#93c5fd;text-decoration:none;}
 a:hover{text-decoration:underline;}
+
 .input{
   width:100%;padding:12px 12px;border-radius:14px;border:1px solid var(--border);
   background: rgba(255,255,255,.04);color: var(--text);font-size: var(--input);
   outline:none;margin-top:10px;
 }
+.input:focus{
+  border-color: rgba(56,189,248,.55);
+  box-shadow: 0 0 0 3px rgba(56,189,248,.12);
+}
+
 .row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
 @media (max-width: 640px){.row2{grid-template-columns:1fr;}}
+
 .btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
 button{
   border:none;border-radius:14px;padding:10px 10px;font-weight:900;cursor:pointer;
   font-size: var(--btn); min-height: 40px; flex: 1 1 130px;
   box-shadow: 0 10px 18px rgba(0,0,0,.22);
+  transition: transform .06s ease, filter .06s ease;
 }
+button:active{ transform: translateY(1px); filter: brightness(.98); }
+
 .btnSmall{min-height: 34px !important;padding: 8px 10px !important;flex:0 0 auto !important;}
 .green{background:#22c55e;color:#06230f;}
 .red{background:#ef4444;color:#2a0606;}
 .blue{background:#60a5fa;color:#071527;}
 .purple{background:#a78bfa;color:#140726;}
 .gray{background:rgba(255,255,255,.10);color: var(--text); border:1px solid var(--border);}
+
 .actionbar{
   position: sticky; bottom: 10px; margin-top: 14px; padding: 10px;
-  border-radius: 18px; background: rgba(15,23,42,.65); border: 1px solid var(--border);
+  border-radius: 18px; background: rgba(7,11,20,.55); border: 1px solid var(--border);
   backdrop-filter: blur(10px);
 }
+
 .navgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px;}
 @media (min-width: 720px){.navgrid{grid-template-columns:repeat(6,minmax(0,1fr));}}
 .navgrid a{text-decoration:none;}
 .navgrid button{width:100%;min-height:34px;padding:8px 10px;flex:none;}
+
 .tablewrap{margin-top:14px;overflow:auto;border-radius:18px;border:1px solid var(--border);}
-table{width:100%;border-collapse:collapse;min-width:720px;background:rgba(255,255,255,.03);}
+table{width:100%;border-collapse:collapse;min-width:820px;background:rgba(255,255,255,.03);}
 th,td{padding:10px 10px;border-bottom:1px solid var(--border);text-align:left;font-size: clamp(13px,2vw,15px);}
 th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
-.contract{
-  margin-top:12px;padding:12px;border-radius:16px;border:1px solid var(--border);
-  background:rgba(0,0,0,.20);max-height:280px;overflow:auto;font-size: var(--small);
-  color: var(--text); line-height:1.35;
-}
+
 .kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;}
 @media (min-width: 720px){.kpi{grid-template-columns:repeat(4,minmax(0,1fr));}}
-.kpi .box{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:16px;padding:10px;}
-.kpi .big{font-size: clamp(16px,2.6vw,20px);font-weight:900;}
+.kpi .box{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:16px;padding:12px;}
+.kpi .big{font-size: clamp(16px,2.6vw,20px);font-weight:950;}
 
 .timerBox{
   margin-top: 12px; padding: 12px; border-radius: 16px;
   background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.22);
 }
 .timerBig{font-weight: 950; font-size: clamp(18px, 3vw, 26px);}
+
+.sectionCard{
+  border:1px solid var(--border);
+  background: rgba(255,255,255,.03);
+  border-radius: 18px;
+  padding: 12px;
+  margin-top: 10px;
+}
+
+.uploadLabel{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(56,189,248,.18);
+  background: rgba(56,189,248,.08);
+}
+.uploadLabel .text{
+  font-weight: 950;
+  font-size: clamp(15px, 2.6vw, 18px);
+  color: #eaf4ff;
+}
+.uploadLabel .hint{
+  font-size: var(--small);
+  color: rgba(255,255,255,.65);
+}
+
+.contract{
+  margin-top:12px;padding:12px;border-radius:16px;border:1px solid var(--border);
+  background:rgba(0,0,0,.20);max-height:320px;overflow:auto;font-size: var(--small);
+  color: var(--text); line-height:1.35;
+}
 
 .bad{
   border: 1px solid rgba(239,68,68,.85) !important;
@@ -339,12 +424,10 @@ th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
 </style>
 """
 
-HEADER_ICON = """
-<div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>
-"""
+HEADER_ICON = """<div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>"""
 
 
-# ================= CONTRACT TEXT =================
+# ================= CONTRACT TEXT (UPDATED) =================
 CONTRACT_TEXT = """Contract
 
 By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
@@ -446,6 +529,12 @@ def safe_float(x, default=0.0):
     except Exception:
         return default
 
+def safe_int(x, default=0):
+    try:
+        return int(str(x).strip())
+    except Exception:
+        return default
+
 def parse_bool(v) -> bool:
     s = str(v).strip().lower()
     return s in ("1", "true", "yes", "y", "on")
@@ -456,6 +545,9 @@ def escape(s: str) -> str:
 def linkify(url: str) -> str:
     u = (url or "").strip()
     if not u:
+        return ""
+    parsed = urlparse(u)
+    if parsed.scheme not in ("http", "https"):
         return ""
     uesc = escape(u)
     return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>Open</a>"
@@ -558,12 +650,27 @@ def update_employee_password(username: str, new_password: str) -> bool:
     ucol = headers.index("Username")
     pcol = headers.index("Password") + 1
 
+    hashed = generate_password_hash(new_password)
+
     for i in range(1, len(vals)):
         row = vals[i]
         if len(row) > ucol and row[ucol] == username:
-            employees_sheet.update_cell(i + 1, pcol, new_password)
+            employees_sheet.update_cell(i + 1, pcol, hashed)
             return True
     return False
+
+def is_password_valid(stored: str, provided: str) -> bool:
+    stored = stored or ""
+    # Migration support: if old plain text exists, allow once
+    if stored.startswith("pbkdf2:") or stored.startswith("scrypt:"):
+        return check_password_hash(stored, provided)
+    return stored == provided
+
+def migrate_password_if_plain(username: str, stored: str, provided: str):
+    # If login succeeded with plain text, immediately upgrade it to hashed.
+    stored = stored or ""
+    if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
+        update_employee_password(username, provided)
 
 def get_onboarding_record(username: str):
     headers = get_sheet_headers(onboarding_sheet)
@@ -579,6 +686,18 @@ def get_onboarding_record(username: str):
                 rec[h] = row[j] if j < len(row) else ""
             return rec
     return None
+
+def get_csrf() -> str:
+    tok = session.get("csrf")
+    if not tok:
+        tok = secrets.token_urlsafe(24)
+        session["csrf"] = tok
+    return tok
+
+def require_csrf():
+    if request.method == "POST":
+        if request.form.get("csrf") != session.get("csrf"):
+            abort(400)
 
 
 # ================= ROUTES =================
@@ -613,6 +732,12 @@ def oauth2callback():
     if session.get("role") != "admin":
         return redirect(url_for("home"))
 
+    returned_state = request.args.get("state")
+    expected_state = session.get("oauth_state")
+    if not expected_state or returned_state != expected_state:
+        abort(400)
+    session.pop("oauth_state", None)
+
     flow = _make_oauth_flow()
     flow.fetch_token(authorization_response=request.url)
     creds_user = flow.credentials
@@ -634,13 +759,20 @@ def oauth2callback():
 @app.route("/login", methods=["GET", "POST"])
 def login():
     msg = ""
+    csrf = get_csrf()
+
     if request.method == "POST":
+        require_csrf()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
         for user in employees_sheet.get_all_records():
-            if user.get("Username") == username and user.get("Password") == password:
+            if user.get("Username") == username and is_password_valid(user.get("Password", ""), password):
+                # Upgrade plain passwords to hashed
+                migrate_password_if_plain(username, user.get("Password", ""), password)
+
                 session.clear()
+                session["csrf"] = csrf  # keep csrf
                 session["username"] = username
                 session["role"] = user.get("Role", "employee")
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
@@ -653,8 +785,10 @@ def login():
     <div class="app"><div class="card">
       <div class="header">{HEADER_ICON}
         <div class="title"><h1>WorkHours</h1><p class="sub">Sign in</p></div>
+        <div class="badge">Secure access</div>
       </div>
       <form method="POST">
+        <input type="hidden" name="csrf" value="{escape(csrf)}">
         <input class="input" name="username" placeholder="Username" required>
         <input class="input" type="password" name="password" placeholder="Password" required>
         <div class="btnrow actionbar">
@@ -678,22 +812,24 @@ def change_password():
     if gate:
         return gate
 
+    csrf = get_csrf()
     username = session["username"]
     msg = ""
     ok = False
 
     if request.method == "POST":
+        require_csrf()
         current = request.form.get("current", "")
         new1 = request.form.get("new1", "")
         new2 = request.form.get("new2", "")
 
-        user_ok = False
+        stored_pw = None
         for user in employees_sheet.get_all_records():
-            if user.get("Username") == username and user.get("Password") == current:
-                user_ok = True
+            if user.get("Username") == username:
+                stored_pw = user.get("Password", "")
                 break
 
-        if not user_ok:
+        if stored_pw is None or not is_password_valid(stored_pw, current):
             msg = "Current password is incorrect."
             ok = False
         elif len(new1) < 4:
@@ -721,6 +857,8 @@ def change_password():
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
       <form method="POST">
+        <input type="hidden" name="csrf" value="{escape(csrf)}">
+
         <label class="sub">Current password</label>
         <input class="input" type="password" name="current" required>
 
@@ -746,23 +884,24 @@ def home():
     if gate:
         return gate
 
+    csrf = get_csrf()
     username = session["username"]
     role = session.get("role", "employee")
     rate = safe_float(session.get("rate", 0), 0.0)
     early_access = bool(session.get("early_access", False))
 
-    now = datetime.now()
+    now = datetime.now(TZ)
     today_str = now.strftime("%Y-%m-%d")
 
     msg = ""
     msg_class = "message"
 
-    rows = work_sheet.get_all_values()
-
     if request.method == "POST":
+        require_csrf()
         action = request.form.get("action")
 
         if action == "in":
+            rows = work_sheet.get_all_values()  # re-fetch to reduce race issues
             if has_any_row_today(rows, username, today_str):
                 msg = "You already clocked in today (1 per day)."
                 msg_class = "message error"
@@ -785,6 +924,7 @@ def home():
             else:
                 i, d, t = osf
                 cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+                cin_dt = cin_dt.replace(tzinfo=TZ)
                 hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
                 hours_rounded = round(hours, 2)
                 pay = round(hours_rounded * rate, 2)
@@ -803,7 +943,7 @@ def home():
     if osf2:
         _, d, t = osf2
         try:
-            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
             active_start_iso = start_dt.isoformat()
             active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
@@ -814,7 +954,7 @@ def home():
     if active_start_iso:
         timer_html = f"""
         <div class="timerBox">
-          <div class="sub">Active session started</div>
+          <div class="sub">Active session</div>
           <div class="timerBig" id="timerDisplay">00:00:00</div>
           <div class="sub" style="margin-top:6px;">Start: {escape(active_start_label)}</div>
         </div>
@@ -848,8 +988,9 @@ def home():
       <div class="header">{HEADER_ICON}
         <div class="title">
           <h1>Hi, {escape(username)}</h1>
-          <p class="sub">Clock in/out + view your times & pay. Starter Form is optional.</p>
+          <p class="sub">Clock in/out • view your times & pay • starter form</p>
         </div>
+        <div class="badge">{escape(role.upper())}</div>
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
@@ -858,6 +999,7 @@ def home():
 
       <div class="actionbar">
         <form method="POST" class="btnrow" style="margin:0;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
           <button class="green" name="action" value="in">Clock In</button>
           <button class="red" name="action" value="out">Clock Out</button>
         </form>
@@ -907,7 +1049,7 @@ def my_times():
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
       <div class="header">{HEADER_ICON}
-        <div class="title"><h1>My Times</h1><p class="sub">Your clock-in/out history</p></div>
+        <div class="title"><h1>My Times</h1><p class="sub">Clock-in/out history</p></div>
       </div>
       <div class="btnrow">
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
@@ -930,7 +1072,7 @@ def my_reports():
         return gate
 
     username = session["username"]
-    now = datetime.now()
+    now = datetime.now(TZ)
     today = now.date()
     week_start = today - timedelta(days=today.weekday())
 
@@ -1011,6 +1153,7 @@ def onboarding():
     if gate:
         return gate
 
+    csrf = get_csrf()
     username = session["username"]
     role = session.get("role", "employee")
     existing = get_onboarding_record(username)
@@ -1022,6 +1165,7 @@ def onboarding():
         return (existing or {}).get(key, "")
 
     if request.method == "POST":
+        require_csrf()
         submit_type = request.form.get("submit_type", "draft")
         is_final = (submit_type == "final")
 
@@ -1071,8 +1215,8 @@ def onboarding():
         pli_file = request.files.get("pli_file")
         share_file = request.files.get("share_file")
 
-        missing = []                # labels for user message
-        missing_fields = set()      # form field names to highlight
+        missing = []
+        missing_fields = set()
 
         def req(value, input_name, label):
             if not value:
@@ -1119,26 +1263,20 @@ def onboarding():
 
             req(signature_name, "signature_name", "Signature name")
 
-            # Drive config checks
             if not _load_drive_token() and not session.get("drive_token"):
                 missing.append("Upload system not connected (admin must click Connect Drive)")
 
-            if UPLOAD_FOLDER_ID == "":
-                # still ok (uploads go to My Drive root), but typically you want a folder
-                pass
-
-            # file requirements for final
             if not passport_file or not passport_file.filename:
-                missing.append("Passport/Birth Certificate file")
+                missing.append("Passport or Birth Certificate file")
                 missing_fields.add("passport_file")
             if not cscs_file or not cscs_file.filename:
-                missing.append("CSCS (front/back) file")
+                missing.append("CSCS Card (front & back) file")
                 missing_fields.add("cscs_file")
             if not pli_file or not pli_file.filename:
                 missing.append("Public Liability file")
                 missing_fields.add("pli_file")
             if not share_file or not share_file.filename:
-                missing.append("Share code file")
+                missing.append("Share Code / Confirmation file")
                 missing_fields.add("share_file")
 
         typed = dict(request.form)
@@ -1146,18 +1284,14 @@ def onboarding():
         if missing:
             msg = "Missing required (final): " + ", ".join(missing)
             msg_ok = False
-            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, missing_fields))
+            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, missing_fields, csrf))
 
-        # Keep existing links if draft/partial
         passport_link = v("PassportOrBirthCertLink")
         cscs_link = v("CSCSFrontBackLink")
         pli_link = v("PublicLiabilityLink")
         share_link = v("ShareCodeLink")
 
-        # Upload files if provided
         try:
-            # NOTE: Browser security means file inputs CANNOT be preserved after submit.
-            # Users must re-select files if validation fails.
             if passport_file and passport_file.filename:
                 passport_link = upload_to_drive(passport_file, f"{username}_passport")
             if cscs_file and cscs_file.filename:
@@ -1171,9 +1305,9 @@ def onboarding():
             msg_ok = False
             existing = get_onboarding_record(username)
             typed = dict(request.form)
-            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, set()))
+            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, set(), csrf))
 
-        now_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
 
         data = {
             "FirstName": first,
@@ -1226,13 +1360,12 @@ def onboarding():
         msg = "Saved draft." if not is_final else "Submitted final successfully."
         msg_ok = True
 
-        return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, {}, set()))
+        return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, {}, set(), csrf))
 
-    # GET
-    return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, None, None))
+    return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, None, None, csrf))
 
 
-def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missing_fields=None):
+def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missing_fields=None, csrf=""):
     typed = typed or {}
     missing_fields = missing_fields or set()
 
@@ -1264,15 +1397,18 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
       <div class="header">{HEADER_ICON}
         <div class="title">
           <h1>Starter Form</h1>
-          <p class="sub">Optional. Save Draft anytime. Submit Final when complete (required + contract + uploads).</p>
+          <p class="sub">Save Draft anytime. Submit Final when complete (required + contract + uploads).</p>
           {drive_hint}
         </div>
+        <div class="badge">{escape(username)}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not msg_ok) else ""}
 
       <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf" value="{escape(csrf)}">
+
         <h2>Personal details</h2>
         <div class="row2">
           <div>
@@ -1424,19 +1560,32 @@ def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missin
         <h2>Upload documents</h2>
         <p class="sub">Draft: optional uploads. Final: all 4 required. (Files must be re-selected if a Final submit fails.)</p>
 
-        <label class="sub {bad_label('passport_file')}">Passport or Birth Certificate</label>
+        <!-- MORE VISIBLE UPLOAD TITLES -->
+        <div class="uploadLabel {bad('passport_file')}">
+          <div class="text">Passport or Birth Certificate</div>
+          <div class="hint">Required for Final</div>
+        </div>
         <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
         <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
 
-        <label class="sub {bad_label('cscs_file')}" style="margin-top:10px; display:block;">CSCS Card (front & back)</label>
+        <div class="uploadLabel {bad('cscs_file')}">
+          <div class="text">CSCS Card (front & back)</div>
+          <div class="hint">Required for Final</div>
+        </div>
         <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
         <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
 
-        <label class="sub {bad_label('pli_file')}" style="margin-top:10px; display:block;">Public Liability Insurance</label>
+        <div class="uploadLabel {bad('pli_file')}">
+          <div class="text">Public Liability</div>
+          <div class="hint">Required for Final</div>
+        </div>
         <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
         <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
 
-        <label class="sub {bad_label('share_file')}" style="margin-top:10px; display:block;">Share Code / Confirmation</label>
+        <div class="uploadLabel {bad('share_file')}">
+          <div class="text">Share Code / Confirmation</div>
+          <div class="hint">Required for Final</div>
+        </div>
         <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
         <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
 
@@ -1475,14 +1624,172 @@ def admin():
     {STYLE}{VIEWPORT}{PWA_TAGS}
     <div class="app"><div class="card">
       <div class="header">{HEADER_ICON}
-        <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding</p></div>
+        <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding + reports</p></div>
+        <div class="badge">ADMIN</div>
       </div>
       <div class="navgrid actionbar">
         <a href="/connect-drive"><button class="blue btnSmall" type="button">Connect Drive</button></a>
         <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
+        <a href="/admin/times"><button class="blue btnSmall" type="button">All Times</button></a>
         <a href="/weekly"><button class="blue btnSmall" type="button">Weekly Payroll</button></a>
         <a href="/monthly"><button class="blue btnSmall" type="button">Monthly Payroll</button></a>
         <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
+      </div>
+    </div></div>
+    """)
+
+
+# ---------- ADMIN: PROFESSIONAL PAYROLL SHEET (ALL TIMES) ----------
+@app.get("/admin/times")
+def admin_times():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    q = (request.args.get("q", "") or "").strip().lower()           # username search
+    date_from = (request.args.get("from", "") or "").strip()        # YYYY-MM-DD
+    date_to = (request.args.get("to", "") or "").strip()            # YYYY-MM-DD
+    download = (request.args.get("download", "") or "").strip()     # "1" => CSV
+
+    rows = work_sheet.get_all_values()
+
+    def in_range(d: str) -> bool:
+        if not d:
+            return False
+        # Stored as YYYY-MM-DD, safe to compare as strings
+        if date_from and d < date_from:
+            return False
+        if date_to and d > date_to:
+            return False
+        return True
+
+    filtered = []
+    per_user = {}  # user -> {"hours": float, "gross": float}
+    total_hours = 0.0
+    total_gross = 0.0
+
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+
+        user = r[COL_USER]
+        d = r[COL_DATE]
+        cin = r[COL_IN]
+        cout = r[COL_OUT]
+        hrs = r[COL_HOURS]
+        pay = r[COL_PAY]
+
+        if not in_range(d):
+            continue
+        if q and q not in (user or "").lower():
+            continue
+
+        filtered.append([user, d, cin, cout, hrs, pay])
+
+        if hrs != "":
+            h = safe_float(hrs, 0.0)
+            g = safe_float(pay, 0.0)
+            per_user.setdefault(user, {"hours": 0.0, "gross": 0.0})
+            per_user[user]["hours"] += h
+            per_user[user]["gross"] += g
+            total_hours += h
+            total_gross += g
+
+    if download == "1":
+        out = io.StringIO()
+        w = csv.writer(out)
+        w.writerow(["Username", "Date", "Clock In", "Clock Out", "Hours", "Pay"])
+        for row in filtered:
+            w.writerow(row)
+        w.writerow([])
+        w.writerow(["TOTAL HOURS", round(total_hours, 2)])
+        w.writerow(["TOTAL GROSS", round(total_gross, 2)])
+        return Response(
+            out.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=all_times.csv"},
+        )
+
+    # Summary table by user
+    summary_rows = []
+    for user, dct in sorted(per_user.items(), key=lambda x: x[0].lower()):
+        gross = round(dct["gross"], 2)
+        tax = round(gross * TAX_RATE, 2)
+        net = round(gross - tax, 2)
+        summary_rows.append(
+            f"<tr><td>{escape(user)}</td><td>{round(dct['hours'],2)}</td><td>{gross}</td><td>{tax}</td><td>{net}</td></tr>"
+        )
+    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='5'>No data.</td></tr>"
+
+    # Detail table
+    body_rows = []
+    for user, d, cin, cout, hrs, pay in filtered[-600:]:  # keep UI fast; last 600 rows shown
+        body_rows.append(
+            f"<tr><td>{escape(user)}</td><td>{escape(d)}</td><td>{escape(cin)}</td><td>{escape(cout)}</td>"
+            f"<td>{escape(hrs)}</td><td>{escape(pay)}</td></tr>"
+        )
+    details_html = "".join(body_rows) if body_rows else "<tr><td colspan='6'>No rows.</td></tr>"
+
+    # KPI totals
+    total_tax = round(total_gross * TAX_RATE, 2)
+    total_net = round(total_gross - total_tax, 2)
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title">
+          <h1>All Times</h1>
+          <p class="sub">Payroll-style view for all employees (filters + totals + CSV export)</p>
+        </div>
+        <div class="badge">CSV ready</div>
+      </div>
+
+      <form method="GET" class="sectionCard">
+        <div class="row2">
+          <div>
+            <label class="sub">Username contains</label>
+            <input class="input" name="q" placeholder="e.g. john" value="{escape(q)}">
+          </div>
+          <div>
+            <label class="sub">Date range</label>
+            <div class="row2">
+              <input class="input" type="date" name="from" value="{escape(date_from)}">
+              <input class="input" type="date" name="to" value="{escape(date_to)}">
+            </div>
+          </div>
+        </div>
+
+        <div class="btnrow" style="margin-top:10px;">
+          <button class="blue btnSmall" type="submit">Apply</button>
+          <a href="/admin/times?{('q='+escape(q)+'&from='+escape(date_from)+'&to='+escape(date_to)+'&download=1')}">
+            <button class="purple btnSmall" type="button">Download CSV</button>
+          </a>
+          <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+        </div>
+      </form>
+
+      <div class="kpi">
+        <div class="box"><div class="sub">Total Hours</div><div class="big">{round(total_hours,2)}</div></div>
+        <div class="box"><div class="sub">Total Gross</div><div class="big">{round(total_gross,2)}</div></div>
+        <div class="box"><div class="sub">Total Tax (20%)</div><div class="big">{total_tax}</div></div>
+        <div class="box"><div class="sub">Total Net</div><div class="big">{total_net}</div></div>
+      </div>
+
+      <h2>Summary by employee</h2>
+      <div class="tablewrap">
+        <table style="min-width:720px;">
+          <thead><tr><th>Username</th><th>Hours</th><th>Gross</th><th>Tax</th><th>Net</th></tr></thead>
+          <tbody>{summary_html}</tbody>
+        </table>
+      </div>
+
+      <h2>Detailed rows (latest 600)</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Username</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+          <tbody>{details_html}</tbody>
+        </table>
       </div>
     </div></div>
     """)
@@ -1578,10 +1885,10 @@ def admin_onboarding_detail(username):
     ]:
         details += row(label, key)
 
-    details += row("Passport/Birth cert", "PassportOrBirthCertLink", link=True)
-    details += row("CSCS front/back", "CSCSFrontBackLink", link=True)
-    details += row("Public liability", "PublicLiabilityLink", link=True)
-    details += row("Share code", "ShareCodeLink", link=True)
+    details += row("Passport or Birth Certificate", "PassportOrBirthCertLink", link=True)
+    details += row("CSCS Card (front & back)", "CSCSFrontBackLink", link=True)
+    details += row("Public Liability", "PublicLiabilityLink", link=True)
+    details += row("Share Code / Confirmation", "ShareCodeLink", link=True)
 
     details += row("Contract accepted", "ContractAccepted")
     details += row("Signature name", "SignatureName")
@@ -1611,13 +1918,13 @@ def weekly_report():
     if gate:
         return gate
 
-    now = datetime.now()
+    now = datetime.now(TZ)
     year, week_number, _ = now.isocalendar()
     generated_on = now.strftime("%Y-%m-%d %H:%M:%S")
 
     existing = payroll_sheet.get_all_records()
     for row in existing:
-        if row.get("Type") == "Weekly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == week_number:
+        if row.get("Type") == "Weekly" and safe_int(row.get("Year", 0)) == year and safe_int(row.get("Week", 0)) == week_number:
             return "Weekly payroll already generated."
 
     rows = work_sheet.get_all_values()
@@ -1665,11 +1972,11 @@ def monthly_report():
         selected = request.form["month"]  # YYYY-MM
         year = int(selected.split("-")[0])
         month = int(selected.split("-")[1])
-        generated_on = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        generated_on = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
 
         existing = payroll_sheet.get_all_records()
         for row in existing:
-            if row.get("Type") == "Monthly" and int(row.get("Year", 0)) == year and int(row.get("Week", 0)) == month:
+            if row.get("Type") == "Monthly" and safe_int(row.get("Year", 0)) == year and safe_int(row.get("Week", 0)) == month:
                 return "Monthly payroll already generated."
 
         rows = work_sheet.get_all_values()
@@ -1723,5 +2030,6 @@ def monthly_report():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
