@@ -13,6 +13,9 @@
 # - Dark mode toggle (localStorage).
 # - Admin dashboard: live timers for currently clocked-in employees.
 # - Unpaid break deduction: subtract 0.5h on shifts >= 6h (so 8am–5pm => 8.5h recorded).
+#
+# ✅ Fix:
+# - Escaped JS curly braces inside f-strings to avoid Render SyntaxError.
 
 import os
 import json
@@ -1175,6 +1178,7 @@ def require_csrf():
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
 
+
 # ===== Paid confirmation storage (SAFE: no row insertion) =====
 PAYROLL_REQUIRED_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "Paid", "PaidAt", "PaidBy"]
 
@@ -1261,7 +1265,6 @@ def _parse_hms(t: str):
         return None
 
 def _apply_unpaid_break(hours: float) -> float:
-    # deduct break if long enough
     if hours >= BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS:
         hours = hours - UNPAID_BREAK_HOURS
     return round(max(0.0, hours), 2)
@@ -1294,9 +1297,6 @@ def _find_workhours_row_by_user_date(all_vals, username: str, date_str: str):
     return None
 
 def _get_open_shifts():
-    """
-    Returns list of open shifts: {user, name, start_iso, start_label}
-    """
     out = []
     try:
         rows = work_sheet.get_all_values()
@@ -1690,7 +1690,7 @@ def clock_page():
                 i, d, t = osf
                 cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                 raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-                hours_rounded = _apply_unpaid_break(raw_hours)  # ✅ subtract 0.5 break
+                hours_rounded = _apply_unpaid_break(raw_hours)
                 pay = round(hours_rounded * rate, 2)
 
                 sheet_row = i + 1
@@ -1915,9 +1915,6 @@ def onboarding():
     msg = ""
     msg_ok = False
 
-    def v(key: str) -> str:
-        return (existing or {}).get(key, "")
-
     typed = None
     missing_fields = set()
 
@@ -2013,6 +2010,9 @@ def onboarding():
             msg = "Missing required (final): " + ", ".join(missing)
             msg_ok = False
         else:
+            def v(key: str) -> str:
+                return (existing or {}).get(key, "")
+
             passport_link = v("PassportOrBirthCertLink")
             cscs_link = v("CSCSFrontBackLink")
             pli_link = v("PublicLiabilityLink")
@@ -2031,7 +2031,12 @@ def onboarding():
                 msg = f"Upload error: {e}"
                 msg_ok = False
                 existing = get_onboarding_record(username)
-                return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, set())))
+                return render_template_string(
+                    f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell(
+                        "agreements", role,
+                        _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, set())
+                    )
+                )
 
             now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -2425,6 +2430,7 @@ def admin():
                 <td class="num"><span class="netBadge" data-start="{escape(s['start_iso'])}">00:00:00</span></td>
               </tr>
             """)
+        # ✅ FIXED: escaped braces in the JS below ({{ and }})
         open_html = f"""
           <div class="card" style="padding:12px; margin-top:12px;">
             <h2>Live Clocked-In Employees</h2>
@@ -2436,10 +2442,10 @@ def admin():
               </table>
             </div>
             <script>
-              (function(){
-                function pad(n){ return String(n).padStart(2,"0"); }
-                function tick(){
-                  document.querySelectorAll("[data-start]").forEach(el=>{
+              (function(){{
+                function pad(n){{ return String(n).padStart(2,"0"); }}
+                function tick(){{
+                  document.querySelectorAll("[data-start]").forEach(el=>{{
                     const startIso = el.getAttribute("data-start");
                     const start = new Date(startIso);
                     const now = new Date();
@@ -2449,10 +2455,10 @@ def admin():
                     const m = Math.floor((diff%3600)/60);
                     const s = diff%60;
                     el.textContent = pad(h)+":"+pad(m)+":"+pad(s);
-                  });
-                }
+                  }});
+                }}
                 tick(); setInterval(tick, 1000);
-              })();
+              }})();
             </script>
           </div>
         """
@@ -2769,7 +2775,6 @@ def admin_payroll():
         wk_gross = 0.0
         wk_overtime_days = 0
 
-        # compute totals + overtime days
         for di in range(7):
             d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
             rec = user_days.get(d_str)
