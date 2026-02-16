@@ -1,10 +1,19 @@
-# ===================== app.py (FULL - Premium UI + Dashboard Graph + Desktop Sidebar + Starter Form + Profile Details) =====================
+# ===================== app.py (FULL - Premium UI + Dashboard + Desktop Sidebar + Starter Form + Profile + Admin Payroll Edit + Paid Confirm) =====================
 # Notes:
 # - NO reportlab / NO PDF exports (Render-friendly).
 # - Admin Payroll page is printable in browser (Ctrl+P / Save as PDF).
-# - Starter Form (Onboarding) is back at /onboarding and also viewable by Admin.
+# - Starter Form (Onboarding) is at /onboarding and also viewable by Admin.
 # - Profile shows onboarding details (text only) + change password.
 # - Logout is separated at bottom of desktop sidebar; on mobile it's a small icon in bottom nav.
+#
+# ✅ Added (as requested):
+# - Admin Payroll:
+#   - Existing summary table remains
+#   - Week selector (current + last 12 weeks)
+#   - Weekly history table per employee (Mon–Sun), auto-updates every week
+#   - Admin can EDIT Clock In / Clock Out / Hours / Pay per day (and optionally auto-recalculate)
+#   - "Mark Paid" button per employee per week (stores confirmation in PayrollReports sheet)
+#   - No manual Google Sheets changes required (headers are auto-inserted into PayrollReports if missing)
 
 import os
 import json
@@ -217,19 +226,20 @@ PWA_TAGS = """
 STYLE = """
 <style>
 :root{
-  --bg:#f6f8fb;
+  --bg:#f3f6fb;
   --card:#ffffff;
   --text:#0f172a;
   --muted:#64748b;
-  --border:rgba(15,23,42,.10);
-  --shadow: 0 12px 34px rgba(15,23,42,.08);
-  --shadow2: 0 18px 50px rgba(15,23,42,.10);
+  --border:rgba(15,23,42,.08);
+  --shadow: 0 10px 28px rgba(15,23,42,.08);
+  --shadow2: 0 16px 46px rgba(15,23,42,.12);
   --radius: 22px;
 
   --purple:#6d28d9;
   --purpleSoft:#efe9ff;
   --green:#16a34a;
   --red:#dc2626;
+  --amber:#f59e0b;
 
   --h1: clamp(26px, 5vw, 40px);
   --h2: clamp(16px, 3vw, 22px);
@@ -246,7 +256,7 @@ body{
     radial-gradient(900px 500px at 80% 10%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 60%),
     var(--bg);
   color: var(--text);
-  padding: 16px 14px calc(150px + env(safe-area-inset-bottom)) 14px;
+  padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
 }
 a{color:inherit;text-decoration:none;}
 h1{font-size:var(--h1); margin:0;}
@@ -258,7 +268,9 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
 }
+.card:hover{ box-shadow: var(--shadow2); }
 
 .badge{
   font-size: 12px;
@@ -269,6 +281,11 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   color: rgba(15,23,42,.70);
   font-weight: 900;
   white-space: nowrap;
+}
+.badge.admin{
+  background:#111827;
+  color:#ffffff;
+  border: 1px solid rgba(255,255,255,.10);
 }
 
 .card, .menuItem, .btnSoft, .navIcon, .sideItem, .input{
@@ -315,7 +332,8 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 .bar{
   width: 16%;
   border-radius: 14px 14px 10px 10px;
-  background: #0b0b0b;
+  background: linear-gradient(180deg, rgba(109,40,217,.95), rgba(109,40,217,.55));
+  box-shadow: 0 8px 20px rgba(109,40,217,.22);
 }
 .barLabels{
   display:flex; justify-content:space-around; gap:12px;
@@ -330,7 +348,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   padding: 14px 14px;
   border-radius: 18px;
-  background: #f7f8ff;
+  background: rgba(255,255,255,.85);
   border: 1px solid rgba(15,23,42,.06);
   margin-top: 10px;
 }
@@ -407,7 +425,10 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   font-size: 16px;
   cursor:pointer;
   box-shadow: 0 10px 18px rgba(15,23,42,.08);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
 }
+.btn:hover{ transform: translateY(-1px); filter: brightness(1.02); }
+.btn:active{ transform: translateY(0px); filter: brightness(.98); }
 .btnIn{ background: var(--green); color: white;}
 .btnOut{ background: var(--red); color: white;}
 
@@ -419,14 +440,32 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   font-weight: 950;
   font-size: 15px;
   cursor:pointer;
-  background: rgba(109,40,217,.10);
+  background: rgba(109,40,217,.12);
   color: rgba(109,40,217,.98);
+}
+
+.btnTiny{
+  border:none;
+  border-radius: 14px;
+  padding: 10px 10px;
+  font-weight: 950;
+  font-size: 13px;
+  cursor:pointer;
+  background: rgba(109,40,217,.12);
+  color: rgba(109,40,217,.98);
+  white-space: nowrap;
+}
+.btnTiny.dark{
+  background: rgba(15,23,42,.10);
+  color: rgba(15,23,42,.90);
 }
 
 .tablewrap{ margin-top:14px; overflow:auto; border-radius: 18px; border:1px solid rgba(15,23,42,.08); }
 table{ width:100%; border-collapse: collapse; min-width: 720px; background:#fff; }
 th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; vertical-align: top;}
 th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
+table tbody tr:nth-child(even){ background: rgba(15,23,42,.02); }
+table tbody tr:hover{ background: rgba(109,40,217,.05); }
 
 .contractBox{
   margin-top: 12px;
@@ -458,6 +497,8 @@ th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
   backdrop-filter: blur(10px);
   padding: 10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
   z-index: 99;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 30px rgba(15,23,42,.12);
 }
 .navInner{
   max-width:560px;
@@ -475,7 +516,72 @@ th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
 .navIcon.active{ background: rgba(109,40,217,.10); }
 .navIcon svg{ width: 22px; height: 22px; }
 
-.safeBottom{ height: calc(220px + env(safe-area-inset-bottom)); }
+.safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
+
+/* Status chips */
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.80);
+  color: rgba(15,23,42,.75);
+  white-space: nowrap;
+}
+.chip.ok{
+  background: rgba(22,163,74,.10);
+  border-color: rgba(22,163,74,.18);
+  color: rgba(22,163,74,.92);
+}
+.chip.warn{
+  background: rgba(245,158,11,.12);
+  border-color: rgba(245,158,11,.22);
+  color: rgba(180,83,9,.92);
+}
+.chip.bad{
+  background: rgba(220,38,38,.10);
+  border-color: rgba(220,38,38,.20);
+  color: rgba(220,38,38,.92);
+}
+
+/* Avatar bubble */
+.avatar{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display:grid;
+  place-items:center;
+  font-weight: 950;
+  color: rgba(109,40,217,.95);
+  background: rgba(109,40,217,.10);
+  border: 1px solid rgba(109,40,217,.14);
+}
+
+/* Week selector row */
+.weekRow{
+  margin-top: 10px;
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.weekPill{
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-weight: 950;
+  border: 1px solid rgba(15,23,42,.10);
+  background: rgba(255,255,255,.75);
+  color: rgba(15,23,42,.70);
+}
+.weekPill.active{
+  background: var(--purpleSoft);
+  border-color: rgba(109,40,217,.18);
+  color: rgba(109,40,217,.95);
+}
 
 /* Desktop “gmail-style” left menu with logout separated at bottom */
 @media (min-width: 980px){
@@ -517,7 +623,7 @@ th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
     gap:12px;
     padding: 12px 12px;
     border-radius: 16px;
-    background: #f7f8ff;
+    background: rgba(255,255,255,.85);
     border: 1px solid rgba(15,23,42,.06);
     margin-top: 10px;
   }
@@ -706,6 +812,15 @@ def linkify(url: str) -> str:
         return ""
     uesc = escape(u)
     return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer' style='color:var(--purple);font-weight:950;'>Open</a>"
+
+def initials(name: str) -> str:
+    s = (name or "").strip()
+    if not s:
+        return "?"
+    parts = [p for p in s.replace("_", " ").replace("-", " ").split(" ") if p]
+    if len(parts) == 1:
+        return parts[0][:2].upper()
+    return (parts[0][:1] + parts[-1][:1]).upper()
 
 def require_login():
     if "username" not in session:
@@ -951,6 +1066,155 @@ def require_csrf():
     if request.method == "POST":
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
+
+# ===== Admin payroll: Paid confirmation storage in PayrollReports (auto header insert) =====
+PAYROLL_REQUIRED_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "Paid", "PaidAt", "PaidBy"]
+
+def _ensure_payroll_reports_headers():
+    """
+    Ensures PayrollReports has the required headers.
+    - If empty: writes required headers in row 1.
+    - If headers missing: inserts a new header row at top (keeps existing rows intact).
+    """
+    try:
+        vals = payroll_sheet.get_all_values()
+        if not vals:
+            payroll_sheet.update("A1:I1", [PAYROLL_REQUIRED_HEADERS])
+            return
+        headers = vals[0]
+        if all(h in headers for h in PAYROLL_REQUIRED_HEADERS):
+            return
+        # Insert required header row at top (non-destructive)
+        payroll_sheet.insert_row(PAYROLL_REQUIRED_HEADERS, index=1)
+    except Exception:
+        pass
+
+def _get_payroll_headers():
+    try:
+        vals = payroll_sheet.get_all_values()
+        return vals[0] if vals else []
+    except Exception:
+        return []
+
+def _append_paid_record(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float, paid_by: str):
+    _ensure_payroll_reports_headers()
+    headers = _get_payroll_headers()
+    now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+    row = [""] * max(len(headers), len(PAYROLL_REQUIRED_HEADERS))
+    # Use headers if available; otherwise use required order
+    use_headers = headers if headers else PAYROLL_REQUIRED_HEADERS
+
+    def put(col_name, val):
+        if col_name in use_headers:
+            row[use_headers.index(col_name)] = str(val)
+
+    put("WeekStart", week_start)
+    put("WeekEnd", week_end)
+    put("Username", username)
+    put("Gross", round(gross, 2))
+    put("Tax", round(tax, 2))
+    put("Net", round(net, 2))
+    put("Paid", "TRUE")
+    put("PaidAt", now_str)
+    put("PaidBy", paid_by)
+
+    try:
+        payroll_sheet.append_row(row[:len(use_headers)])
+    except Exception:
+        try:
+            payroll_sheet.append_row([week_start, week_end, username, round(gross,2), round(tax,2), round(net,2), "TRUE", now_str, paid_by])
+        except Exception:
+            pass
+
+def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
+    """
+    Returns (paid?, paid_at_text)
+    """
+    try:
+        vals = payroll_sheet.get_all_values()
+        if not vals:
+            return False, ""
+        headers = vals[0]
+        if not all(h in headers for h in ("WeekStart", "WeekEnd", "Username", "Paid")):
+            return False, ""
+        i_ws = headers.index("WeekStart")
+        i_we = headers.index("WeekEnd")
+        i_user = headers.index("Username")
+        i_paid = headers.index("Paid")
+        i_paid_at = headers.index("PaidAt") if "PaidAt" in headers else None
+
+        for r in reversed(vals[1:]):
+            if len(r) <= max(i_ws, i_we, i_user, i_paid):
+                continue
+            if (r[i_ws] or "").strip() != week_start:
+                continue
+            if (r[i_we] or "").strip() != week_end:
+                continue
+            if (r[i_user] or "").strip() != username:
+                continue
+            paid_val = (r[i_paid] or "").strip().upper()
+            paid_at = (r[i_paid_at] if i_paid_at is not None and i_paid_at < len(r) else "") or ""
+            if paid_val in ("TRUE", "YES", "1"):
+                return True, (paid_at or "")
+        return False, ""
+    except Exception:
+        return False, ""
+
+# ===== Admin edit shift: recalc helpers =====
+def _get_user_rate(username: str) -> float:
+    try:
+        for user in employees_sheet.get_all_records():
+            if user.get("Username") == username:
+                return safe_float(user.get("Rate", 0), 0.0)
+    except Exception:
+        pass
+    return 0.0
+
+def _parse_hms(t: str):
+    try:
+        t = (t or "").strip()
+        if not t:
+            return None
+        parts = t.split(":")
+        if len(parts) == 2:
+            h, m = int(parts[0]), int(parts[1])
+            s = 0
+        else:
+            h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
+        if not (0 <= h <= 23 and 0 <= m <= 59 and 0 <= s <= 59):
+            return None
+        return h, m, s
+    except Exception:
+        return None
+
+def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
+    try:
+        if not date_str:
+            return None
+        a = _parse_hms(cin)
+        b = _parse_hms(cout)
+        if not a or not b:
+            return None
+        base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TZ)
+        start_dt = base.replace(hour=a[0], minute=a[1], second=a[2])
+        end_dt = base.replace(hour=b[0], minute=b[1], second=b[2])
+        # allow overnight
+        if end_dt < start_dt:
+            end_dt = end_dt + timedelta(days=1)
+        hrs = (end_dt - start_dt).total_seconds() / 3600.0
+        return round(max(0.0, hrs), 2)
+    except Exception:
+        return None
+
+def _find_workhours_row_by_user_date(all_vals, username: str, date_str: str):
+    for idx in range(1, len(all_vals)):
+        r = all_vals[idx]
+        u = (r[COL_USER] if len(r) > COL_USER else "").strip()
+        d = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        if u == username and d == date_str:
+            return idx + 1
+    return None
 
 
 # ================= NAV / LAYOUT =================
@@ -1203,7 +1467,7 @@ def home():
           <h1>Dashboard</h1>
           <p class="sub">Welcome, {escape(display_name)}</p>
         </div>
-        <div class="badge">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="kpiRow">
@@ -1361,7 +1625,7 @@ def clock_page():
           <h1>Clock In & Out</h1>
           <p class="sub">{escape(display_name)} • Live session timer</p>
         </div>
-        <div class="badge">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
@@ -1411,7 +1675,7 @@ def my_times():
           <h1>Time logs</h1>
           <p class="sub">{escape(display_name)} • Clock history</p>
         </div>
-        <div class="badge">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="card" style="padding:12px;">
@@ -1486,7 +1750,7 @@ def my_reports():
           <h1>Timesheets</h1>
           <p class="sub">{escape(display_name)} • Totals + tax + net</p>
         </div>
-        <div class="badge">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="kpiRow">
@@ -1749,7 +2013,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <p class="sub">{escape(display_name)} • Save Draft anytime • Submit Final when complete</p>
           {drive_hint}
         </div>
-        <div class="badge">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
@@ -1996,7 +2260,7 @@ def change_password():
           <h1>Profile</h1>
           <p class="sub">{escape(display_name)}</p>
         </div>
-        <div class="badge">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
@@ -2041,7 +2305,7 @@ def admin():
           <h1>Admin</h1>
           <p class="sub">Payroll + onboarding</p>
         </div>
-        <div class="badge">ADMIN</div>
+        <div class="badge admin">ADMIN</div>
       </div>
 
       <div class="card menu">
@@ -2062,11 +2326,86 @@ def admin():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
+# ===== Admin POST: Save/Edit shift =====
+@app.post("/admin/save-shift")
+def admin_save_shift():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    username = (request.form.get("user") or "").strip()
+    date_str = (request.form.get("date") or "").strip()
+    cin = (request.form.get("cin") or "").strip()
+    cout = (request.form.get("cout") or "").strip()
+    hours_in = (request.form.get("hours") or "").strip()
+    pay_in = (request.form.get("pay") or "").strip()
+    recalc = (request.form.get("recalc") == "yes")
+
+    if not username or not date_str:
+        return redirect(request.referrer or "/admin/payroll")
+
+    rate = _get_user_rate(username)
+
+    hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
+    pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
+
+    if recalc:
+        computed = _compute_hours_from_times(date_str, cin, cout)
+        if computed is not None:
+            hours_val = computed
+            pay_val = round(computed * rate, 2)
+
+    hours_cell = "" if hours_val is None else str(hours_val)
+    pay_cell = "" if pay_val is None else str(pay_val)
+
+    try:
+        vals = work_sheet.get_all_values()
+        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+        if rownum:
+            work_sheet.update_cell(rownum, COL_IN + 1, cin)
+            work_sheet.update_cell(rownum, COL_OUT + 1, cout)
+            work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
+            work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
+        else:
+            work_sheet.append_row([username, date_str, cin, cout, hours_cell, pay_cell])
+    except Exception:
+        pass
+
+    return redirect(request.referrer or "/admin/payroll")
+
+
+# ===== Admin POST: Mark Paid =====
+@app.post("/admin/mark-paid")
+def admin_mark_paid():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    week_start = (request.form.get("week_start") or "").strip()
+    week_end = (request.form.get("week_end") or "").strip()
+    username = (request.form.get("user") or "").strip()
+
+    gross = safe_float(request.form.get("gross", "0") or "0", 0.0)
+    tax = safe_float(request.form.get("tax", "0") or "0", 0.0)
+    net = safe_float(request.form.get("net", "0") or "0", 0.0)
+
+    paid_by = session.get("username", "admin")
+    if week_start and week_end and username:
+        _append_paid_record(week_start, week_end, username, gross, tax, net, paid_by)
+
+    return redirect(request.referrer or "/admin/payroll")
+
+
+# ---------- ADMIN PAYROLL ----------
 @app.get("/admin/payroll")
 def admin_payroll():
     gate = require_admin()
     if gate:
         return gate
+
+    csrf = get_csrf()
 
     q = (request.args.get("q", "") or "").strip().lower()
     date_from = (request.args.get("from", "") or "").strip()
@@ -2074,6 +2413,25 @@ def admin_payroll():
 
     rows = work_sheet.get_all_values()
 
+    # Week selector
+    today = datetime.now(TZ).date()
+    wk_offset_raw = (request.args.get("wk", "0") or "0").strip()
+    try:
+        wk_offset = max(0, int(wk_offset_raw))
+    except Exception:
+        wk_offset = 0
+
+    this_monday = today - timedelta(days=today.weekday())
+    week_start = this_monday - timedelta(days=7 * wk_offset)
+    week_end = week_start + timedelta(days=6)
+    week_start_str = week_start.strftime("%Y-%m-%d")
+    week_end_str = week_end.strftime("%Y-%m-%d")
+
+    def week_label(d0):
+        iso = d0.isocalendar()
+        return f"Week {iso[1]} ({d0.strftime('%d %b')} – {(d0+timedelta(days=6)).strftime('%d %b %Y')})"
+
+    # Summary filter (unchanged)
     def in_range(d: str) -> bool:
         if not d:
             return False
@@ -2120,25 +2478,239 @@ def admin_payroll():
     overall_tax = round(overall_gross * TAX_RATE, 2)
     overall_net = round(overall_gross - overall_tax, 2)
 
+    # Build weekly lookup for editable tables
+    week_lookup = {}  # {user: {date_str: {"cin","cout","hours","pay"}}}
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+        user = (r[COL_USER] or "").strip()
+        d = (r[COL_DATE] or "").strip()
+        if not user or not d:
+            continue
+        if d < week_start_str or d > week_end_str:
+            continue
+        week_lookup.setdefault(user, {})
+        week_lookup[user][d] = {
+            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
+            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
+            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
+            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
+        }
+
+    # Use Employees sheet for complete list (includes new ones)
+    all_users = []
+    try:
+        for rec in employees_sheet.get_all_records():
+            un = (rec.get("Username") or "").strip()
+            if un:
+                all_users.append(un)
+    except Exception:
+        all_users = list(by_user.keys())
+
+    if q:
+        all_users = [u for u in all_users if q in u.lower() or q in (get_employee_display_name(u) or "").lower()]
+
+    # Week pills
+    pills = []
+    for i in range(0, 13):
+        d0 = this_monday - timedelta(days=7*i)
+        active = "active" if i == wk_offset else ""
+        pills.append(
+            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}'>"
+            f"{escape(week_label(d0))}</a>"
+        )
+    week_nav_html = "<div class='weekRow'>" + "".join(pills) + "</div>"
+
+    # Summary rows (with paid status + mark paid)
     summary_rows = []
-    for u in sorted(by_user.keys(), key=lambda s: s.lower()):
-        gross = round(by_user[u]["gross"], 2)
+    for u in sorted(all_users, key=lambda s: s.lower()):
+        gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
         tax = round(gross * TAX_RATE, 2)
         net = round(gross - tax, 2)
+        hours = round(by_user.get(u, {}).get("hours", 0.0), 2)
+
         display = get_employee_display_name(u)
+        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
+
+        paid_chip = "<span class='chip ok'>Paid</span>" if paid else "<span class='chip warn'>Not paid</span>"
+        paid_sub = f"<div class='sub' style='margin:4px 0 0 0;'>Paid at: {escape(paid_at)}</div>" if paid and paid_at else ""
+
+        mark_paid_btn = ""
+        if (not paid) and gross > 0:
+            mark_paid_btn = f"""
+              <form method="POST" action="/admin/mark-paid" style="margin:0;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                <input type="hidden" name="user" value="{escape(u)}">
+                <input type="hidden" name="gross" value="{gross}">
+                <input type="hidden" name="tax" value="{tax}">
+                <input type="hidden" name="net" value="{net}">
+                <button class="btnTiny dark" type="submit">Mark Paid</button>
+              </form>
+            """
+
+        name_cell = f"""
+          <div style="display:flex; align-items:center; gap:10px;">
+            <div class="avatar">{escape(initials(display))}</div>
+            <div>
+              <div style="font-weight:950;">{escape(display)}</div>
+              <div class="sub" style="margin:2px 0 0 0;">{escape(u)} • {paid_chip}</div>
+              {paid_sub}
+            </div>
+          </div>
+        """
+
         summary_rows.append(
-            f"<tr><td>{escape(display)}</td><td>{escape(u)}</td>"
-            f"<td>{round(by_user[u]['hours'],2)}</td><td>£{gross}</td><td>£{tax}</td><td>£{net}</td></tr>"
+            f"<tr>"
+            f"<td>{name_cell}</td>"
+            f"<td>{hours}</td><td>£{gross}</td><td>£{tax}</td><td>£{net}</td>"
+            f"<td style='text-align:right;'>{mark_paid_btn}</td>"
+            f"</tr>"
         )
-    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='6'>No data for this range.</td></tr>"
+
+    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='6'>No employees.</td></tr>"
+
+    # Per-user weekly editable tables
+    day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    blocks = []
+    for u in sorted(all_users, key=lambda s: s.lower()):
+        display = get_employee_display_name(u)
+        user_days = week_lookup.get(u, {})
+
+        wk_hours = 0.0
+        wk_gross = 0.0
+        for di in range(7):
+            d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
+            rec = user_days.get(d_str)
+            if rec and rec.get("hours"):
+                wk_hours += safe_float(rec.get("hours","0"), 0.0)
+            if rec and rec.get("pay"):
+                wk_gross += safe_float(rec.get("pay","0"), 0.0)
+        wk_hours = round(wk_hours, 2)
+        wk_gross = round(wk_gross, 2)
+        wk_tax = round(wk_gross * TAX_RATE, 2)
+        wk_net = round(wk_gross - wk_tax, 2)
+
+        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
+        header_chip = "<span class='chip ok'>Paid</span>" if paid else "<span class='chip warn'>Not paid</span>"
+        header_sub = f"<span class='sub' style='margin-left:10px;'>Paid at: {escape(paid_at)}</span>" if paid and paid_at else ""
+
+        pay_btn = ""
+        if (not paid) and wk_gross > 0:
+            pay_btn = f"""
+              <form method="POST" action="/admin/mark-paid" style="margin:0;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                <input type="hidden" name="user" value="{escape(u)}">
+                <input type="hidden" name="gross" value="{wk_gross}">
+                <input type="hidden" name="tax" value="{wk_tax}">
+                <input type="hidden" name="net" value="{wk_net}">
+                <button class="btnTiny dark" type="submit">Mark Paid</button>
+              </form>
+            """
+
+        rows_html = []
+        for di in range(7):
+            d_dt = week_start + timedelta(days=di)
+            d_str = d_dt.strftime("%Y-%m-%d")
+            rec = user_days.get(d_str)
+
+            cin = rec["cin"] if rec else ""
+            cout = rec["cout"] if rec else ""
+            hrs = rec["hours"] if rec else ""
+            pay = rec["pay"] if rec else ""
+
+            if rec:
+                if cout.strip() == "" and cin.strip() != "":
+                    status_html = "<span class='chip bad'>Open</span>"
+                elif cin.strip() and cout.strip():
+                    status_html = "<span class='chip ok'>Complete</span>"
+                else:
+                    status_html = "<span class='chip warn'>Partial</span>"
+            else:
+                status_html = "<span class='chip'>Missing</span>"
+
+            rows_html.append(f"""
+              <tr>
+                <td><b>{day_names[di]}</b></td>
+                <td>{escape(d_str)}</td>
+                <td>
+                  <form method="POST" action="/admin/save-shift" style="margin:0;">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="user" value="{escape(u)}">
+                    <input type="hidden" name="date" value="{escape(d_str)}">
+                    <input class="input" name="cin" value="{escape(cin)}" placeholder="HH:MM:SS" style="margin-top:0; max-width:140px;">
+                </td>
+                <td>
+                    <input class="input" name="cout" value="{escape(cout)}" placeholder="HH:MM:SS" style="margin-top:0; max-width:140px;">
+                </td>
+                <td>
+                    <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8" style="margin-top:0; max-width:110px;">
+                </td>
+                <td>
+                    <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" style="margin-top:0; max-width:110px;">
+                </td>
+                <td style="min-width:220px;">
+                    <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
+                      <input type="checkbox" name="recalc" value="yes">
+                      Recalculate
+                    </label>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                      <button class="btnTiny" type="submit">Save</button>
+                      {status_html}
+                    </div>
+                  </form>
+                </td>
+              </tr>
+            """)
+
+        blocks.append(f"""
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div class="avatar">{escape(initials(display))}</div>
+                <div>
+                  <div style="font-weight:950; font-size:16px;">{escape(display)} <span class="sub">({escape(u)})</span></div>
+                  <div class="sub" style="margin:4px 0 0 0;">
+                    {header_chip}{header_sub}
+                    <span class="sub" style="margin-left:10px;">Week totals: Hours {wk_hours} • Gross £{wk_gross} • Tax £{wk_tax} • Net £{wk_net}</span>
+                  </div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:10px;">
+                {pay_btn}
+              </div>
+            </div>
+
+            <div class="tablewrap" style="margin-top:12px;">
+              <table style="min-width:1100px;">
+                <thead>
+                  <tr>
+                    <th>Day</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th><th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {''.join(rows_html)}
+                </tbody>
+              </table>
+            </div>
+            <p class="sub" style="margin-top:10px;">
+              Tip: tick <b>Recalculate</b> to auto-compute Hours & Pay (Hours from times, Pay = Hours × employee Rate).
+            </p>
+          </div>
+        """)
+
+    last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
 
     content = f"""
       <div class="headerTop">
         <div>
           <h1>Payroll Report</h1>
-          <p class="sub">Tip: use your browser Print → Save as PDF</p>
+          <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
         </div>
-        <div class="badge">ADMIN</div>
+        <div class="badge admin">ADMIN</div>
       </div>
 
       <div class="card" style="padding:12px;">
@@ -2149,27 +2721,37 @@ def admin_payroll():
               <input class="input" name="q" value="{escape(q)}" placeholder="e.g. john">
             </div>
             <div>
-              <label class="sub">Date range</label>
+              <label class="sub">Date range (summary table only)</label>
               <div class="row2">
                 <input class="input" type="date" name="from" value="{escape(date_from)}">
                 <input class="input" type="date" name="to" value="{escape(date_to)}">
               </div>
             </div>
           </div>
+          <input type="hidden" name="wk" value="{wk_offset}">
           <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
         </form>
 
+        {week_nav_html}
+
         <div style="margin-top:12px;" class="sub">
-          <b>Totals:</b> Hours {round(overall_hours,2)} • Gross £{round(overall_gross,2)} • Tax £{overall_tax} • Net £{overall_net}
+          <b>Summary Totals (filtered):</b> Hours {round(overall_hours,2)} • Gross £{round(overall_gross,2)} • Tax £{overall_tax} • Net £{overall_net}
         </div>
 
         <div class="tablewrap">
-          <table style="min-width:900px;">
-            <thead><tr><th>Name</th><th>Username</th><th>Hours</th><th>Gross</th><th>Tax</th><th>Net</th></tr></thead>
+          <table style="min-width:980px;">
+            <thead><tr><th>Employee</th><th>Hours</th><th>Gross</th><th>Tax</th><th>Net</th><th style="text-align:right;">Paid</th></tr></thead>
             <tbody>{summary_html}</tbody>
           </table>
         </div>
       </div>
+
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <h2>Weekly History (Editable)</h2>
+        <p class="sub">Week: <b>{escape(week_start_str)}</b> to <b>{escape(week_end_str)}</b>. Edit and save per day.</p>
+      </div>
+
+      {''.join(blocks)}
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
@@ -2217,7 +2799,7 @@ def admin_onboarding_list():
           <h1>Onboarding</h1>
           <p class="sub">Click a name to view details</p>
         </div>
-        <div class="badge">ADMIN</div>
+        <div class="badge admin">ADMIN</div>
       </div>
 
       <div class="card" style="padding:12px;">
@@ -2286,7 +2868,7 @@ def admin_onboarding_detail(username):
           <h1>Onboarding Details</h1>
           <p class="sub">{escape(username)}</p>
         </div>
-        <div class="badge">ADMIN</div>
+        <div class="badge admin">ADMIN</div>
       </div>
 
       <div class="card" style="padding:12px;">
@@ -2302,9 +2884,5 @@ def admin_onboarding_detail(username):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
-
-
 
 
