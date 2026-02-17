@@ -89,15 +89,12 @@ employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 onboarding_sheet = spreadsheet.worksheet("Onboarding")
-
-# Audit log (new sheet)
+# New: Audit log of admin actions
 try:
     audit_sheet = spreadsheet.worksheet("AuditLog")
 except Exception:
-    try:
-        audit_sheet = spreadsheet.add_worksheet(title="AuditLog", rows=1000, cols=7)
-    except Exception:
-        audit_sheet = spreadsheet.worksheet("AuditLog")
+    audit_sheet = spreadsheet.add_worksheet(title="AuditLog", rows=1000, cols=8)
+    audit_sheet.append_row(["At","Admin","Action","Username","WeekStart","WeekEnd","Details","IP"])
 
 
 # ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
@@ -215,8 +212,8 @@ UNPAID_BREAK_HOURS = 0.5     # deduct 30 minutes
 BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS = 6.0  # safety threshold
 
 # Overtime highlight:
-OVERTIME_HOURS = 8.5
-OVERTIME_STRONG_HOURS = 10.0
+OVERTIME_WARN_HOURS = 8.5
+OVERTIME_HARD_HOURS = 10.0
 
 
 # ================= PWA =================
@@ -264,8 +261,8 @@ STYLE = """
   --space-4: 24px;
   --space-5: 32px;
 
-  --purple:#6d28d9;
-  --purpleSoft:#efe9ff;
+  --purple:#0f766e; /* navy-green */
+  --purpleSoft:#e6f4f1;
   --green:#16a34a;
   --red:#dc2626;
   --amber:#f59e0b;
@@ -279,18 +276,18 @@ STYLE = """
 html,body{height:100%;}
 body{
   margin:0;
-  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; font-weight:400;
   background:
-    radial-gradient(1000px 550px at 20% 0%, rgba(109,40,217,.10) 0%, rgba(109,40,217,0) 60%),
-    radial-gradient(900px 500px at 80% 10%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 60%),
+    radial-gradient(1000px 550px at 20% 0%, rgba(15,118,110,.10) 0%, rgba(109,40,217,0) 60%),
+    radial-gradient(900px 500px at 80% 10%, rgba(2,44,54,.08) 0%, rgba(37,99,235,0) 60%),
     var(--bg);
   color: var(--text);
   padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
 }
 a{color:inherit;text-decoration:none;}
-h1{font-size:var(--h1); margin:0;}
-h2{font-size:var(--h2); margin: 0 0 8px 0;}
-.sub{color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35;}
+h1{font-size:var(--h1); margin:0; font-weight:700;}
+h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
+.sub{color: rgba(100,116,139,.85); margin:6px 0 0 0; font-size:var(--small); line-height:1.35; font-weight:400;}
 
 .contentWrap{
   width: 100%;
@@ -316,7 +313,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   border: 1px solid rgba(15,23,42,.10);
   background: rgba(255,255,255,.75);
   color: rgba(15,23,42,.70);
-  font-weight: 900;
+  font-weight: 500;
   white-space: nowrap;
 }
 .badge.admin{
@@ -340,10 +337,10 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   display:flex; align-items:center; justify-content:space-between; gap:12px;
   margin-bottom: 14px;
 }
-.topbarTitle{ font-weight: 950; font-size: 22px; }
+.topbarTitle{ font-weight: 700; font-size: 22px; }
 .topbarRight{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
 .companyBadge{
-  background: rgba(109,40,217,.10);
+  background: rgba(15,118,110,.10);
   border-color: rgba(109,40,217,.16);
   color: rgba(109,40,217,.95);
 }
@@ -356,11 +353,11 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 }
 .kpi{ padding:14px; }
 .kpi .label{font-size:var(--small); color:var(--muted); margin:0;}
-.kpi .value{font-size: 28px; font-weight: 950; margin: 6px 0 0 0; letter-spacing:.2px;}
+.kpi .value{font-size: 28px; font-weight: 700; margin: 6px 0 0 0; letter-spacing:.2px; font-variant-numeric: tabular-nums;}
 
 .graphCard{ margin-top: 12px; padding: 14px; }
 .graphTop{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.graphTitle{ font-weight: 950; font-size: 18px; }
+.graphTitle{ font-weight: 600; font-size: 18px; }
 .graphRange{ color: var(--muted); font-size: 13px; font-weight: 800; }
 .bars{
   margin-top: 12px;
@@ -372,7 +369,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   padding: 10px 6px 0 6px;
   border-radius: 18px;
   background: linear-gradient(180deg, rgba(109,40,217,.04) 0%, rgba(109,40,217,0) 60%);
-  border: 1px solid rgba(109,40,217,.10);
+  border: 1px solid rgba(15,118,110,.10);
 }
 .bar{
   width: 16%;
@@ -384,7 +381,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   display:flex; justify-content:space-around; gap:12px;
   margin-top: 10px;
   color: var(--muted);
-  font-weight: 900;
+  font-weight: 500;
   font-size: 13px;
 }
 
@@ -412,7 +409,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 }
 .icoBox svg{ width: 22px; height: 22px; }
 .menuText{
-  font-weight: 950;
+  font-weight: 600;
   font-size: 20px;
   letter-spacing:.1px;
   color: rgba(109,40,217,.95);
@@ -420,7 +417,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 .chev{
   font-size: 26px;
   color: rgba(109,40,217,.90);
-  font-weight: 900;
+  font-weight: 500;
 }
 
 .input{
@@ -433,7 +430,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   outline:none;
   margin-top: 8px;
 }
-.input:focus{ border-color: rgba(109,40,217,.35); box-shadow: 0 0 0 3px rgba(109,40,217,.10); }
+.input:focus{ border-color: rgba(109,40,217,.35); box-shadow: 0 0 0 3px rgba(15,118,110,.10); }
 
 .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 @media (max-width: 520px){ .row2{ grid-template-columns: 1fr; } }
@@ -455,7 +452,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   font-size: clamp(26px, 6vw, 36px);
   margin-top: 6px;
 }
-.timerSub{ color: var(--muted); font-weight: 900; font-size: 13px; margin-top: 6px; }
+.timerSub{ color: var(--muted); font-weight: 500; font-size: 13px; margin-top: 6px; }
 .actionRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
@@ -466,7 +463,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   border:none;
   border-radius: 18px;
   padding: 14px 12px;
-  font-weight: 950;
+  font-weight: 600;
   font-size: 16px;
   cursor:pointer;
   box-shadow: 0 10px 18px rgba(15,23,42,.08);
@@ -483,7 +480,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   border:none;
   border-radius: 18px;
   padding: 12px 12px;
-  font-weight: 950;
+  font-weight: 600;
   font-size: 15px;
   cursor:pointer;
   background: rgba(109,40,217,.12);
@@ -495,7 +492,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   border:none;
   border-radius: 14px;
   padding: 10px 10px;
-  font-weight: 950;
+  font-weight: 600;
   font-size: 13px;
   cursor:pointer;
   background: rgba(109,40,217,.12);
@@ -510,8 +507,8 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 
 .tablewrap{ margin-top:14px; overflow:auto; border-radius: 18px; border:1px solid rgba(15,23,42,.08); }
 table{ width:100%; border-collapse: collapse; min-width: 720px; background:#fff; }
-th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; vertical-align: top;}
-th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
+th,td{ padding: 9px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; vertical-align: top;}
+th{ position: sticky; top:0; background: rgba(248,250,252,.96); font-weight:500; }
 table tbody tr:nth-child(even){ background: rgba(15,23,42,.02); }
 table tbody tr:hover{ background: rgba(109,40,217,.05); }
 
@@ -578,7 +575,7 @@ table tbody tr:hover{ background: rgba(109,40,217,.05); }
   display:grid; place-items:center;
   color: rgba(109,40,217,.92);
 }
-.navIcon.active{ background: rgba(109,40,217,.10); }
+.navIcon.active{ background: rgba(15,118,110,.10); }
 .navIcon svg{ width: 22px; height: 22px; }
 
 .safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
@@ -591,7 +588,7 @@ table tbody tr:hover{ background: rgba(109,40,217,.05); }
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
-  font-weight: 900;
+  font-weight: 500;
   border: 1px solid rgba(15,23,42,.10);
   background: rgba(255,255,255,.80);
   color: rgba(15,23,42,.75);
@@ -622,7 +619,7 @@ table tbody tr:hover{ background: rgba(109,40,217,.05); }
   place-items:center;
   font-weight: 950;
   color: rgba(109,40,217,.95);
-  background: rgba(109,40,217,.10);
+  background: rgba(15,118,110,.10);
   border: 1px solid rgba(109,40,217,.14);
 }
 
@@ -664,7 +661,7 @@ table tbody tr:hover{ background: rgba(109,40,217,.05); }
   border: 1px solid rgba(15,23,42,.08);
   background: rgba(255,255,255,.80);
 }
-.kpiMini .k{ font-size: 12px; color: var(--muted); font-weight: 900; }
+.kpiMini .k{ font-size: 12px; color: var(--muted); font-weight: 500; }
 .kpiMini .v{ margin-top:6px; font-size: 18px; font-weight: 950; font-variant-numeric: tabular-nums; }
 
 /* Weekly net badge */
@@ -675,7 +672,7 @@ table tbody tr:hover{ background: rgba(109,40,217,.05); }
   padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid rgba(109,40,217,.18);
-  background: rgba(109,40,217,.10);
+  background: rgba(15,118,110,.10);
   color: rgba(109,40,217,.98);
   font-weight: 950;
   font-variant-numeric: tabular-nums;
@@ -811,72 +808,20 @@ body.dark .toast{ background: rgba(15,23,42,.92); }
   .contentWrap{ max-width:none !important; }
 }
 
-/* ===== Premium Typography + Navy/Green theme + Sticky + Collapse ===== */
-:root{
-  --purple:#0b3a5b;
-  --purpleSoft: rgba(11,58,91,.10);
-}
-body{
-  background:
-    radial-gradient(1000px 550px at 20% 0%, rgba(11,58,91,.10) 0%, rgba(11,58,91,0) 60%),
-    radial-gradient(900px 500px at 80% 10%, rgba(22,163,74,.08) 0%, rgba(22,163,74,0) 60%),
-    var(--bg);
-  font-weight: 400;
-}
-h1{ font-weight:700; }
-h2{ font-weight:600; }
-.topbarTitle{ font-weight:700; }
-.menuText,.sideText{ font-weight:700; }
-.badge{ font-weight:600; }
-th{ font-weight:500; }
-.chip{ font-weight:500; }
-.btn,.btnSoft,.btnTiny{ font-weight:600; }
+/* Pulse for active clocked-in chip */
+@keyframes pulseSoft { 0%{transform:scale(1); box-shadow:none;} 50%{transform:scale(1.02); box-shadow:0 0 0 6px rgba(15,118,110,.10);} 100%{transform:scale(1); box-shadow:none;} }
+.chip.pulse{ animation: pulseSoft 1.6s ease-in-out infinite; }
 
-.kpi .value, .kpiMini .v, .netBadge, .num { font-variant-numeric: tabular-nums; }
-.kpi .sub{ font-weight:400; color: rgba(100,116,139,.92); }
-body.dark .kpi .sub{ color: rgba(156,163,175,.92); }
+/* Overtime highlight levels */
+.otWarn{ outline: 2px solid rgba(245,158,11,.25); background: rgba(245,158,11,.06) !important; }
+.otHard{ outline: 2px solid rgba(220,38,38,.28); background: rgba(220,38,38,.06) !important; }
 
-.card:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-.btn:hover, .btnSoft:hover, .btnTiny:hover{ transform: translateY(-1px); }
+/* Sticky first column (employee/name) */
+.stickyCol{ position: sticky; left: 0; z-index: 3; background: inherit; }
+th.stickyCol{ z-index: 4; }
 
-/* Sticky KPI strip */
-.stickyStrip{ position: sticky; top: 10px; z-index: 60; backdrop-filter: blur(10px); }
-
-/* Sticky first column in wide tables */
-.stickyFirst th:first-child,
-.stickyFirst td:first-child{
-  position: sticky;
-  left: 0;
-  z-index: 3;
-  background: inherit;
-}
-.stickyFirst th:first-child{ z-index: 4; }
-
-/* Collapse blocks */
-details.card > summary{ list-style: none; cursor: pointer; }
-details.card > summary::-webkit-details-marker{ display:none; }
-
-/* Group background */
-.empBlock{
-  background: linear-gradient(180deg, rgba(11,58,91,.04), rgba(11,58,91,0));
-  border: 1px solid rgba(11,58,91,.10);
-}
-body.dark .empBlock{
-  background: linear-gradient(180deg, rgba(11,58,91,.08), rgba(11,58,91,0));
-  border-color: rgba(255,255,255,.08);
-}
-
-/* Overtime stronger */
-.overtimeRow10{ outline: 2px solid rgba(220,38,38,.35); background: rgba(220,38,38,.08) !important; }
-
-/* Pulse chip */
-@keyframes pulseSoft {
-  0%{ box-shadow: 0 0 0 0 rgba(22,163,74,.22); }
-  70%{ box-shadow: 0 0 0 12px rgba(22,163,74,0); }
-  100%{ box-shadow: 0 0 0 0 rgba(22,163,74,0); }
-}
-.chip.pulse{ animation: pulseSoft 1.8s ease-out infinite; }
-
+/* Sticky summary strip on payroll page */
+.stickyStrip{ position: sticky; top: 12px; z-index: 50; }
 </style>
 """
 
@@ -1049,6 +994,19 @@ def money(x: float) -> str:
     except Exception:
         return "0.00"
 
+def pad_row(row, n: int = 6):
+    """Google Sheets can trim trailing empty cells; pad to expected column count."""
+    row = list(row or [])
+    if len(row) < n:
+        row.extend([""] * (n - len(row)))
+    return row
+
+def cell(row, idx: int, default: str = "") -> str:
+    try:
+        return (row[idx] if idx < len(row) else default) or default
+    except Exception:
+        return default
+
 def require_login():
     if "username" not in session:
         return redirect(url_for("login"))
@@ -1071,10 +1029,10 @@ def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
 # ====== In-memory caching for sheet reads (no new software) ======
 _CACHE = {}
 
-# Login attempt limiting (in-memory per process)
-_LOGIN_FAILS = {}  # key -> {"n": int, "until": ts}
-LOGIN_MAX_FAILS = 5
-LOGIN_LOCK_MINUTES = 10
+# Simple login rate-limit (in-memory)
+_LOGIN_ATTEMPTS = {}  # key -> {count, first_ts, lock_until}
+
+
 
 def _now_ts():
     return datetime.now(TZ).timestamp()
@@ -1098,24 +1056,16 @@ def cache_bust(*keys):
 def employees_vals(ttl=30):
     v = cache_get("employees_vals", ttl)
     if v is None:
-        v = employees_sheet.get_all_values()
+        raw = employees_sheet.get_all_values()
+        v = [pad_row(r, len(raw[0]) if raw else 0) for r in raw] if raw else []
         cache_set("employees_vals", v)
     return v
 
-def work_vals(ttl=15):
+def work_vals(ttl=10):
     v = cache_get("work_vals", ttl)
     if v is None:
         raw = work_sheet.get_all_values()
-
-        # gspread trims trailing empty cells. Pad to keep open shifts visible.
-        padded = []
-        for r in raw:
-            rr = list(r)
-            if len(rr) < 6:
-                rr += [""] * (6 - len(rr))
-            padded.append(rr)
-
-        v = padded
+        v = [pad_row(r, 6) for r in raw] if raw else []
         cache_set("work_vals", v)
     return v
 
@@ -1373,6 +1323,7 @@ def onboarding_details_block(username: str) -> str:
             {''.join(rows)}
           </tbody>
         </table>
+        </div>
       </div>
     """
 
@@ -1389,25 +1340,21 @@ def require_csrf():
             abort(400)
 
 
-
-# ===== Audit logging (Admin actions) =====
-AUDIT_HEADERS = ["Timestamp", "Admin", "Action", "TargetUser", "TargetDate", "Details", "IP"]
-
-def _ensure_audit_headers_safe():
+def _client_ip() -> str:
     try:
-        vals = audit_sheet.get_all_values()
-        if not vals:
-            audit_sheet.update("A1:G1", [AUDIT_HEADERS])
+        return (request.headers.get("X-Forwarded-For") or request.remote_addr or "").split(",")[0].strip()
     except Exception:
-        pass
+        return ""
 
-def audit_log(action: str, target_user: str = "", target_date: str = "", details: str = ""):
+def log_admin_action(action: str, username: str = "", week_start: str = "", week_end: str = "", details: str = ""):
+    """Append an audit entry to the AuditLog sheet (best effort)."""
     try:
-        _ensure_audit_headers_safe()
-        ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        admin = session.get("username", "")
-        ip = request.headers.get("X-Forwarded-For", request.remote_addr) or ""
-        audit_sheet.append_row([ts, admin, action, target_user, target_date, details, ip])
+        at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+        admin_user = session.get("username", "admin")
+        ip = _client_ip()
+        row = [at, admin_user, action, username, week_start, week_end, details, ip]
+        audit_sheet.append_row(row)
+        cache_bust("audit_vals")
     except Exception:
         pass
 
@@ -1539,8 +1486,6 @@ def _get_open_shifts():
                         "name": get_employee_display_name(u),
                         "start_iso": start_dt.isoformat(),
                         "start_label": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                        "est_hours": _apply_unpaid_break(max(0.0, (datetime.now(TZ) - start_dt).total_seconds() / 3600.0)),
-                        "est_pay": round(_apply_unpaid_break(max(0.0, (datetime.now(TZ) - start_dt).total_seconds() / 3600.0)) * _get_user_rate(u), 2),
                     })
                 except Exception:
                     continue
@@ -1746,53 +1691,44 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        key = (request.headers.get("X-Forwarded-For", request.remote_addr) or "") + "|" + username
-        rec = _LOGIN_FAILS.get(key)
-        nowts = _now_ts()
-        if rec and rec.get("until", 0) > nowts:
-            msg = "Too many attempts. Try again later."
-            html = f"""
-    <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
-      <div class="main">
-        <div class="contentWrap">
-          {topbar("WorkHours", "Sign in", "employee", "WH", show_theme=True)}
-          <div class="card" style="padding:14px;">
-            <form method="POST">
-              <input type="hidden" name="csrf" value="{escape(csrf)}">
-              <label class="sub">Username</label>
-              <input class="input" name="username" required>
-              <label class="sub" style="margin-top:10px; display:block;">Password</label>
-              <input class="input" type="password" name="password" required>
-              <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
-            </form>
-            <div class='message error'>""" + escape(msg) + """</div>
-          </div>
-        </div>
-      </div>
-    </div>
-    """
-            return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{html}")
+        # Login attempt limit (temporary lockout)
+        ip = _client_ip()
+        key = f"{ip}:{username}".lower()
+        now_ts = datetime.now(TZ).timestamp()
+        rec = _LOGIN_ATTEMPTS.get(key, {"count": 0, "first_ts": now_ts, "lock_until": 0})
 
-        # Use cached read for speed
-        for user in employees_sheet.get_all_records():
-            if user.get("Username") == username and is_password_valid(user.get("Password", ""), password):
-                migrate_password_if_plain(username, user.get("Password", ""), password)
-                session.clear()
-                session["csrf"] = csrf
-                session["username"] = username
-                session["role"] = user.get("Role", "employee")
-                session["rate"] = safe_float(user.get("Rate", 0), 0.0)
-                # IMPORTANT: Your sheet header is "EarlyAcces"
-                session["early_access"] = parse_bool(user.get("EarlyAcces", False))
-                _LOGIN_FAILS.pop(key, None)
+        # reset window after 10 minutes
+        if (now_ts - rec.get("first_ts", now_ts)) > 600:
+            rec = {"count": 0, "first_ts": now_ts, "lock_until": 0}
+
+        if rec.get("lock_until", 0) > now_ts:
+            msg = "Too many attempts. Try again in a few minutes."
+        else:
+            # Use cached read for speed
+            authed = False
+            for user in employees_sheet.get_all_records():
+                if user.get("Username") == username and is_password_valid(user.get("Password", ""), password):
+                    migrate_password_if_plain(username, user.get("Password", ""), password)
+                    session.clear()
+                    session["csrf"] = csrf
+                    session["username"] = username
+                    session["role"] = user.get("Role", "employee")
+                    session["rate"] = safe_float(user.get("Rate", 0), 0.0)
+                    # IMPORTANT: Your sheet header is "EarlyAcces"
+                    session["early_access"] = parse_bool(user.get("EarlyAcces", False))
+                    _LOGIN_ATTEMPTS.pop(key, None)
+                    authed = True
+                    break
+
+            if authed:
                 return redirect(url_for("home"))
 
-        r = _LOGIN_FAILS.get(key, {"n": 0, "until": 0})
-        r["n"] += 1
-        if r["n"] >= LOGIN_MAX_FAILS:
-            r["until"] = nowts + (LOGIN_LOCK_MINUTES * 60)
-        _LOGIN_FAILS[key] = r
-        msg = "Invalid login"
+            # failed
+            rec["count"] = rec.get("count", 0) + 1
+            if rec["count"] >= 5:
+                rec["lock_until"] = now_ts + 600  # 10 min lock
+            _LOGIN_ATTEMPTS[key] = rec
+            msg = "Invalid login"
 
     html = f"""
     <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
@@ -1997,30 +1933,6 @@ def clock_page():
     osf2 = find_open_shift(rows2, username)
     is_clocked_in = bool(osf2)
 
-    # Today totals (including open shift estimate)
-    today_hours = 0.0
-    today_pay = 0.0
-    for r in rows2[1:]:
-        if len(r) <= COL_PAY:
-            continue
-        if (r[COL_USER] or "").strip() != username:
-            continue
-        if (r[COL_DATE] or "").strip() != today_str:
-            continue
-        if str(r[COL_HOURS]).strip() != "":
-            today_hours += safe_float(r[COL_HOURS], 0.0)
-            today_pay += safe_float(r[COL_PAY], 0.0)
-
-    if osf2 and active_start_iso:
-        try:
-            start_dt = datetime.fromisoformat(active_start_iso)
-            raw_h = max(0.0, (datetime.now(TZ) - start_dt).total_seconds() / 3600.0)
-            est_h = _apply_unpaid_break(raw_h)
-            today_hours = max(today_hours, est_h)
-            today_pay = max(today_pay, round(est_h * rate, 2))
-        except Exception:
-            pass
-
     active_start_iso = ""
     active_start_label = ""
     if osf2:
@@ -2074,12 +1986,6 @@ def clock_page():
 
       <div class="card clockCard">
         {timer_html}
-        <div class="kpiStrip" style="margin-top:12px;">
-          <div class="kpiMini"><div class="k">Today Hours</div><div class="v">{round(today_hours,2)}</div></div>
-          <div class="kpiMini"><div class="k">Est Pay</div><div class="v">£{money(today_pay)}</div></div>
-          <div class="kpiMini"><div class="k">Rate</div><div class="v">£{money(rate)}/h</div></div>
-          <div class="kpiMini"><div class="k">Break</div><div class="v">{UNPAID_BREAK_HOURS}h</div></div>
-        </div>
         <form method="POST" class="actionRow">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <button class="btn btnIn" name="action" value="in" {'disabled' if is_clocked_in else ''}>Clock In</button>
@@ -2711,165 +2617,8 @@ def change_password():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("profile", role, content))
 
 
-# ---------- ADMIN ----------
-@app.get("/admin")
-def admin():
-    gate = require_admin()
-    if gate:
-        return gate
 
-    open_shifts = _get_open_shifts()
-
-    # Quick Controls
-    quick_controls = f"""
-      <div class="card" style="padding:12px; margin-top:12px;">
-        <h2>Quick Controls</h2>
-        <p class="sub">Safety tools for live sessions.</p>
-        <div class="row2" style="margin-top:10px;">
-          <form method="POST" action="/admin/force-clock-out-all" style="margin:0;">
-            <input type="hidden" name="csrf" value="{escape(get_csrf())}">
-            <button class="btnSoft" type="submit" style="background:rgba(220,38,38,.10); color:rgba(220,38,38,.95);">Force Clock-Out All</button>
-          </form>
-          <form method="POST" action="/admin/force-clock-in" style="margin:0;">
-            <input type="hidden" name="csrf" value="{escape(get_csrf())}">
-            <input class="input" name="user" placeholder="username" style="margin-top:0;">
-            <div class="row2">
-              <input class="input" name="date" type="date" style="margin-top:8px;">
-              <input class="input" name="cin" placeholder="HH:MM:SS" style="margin-top:8px;">
-            </div>
-            <button class="btnSoft" type="submit" style="margin-top:10px;">Force Clock-In</button>
-          </form>
-        </div>
-      </div>
-    """
-
-    if open_shifts:
-        rows = []
-        for s in open_shifts:
-            est_h = safe_float(s.get("est_hours", 0) or 0, 0.0)
-            row_cls = "overtimeRow10" if est_h > OVERTIME_STRONG_HOURS else ("overtimeRow" if est_h > OVERTIME_HOURS else "")
-            rows.append(f"""
-              <tr class="{row_cls}">
-                <td>
-                  <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="avatar">{escape(initials(s['name']))}</div>
-                    <div>
-                      <div style="font-weight:600;">{escape(s['name'])}</div>
-                      <div class="sub" style="margin:2px 0 0 0;">{escape(s['user'])}</div>
-                    </div>
-                  </div>
-                </td>
-                <td class="num">{escape(s['start_label'])}</td>
-                <td class="num"><span class="netBadge" data-start="{escape(s['start_iso'])}">00:00:00</span></td>
-                <td class="num">{escape(money(float(s.get('est_hours',0) or 0)))}</td>
-                <td class="num">£{escape(money(float(s.get('est_pay',0) or 0)))}</td>
-                <td style="text-align:right;">
-                  <form method="POST" action="/admin/force-clock-out" style="margin:0;">
-                    <input type="hidden" name="csrf" value="{escape(get_csrf())}">
-                    <input type="hidden" name="user" value="{escape(s['user'])}">
-                    <button class="btnTiny dark" type="submit">Force Clock-Out</button>
-                  </form>
-                </td>
-              </tr>
-            """)
-        open_html = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In Employees</h2>
-            <p class="sub">Started • Live time updates every second • Estimated hours/pay include break on clock out.</p>
-            <div class="tablewrap" style="margin-top:12px;">
-              <table class="stickyFirst" style="min-width:1000px;">
-                <thead><tr>
-                  <th>Employee</th><th class="num">Started</th><th class="num">Live Time</th>
-                  <th class="num">Est Hours</th><th class="num">Est Pay</th><th style="text-align:right;">Actions</th>
-                </tr></thead>
-                <tbody>{''.join(rows)}</tbody>
-              </table>
-            </div>
-            <script>
-              (function(){{
-                function pad(n){{ return String(n).padStart(2,"0"); }}
-                function tick(){{
-                  document.querySelectorAll("[data-start]").forEach(el=>{{
-                    const startIso = el.getAttribute("data-start");
-                    const start = new Date(startIso);
-                    const now = new Date();
-                    let diff = Math.floor((now - start)/1000);
-                    if(diff < 0) diff = 0;
-                    const h = Math.floor(diff/3600);
-                    const m = Math.floor((diff%3600)/60);
-                    const s = diff%60;
-                    el.textContent = pad(h)+":"+pad(m)+":"+pad(s);
-                  }});
-                }}
-                tick(); setInterval(tick, 1000);
-              }})();
-
-            </script>
-          </div>
-        """
-    else:
-        open_html = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In Employees</h2>
-            <p class="sub">No one is currently clocked in.</p>
-          </div>
-        """
-
-    # Activity log
-    log_rows = []
-    try:
-        vals = audit_sheet.get_all_values()
-        if vals:
-            rows = vals[1:][-25:]
-            for r in rows[::-1]:
-                ts = r[0] if len(r) > 0 else ""
-                admin_u = r[1] if len(r) > 1 else ""
-                action = r[2] if len(r) > 2 else ""
-                tgt = r[3] if len(r) > 3 else ""
-                dt = r[4] if len(r) > 4 else ""
-                det = r[5] if len(r) > 5 else ""
-                log_rows.append(f"<tr><td>{escape(ts)}</td><td>{escape(admin_u)}</td><td>{escape(action)}</td><td>{escape(tgt)}</td><td>{escape(dt)}</td><td>{escape(det)}</td></tr>")
-    except Exception:
-        pass
-
-    log_table = "".join(log_rows) if log_rows else "<tr><td colspan='6'>No audit entries yet.</td></tr>"
-    activity_html = f"""
-      <div class="card" style="padding:12px; margin-top:12px;">
-        <h2>Activity Log</h2>
-        <p class="sub">Tracks admin edits, payments, and force actions.</p>
-        <div class="tablewrap" style="margin-top:12px;">
-          <table class="stickyFirst" style="min-width:980px;">
-            <thead><tr><th>Time</th><th>Admin</th><th>Action</th><th>User</th><th>Date</th><th>Details</th></tr></thead>
-            <tbody>{log_table}</tbody>
-          </table>
-        </div>
-      </div>
-    """
-
-    content = f"""
-      {topbar("Admin", "Payroll + onboarding", "admin", "AD")}
-      <div class="card menu">
-        <a class="menuItem active" href="/admin/payroll">
-          <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Payroll Report</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/admin/onboarding">
-          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Onboarding</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/connect-drive">
-          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Connect Drive</div></div>
-          <div class="chev">›</div>
-        </a>
-      </div>
-      {quick_controls}
-      {open_html}
-      {activity_html}
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
-
-
-
+# ---------- ADMIN FORCE ACTIONS ----------
 @app.post("/admin/force-clock-out")
 def admin_force_clock_out():
     gate = require_admin()
@@ -2884,28 +2633,27 @@ def admin_force_clock_out():
     rows = work_vals(ttl=0)
     osf = find_open_shift(rows, username)
     if not osf:
-        audit_log("FORCE_CLOCK_OUT_FAIL", username, "", "No open shift")
         return redirect(request.referrer or "/admin")
 
-    i, d, cin = osf
+    i, d, t = osf
     now = datetime.now(TZ)
     try:
-        cin_dt = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+        cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+        raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
+        hours_rounded = _apply_unpaid_break(raw_hours)
     except Exception:
-        audit_log("FORCE_CLOCK_OUT_FAIL", username, d, "Bad start time")
-        return redirect(request.referrer or "/admin")
-
-    raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-    hours_rounded = _apply_unpaid_break(raw_hours)
+        hours_rounded = ""
     rate = _get_user_rate(username)
-    pay = round(hours_rounded * rate, 2)
+    pay = "" if hours_rounded == "" else str(round(float(hours_rounded) * rate, 2))
 
-    sheet_row = i + 1
-    work_sheet.update(f"D{sheet_row}:F{sheet_row}", [[now.strftime("%H:%M:%S"), str(hours_rounded), str(pay)]])
+    sheet_row = i + 1  # i is index in rows list; sheet rows are 1-indexed
+    work_sheet.update(
+        f"D{sheet_row}:F{sheet_row}",
+        [[now.strftime("%H:%M:%S"), str(hours_rounded), pay]]
+    )
     cache_bust("work_vals")
-    audit_log("FORCE_CLOCK_OUT", username, d, f"cin={cin} cout={now.strftime('%H:%M:%S')} hrs={hours_rounded} pay={pay}")
+    log_admin_action("Forced clock-out", username=username, details=f"Row {sheet_row} {d} {t}")
     return redirect(request.referrer or "/admin")
-
 
 @app.post("/admin/force-clock-out-all")
 def admin_force_clock_out_all():
@@ -2915,42 +2663,55 @@ def admin_force_clock_out_all():
     require_csrf()
 
     rows = work_vals(ttl=0)
-    now = datetime.now(TZ)
+    open_users = []
+    for r in rows[1:]:
+        r = pad_row(r, 6)
+        u = (cell(r, COL_USER) or "").strip()
+        d = (cell(r, COL_DATE) or "").strip()
+        cin = (cell(r, COL_IN) or "").strip()
+        cout = (cell(r, COL_OUT) or "").strip()
+        if u and d and cin and cout == "":
+            open_users.append(u)
 
-    closed = 0
-    # close each user's latest open shift
+    # Deduplicate
     seen = set()
-    for i in range(len(rows) - 1, 0, -1):
-        r = rows[i]
-        if len(r) < 4:
+    open_users = [u for u in open_users if not (u in seen or seen.add(u))]
+
+    for u in open_users:
+        # Reuse single endpoint logic
+        fake_form = {"user": u}
+
+    # Actually process directly for speed
+    now = datetime.now(TZ)
+    updates = []
+    rows_to_update = []
+    for idx_row in range(1, len(rows)):
+        r = pad_row(rows[idx_row], 6)
+        u = (cell(r, COL_USER) or "").strip()
+        d = (cell(r, COL_DATE) or "").strip()
+        cin = (cell(r, COL_IN) or "").strip()
+        cout = (cell(r, COL_OUT) or "").strip()
+        if not (u and d and cin) or cout != "":
             continue
-        u = (r[COL_USER] or "").strip()
-        if not u or u in seen:
-            continue
-        if (r[COL_OUT] or "").strip() != "":
-            continue
-        d = (r[COL_DATE] or "").strip()
-        cin = (r[COL_IN] or "").strip()
-        if not d or not cin:
-            continue
-        seen.add(u)
         try:
             cin_dt = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+            raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
+            hours_rounded = _apply_unpaid_break(raw_hours)
         except Exception:
-            continue
-        raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-        hours_rounded = _apply_unpaid_break(raw_hours)
+            hours_rounded = ""
         rate = _get_user_rate(u)
-        pay = round(hours_rounded * rate, 2)
-        sheet_row = i + 1
-        work_sheet.update(f"D{sheet_row}:F{sheet_row}", [[now.strftime("%H:%M:%S"), str(hours_rounded), str(pay)]])
-        audit_log("FORCE_CLOCK_OUT", u, d, f"cin={cin} cout={now.strftime('%H:%M:%S')} hrs={hours_rounded} pay={pay}")
-        closed += 1
+        pay = "" if hours_rounded == "" else str(round(float(hours_rounded) * rate, 2))
+        sheet_row = idx_row + 1
+        rows_to_update.append(sheet_row)
+        updates.append([now.strftime("%H:%M:%S"), str(hours_rounded), pay])
+
+    # Batch update contiguous blocks when possible
+    for rnum, vals in zip(rows_to_update, updates):
+        work_sheet.update(f"D{rnum}:F{rnum}", [vals])
 
     cache_bust("work_vals")
-    audit_log("FORCE_CLOCK_OUT_ALL", "", "", f"count={closed}")
+    log_admin_action("Forced clock-out ALL", details=f"Count {len(rows_to_update)}")
     return redirect(request.referrer or "/admin")
-
 
 @app.post("/admin/force-clock-in")
 def admin_force_clock_in():
@@ -2961,19 +2722,226 @@ def admin_force_clock_in():
 
     username = (request.form.get("user") or "").strip()
     date_str = (request.form.get("date") or "").strip() or datetime.now(TZ).strftime("%Y-%m-%d")
-    cin = (request.form.get("cin") or "").strip() or datetime.now(TZ).strftime("%H:%M:%S")
+    time_str = (request.form.get("time") or "").strip() or datetime.now(TZ).strftime("%H:%M:%S")
+
     if not username:
         return redirect(request.referrer or "/admin")
 
     rows = work_vals(ttl=0)
     if find_open_shift(rows, username):
-        audit_log("FORCE_CLOCK_IN_FAIL", username, date_str, "Already open shift")
         return redirect(request.referrer or "/admin")
 
-    work_sheet.append_row([username, date_str, cin, "", "", ""])
+    work_sheet.append_row([username, date_str, time_str, "", "", ""])
     cache_bust("work_vals")
-    audit_log("FORCE_CLOCK_IN", username, date_str, f"cin={cin}")
+    log_admin_action("Forced clock-in", username=username, details=f"{date_str} {time_str}")
     return redirect(request.referrer or "/admin")
+
+# ---------- ADMIN ----------
+@app.get("/admin")
+def admin():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+
+    open_shifts = _get_open_shifts()
+    if open_shifts:
+        rows_html = []
+        for s in open_shifts:
+            # estimate hours/pay (server-side initial)
+            try:
+                start_dt = datetime.fromisoformat(s["start_iso"])
+                now = datetime.now(TZ)
+                raw_hours = max(0.0, (now - start_dt).total_seconds() / 3600.0)
+                est_hours = _apply_unpaid_break(raw_hours)
+            except Exception:
+                est_hours = 0.0
+            rate = _get_user_rate(s["user"])
+            est_pay = round(est_hours * rate, 2) if rate else 0.0
+
+            cls = ""
+            if est_hours >= OVERTIME_HARD_HOURS:
+                cls = "otHard"
+            elif est_hours >= OVERTIME_WARN_HOURS:
+                cls = "otWarn"
+
+            rows_html.append(f"""
+              <tr class="{cls}">
+                <td class="stickyCol">
+                  <div style="display:flex; align-items:center; gap:10px;">
+                    <div class="avatar">{escape(initials(s['name']))}</div>
+                    <div>
+                      <div style="font-weight:600;">{escape(s['name'])}</div>
+                      <div class="sub" style="margin:2px 0 0 0;">{escape(s['user'])}</div>
+                    </div>
+                  </div>
+                </td>
+                <td>{escape(s['start_label'])}</td>
+                <td class="num"><span class="netBadge" data-start="{escape(s['start_iso'])}">00:00:00</span></td>
+                <td class="num" data-est-hours data-start="{escape(s['start_iso'])}">{est_hours:.2f}</td>
+                <td class="num" data-est-pay data-rate="{rate}" data-start="{escape(s['start_iso'])}">£{money(est_pay)}</td>
+                <td style="text-align:right;">
+                  <form method="POST" action="/admin/force-clock-out" style="margin:0; display:inline;">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="user" value="{escape(s['user'])}">
+                    <button class="btnTiny dark" type="submit">Force Clock-Out</button>
+                  </form>
+                </td>
+              </tr>
+            """)
+
+        open_html = f"""
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;">
+              <div>
+                <h2>Live Clocked-In</h2>
+                <p class="sub">Started • live timer • estimated hours & pay.</p>
+              </div>
+              <form method="POST" action="/admin/force-clock-out-all" style="margin:0;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <button class="btnTiny" type="submit">Force Clock-Out All</button>
+              </form>
+            </div>
+
+            <div class="tablewrap" style="margin-top:12px;">
+              <table style="min-width:1100px;">
+                <thead>
+                  <tr>
+                    <th class="stickyCol">Employee</th>
+                    <th>Started</th>
+                    <th class="num">Live Time</th>
+                    <th class="num">Est Hours</th>
+                    <th class="num">Est Pay</th>
+                    <th style="text-align:right;">Actions</th>
+                  </tr>
+                </thead>
+                <tbody>{''.join(rows_html)}</tbody>
+              </table>
+            </div>
+
+            <script>
+              (function(){{
+                function pad(n){{ return String(n).padStart(2,"0"); }}
+                function tick(){{
+                  const now = new Date();
+                  document.querySelectorAll("[data-start]").forEach(el=>{{
+                    const startIso = el.getAttribute("data-start");
+                    if(!startIso) return;
+                    const start = new Date(startIso);
+                    let diff = Math.floor((now - start)/1000);
+                    if(diff < 0) diff = 0;
+                    const h = Math.floor(diff/3600);
+                    const m = Math.floor((diff%3600)/60);
+                    const s = diff%60;
+                    if(el.classList.contains("netBadge")) {{
+                      el.textContent = pad(h)+":"+pad(m)+":"+pad(s);
+                    }}
+                  }});
+
+                  // update est hours/pay live (approx; break deduction still applies)
+                  document.querySelectorAll("[data-est-hours]").forEach(el=>{{
+                    const startIso = el.getAttribute("data-start");
+                    const start = new Date(startIso);
+                    let hrs = (now - start) / 3600000;
+                    if(hrs < 0) hrs = 0;
+                    // apply break rule
+                    let adj = hrs;
+                    if(adj >= {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}) adj = adj - {UNPAID_BREAK_HOURS};
+                    if(adj < 0) adj = 0;
+                    el.textContent = adj.toFixed(2);
+
+                    const tr = el.closest("tr");
+                    if(tr){{
+                      tr.classList.remove("otWarn","otHard");
+                      if(adj >= {OVERTIME_HARD_HOURS}) tr.classList.add("otHard");
+                      else if(adj >= {OVERTIME_WARN_HOURS}) tr.classList.add("otWarn");
+                    }}
+                  }});
+                  document.querySelectorAll("[data-est-pay]").forEach(el=>{{
+                    const startIso = el.getAttribute("data-start");
+                    const rate = parseFloat(el.getAttribute("data-rate")||"0")||0;
+                    const start = new Date(startIso);
+                    let hrs = (now - start) / 3600000;
+                    if(hrs < 0) hrs = 0;
+                    let adj = hrs;
+                    if(adj >= {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}) adj = adj - {UNPAID_BREAK_HOURS};
+                    if(adj < 0) adj = 0;
+                    el.textContent = "£" + (adj*rate).toFixed(2);
+                  }});
+                }}
+                tick(); setInterval(tick, 1000);
+              }})();
+            </script>
+          </div>
+        """
+    else:
+        open_html = f"""
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <h2>Live Clocked-In</h2>
+            <p class="sub">No one is currently clocked in.</p>
+          </div>
+        """
+
+    quick = f"""
+      <div class="card" style="padding:12px;">
+        <h2>Quick Controls</h2>
+        <p class="sub">Operational admin actions.</p>
+        <div class="row2" style="margin-top:10px;">
+          <form method="POST" action="/admin/force-clock-out-all" style="margin:0;">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <button class="btnSoft" type="submit">Force Clock-Out All</button>
+          </form>
+          <a href="/admin/payroll"><button class="btnSoft" type="button">Export This Week</button></a>
+        </div>
+
+        <div class="card" style="padding:12px; margin-top:12px;">
+          <h2>Force Clock-In</h2>
+          <p class="sub">Create a shift manually (optional).</p>
+          <form method="POST" action="/admin/force-clock-in">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <div class="row2">
+              <div>
+                <label class="sub">Username</label>
+                <input class="input" name="user" placeholder="e.g. john" required>
+              </div>
+              <div>
+                <label class="sub">Time (HH:MM:SS)</label>
+                <input class="input" name="time" placeholder="08:00:00">
+              </div>
+            </div>
+            <button class="btnTiny" type="submit" style="margin-top:10px;">Force Clock-In</button>
+          </form>
+        </div>
+      </div>
+    """
+
+    content = f"""
+      {topbar("Admin", "Payroll + onboarding + live control", "admin", "AD")}
+      {quick}
+
+      <div class="card menu" style="margin-top:12px;">
+        <a class="menuItem active" href="/admin/payroll">
+          <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Payroll Report</div></div>
+          <div class="chev">›</div>
+        </a>
+        <a class="menuItem" href="/admin/onboarding">
+          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Onboarding</div></div>
+          <div class="chev">›</div>
+        </a>
+        <a class="menuItem" href="/admin/audit">
+          <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Activity Log</div></div>
+          <div class="chev">›</div>
+        </a>
+        <a class="menuItem" href="/connect-drive">
+          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Connect Drive</div></div>
+          <div class="chev">›</div>
+        </a>
+      </div>
+
+      {open_html}
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
 
 
 @app.post("/admin/save-shift")
@@ -2990,22 +2958,24 @@ def admin_save_shift():
     hours_in = (request.form.get("hours") or "").strip()
     pay_in = (request.form.get("pay") or "").strip()
     recalc = (request.form.get("recalc") == "yes")
-    confirm_paid = (request.form.get("confirm_paid") == "yes")
-
-    # Prevent editing paid weeks unless explicitly confirmed
-    try:
-        d0 = datetime.strptime(date_str, "%Y-%m-%d").date()
-        ws = (d0 - timedelta(days=d0.weekday())).strftime("%Y-%m-%d")
-        we = (datetime.strptime(ws, "%Y-%m-%d").date() + timedelta(days=6)).strftime("%Y-%m-%d")
-        is_paid, _paid_at = _is_paid_for_week(ws, we, username)
-        if is_paid and not confirm_paid:
-            audit_log("EDIT_PAID_BLOCKED", username, date_str, "Attempted edit without confirm")
-            return redirect((request.referrer or "/admin/payroll") + "?warn=paid")
-    except Exception:
-        pass
 
     if not username or not date_str:
         return redirect(request.referrer or "/admin/payroll")
+
+    # Prevent editing a paid week without explicit confirmation
+    try:
+        d0 = datetime.strptime(date_str, "%Y-%m-%d").date()
+        ws = d0 - timedelta(days=d0.weekday())
+        we = ws + timedelta(days=6)
+        ws_str = ws.strftime("%Y-%m-%d")
+        we_str = we.strftime("%Y-%m-%d")
+        is_paid, _paid_at = _is_paid_for_week(ws_str, we_str, username)
+        if is_paid and request.form.get("confirm_paid") != "yes":
+            log_admin_action("Blocked edit (paid week)", username=username, week_start=ws_str, week_end=we_str, details="Missing confirmation")
+            return redirect(request.referrer or "/admin/payroll")
+    except Exception:
+        pass
+
 
     rate = _get_user_rate(username)
 
@@ -3033,6 +3003,7 @@ def admin_save_shift():
         else:
             work_sheet.append_row([username, date_str, cin, cout, hours_cell, pay_cell])
         cache_bust("work_vals")
+        log_admin_action("Admin edited shift", username=username, details=f"{date_str} {cin}-{cout}")
     except Exception:
         pass
 
@@ -3063,7 +3034,7 @@ def admin_mark_paid():
 
         if week_start and week_end and username:
             _append_paid_record_safe(week_start, week_end, username, gross, tax, net, paid_by)
-            audit_log("MARK_PAID", username, f"{week_start}..{week_end}", f"gross={gross} tax={tax} net={net}")
+            log_admin_action("Marked paid", username=username, week_start=week_start, week_end=week_end, details=f"Net £{money(net)}")
     except Exception:
         pass
 
@@ -3083,9 +3054,13 @@ def admin_payroll():
     q = (request.args.get("q", "") or "").strip().lower()
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
-    only_unpaid = (request.args.get("unpaid", "") == "1")
-    only_active = (request.args.get("active", "") == "1")
-    only_overtime = (request.args.get("ot", "") == "1")
+
+    unpaid_only = (request.args.get("unpaid") == "1")
+    active_only = (request.args.get("active") == "1")
+    overtime_only = (request.args.get("ot") == "1")
+    unpaid_checked = "checked" if unpaid_only else ""
+    active_checked = "checked" if active_only else ""
+    ot_checked = "checked" if overtime_only else ""
 
     rows = work_vals()
 
@@ -3184,33 +3159,13 @@ def admin_payroll():
     if q:
         all_users = [u for u in all_users if q in u.lower() or q in (get_employee_display_name(u) or "").lower()]
 
-    if only_active:
-        active_set = {s.get("user","") for s in _get_open_shifts()}
-        all_users = [u for u in all_users if u in active_set]
-
-    if only_unpaid:
-        all_users = [u for u in all_users if not _is_paid_for_week(week_start_str, week_end_str, u)[0]]
-
-    if only_overtime:
-        def _has_ot(u):
-            ud = week_lookup.get(u, {})
-            for rec in ud.values():
-                try:
-                    h = safe_float(rec.get("hours","0"), 0.0) if str(rec.get("hours","")).strip() else 0.0
-                    if h > OVERTIME_HOURS:
-                        return True
-                except Exception:
-                    continue
-            return False
-        all_users = [u for u in all_users if _has_ot(u)]
-
     # Week pills
     pills = []
     for i in range(0, 13):
         d0 = this_monday - timedelta(days=7*i)
         active = "active" if i == wk_offset else ""
         pills.append(
-            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}&unpaid={'1' if only_unpaid else ''}&active={'1' if only_active else ''}&ot={'1' if only_overtime else ''}'>"
+            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}&unpaid={1 if unpaid_only else 0}&active={1 if active_only else 0}&ot={1 if overtime_only else 0}'>"
             f"{escape(week_label(d0))}</a>"
         )
     week_nav_html = "<div class='weekRow'>" + "".join(pills) + "</div>"
@@ -3218,12 +3173,11 @@ def admin_payroll():
     # KPI strip (PRO)
     kpi_strip = f"""
       <div class="stickyStrip">
-      <div class="kpiStrip">
+        <div class="kpiStrip">
         <div class="kpiMini"><div class="k">Hours</div><div class="v">{round(overall_hours,2)}</div></div>
         <div class="kpiMini"><div class="k">Gross</div><div class="v">£{money(overall_gross)}</div></div>
         <div class="kpiMini"><div class="k">Tax</div><div class="v">£{money(overall_tax)}</div></div>
         <div class="kpiMini"><div class="k">Net</div><div class="v">£{money(overall_net)}</div></div>
-      </div>
       </div>
     """
 
@@ -3237,6 +3191,26 @@ def admin_payroll():
 
         display = get_employee_display_name(u)
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
+
+        # Filter flags
+        is_active = (hours > 0) or (gross > 0)
+        has_ot = False
+        try:
+            for d, rec in (week_lookup.get(u, {}) or {}).items():
+                h = safe_float(rec.get("hours","") or "0", 0.0)
+                if h >= OVERTIME_WARN_HOURS:
+                    has_ot = True
+                    break
+        except Exception:
+            has_ot = False
+
+        if unpaid_only and paid:
+            continue
+        if active_only and (not is_active):
+            continue
+        if overtime_only and (not has_ot):
+            continue
+
 
         paid_line = ""
         if paid:
@@ -3301,7 +3275,7 @@ def admin_payroll():
             if rec and rec.get("hours"):
                 h = safe_float(rec.get("hours","0"), 0.0)
                 wk_hours += h
-                if h > OVERTIME_HOURS:
+                if h > OVERTIME_WARN_HOURS:
                     wk_overtime_days += 1
             if rec and rec.get("pay"):
                 wk_gross += safe_float(rec.get("pay","0"), 0.0)
@@ -3346,7 +3320,12 @@ def admin_payroll():
             pay = rec["pay"] if rec else ""
 
             h_val = safe_float(hrs, 0.0) if str(hrs).strip() != "" else 0.0
-            overtime_row_class = "overtimeRow10" if (str(hrs).strip() != "" and h_val > OVERTIME_STRONG_HOURS) else ("overtimeRow" if (str(hrs).strip() != "" and h_val > OVERTIME_HOURS) else "")
+            overtime_row_class = ""
+            if str(hrs).strip() != "":
+                if h_val >= OVERTIME_HARD_HOURS:
+                    overtime_row_class = "otHard"
+                elif h_val >= OVERTIME_WARN_HOURS:
+                    overtime_row_class = "otWarn"
 
             if rec:
                 if cout.strip() == "" and cin.strip() != "":
@@ -3387,10 +3366,6 @@ def admin_payroll():
                       <input type="checkbox" name="recalc" value="yes">
                       Recalculate (break deducted)
                     </label>
-                    <label class="sub" style="display:flex; align-items:center; gap:8px; margin:8px 0 0 0;">
-                      <input type="checkbox" name="confirm_paid" value="yes">
-                      Confirm edit (if week is Paid)
-                    </label>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
                       <button class="btnTiny" type="submit">Save</button>
                       {status_html}
@@ -3402,8 +3377,8 @@ def admin_payroll():
             """)
 
         blocks.append(f"""
-          <details class="card empBlock" style="padding:12px; margin-top:12px;" open>
-            <summary style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
               <div style="display:flex; align-items:center; gap:10px;">
                 <div class="avatar">{escape(initials(display))}</div>
                 <div>
@@ -3420,10 +3395,10 @@ def admin_payroll():
                 {overtime_note}
                 {pay_btn}
               </div>
-            </summary>
+            </div>
 
             <div class="tablewrap" style="margin-top:12px;">
-              <table class="stickyFirst" style="min-width:1100px;">
+              <table style="min-width:1100px;">
                 <thead>
                   <tr>
                     <th>Day</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num">Hours</th><th class="num">Pay</th><th>Actions</th>
@@ -3431,30 +3406,24 @@ def admin_payroll():
                 </thead>
                 <tbody>
                   {''.join(rows_html)}
-                  <tr>
-                    <td colspan="4" style="font-weight:600;">Total</td>
-                    <td class="num" style="font-weight:600;">{wk_hours:.2f}</td>
-                    <td class="num" style="font-weight:600;">£{money(wk_gross)}</td>
-                    <td></td>
-                  </tr>
-                </tbody
+                </tbody>
               </table>
             </div>
             <p class="sub" style="margin-top:10px;">
-              Rule: if shift is ≥ {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}h then {UNPAID_BREAK_HOURS}h break is deducted. Overtime highlight: > {OVERTIME_HOURS}h/day.
+              Rule: if shift is ≥ {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}h then {UNPAID_BREAK_HOURS}h break is deducted. Overtime highlight: ≥ {OVERTIME_WARN_HOURS}h/day (warn), ≥ {OVERTIME_HARD_HOURS}h/day (strong).
             </p>
-          </details>
+          </div>
         """)
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
 
     content = f"""
-      {topbar("Weekly Payroll Report", f"{COMPANY_NAME} • Printable • Updated {last_updated}", "admin", "AD")}
+      {topbar("Payroll Report", f"Printable • Updated {last_updated}", "admin", "AD")}
       <div class="card" style="padding:12px;">
         <form method="GET">
           <div class="row2">
             <div>
-              <label class="sub">Username contains</label>
+              <label class="sub">Search employee</label>
               <input class="input" name="q" value="{escape(q)}" placeholder="e.g. john">
             </div>
             <div>
@@ -3465,18 +3434,19 @@ def admin_payroll():
               </div>
             </div>
           </div>
-          <div class="row2" style="margin-top:10px;">
-            <label class="sub" style="display:flex; gap:10px; align-items:center; margin:0;">
-              <input type="checkbox" name="unpaid" value="1" {"checked" if only_unpaid else ""}> Only unpaid
+          <input type="hidden" name="wk" value="{wk_offset}">
+
+          <div style="display:flex; gap:12px; flex-wrap:wrap; margin-top:10px;">
+            <label class="sub" style="display:flex; gap:8px; align-items:center; margin:0;">
+              <input type="checkbox" name="unpaid" value="1" {unpaid_checked}> Only unpaid
             </label>
-            <label class="sub" style="display:flex; gap:10px; align-items:center; margin:0;">
-              <input type="checkbox" name="active" value="1" {"checked" if only_active else ""}> Only active
+            <label class="sub" style="display:flex; gap:8px; align-items:center; margin:0;">
+              <input type="checkbox" name="active" value="1" {active_checked}> Only active
+            </label>
+            <label class="sub" style="display:flex; gap:8px; align-items:center; margin:0;">
+              <input type="checkbox" name="ot" value="1" {ot_checked}> Only overtime
             </label>
           </div>
-          <label class="sub" style="display:flex; gap:10px; align-items:center; margin-top:8px;">
-            <input type="checkbox" name="ot" value="1" {"checked" if only_overtime else ""}> Only overtime
-          </label>
-          <input type="hidden" name="wk" value="{wk_offset}">
           <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
         </form>
 
@@ -3484,7 +3454,7 @@ def admin_payroll():
         {kpi_strip}
 
         <div class="tablewrap" style="margin-top:12px;">
-          <table class="stickyFirst" style="min-width:980px;">
+          <table style="min-width:980px;">
             <thead><tr><th>Employee</th><th class="num">Hours</th><th class="num">Gross</th><th class="num">Tax</th><th class="num">Net</th><th style="text-align:right;">Paid</th></tr></thead>
             <tbody>{summary_html}</tbody>
           </table>
@@ -3500,6 +3470,43 @@ def admin_payroll():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
 
+
+
+# ---------- ADMIN ACTIVITY LOG ----------
+@app.get("/admin/audit")
+def admin_audit():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    try:
+        vals = audit_sheet.get_all_values()
+    except Exception:
+        vals = []
+
+    rows = []
+    if vals and len(vals) > 1:
+        for r in reversed(vals[1:])[:200]:
+            r = pad_row(r, 8)
+            rows.append(
+                f"<tr><td>{escape(cell(r,0))}</td><td>{escape(cell(r,1))}</td><td>{escape(cell(r,2))}</td>"
+                f"<td>{escape(cell(r,3))}</td><td>{escape(cell(r,6))}</td></tr>"
+            )
+
+    table = "".join(rows) if rows else "<tr><td colspan='5'>No admin actions logged yet.</td></tr>"
+
+    content = f"""
+      {topbar("Activity Log", "Admin actions (AuditLog sheet)", "admin", "AD")}
+      <div class="card" style="padding:12px;">
+        <div class="tablewrap">
+          <table style="min-width:900px;">
+            <thead><tr><th>At</th><th>Admin</th><th>Action</th><th>Username</th><th>Details</th></tr></thead>
+            <tbody>{table}</tbody>
+          </table>
+        </div>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
 
 # ---------- ADMIN ONBOARDING LIST / DETAIL ----------
 @app.get("/admin/onboarding")
