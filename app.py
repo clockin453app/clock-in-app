@@ -486,6 +486,19 @@ th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(11,18,32,.08); text-ali
 th{ position: sticky; top:0; background: rgba(248,250,252,.96); font-weight:500; }
 table tbody tr:nth-child(even){ background: rgba(11,18,32,.02); }
 table tbody tr:hover{ background: rgba(10,42,94,.04); }
+/* Align Hours and Pay columns */
+th:nth-child(5),
+td:nth-child(5),
+th:nth-child(6),
+td:nth-child(6) {
+    text-align: right;
+}
+
+/* Make numbers look clean */
+td:nth-child(5),
+td:nth-child(6) {
+    font-variant-numeric: tabular-nums;
+}
 
 /* Pro numeric formatting */
 .num{ text-align:right; font-variant-numeric: tabular-nums; }
@@ -3213,3 +3226,4 @@ def admin_onboarding_detail(username):
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
