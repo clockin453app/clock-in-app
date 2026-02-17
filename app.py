@@ -1,41 +1,35 @@
-# ===================== app.py (FULL - Premium UI + Dashboard + Desktop Wide Layout + Admin Payroll Edit + Paid + Overtime + Dark Mode + Live Admin Timers) =====================
-# Notes:
-# - NO reportlab usage in app runtime (Render-friendly).
-# - Admin Payroll page printable in browser (Ctrl+P / Save as PDF).
-# - Starter Form (Onboarding) is at /onboarding and viewable by Admin.
-# - Profile shows onboarding details (text only) + change password.
-# - Logout separated at bottom of desktop sidebar; on mobile it's a small icon in bottom nav.
-#
-# ✅ Added:
-# - Desktop layout uses full screen width (no small centered UI).
-# - Payroll: KPI strip, better numeric formatting, row emphasis, weekly net badge.
-# - Overtime highlight > 8.5h/day.
-# - Dark mode toggle (localStorage).
-# - Admin dashboard: live timers for currently clocked-in employees.
-# - Unpaid break deduction: subtract 0.5h on shifts >= 6h (so 8am–5pm => 8.5h recorded).
-#
-# ✅ Fix:
-# - Escaped JS curly braces inside f-strings to avoid Render SyntaxError.
-
+# ===================== app.py (FULL - REWRITE) =====================
 import os
 import json
 import io
+import csv
 import secrets
 from urllib.parse import urlparse
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import Flask, render_template_string, request, redirect, session, url_for, abort
+from flask import (
+    Flask,
+    render_template_string,
+    request,
+    redirect,
+    session,
+    url_for,
+    abort,
+    Response,
+)
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
 
+# OAuth (Drive as real user) - fixes: "Service Accounts do not have storage quota"
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials as UserCredentials
 from google.auth.transport.requests import Request
 
+# Built into Flask/Werkzeug (no new packages)
 from werkzeug.security import generate_password_hash, check_password_hash
 
 
@@ -48,7 +42,11 @@ app = Flask(
     static_url_path="/static",
 )
 app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
+
+# Upload size cap (adjust as needed)
 app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "15")) * 1024 * 1024
+
+# Cookie hardening (works with no extra software)
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
@@ -96,11 +94,12 @@ OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
 OAUTH_REDIRECT_URI = os.environ.get("OAUTH_REDIRECT_URI", "").strip()
 
 DRIVE_TOKEN_PATH = os.path.join(BASE_DIR, "drive_token.json")
-DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()
+DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()  # optional backup
 
 def _make_oauth_flow():
     if not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
         raise RuntimeError("Missing OAuth env vars: OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET / OAUTH_REDIRECT_URI")
+
     client_config = {
         "web": {
             "client_id": OAUTH_CLIENT_ID,
@@ -126,19 +125,24 @@ def _load_drive_token() -> dict | None:
                 return json.load(f)
     except Exception:
         pass
+
     if DRIVE_TOKEN_ENV:
         try:
             return json.loads(DRIVE_TOKEN_ENV)
         except Exception:
             return None
+
     return None
 
 def get_user_drive_service():
-    token_data = session.get("drive_token") or _load_drive_token()
+    token_data = session.get("drive_token")
+    if not token_data:
+        token_data = _load_drive_token()
     if not token_data:
         return None
 
     creds_user = UserCredentials(**token_data)
+
     if creds_user.expired and creds_user.refresh_token:
         creds_user.refresh(Request())
         token_data["token"] = creds_user.token
@@ -158,7 +162,9 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
         try:
             drive_service.files().get(fileId=UPLOAD_FOLDER_ID, fields="id,name").execute()
         except Exception as e:
-            raise RuntimeError("Upload folder not found. Fix ONBOARDING_DRIVE_FOLDER_ID (use a FOLDER id).") from e
+            raise RuntimeError(
+                "Upload folder not found. Fix ONBOARDING_DRIVE_FOLDER_ID (use a FOLDER id from your Drive)."
+            ) from e
 
     file_bytes = file_storage.read()
     file_storage.stream.seek(0)
@@ -197,13 +203,6 @@ COL_PAY = 5
 TAX_RATE = 0.20
 CLOCKIN_EARLIEST = dtime(8, 0, 0)
 
-# Break rules:
-UNPAID_BREAK_HOURS = 0.5     # deduct 30 minutes
-BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS = 6.0  # safety threshold
-
-# Overtime highlight:
-OVERTIME_HOURS = 8.5
-
 
 # ================= PWA =================
 @app.get("/manifest.webmanifest")
@@ -213,8 +212,8 @@ def manifest():
         "short_name": "WorkHours",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#f6f8fb",
-        "theme_color": "#ffffff",
+        "background_color": "#0b1220",
+        "theme_color": "#0b1220",
         "icons": [
             {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
             {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
@@ -224,582 +223,211 @@ def manifest():
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 PWA_TAGS = """
 <link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#0b1220">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 """
 
 
-# ================= PREMIUM UI =================
+# ================= UI (more professional) =================
 STYLE = """
 <style>
 :root{
-  --bg:#f3f6fb;
-  --card:#ffffff;
-  --text:#0f172a;
-  --muted:#64748b;
-  --border:rgba(15,23,42,.08);
-  --shadow: 0 10px 28px rgba(15,23,42,.08);
-  --shadow2: 0 16px 46px rgba(15,23,42,.12);
+  --bg:#070b14;
+  --panel:#0e1630;
+  --panel2:#0a1126;
+  --text:#eef2ff;
+  --muted:#aab4d6;
+  --border:rgba(255,255,255,.08);
+  --shadow: 0 22px 60px rgba(0,0,0,.55);
   --radius: 22px;
 
-  --purple:#6d28d9;
-  --purpleSoft:#efe9ff;
-  --green:#16a34a;
-  --red:#dc2626;
-  --amber:#f59e0b;
-
-  --h1: clamp(26px, 5vw, 40px);
-  --h2: clamp(16px, 3vw, 22px);
-  --small: clamp(12px, 2vw, 14px);
+  --h1: clamp(22px, 4vw, 34px);
+  --h2: clamp(18px, 3vw, 24px);
+  --p:  clamp(15px, 2.4vw, 18px);
+  --small: clamp(13px, 2vw, 15px);
+  --btn: clamp(13px, 2.2vw, 15px);
+  --input: clamp(16px, 2.4vw, 18px);
 }
 
-*{box-sizing:border-box;}
-html,body{height:100%;}
+*{ box-sizing:border-box; }
+html, body { height:100%; }
 body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background:
-    radial-gradient(1000px 550px at 20% 0%, rgba(109,40,217,.10) 0%, rgba(109,40,217,0) 60%),
-    radial-gradient(900px 500px at 80% 10%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 60%),
+    radial-gradient(1200px 800px at 20% 0%, rgba(99,102,241,.25) 0%, rgba(99,102,241,0) 60%),
+    radial-gradient(900px 700px at 85% 12%, rgba(34,197,94,.14) 0%, rgba(34,197,94,0) 55%),
+    radial-gradient(900px 700px at 70% 90%, rgba(56,189,248,.12) 0%, rgba(56,189,248,0) 55%),
     var(--bg);
   color: var(--text);
-  padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
+  padding: clamp(12px, 3vw, 22px);
+  -webkit-text-size-adjust: 100%;
 }
-a{color:inherit;text-decoration:none;}
-h1{font-size:var(--h1); margin:0;}
-h2{font-size:var(--h2); margin: 0 0 8px 0;}
-.sub{color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35;}
+
+.app{ width:100%; max-width: 1080px; margin: 0 auto; }
 
 .card{
-  background: var(--card);
+  background: linear-gradient(180deg, rgba(14,22,48,.92) 0%, rgba(10,17,38,.92) 100%);
   border: 1px solid var(--border);
   border-radius: var(--radius);
+  padding: clamp(16px, 3vw, 26px);
   box-shadow: var(--shadow);
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+  backdrop-filter: blur(10px);
 }
+
+.header{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:14px;
+}
+.title{display:flex;flex-direction:column;gap:6px;}
+h1{font-size:var(--h1);margin:0;letter-spacing:.2px;}
+h2{font-size:var(--h2);margin: 18px 0 10px 0;}
+.sub{font-size:var(--small);color:var(--muted);margin:0;line-height:1.35;}
 
 .badge{
   font-size: 12px;
-  padding: 7px 10px;
+  padding: 6px 10px;
   border-radius: 999px;
-  border: 1px solid rgba(15,23,42,.10);
-  background: rgba(255,255,255,.75);
-  color: rgba(15,23,42,.70);
-  font-weight: 900;
-  white-space: nowrap;
-}
-.badge.admin{
-  background:#111827;
-  color:#ffffff;
-  border: 1px solid rgba(255,255,255,.10);
-}
-
-.menuItem, .btnSoft, .navIcon, .sideItem, .input{
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
-}
-.menuItem:hover, .sideItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-.btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-
-.shell{ max-width: 560px; margin: 0 auto; }
-.sidebar{ display:none; }
-.main{ width:100%; }
-
-.headerTop{
-  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-  margin-bottom: 14px;
-}
-
-.kpiRow{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 12px;
-}
-.kpi{ padding:14px; }
-.kpi .label{font-size:var(--small); color:var(--muted); margin:0;}
-.kpi .value{font-size: 28px; font-weight: 950; margin: 6px 0 0 0; letter-spacing:.2px;}
-
-.graphCard{ margin-top: 12px; padding: 14px; }
-.graphTop{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.graphTitle{ font-weight: 950; font-size: 18px; }
-.graphRange{ color: var(--muted); font-size: 13px; font-weight: 800; }
-.bars{
-  margin-top: 12px;
-  height: 180px;
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-around;
-  gap: 12px;
-  padding: 10px 6px 0 6px;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(109,40,217,.04) 0%, rgba(109,40,217,0) 60%);
-  border: 1px solid rgba(109,40,217,.10);
-}
-.bar{
-  width: 16%;
-  border-radius: 14px 14px 10px 10px;
-  background: linear-gradient(180deg, rgba(109,40,217,.95), rgba(109,40,217,.55));
-  box-shadow: 0 8px 20px rgba(109,40,217,.22);
-}
-.barLabels{
-  display:flex; justify-content:space-around; gap:12px;
-  margin-top: 10px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.04);
   color: var(--muted);
-  font-weight: 900;
-  font-size: 13px;
 }
 
-.menu{ margin-top: 14px; padding: 12px; }
-.menuItem{
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
-  padding: 14px 14px;
-  border-radius: 18px;
-  background: rgba(255,255,255,.85);
-  border: 1px solid rgba(15,23,42,.06);
-  margin-top: 10px;
+.appIcon{
+  width: 56px;height: 56px;border-radius: 18px;
+  background:
+    radial-gradient(22px 22px at 30% 30%, rgba(255,255,255,.22) 0%, rgba(255,255,255,0) 70%),
+    linear-gradient(135deg, rgba(99,102,241,.95) 0%, rgba(56,189,248,.75) 50%, rgba(34,197,94,.85) 120%);
+  border: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 18px 28px rgba(0,0,0,.35);
+  display:grid;place-items:center;flex: 0 0 auto;
 }
-.menuItem.active{
-  background: var(--purpleSoft);
-  border-color: rgba(109,40,217,.12);
+.appIcon .glyph{ width: 26px; height: 26px; position: relative; }
+.appIcon .glyph:before,.appIcon .glyph:after{
+  content:""; position:absolute; inset:0; border-radius: 12px;
+  border: 3px solid rgba(10,15,30,.82);
 }
-.menuLeft{display:flex; align-items:center; gap:12px;}
-.icoBox{
-  width: 44px; height: 44px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.92);
-  border: 1px solid rgba(15,23,42,.06);
-  display:grid; place-items:center;
-  color: rgba(109,40,217,.92);
+.appIcon .glyph:after{ inset: 7px; border-radius: 9px; }
+.appIcon .dot{
+  position:absolute; width: 7px; height: 7px; border-radius: 50%;
+  background: rgba(10,15,30,.82); left: 50%; top: 50%;
+  transform: translate(-50%,-50%);
 }
-.icoBox svg{ width: 22px; height: 22px; }
-.menuText{
-  font-weight: 950;
-  font-size: 20px;
-  letter-spacing:.1px;
-  color: rgba(109,40,217,.95);
-}
-.chev{
-  font-size: 26px;
-  color: rgba(109,40,217,.90);
-  font-weight: 900;
-}
-
-.input{
-  width:100%;
-  padding: 12px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(15,23,42,.10);
-  background: #fff;
-  font-size: 16px;
-  outline:none;
-  margin-top: 8px;
-}
-.input:focus{ border-color: rgba(109,40,217,.35); box-shadow: 0 0 0 3px rgba(109,40,217,.10); }
-
-.row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-@media (max-width: 520px){ .row2{ grid-template-columns: 1fr; } }
 
 .message{
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  font-weight: 950;
-  text-align:center;
-  background: rgba(22,163,74,.10);
-  border: 1px solid rgba(22,163,74,.18);
+  margin-top: 12px; padding: 10px 12px; border-radius: 16px;
+  background: rgba(34,197,94,.12); border: 1px solid rgba(34,197,94,.22);
+  font-size: var(--p); font-weight: 800; text-align:center;
 }
-.message.error{ background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.20); }
+.message.error{background: rgba(239,68,68,.12);border: 1px solid rgba(239,68,68,.22);}
 
-.clockCard{ margin-top: 12px; padding: 14px; }
-.timerBig{
-  font-weight: 950;
-  font-size: clamp(26px, 6vw, 36px);
-  margin-top: 6px;
-}
-.timerSub{ color: var(--muted); font-weight: 900; font-size: 13px; margin-top: 6px; }
-.actionRow{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 14px;
-}
-.btn{
-  border:none;
-  border-radius: 18px;
-  padding: 14px 12px;
-  font-weight: 950;
-  font-size: 16px;
-  cursor:pointer;
-  box-shadow: 0 10px 18px rgba(15,23,42,.08);
-  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
-}
-.btn:hover{ transform: translateY(-1px); filter: brightness(1.02); }
-.btn:active{ transform: translateY(0px); filter: brightness(.98); }
-.btnIn{ background: var(--green); color: white;}
-.btnOut{ background: var(--red); color: white;}
+a{color:#93c5fd;text-decoration:none;}
+a:hover{text-decoration:underline;}
 
-.btnSoft{
-  width:100%;
-  border:none;
-  border-radius: 18px;
-  padding: 12px 12px;
-  font-weight: 950;
-  font-size: 15px;
-  cursor:pointer;
-  background: rgba(109,40,217,.12);
-  color: rgba(109,40,217,.98);
+.input{
+  width:100%;padding:12px 12px;border-radius:14px;border:1px solid var(--border);
+  background: rgba(255,255,255,.04);color: var(--text);font-size: var(--input);
+  outline:none;margin-top:10px;
+}
+.input:focus{
+  border-color: rgba(56,189,248,.55);
+  box-shadow: 0 0 0 3px rgba(56,189,248,.12);
 }
 
-.btnTiny{
-  border:none;
-  border-radius: 14px;
-  padding: 10px 10px;
-  font-weight: 950;
-  font-size: 13px;
-  cursor:pointer;
-  background: rgba(109,40,217,.12);
-  color: rgba(109,40,217,.98);
-  white-space: nowrap;
+.row2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+@media (max-width: 640px){.row2{grid-template-columns:1fr;}}
+
+.btnrow{display:flex;gap:10px;flex-wrap:wrap;margin-top:12px;}
+button{
+  border:none;border-radius:14px;padding:10px 10px;font-weight:900;cursor:pointer;
+  font-size: var(--btn); min-height: 40px; flex: 1 1 130px;
+  box-shadow: 0 10px 18px rgba(0,0,0,.22);
+  transition: transform .06s ease, filter .06s ease;
 }
-.btnTiny.dark{
-  background: rgba(15,23,42,.10);
-  color: rgba(15,23,42,.90);
-}
+button:active{ transform: translateY(1px); filter: brightness(.98); }
 
-.tablewrap{ margin-top:14px; overflow:auto; border-radius: 18px; border:1px solid rgba(15,23,42,.08); }
-table{ width:100%; border-collapse: collapse; min-width: 720px; background:#fff; }
-th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; vertical-align: top;}
-th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
-table tbody tr:nth-child(even){ background: rgba(15,23,42,.02); }
-table tbody tr:hover{ background: rgba(109,40,217,.05); }
+.btnSmall{min-height: 34px !important;padding: 8px 10px !important;flex:0 0 auto !important;}
+.green{background:#22c55e;color:#06230f;}
+.red{background:#ef4444;color:#2a0606;}
+.blue{background:#60a5fa;color:#071527;}
+.purple{background:#a78bfa;color:#140726;}
+.gray{background:rgba(255,255,255,.10);color: var(--text); border:1px solid var(--border);}
 
-/* Pro numeric formatting */
-.num{ text-align:right; font-variant-numeric: tabular-nums; }
-
-/* Row emphasis if gross > 0 */
-.rowHasValue{ background: rgba(109,40,217,.045) !important; }
-
-/* Overtime highlight */
-.overtimeRow{ outline: 2px solid rgba(245,158,11,.35); background: rgba(245,158,11,.08) !important; }
-.overtimeChip{
-  display:inline-flex; align-items:center;
-  padding: 4px 10px; border-radius:999px;
-  font-size:12px; font-weight:950;
-  background: rgba(245,158,11,.16);
-  border: 1px solid rgba(245,158,11,.25);
-  color: rgba(180,83,9,.95);
-}
-
-.contractBox{
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(15,23,42,.08);
-  background: rgba(248,250,252,.90);
-  max-height: 320px;
-  overflow: auto;
-  white-space: pre-wrap;
-  font-size: 13px;
-  color: rgba(15,23,42,.88);
-  line-height: 1.4;
-}
-.bad{ border: 1px solid rgba(220,38,38,.55) !important; box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important; }
-.badLabel{ color: rgba(220,38,38,.92) !important; font-weight: 950 !important; }
-.uploadTitle{
-  margin-top: 12px;
-  font-weight: 950;
-  font-size: 15px;
-  color: rgba(109,40,217,.95);
-}
-
-.bottomNav{
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  background: rgba(255,255,255,.92);
-  border-top: 1px solid rgba(15,23,42,.08);
+.actionbar{
+  position: sticky; bottom: 10px; margin-top: 14px; padding: 10px;
+  border-radius: 18px; background: rgba(7,11,20,.55); border: 1px solid var(--border);
   backdrop-filter: blur(10px);
-  padding: 10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
-  z-index: 99;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 30px rgba(15,23,42,.12);
-}
-.navInner{
-  max-width:560px;
-  margin: 0 auto;
-  display:flex;
-  align-items:center;
-  justify-content:space-around;
-}
-.navIcon{
-  width: 46px; height: 46px;
-  border-radius: 16px;
-  display:grid; place-items:center;
-  color: rgba(109,40,217,.92);
-}
-.navIcon.active{ background: rgba(109,40,217,.10); }
-.navIcon svg{ width: 22px; height: 22px; }
-
-.safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
-
-/* Status chips */
-.chip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 900;
-  border: 1px solid rgba(15,23,42,.10);
-  background: rgba(255,255,255,.80);
-  color: rgba(15,23,42,.75);
-  white-space: nowrap;
-}
-.chip.ok{
-  background: rgba(22,163,74,.15);
-  border-color: rgba(22,163,74,.22);
-  color: rgba(21,128,61,.95);
-}
-.chip.warn{
-  background: rgba(234,179,8,.18);
-  border-color: rgba(234,179,8,.22);
-  color: rgba(161,98,7,.95);
-}
-.chip.bad{
-  background: rgba(220,38,38,.12);
-  border-color: rgba(220,38,38,.22);
-  color: rgba(220,38,38,.95);
 }
 
-/* Avatar bubble */
-.avatar{
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  display:grid;
-  place-items:center;
-  font-weight: 950;
-  color: rgba(109,40,217,.95);
-  background: rgba(109,40,217,.10);
-  border: 1px solid rgba(109,40,217,.14);
-}
+.navgrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:10px;}
+@media (min-width: 720px){.navgrid{grid-template-columns:repeat(6,minmax(0,1fr));}}
+.navgrid a{text-decoration:none;}
+.navgrid button{width:100%;min-height:34px;padding:8px 10px;flex:none;}
 
-/* Week selector row */
-.weekRow{
+.tablewrap{margin-top:14px;overflow:auto;border-radius:18px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;min-width:820px;background:rgba(255,255,255,.03);}
+th,td{padding:10px 10px;border-bottom:1px solid var(--border);text-align:left;font-size: clamp(13px,2vw,15px);}
+th{position:sticky;top:0;background:rgba(0,0,0,.25);backdrop-filter: blur(8px);}
+
+.kpi{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px;}
+@media (min-width: 720px){.kpi{grid-template-columns:repeat(4,minmax(0,1fr));}}
+.kpi .box{border:1px solid var(--border);background:rgba(255,255,255,.04);border-radius:16px;padding:12px;}
+.kpi .big{font-size: clamp(16px,2.6vw,20px);font-weight:950;}
+
+.timerBox{
+  margin-top: 12px; padding: 12px; border-radius: 16px;
+  background: rgba(96,165,250,.10); border: 1px solid rgba(96,165,250,.22);
+}
+.timerBig{font-weight: 950; font-size: clamp(18px, 3vw, 26px);}
+
+.sectionCard{
+  border:1px solid var(--border);
+  background: rgba(255,255,255,.03);
+  border-radius: 18px;
+  padding: 12px;
   margin-top: 10px;
+}
+
+.uploadLabel{
   display:flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.weekPill{
-  font-size: 12px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-weight: 950;
-  border: 1px solid rgba(15,23,42,.10);
-  background: rgba(255,255,255,.75);
-  color: rgba(15,23,42,.70);
-}
-.weekPill.active{
-  background: var(--purpleSoft);
-  border-color: rgba(109,40,217,.18);
-  color: rgba(109,40,217,.95);
-}
-
-/* KPI strip */
-.kpiStrip{
-  margin-top: 12px;
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-@media (max-width: 800px){
-  .kpiStrip{ grid-template-columns: 1fr 1fr; }
-}
-.kpiMini{
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(15,23,42,.08);
-  background: rgba(255,255,255,.80);
-}
-.kpiMini .k{ font-size: 12px; color: var(--muted); font-weight: 900; }
-.kpiMini .v{ margin-top:6px; font-size: 18px; font-weight: 950; font-variant-numeric: tabular-nums; }
-
-/* Weekly net badge */
-.netBadge{
-  display:inline-flex;
   align-items:center;
-  gap:8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(109,40,217,.18);
-  background: rgba(109,40,217,.10);
-  color: rgba(109,40,217,.98);
+  justify-content:space-between;
+  gap:10px;
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(56,189,248,.18);
+  background: rgba(56,189,248,.08);
+}
+.uploadLabel .text{
   font-weight: 950;
-  font-variant-numeric: tabular-nums;
+  font-size: clamp(15px, 2.6vw, 18px);
+  color: #eaf4ff;
+}
+.uploadLabel .hint{
+  font-size: var(--small);
+  color: rgba(255,255,255,.65);
 }
 
-/* Dark mode toggle */
-body.dark{
-  --bg:#0b1220;
-  --card:#0f172a;
-  --text:#e5e7eb;
-  --muted:#9ca3af;
-  --border:rgba(255,255,255,.08);
-  --shadow: 0 10px 28px rgba(0,0,0,.35);
-  --shadow2: 0 16px 46px rgba(0,0,0,.45);
-}
-body.dark .menuItem,
-body.dark .sideItem,
-body.dark table,
-body.dark .input,
-body.dark .kpiMini{
-  background: rgba(255,255,255,.03) !important;
-}
-body.dark th{
-  background: rgba(255,255,255,.04) !important;
-}
-.themeToggle{
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 999;
-  width: 44px; height: 44px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.85);
-  backdrop-filter: blur(10px);
-  display:grid;
-  place-items:center;
-  cursor:pointer;
-  box-shadow: var(--shadow);
-  font-weight: 950;
-}
-body.dark .themeToggle{ background: rgba(255,255,255,.06); }
-
-/* ===== Desktop wide layout (FULL WIDTH) ===== */
-@media (min-width: 980px){
-  body{ padding: 18px 18px 22px 18px; }
-  .shell{
-    max-width: none;              /* ✅ full width */
-    width: calc(100vw - 36px);    /* ✅ use entire screen minus padding */
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 320px 1fr;
-    gap: 18px;
-    align-items: start;
-  }
-  .bottomNav{ display:none; }
-  .sidebar{
-    display:flex;
-    flex-direction:column;
-    gap: 10px;
-    position: sticky;
-    top: 18px;
-    height: calc(100vh - 36px);
-    overflow: hidden;
-    padding: 14px;
-  }
-  .sideScroll{
-    overflow:auto;
-    padding-right: 4px;
-    flex: 1 1 auto;
-  }
-  .sideTitle{
-    font-weight: 950;
-    font-size: 16px;
-    color: rgba(15,23,42,.85);
-    margin: 0 0 10px 2px;
-  }
-  .sideItem{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding: 12px 12px;
-    border-radius: 16px;
-    background: rgba(255,255,255,.85);
-    border: 1px solid rgba(15,23,42,.06);
-    margin-top: 10px;
-  }
-  .sideItem.active{
-    background: var(--purpleSoft);
-    border-color: rgba(109,40,217,.14);
-  }
-  .sideLeft{ display:flex; align-items:center; gap:12px; }
-  .sideText{ font-weight: 950; font-size: 16px; letter-spacing:.1px; }
-  .sideIcon{
-    width: 40px; height: 40px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.92);
-    border: 1px solid rgba(15,23,42,.06);
-    display:grid; place-items:center;
-    color: rgba(109,40,217,.92);
-  }
-  .sideIcon svg{ width:20px; height:20px; }
-
-  .sideDivider{
-    height: 1px;
-    background: rgba(15,23,42,.10);
-    margin: 10px 0 6px 0;
-  }
-  .logoutBtn{
-    margin-top: 2px;
-    background: rgba(220,38,38,.08);
-    border-color: rgba(220,38,38,.12);
-  }
-  .logoutBtn .sideIcon, .logoutBtn .chev{ color: rgba(220,38,38,.95); }
-  .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
+.contract{
+  margin-top:12px;padding:12px;border-radius:16px;border:1px solid var(--border);
+  background:rgba(0,0,0,.20);max-height:320px;overflow:auto;font-size: var(--small);
+  color: var(--text); line-height:1.35;
 }
 
-/* Print tidy */
-@media print{
-  .sidebar, .bottomNav, .themeToggle, button, input, select, .weekRow { display:none !important; }
-  body{ padding:0 !important; background:#fff !important; }
-  .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
-  .card{ box-shadow:none !important; }
+.bad{
+  border: 1px solid rgba(239,68,68,.85) !important;
+  box-shadow: 0 0 0 3px rgba(239,68,68,.12) !important;
 }
+.badLabel{ color: #fca5a5 !important; font-weight: 900; }
 </style>
 """
 
-
-# ================= ICONS =================
-def _svg_clock():
-    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l4 2"></path></svg>"""
-
-def _svg_clipboard():
-    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <rect x="8" y="2" width="8" height="4" rx="1"></rect>
-      <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"></path></svg>"""
-
-def _svg_chart():
-    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M4 19V5"></path><path d="M4 19h16"></path>
-      <path d="M8 17V9"></path><path d="M12 17V7"></path><path d="M16 17v-4"></path></svg>"""
-
-def _svg_doc():
-    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>"""
-
-def _svg_user():
-    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M20 21a8 8 0 1 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>"""
-
-def _svg_grid():
-    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M4 4h7v7H4z"></path><path d="M13 4h7v7h-7z"></path>
-      <path d="M4 13h7v7H4z"></path><path d="M13 13h7v7h-7z"></path></svg>"""
-
-def _svg_logout():
-    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-      <path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path>
-      <path d="M21 3v18"></path></svg>"""
+HEADER_ICON = """<div class="appIcon"><div class="glyph"><div class="dot"></div></div></div>"""
 
 
-# ================= CONTRACT TEXT =================
+# ================= CONTRACT TEXT (UPDATED) =================
 CONTRACT_TEXT = """Contract
 
 By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
@@ -901,6 +529,12 @@ def safe_float(x, default=0.0):
     except Exception:
         return default
 
+def safe_int(x, default=0):
+    try:
+        return int(str(x).strip())
+    except Exception:
+        return default
+
 def parse_bool(v) -> bool:
     s = str(v).strip().lower()
     return s in ("1", "true", "yes", "y", "on")
@@ -912,26 +546,11 @@ def linkify(url: str) -> str:
     u = (url or "").strip()
     if not u:
         return ""
-    p = urlparse(u)
-    if p.scheme not in ("http", "https"):
+    parsed = urlparse(u)
+    if parsed.scheme not in ("http", "https"):
         return ""
     uesc = escape(u)
-    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer' style='color:var(--purple);font-weight:950;'>Open</a>"
-
-def initials(name: str) -> str:
-    s = (name or "").strip()
-    if not s:
-        return "?"
-    parts = [p for p in s.replace("_", " ").replace("-", " ").split(" ") if p]
-    if len(parts) == 1:
-        return parts[0][:2].upper()
-    return (parts[0][:1] + parts[-1][:1]).upper()
-
-def money(x: float) -> str:
-    try:
-        return f"{float(x):.2f}"
-    except Exception:
-        return "0.00"
+    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer'>Open</a>"
 
 def require_login():
     if "username" not in session:
@@ -982,27 +601,24 @@ def find_row_by_username(sheet, username: str):
             return i + 1
     return None
 
-def get_employee_display_name(username: str) -> str:
-    try:
-        vals = employees_sheet.get_all_values()
-        if not vals:
-            return username
-        headers = vals[0]
-        if "Username" not in headers:
-            return username
-        ucol = headers.index("Username")
-        fn_col = headers.index("FirstName") if "FirstName" in headers else None
-        ln_col = headers.index("LastName") if "LastName" in headers else None
-        for i in range(1, len(vals)):
-            row = vals[i]
-            if len(row) > ucol and row[ucol] == username:
-                fn = row[fn_col] if fn_col is not None and fn_col < len(row) else ""
-                ln = row[ln_col] if ln_col is not None and ln_col < len(row) else ""
-                full = (fn + " " + ln).strip()
-                return full or username
-        return username
-    except Exception:
-        return username
+def update_or_append_onboarding(username: str, data: dict):
+    headers = get_sheet_headers(onboarding_sheet)
+    if not headers or "Username" not in headers:
+        raise RuntimeError("Onboarding sheet must have header row with 'Username'.")
+    rownum = find_row_by_username(onboarding_sheet, username)
+
+    row_values = []
+    for h in headers:
+        if h == "Username":
+            row_values.append(username)
+        else:
+            row_values.append(str(data.get(h, "")))
+
+    end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
+    if rownum:
+        onboarding_sheet.update(f"A{rownum}:{end_col}{rownum}", [row_values])
+    else:
+        onboarding_sheet.append_row(row_values)
 
 def set_employee_field(username: str, field: str, value: str):
     vals = employees_sheet.get_all_values()
@@ -1024,31 +640,6 @@ def set_employee_field(username: str, field: str, value: str):
     employees_sheet.update_cell(rownum, fcol, value)
     return True
 
-def set_employee_first_last(username: str, first: str, last: str):
-    vals = employees_sheet.get_all_values()
-    if not vals:
-        return
-    headers = vals[0]
-    if "Username" not in headers:
-        return
-    ucol = headers.index("Username")
-    fn_col = headers.index("FirstName") + 1 if "FirstName" in headers else None
-    ln_col = headers.index("LastName") + 1 if "LastName" in headers else None
-    if not fn_col and not ln_col:
-        return
-    rownum = None
-    for i in range(1, len(vals)):
-        row = vals[i]
-        if len(row) > ucol and row[ucol] == username:
-            rownum = i + 1
-            break
-    if not rownum:
-        return
-    if fn_col:
-        employees_sheet.update_cell(rownum, fn_col, first or "")
-    if ln_col:
-        employees_sheet.update_cell(rownum, ln_col, last or "")
-
 def update_employee_password(username: str, new_password: str) -> bool:
     vals = employees_sheet.get_all_values()
     if not vals:
@@ -1058,7 +649,9 @@ def update_employee_password(username: str, new_password: str) -> bool:
         return False
     ucol = headers.index("Username")
     pcol = headers.index("Password") + 1
+
     hashed = generate_password_hash(new_password)
+
     for i in range(1, len(vals)):
         row = vals[i]
         if len(row) > ucol and row[ucol] == username:
@@ -1068,33 +661,16 @@ def update_employee_password(username: str, new_password: str) -> bool:
 
 def is_password_valid(stored: str, provided: str) -> bool:
     stored = stored or ""
+    # Migration support: if old plain text exists, allow once
     if stored.startswith("pbkdf2:") or stored.startswith("scrypt:"):
         return check_password_hash(stored, provided)
     return stored == provided
 
 def migrate_password_if_plain(username: str, stored: str, provided: str):
+    # If login succeeded with plain text, immediately upgrade it to hashed.
     stored = stored or ""
     if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
         update_employee_password(username, provided)
-
-def update_or_append_onboarding(username: str, data: dict):
-    headers = get_sheet_headers(onboarding_sheet)
-    if not headers or "Username" not in headers:
-        raise RuntimeError("Onboarding sheet must have header row with 'Username'.")
-    rownum = find_row_by_username(onboarding_sheet, username)
-
-    row_values = []
-    for h in headers:
-        if h == "Username":
-            row_values.append(username)
-        else:
-            row_values.append(str(data.get(h, "")))
-
-    end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
-    if rownum:
-        onboarding_sheet.update(f"A{rownum}:{end_col}{rownum}", [row_values])
-    else:
-        onboarding_sheet.append_row(row_values)
 
 def get_onboarding_record(username: str):
     headers = get_sheet_headers(onboarding_sheet)
@@ -1111,61 +687,6 @@ def get_onboarding_record(username: str):
             return rec
     return None
 
-def onboarding_details_block(username: str) -> str:
-    rec = get_onboarding_record(username)
-    if not rec:
-        return "<div class='sub'>No onboarding details saved yet.</div>"
-
-    fields = [
-        ("First name", "FirstName"),
-        ("Last name", "LastName"),
-        ("Birth date", "BirthDate"),
-        ("Phone", "PhoneNumber"),
-        ("Email", "Email"),
-        ("Street address", "StreetAddress"),
-        ("City", "City"),
-        ("Postcode", "Postcode"),
-        ("Emergency contact", "EmergencyContactName"),
-        ("Emergency phone", "EmergencyContactPhoneNumber"),
-        ("Medical condition", "MedicalCondition"),
-        ("Medical details", "MedicalDetails"),
-        ("Position", "Position"),
-        ("CSCS number", "CSCSNumber"),
-        ("CSCS expiry", "CSCSExpiryDate"),
-        ("Employment type", "EmploymentType"),
-        ("Right to work UK", "RightToWorkUK"),
-        ("National Insurance", "NationalInsurance"),
-        ("UTR", "UTR"),
-        ("Start date", "StartDate"),
-        ("Bank account", "BankAccountNumber"),
-        ("Sort code", "SortCode"),
-        ("Account holder", "AccountHolderName"),
-        ("Company trading name", "CompanyTradingName"),
-        ("Company reg no.", "CompanyRegistrationNo"),
-        ("Date of contract", "DateOfContract"),
-        ("Site address", "SiteAddress"),
-        ("Last saved", "SubmittedAt"),
-    ]
-
-    rows = []
-    for label, key in fields:
-        val = (rec.get(key, "") or "").strip()
-        if val:
-            rows.append(f"<tr><th style='width:260px;'>{escape(label)}</th><td>{escape(val)}</td></tr>")
-
-    if not rows:
-        return "<div class='sub'>Onboarding record exists, but no details were found.</div>"
-
-    return f"""
-      <div class="tablewrap" style="margin-top:10px;">
-        <table style="min-width:640px;">
-          <tbody>
-            {''.join(rows)}
-          </tbody>
-        </table>
-      </div>
-    """
-
 def get_csrf() -> str:
     tok = session.get("csrf")
     if not tok:
@@ -1177,240 +698,6 @@ def require_csrf():
     if request.method == "POST":
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
-
-
-# ===== Paid confirmation storage (SAFE: no row insertion) =====
-PAYROLL_REQUIRED_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "Paid", "PaidAt", "PaidBy"]
-
-def _ensure_payroll_reports_headers_safe():
-    try:
-        vals = payroll_sheet.get_all_values()
-        if not vals:
-            payroll_sheet.update("A1:I1", [PAYROLL_REQUIRED_HEADERS])
-    except Exception:
-        pass
-
-def _append_paid_record_safe(week_start: str, week_end: str, username: str,
-                            gross: float, tax: float, net: float, paid_by: str):
-    _ensure_payroll_reports_headers_safe()
-    now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-
-    row = [
-        week_start,
-        week_end,
-        username,
-        f"{round(gross,2)}",
-        f"{round(tax,2)}",
-        f"{round(net,2)}",
-        "TRUE",
-        now_str,
-        paid_by
-    ]
-    try:
-        payroll_sheet.append_row(row)
-    except Exception:
-        pass
-
-def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
-    try:
-        vals = payroll_sheet.get_all_values()
-        if not vals:
-            return False, ""
-
-        headers = vals[0]
-        has_headers = (len(headers) >= 3 and headers[:3] == ["WeekStart", "WeekEnd", "Username"])
-        rows = vals[1:] if has_headers else vals
-
-        for r in reversed(rows):
-            if len(r) < 7:
-                continue
-            ws = (r[0] or "").strip()
-            we = (r[1] or "").strip()
-            un = (r[2] or "").strip()
-            paid = (r[6] or "").strip().upper()
-            paid_at = (r[7] if len(r) > 7 else "") or ""
-
-            if ws == week_start and we == week_end and un == username:
-                if paid in ("TRUE", "YES", "1"):
-                    return True, paid_at
-        return False, ""
-    except Exception:
-        return False, ""
-
-# ===== Rates + time parse + recalc with break =====
-def _get_user_rate(username: str) -> float:
-    try:
-        for user in employees_sheet.get_all_records():
-            if user.get("Username") == username:
-                return safe_float(user.get("Rate", 0), 0.0)
-    except Exception:
-        pass
-    return 0.0
-
-def _parse_hms(t: str):
-    try:
-        t = (t or "").strip()
-        if not t:
-            return None
-        parts = t.split(":")
-        if len(parts) == 2:
-            h, m = int(parts[0]), int(parts[1])
-            s = 0
-        else:
-            h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
-        if not (0 <= h <= 23 and 0 <= m <= 59 and 0 <= s <= 59):
-            return None
-        return h, m, s
-    except Exception:
-        return None
-
-def _apply_unpaid_break(hours: float) -> float:
-    if hours >= BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS:
-        hours = hours - UNPAID_BREAK_HOURS
-    return round(max(0.0, hours), 2)
-
-def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
-    try:
-        if not date_str:
-            return None
-        a = _parse_hms(cin)
-        b = _parse_hms(cout)
-        if not a or not b:
-            return None
-        base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TZ)
-        start_dt = base.replace(hour=a[0], minute=a[1], second=a[2])
-        end_dt = base.replace(hour=b[0], minute=b[1], second=b[2])
-        if end_dt < start_dt:
-            end_dt = end_dt + timedelta(days=1)
-        hrs = (end_dt - start_dt).total_seconds() / 3600.0
-        return _apply_unpaid_break(hrs)
-    except Exception:
-        return None
-
-def _find_workhours_row_by_user_date(all_vals, username: str, date_str: str):
-    for idx in range(1, len(all_vals)):
-        r = all_vals[idx]
-        u = (r[COL_USER] if len(r) > COL_USER else "").strip()
-        d = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
-        if u == username and d == date_str:
-            return idx + 1
-    return None
-
-def _get_open_shifts():
-    out = []
-    try:
-        rows = work_sheet.get_all_values()
-        for r in rows[1:]:
-            if len(r) <= COL_OUT:
-                continue
-            u = (r[COL_USER] or "").strip()
-            d = (r[COL_DATE] or "").strip()
-            cin = (r[COL_IN] or "").strip()
-            cout = (r[COL_OUT] or "").strip()
-            if u and d and cin and (cout == ""):
-                try:
-                    start_dt = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-                    out.append({
-                        "user": u,
-                        "name": get_employee_display_name(u),
-                        "start_iso": start_dt.isoformat(),
-                        "start_label": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                    })
-                except Exception:
-                    continue
-    except Exception:
-        return []
-    return out
-
-
-# ================= NAV / LAYOUT =================
-def bottom_nav(active: str, role: str) -> str:
-    return f"""
-    <div class="bottomNav">
-      <div class="navInner">
-        <a class="navIcon {'active' if active=='home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
-        <a class="navIcon {'active' if active=='clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
-        <a class="navIcon {'active' if active=='times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
-        <a class="navIcon {'active' if active=='reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
-        <a class="navIcon" href="/logout" title="Logout" style="color: rgba(220,38,38,.92);">{_svg_logout()}</a>
-      </div>
-    </div>
-    """
-
-def sidebar_html(active: str, role: str) -> str:
-    items = [
-        ("home", "/", "Dashboard", _svg_grid()),
-        ("clock", "/clock", "Clock In & Out", _svg_clock()),
-        ("times", "/my-times", "Time logs", _svg_clipboard()),
-        ("reports", "/my-reports", "Timesheets", _svg_chart()),
-        ("agreements", "/onboarding", "Starter Form", _svg_doc()),
-        ("profile", "/password", "Profile", _svg_user()),
-    ]
-    if role == "admin":
-        items.insert(5, ("admin", "/admin", "Admin", _svg_grid()))
-
-    links = []
-    for key, href, label, icon in items:
-        links.append(f"""
-          <a class="sideItem {'active' if active==key else ''}" href="{href}">
-            <div class="sideLeft">
-              <div class="sideIcon">{icon}</div>
-              <div class="sideText">{escape(label)}</div>
-            </div>
-            <div class="chev">›</div>
-          </a>
-        """)
-
-    logout_html = f"""
-      <div class="sideDivider"></div>
-      <a class="sideItem logoutBtn" href="/logout">
-        <div class="sideLeft">
-          <div class="sideIcon">{_svg_logout()}</div>
-          <div class="sideText">Logout</div>
-        </div>
-        <div class="chev">›</div>
-      </a>
-    """
-
-    return f"""
-      <div class="card sidebar">
-        <div class="sideTitle">Menu</div>
-        <div class="sideScroll">
-          {''.join(links)}
-        </div>
-        {logout_html}
-      </div>
-    """
-
-def layout_shell(active: str, role: str, content_html: str) -> str:
-    theme_toggle = """
-    <button class="themeToggle" id="themeToggle" title="Toggle dark mode">☾</button>
-    <script>
-    (function(){
-      const key="wh_theme";
-      const btn=document.getElementById("themeToggle");
-      const set=(v)=>{ document.body.classList.toggle("dark", v==="dark"); btn.textContent = (v==="dark") ? "☀" : "☾"; };
-      const saved=localStorage.getItem(key) || "light";
-      set(saved);
-      btn.addEventListener("click", ()=>{
-        const now = document.body.classList.contains("dark") ? "light" : "dark";
-        localStorage.setItem(key, now);
-        set(now);
-      });
-    })();
-    </script>
-    """
-    return f"""
-      <div class="shell">
-        {sidebar_html(active, role)}
-        <div class="main">
-          {content_html}
-          <div class="safeBottom"></div>
-        </div>
-      </div>
-      {theme_toggle}
-      {bottom_nav(active if active in ('home','clock','times','reports','profile') else 'home', role)}
-    """
 
 
 # ================= ROUTES =================
@@ -1481,43 +768,36 @@ def login():
 
         for user in employees_sheet.get_all_records():
             if user.get("Username") == username and is_password_valid(user.get("Password", ""), password):
+                # Upgrade plain passwords to hashed
                 migrate_password_if_plain(username, user.get("Password", ""), password)
+
                 session.clear()
-                session["csrf"] = csrf
+                session["csrf"] = csrf  # keep csrf
                 session["username"] = username
                 session["role"] = user.get("Role", "employee")
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
                 session["early_access"] = parse_bool(user.get("EarlyAccess", False))
                 return redirect(url_for("home"))
-
         msg = "Invalid login"
 
-    html = f"""
-    <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
-      <div class="main">
-        <div class="headerTop">
-          <div>
-            <h1>WorkHours</h1>
-            <p class="sub">Sign in</p>
-          </div>
-          <div class="badge">Secure</div>
-        </div>
-
-        <div class="card" style="padding:14px;">
-          <form method="POST">
-            <input type="hidden" name="csrf" value="{escape(csrf)}">
-            <label class="sub">Username</label>
-            <input class="input" name="username" required>
-            <label class="sub" style="margin-top:10px; display:block;">Password</label>
-            <input class="input" type="password" name="password" required>
-            <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
-          </form>
-          {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
-        </div>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>WorkHours</h1><p class="sub">Sign in</p></div>
+        <div class="badge">Secure access</div>
       </div>
-    </div>
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{html}")
+      <form method="POST">
+        <input type="hidden" name="csrf" value="{escape(csrf)}">
+        <input class="input" name="username" placeholder="Username" required>
+        <input class="input" type="password" name="password" placeholder="Password" required>
+        <div class="btnrow actionbar">
+          <button class="blue" type="submit">Login</button>
+        </div>
+      </form>
+      {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
+    </div></div>
+    """)
 
 @app.get("/logout")
 def logout():
@@ -1525,125 +805,81 @@ def logout():
     return redirect(url_for("login"))
 
 
-# ---------- DASHBOARD ----------
-@app.get("/")
-def home():
+# ---------- CHANGE PASSWORD ----------
+@app.route("/password", methods=["GET", "POST"])
+def change_password():
     gate = require_login()
     if gate:
         return gate
 
+    csrf = get_csrf()
     username = session["username"]
-    role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
+    msg = ""
+    ok = False
 
-    now = datetime.now(TZ)
-    today = now.date()
-    rows = work_sheet.get_all_values()
+    if request.method == "POST":
+        require_csrf()
+        current = request.form.get("current", "")
+        new1 = request.form.get("new1", "")
+        new2 = request.form.get("new2", "")
 
-    monday = today - timedelta(days=today.weekday())
+        stored_pw = None
+        for user in employees_sheet.get_all_records():
+            if user.get("Username") == username:
+                stored_pw = user.get("Password", "")
+                break
 
-    def week_key_for_n(n: int):
-        d2 = monday - timedelta(days=7*n)
-        yy, ww, _ = d2.isocalendar()
-        return yy, ww
+        if stored_pw is None or not is_password_valid(stored_pw, current):
+            msg = "Current password is incorrect."
+            ok = False
+        elif len(new1) < 4:
+            msg = "New password too short (min 4)."
+            ok = False
+        elif new1 != new2:
+            msg = "New passwords do not match."
+            ok = False
+        else:
+            if update_employee_password(username, new1):
+                msg = "Password updated successfully."
+                ok = True
+            else:
+                msg = "Could not update password (check Employees sheet headers)."
+                ok = False
 
-    week_keys = [week_key_for_n(i) for i in range(4, -1, -1)]
-    week_labels = [str(k[1]) for k in week_keys]
-    weekly_gross = [0.0] * 5
-
-    for r in rows[1:]:
-        if len(r) <= COL_PAY:
-            continue
-        if (r[COL_USER] or "").strip() != username:
-            continue
-        if not r[COL_PAY]:
-            continue
-        try:
-            d = datetime.strptime(r[COL_DATE], "%Y-%m-%d").date()
-            yy, ww, _ = d.isocalendar()
-        except Exception:
-            continue
-        for idx, (yy2, ww2) in enumerate(week_keys):
-            if yy == yy2 and ww == ww2:
-                weekly_gross[idx] += safe_float(r[COL_PAY], 0.0)
-
-    max_g = max(weekly_gross) if weekly_gross else 0.0
-    max_g = max(max_g, 1.0)
-
-    bars_html = "".join([f"<div class='bar' style='height:{int((g/max_g)*165)}px;'></div>" for g in weekly_gross])
-    labels_html = "".join([f"<div style='width:16%;text-align:center;'>{escape(x)}</div>" for x in week_labels])
-
-    prev_gross = round(sum(weekly_gross[:-1]), 2)
-    curr_gross = round(weekly_gross[-1], 2)
-
-    admin_item = ""
-    if role == "admin":
-        admin_item = f"""
-        <a class="menuItem" href="/admin">
-          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Admin</div></div>
-          <div class="chev">›</div>
-        </a>
-        """
-
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Dashboard</h1>
-          <p class="sub">Welcome, {escape(display_name)}</p>
-        </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Change Password</h1><p class="sub">Update your login password</p></div>
       </div>
 
-      <div class="kpiRow">
-        <div class="card kpi">
-          <p class="label">Previous Gross</p>
-          <p class="value">£{money(prev_gross)}</p>
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+
+      <form method="POST">
+        <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+        <label class="sub">Current password</label>
+        <input class="input" type="password" name="current" required>
+
+        <label class="sub" style="margin-top:10px; display:block;">New password</label>
+        <input class="input" type="password" name="new1" required>
+
+        <label class="sub" style="margin-top:10px; display:block;">Repeat new password</label>
+        <input class="input" type="password" name="new2" required>
+
+        <div class="btnrow actionbar">
+          <button class="blue" type="submit">Save</button>
+          <a href="/"><button class="gray" type="button">Back</button></a>
         </div>
-        <div class="card kpi">
-          <p class="label">Current Gross</p>
-          <p class="value">£{money(curr_gross)}</p>
-        </div>
-      </div>
-
-      <div class="card graphCard">
-        <div class="graphTop">
-          <div class="graphTitle">Weekly Gross</div>
-          <div class="graphRange">Weeks {escape(week_labels[0])} – {escape(week_labels[-1])}</div>
-        </div>
-        <div class="bars">{bars_html}</div>
-        <div class="barLabels">{labels_html}</div>
-      </div>
-
-      <div class="card menu">
-        <a class="menuItem active" href="/clock">
-          <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/my-times">
-          <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Time logs</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/my-reports">
-          <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/onboarding">
-          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
-          <div class="chev">›</div>
-        </a>
-        {admin_item}
-        <a class="menuItem" href="/password">
-          <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Profile</div></div>
-          <div class="chev">›</div>
-        </a>
-      </div>
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content))
+      </form>
+    </div></div>
+    """)
 
 
-# ---------- CLOCK PAGE ----------
-@app.route("/clock", methods=["GET", "POST"])
-def clock_page():
+# ---------- HOME (LIVE SESSION TIMER) ----------
+@app.route("/", methods=["GET", "POST"])
+def home():
     gate = require_login()
     if gate:
         return gate
@@ -1651,8 +887,6 @@ def clock_page():
     csrf = get_csrf()
     username = session["username"]
     role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
-
     rate = safe_float(session.get("rate", 0), 0.0)
     early_access = bool(session.get("early_access", False))
 
@@ -1665,9 +899,9 @@ def clock_page():
     if request.method == "POST":
         require_csrf()
         action = request.form.get("action")
-        rows = work_sheet.get_all_values()
 
         if action == "in":
+            rows = work_sheet.get_all_values()  # re-fetch to reduce race issues
             if has_any_row_today(rows, username, today_str):
                 msg = "You already clocked in today (1 per day)."
                 msg_class = "message error"
@@ -1682,23 +916,26 @@ def clock_page():
                     msg = "Clocked In (counted from 08:00)"
 
         elif action == "out":
+            rows = work_sheet.get_all_values()
             osf = find_open_shift(rows, username)
             if not osf:
                 msg = "No active shift found."
                 msg_class = "message error"
             else:
                 i, d, t = osf
-                cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-                raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-                hours_rounded = _apply_unpaid_break(raw_hours)
+                cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+                cin_dt = cin_dt.replace(tzinfo=TZ)
+                hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
+                hours_rounded = round(hours, 2)
                 pay = round(hours_rounded * rate, 2)
 
                 sheet_row = i + 1
                 work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                 work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
                 work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
-                msg = f"Clocked Out (Break deducted: {UNPAID_BREAK_HOURS}h)"
+                msg = "Clocked Out"
 
+    # Determine active session start for live timer
     rows2 = work_sheet.get_all_values()
     osf2 = find_open_shift(rows2, username)
     active_start_iso = ""
@@ -1710,13 +947,17 @@ def clock_page():
             active_start_iso = start_dt.isoformat()
             active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
-            pass
+            active_start_iso = ""
+            active_start_label = ""
 
+    timer_html = ""
     if active_start_iso:
         timer_html = f"""
-        <div class="timerSub">Active session started</div>
-        <div class="timerBig" id="timerDisplay">00:00:00</div>
-        <div class="timerSub">Start: {escape(active_start_label)} • Break: {UNPAID_BREAK_HOURS}h (deducted on Clock Out)</div>
+        <div class="timerBox">
+          <div class="sub">Active session</div>
+          <div class="timerBig" id="timerDisplay">00:00:00</div>
+          <div class="sub" style="margin-top:6px;">Start: {escape(active_start_label)}</div>
+        </div>
         <script>
           (function() {{
             const startIso = "{escape(active_start_iso)}";
@@ -1732,41 +973,49 @@ def clock_page():
               const s = diff % 60;
               el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
             }}
-            tick(); setInterval(tick, 1000);
+            tick();
+            setInterval(tick, 1000);
           }})();
         </script>
         """
-    else:
-        timer_html = f"""
-        <div class="timerSub">No active session</div>
-        <div class="timerBig">00:00:00</div>
-        <div class="timerSub">Clock in to start the live timer. Break deducted on Clock Out: {UNPAID_BREAK_HOURS}h</div>
-        """
 
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Clock In & Out</h1>
-          <p class="sub">{escape(display_name)} • Live session timer</p>
+    admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
+    drive_btn = "<a href='/connect-drive'><button class='blue btnSmall' type='button'>Connect Drive</button></a>" if role == "admin" else ""
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title">
+          <h1>Hi, {escape(username)}</h1>
+          <p class="sub">Clock in/out • view your times & pay • starter form</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge">{escape(role.upper())}</div>
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
-      <div class="card clockCard">
-        {timer_html}
-        <form method="POST" class="actionRow">
+      {timer_html}
+
+      <div class="actionbar">
+        <form method="POST" class="btnrow" style="margin:0;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <button class="btn btnIn" name="action" value="in">Clock In</button>
-          <button class="btn btnOut" name="action" value="out">Clock Out</button>
+          <button class="green" name="action" value="in">Clock In</button>
+          <button class="red" name="action" value="out">Clock Out</button>
         </form>
-        <a href="/my-times" style="display:block;margin-top:12px;">
-          <button class="btnSoft" type="button">View my time logs</button>
-        </a>
+
+        <div class="navgrid">
+          {admin_btn if admin_btn else ""}
+          {drive_btn if drive_btn else ""}
+          <a href="/my-times"><button class="blue btnSmall" type="button">My Times</button></a>
+          <a href="/my-reports"><button class="blue btnSmall" type="button">My Reports</button></a>
+          <a href="/onboarding"><button class="blue btnSmall" type="button">Starter Form</button></a>
+          <a href="/password"><button class="blue btnSmall" type="button">Password</button></a>
+          <a href="/logout"><button class="gray btnSmall" type="button">Logout</button></a>
+        </div>
       </div>
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("clock", role, content))
+    </div></div>
+    """)
 
 
 # ---------- MY TIMES ----------
@@ -1775,43 +1024,44 @@ def my_times():
     gate = require_login()
     if gate:
         return gate
-
     username = session["username"]
-    role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
 
     rows = work_sheet.get_all_values()
     body = []
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        if (r[COL_USER] or "").strip() != username:
+        if r[COL_USER] != username:
             continue
+        date = r[COL_DATE]
+        cin = r[COL_IN]
+        cout = r[COL_OUT]
+        hrs = r[COL_HOURS]
+        pay = r[COL_PAY]
         body.append(
-            f"<tr><td>{escape(r[COL_DATE])}</td><td>{escape(r[COL_IN])}</td>"
-            f"<td>{escape(r[COL_OUT])}</td><td class='num'>{escape(r[COL_HOURS])}</td><td class='num'>£{escape(r[COL_PAY])}</td></tr>"
+            f"<tr><td>{escape(date)}</td><td>{escape(cin)}</td>"
+            f"<td>{escape(cout)}</td><td>{escape(hrs)}</td><td>{escape(pay)}</td></tr>"
         )
+
     table = "".join(body) if body else "<tr><td colspan='5'>No records yet.</td></tr>"
 
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Time logs</h1>
-          <p class="sub">{escape(display_name)} • Clock history</p>
-        </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>My Times</h1><p class="sub">Clock-in/out history</p></div>
       </div>
-
-      <div class="card" style="padding:12px;">
-        <div class="tablewrap">
-          <table style="min-width:640px;">
-            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class='num'>Hours</th><th class='num'>Pay</th></tr></thead>
-            <tbody>{table}</tbody>
-          </table>
-        </div>
+      <div class="btnrow">
+        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("times", role, content))
+      <div class="tablewrap">
+        <table style="min-width:640px;">
+          <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+          <tbody>{table}</tbody>
+        </table>
+      </div>
+    </div></div>
+    """)
 
 
 # ---------- MY REPORTS ----------
@@ -1822,9 +1072,6 @@ def my_reports():
         return gate
 
     username = session["username"]
-    role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
-
     now = datetime.now(TZ)
     today = now.date()
     week_start = today - timedelta(days=today.weekday())
@@ -1837,7 +1084,7 @@ def my_reports():
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        if (r[COL_USER] or "").strip() != username:
+        if r[COL_USER] != username:
             continue
         if not r[COL_HOURS]:
             continue
@@ -1868,38 +1115,38 @@ def my_reports():
     w_g, w_t, w_n = gross_tax_net(weekly_pay)
     m_g, m_t, m_n = gross_tax_net(monthly_pay)
 
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Timesheets</h1>
-          <p class="sub">{escape(display_name)} • Totals + tax + net</p>
-        </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>My Reports</h1><p class="sub">Totals + tax (20%) + net</p></div>
       </div>
 
-      <div class="kpiRow">
-        <div class="card kpi">
-          <p class="label">Today Gross</p>
-          <p class="value">£{money(d_g)}</p>
-          <p class="sub">Hours: {round(daily_hours,2)} • Tax: £{money(d_t)} • Net: £{money(d_n)}</p>
-        </div>
-        <div class="card kpi">
-          <p class="label">This Week Gross</p>
-          <p class="value">£{money(w_g)}</p>
-          <p class="sub">Hours: {round(weekly_hours,2)} • Tax: £{money(w_t)} • Net: £{money(w_n)}</p>
-        </div>
+      <div class="kpi">
+        <div class="box"><div class="sub">Today Hours</div><div class="big">{round(daily_hours,2)}</div></div>
+        <div class="box"><div class="sub">Today Gross</div><div class="big">{d_g}</div></div>
+        <div class="box"><div class="sub">Today Tax</div><div class="big">{d_t}</div></div>
+        <div class="box"><div class="sub">Today Net</div><div class="big">{d_n}</div></div>
+
+        <div class="box"><div class="sub">Week Hours</div><div class="big">{round(weekly_hours,2)}</div></div>
+        <div class="box"><div class="sub">Week Gross</div><div class="big">{w_g}</div></div>
+        <div class="box"><div class="sub">Week Tax</div><div class="big">{w_t}</div></div>
+        <div class="box"><div class="sub">Week Net</div><div class="big">{w_n}</div></div>
+
+        <div class="box"><div class="sub">Month Hours</div><div class="big">{round(monthly_hours,2)}</div></div>
+        <div class="box"><div class="sub">Month Gross</div><div class="big">{m_g}</div></div>
+        <div class="box"><div class="sub">Month Tax</div><div class="big">{m_t}</div></div>
+        <div class="box"><div class="sub">Month Net</div><div class="big">{m_n}</div></div>
       </div>
 
-      <div class="card kpi" style="margin-top:12px;">
-        <p class="label">This Month Gross</p>
-        <p class="value">£{money(m_g)}</p>
-        <p class="sub">Hours: {round(monthly_hours,2)} • Tax: £{money(m_t)} • Net: £{money(m_n)}</p>
+      <div class="btnrow actionbar">
+        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
+    </div></div>
+    """)
 
 
-# ---------- STARTER FORM / ONBOARDING ----------
+# ---------- ONBOARDING ----------
 @app.route("/onboarding", methods=["GET", "POST"])
 def onboarding():
     gate = require_login()
@@ -1909,44 +1156,67 @@ def onboarding():
     csrf = get_csrf()
     username = session["username"]
     role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
     existing = get_onboarding_record(username)
 
     msg = ""
     msg_ok = False
 
-    typed = None
-    missing_fields = set()
+    def v(key: str) -> str:
+        return (existing or {}).get(key, "")
 
     if request.method == "POST":
         require_csrf()
-        typed = dict(request.form)
         submit_type = request.form.get("submit_type", "draft")
         is_final = (submit_type == "final")
 
         def g(name): return (request.form.get(name, "") or "").strip()
 
-        first = g("first"); last = g("last"); birth = g("birth")
-        phone_cc = g("phone_cc") or "+44"; phone_num = g("phone_num")
-        street = g("street"); city = g("city"); postcode = g("postcode")
+        # typed fields
+        first = g("first")
+        last = g("last")
+        birth = g("birth")
+        phone_cc = g("phone_cc") or "+44"
+        phone_num = g("phone_num")
+        street = g("street")
+        city = g("city")
+        postcode = g("postcode")
         email = g("email")
-        ec_name = g("ec_name"); ec_cc = g("ec_cc") or "+44"; ec_phone = g("ec_phone")
-        medical = g("medical"); medical_details = g("medical_details")
-        position = g("position"); cscs_no = g("cscs_no"); cscs_exp = g("cscs_exp")
-        emp_type = g("emp_type"); rtw = g("rtw")
-        ni = g("ni"); utr = g("utr"); start_date = g("start_date")
-        acc_no = g("acc_no"); sort_code = g("sort_code"); acc_name = g("acc_name")
-        comp_trading = g("comp_trading"); comp_reg = g("comp_reg")
-        contract_date = g("contract_date"); site_address = g("site_address")
+        ec_name = g("ec_name")
+        ec_cc = g("ec_cc") or "+44"
+        ec_phone = g("ec_phone")
+
+        medical = g("medical")
+        medical_details = g("medical_details")
+
+        position = g("position")
+        cscs_no = g("cscs_no")
+        cscs_exp = g("cscs_exp")
+        emp_type = g("emp_type")
+        rtw = g("rtw")
+        ni = g("ni")
+        utr = g("utr")
+        start_date = g("start_date")
+
+        acc_no = g("acc_no")
+        sort_code = g("sort_code")
+        acc_name = g("acc_name")
+        comp_trading = g("comp_trading")
+        comp_reg = g("comp_reg")
+
+        contract_date = g("contract_date")
+        site_address = g("site_address")
+
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
+        # files
         passport_file = request.files.get("passport_file")
         cscs_file = request.files.get("cscs_file")
         pli_file = request.files.get("pli_file")
         share_file = request.files.get("share_file")
 
         missing = []
+        missing_fields = set()
 
         def req(value, input_name, label):
             if not value:
@@ -1966,7 +1236,10 @@ def onboarding():
                 missing.append("Medical condition (Yes/No)")
                 missing_fields.add("medical")
 
-            req(position, "position", "Position")
+            if not position:
+                missing.append("Position")
+                missing_fields.add("position")
+
             req(cscs_no, "cscs_no", "CSCS Number")
             req(cscs_exp, "cscs_exp", "CSCS Expiry Date")
             req(emp_type, "emp_type", "Employment Type")
@@ -1994,108 +1267,107 @@ def onboarding():
                 missing.append("Upload system not connected (admin must click Connect Drive)")
 
             if not passport_file or not passport_file.filename:
-                missing.append("Passport/Birth Certificate file")
+                missing.append("Passport or Birth Certificate file")
                 missing_fields.add("passport_file")
             if not cscs_file or not cscs_file.filename:
-                missing.append("CSCS (front/back) file")
+                missing.append("CSCS Card (front & back) file")
                 missing_fields.add("cscs_file")
             if not pli_file or not pli_file.filename:
                 missing.append("Public Liability file")
                 missing_fields.add("pli_file")
             if not share_file or not share_file.filename:
-                missing.append("Share code file")
+                missing.append("Share Code / Confirmation file")
                 missing_fields.add("share_file")
+
+        typed = dict(request.form)
 
         if missing:
             msg = "Missing required (final): " + ", ".join(missing)
             msg_ok = False
-        else:
-            def v(key: str) -> str:
-                return (existing or {}).get(key, "")
+            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, missing_fields, csrf))
 
-            passport_link = v("PassportOrBirthCertLink")
-            cscs_link = v("CSCSFrontBackLink")
-            pli_link = v("PublicLiabilityLink")
-            share_link = v("ShareCodeLink")
+        passport_link = v("PassportOrBirthCertLink")
+        cscs_link = v("CSCSFrontBackLink")
+        pli_link = v("PublicLiabilityLink")
+        share_link = v("ShareCodeLink")
 
-            try:
-                if passport_file and passport_file.filename:
-                    passport_link = upload_to_drive(passport_file, f"{username}_passport")
-                if cscs_file and cscs_file.filename:
-                    cscs_link = upload_to_drive(cscs_file, f"{username}_cscs")
-                if pli_file and pli_file.filename:
-                    pli_link = upload_to_drive(pli_file, f"{username}_pli")
-                if share_file and share_file.filename:
-                    share_link = upload_to_drive(share_file, f"{username}_share")
-            except Exception as e:
-                msg = f"Upload error: {e}"
-                msg_ok = False
-                existing = get_onboarding_record(username)
-                return render_template_string(
-                    f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell(
-                        "agreements", role,
-                        _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, set())
-                    )
-                )
-
-            now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-
-            data = {
-                "FirstName": first,
-                "LastName": last,
-                "BirthDate": birth,
-                "PhoneCountryCode": phone_cc,
-                "PhoneNumber": phone_num,
-                "StreetAddress": street,
-                "City": city,
-                "Postcode": postcode,
-                "Email": email,
-                "EmergencyContactName": ec_name,
-                "EmergencyContactPhoneCountryCode": ec_cc,
-                "EmergencyContactPhoneNumber": ec_phone,
-                "MedicalCondition": medical,
-                "MedicalDetails": medical_details,
-                "Position": position,
-                "CSCSNumber": cscs_no,
-                "CSCSExpiryDate": cscs_exp,
-                "EmploymentType": emp_type,
-                "RightToWorkUK": rtw,
-                "NationalInsurance": ni,
-                "UTR": utr,
-                "StartDate": start_date,
-                "BankAccountNumber": acc_no,
-                "SortCode": sort_code,
-                "AccountHolderName": acc_name,
-                "CompanyTradingName": comp_trading,
-                "CompanyRegistrationNo": comp_reg,
-                "DateOfContract": contract_date,
-                "SiteAddress": site_address,
-                "PassportOrBirthCertLink": passport_link,
-                "CSCSFrontBackLink": cscs_link,
-                "PublicLiabilityLink": pli_link,
-                "ShareCodeLink": share_link,
-                "ContractAccepted": "TRUE" if (is_final and contract_accept) else "FALSE",
-                "SignatureName": signature_name,
-                "SignatureDateTime": now_str if is_final else "",
-                "SubmittedAt": now_str,
-            }
-
-            update_or_append_onboarding(username, data)
-            set_employee_first_last(username, first, last)
-            if is_final:
-                set_employee_field(username, "OnboardingCompleted", "TRUE")
-
+        try:
+            if passport_file and passport_file.filename:
+                passport_link = upload_to_drive(passport_file, f"{username}_passport")
+            if cscs_file and cscs_file.filename:
+                cscs_link = upload_to_drive(cscs_file, f"{username}_cscs")
+            if pli_file and pli_file.filename:
+                pli_link = upload_to_drive(pli_file, f"{username}_pli")
+            if share_file and share_file.filename:
+                share_link = upload_to_drive(share_file, f"{username}_share")
+        except Exception as e:
+            msg = f"Upload error: {e}"
+            msg_ok = False
             existing = get_onboarding_record(username)
-            msg = "Saved draft." if not is_final else "Submitted final successfully."
-            msg_ok = True
-            typed = None
-            missing_fields = set()
+            typed = dict(request.form)
+            return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, typed, set(), csrf))
 
-    content = _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields)
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, content))
+        now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
 
-def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields):
+        data = {
+            "FirstName": first,
+            "LastName": last,
+            "BirthDate": birth,
+            "PhoneCountryCode": phone_cc,
+            "PhoneNumber": phone_num,
+            "StreetAddress": street,
+            "City": city,
+            "Postcode": postcode,
+            "Email": email,
+            "EmergencyContactName": ec_name,
+            "EmergencyContactPhoneCountryCode": ec_cc,
+            "EmergencyContactPhoneNumber": ec_phone,
+            "MedicalCondition": medical,
+            "MedicalDetails": medical_details,
+            "Position": position,
+            "CSCSNumber": cscs_no,
+            "CSCSExpiryDate": cscs_exp,
+            "EmploymentType": emp_type,
+            "RightToWorkUK": rtw,
+            "NationalInsurance": ni,
+            "UTR": utr,
+            "StartDate": start_date,
+            "BankAccountNumber": acc_no,
+            "SortCode": sort_code,
+            "AccountHolderName": acc_name,
+            "CompanyTradingName": comp_trading,
+            "CompanyRegistrationNo": comp_reg,
+            "DateOfContract": contract_date,
+            "SiteAddress": site_address,
+
+            "PassportOrBirthCertLink": passport_link,
+            "CSCSFrontBackLink": cscs_link,
+            "PublicLiabilityLink": pli_link,
+            "ShareCodeLink": share_link,
+
+            "ContractAccepted": "TRUE" if (is_final and contract_accept) else "FALSE",
+            "SignatureName": signature_name,
+            "SignatureDateTime": now_str if is_final else "",
+            "SubmittedAt": now_str,
+        }
+
+        update_or_append_onboarding(username, data)
+
+        if is_final:
+            set_employee_field(username, "OnboardingCompleted", "TRUE")
+
+        existing = get_onboarding_record(username)
+        msg = "Saved draft." if not is_final else "Submitted final successfully."
+        msg_ok = True
+
+        return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, {}, set(), csrf))
+
+    return render_template_string(_render_onboarding(username, role, existing, msg, msg_ok, None, None, csrf))
+
+
+def _render_onboarding(username, role, existing, msg, msg_ok, typed=None, missing_fields=None, csrf=""):
     typed = typed or {}
+    missing_fields = missing_fields or set()
 
     def val(input_name, existing_key):
         if input_name in typed and typed[input_name] is not None:
@@ -2103,10 +1375,10 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
         return (existing or {}).get(existing_key, "")
 
     def bad(input_name):
-        return "bad" if input_name in (missing_fields or set()) else ""
+        return "bad" if input_name in missing_fields else ""
 
     def bad_label(input_name):
-        return "badLabel" if input_name in (missing_fields or set()) else ""
+        return "badLabel" if input_name in missing_fields else ""
 
     def checked_radio(input_name, existing_key, value):
         return "checked" if val(input_name, existing_key) == value else ""
@@ -2114,503 +1386,277 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
     def selected(input_name, existing_key, value):
         return "selected" if val(input_name, existing_key) == value else ""
 
+    admin_btn = "<a href='/admin'><button class='purple btnSmall' type='button'>Admin</button></a>" if role == "admin" else ""
     drive_hint = ""
     if role == "admin":
-        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive' style='color:var(--purple);font-weight:950;'>Connect Drive</a> once.</p>"
+        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive'>Connect Drive</a> once.</p>"
 
     return f"""
-      <div class="headerTop">
-        <div>
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title">
           <h1>Starter Form</h1>
-          <p class="sub">{escape(display_name)} • Save Draft anytime • Submit Final when complete</p>
+          <p class="sub">Save Draft anytime. Submit Final when complete (required + contract + uploads).</p>
           {drive_hint}
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge">{escape(username)}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not msg_ok) else ""}
 
-      <div class="card" style="padding:14px;">
-        <form method="POST" enctype="multipart/form-data">
-          <input type="hidden" name="csrf" value="{escape(csrf)}">
+      <form method="POST" enctype="multipart/form-data">
+        <input type="hidden" name="csrf" value="{escape(csrf)}">
 
-          <h2>Personal details</h2>
-          <div class="row2">
-            <div>
-              <label class="sub {bad_label('first')}">First Name</label>
-              <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
-            </div>
-            <div>
-              <label class="sub {bad_label('last')}">Last Name</label>
-              <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
-            </div>
+        <h2>Personal details</h2>
+        <div class="row2">
+          <div>
+            <label class="sub {bad_label('first')}">First Name</label>
+            <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
           </div>
-
-          <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
-          <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
-
-          <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
-          <div class="row2">
-            <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
-            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
+          <div>
+            <label class="sub {bad_label('last')}">Last Name</label>
+            <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
           </div>
-
-          <h2 style="margin-top:14px;">Address</h2>
-          <input class="input" name="street" placeholder="Street Address" value="{escape(val('street','StreetAddress'))}">
-          <div class="row2">
-            <input class="input" name="city" placeholder="City" value="{escape(val('city','City'))}">
-            <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode','Postcode'))}">
-          </div>
-
-          <div class="row2">
-            <div>
-              <label class="sub {bad_label('email')}">Email</label>
-              <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
-            </div>
-            <div>
-              <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
-              <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
-            </div>
-          </div>
-
-          <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
-          <div class="row2">
-            <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
-            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
-          </div>
-
-          <h2 style="margin-top:14px;">Medical</h2>
-          <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
-          <div class="row2">
-            <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
-            </label>
-            <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
-            </label>
-          </div>
-          <label class="sub" style="margin-top:10px; display:block;">Details</label>
-          <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
-
-          <h2 style="margin-top:14px;">Position</h2>
-          <div class="row2">
-            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
-            </label>
-            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
-            </label>
-            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
-            </label>
-            <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
-            </label>
-          </div>
-
-          <div class="row2">
-            <div>
-              <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
-              <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
-            </div>
-            <div>
-              <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
-              <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
-            </div>
-          </div>
-
-          <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
-          <select class="input {bad('emp_type')}" name="emp_type">
-            <option value="">Please Select</option>
-            <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
-            <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
-            <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
-            <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
-          </select>
-
-          <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
-          <div class="row2">
-            <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
-            </label>
-            <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
-            </label>
-          </div>
-
-          <div class="row2">
-            <div>
-              <label class="sub {bad_label('ni')}">National Insurance</label>
-              <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
-            </div>
-            <div>
-              <label class="sub {bad_label('utr')}">UTR</label>
-              <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
-            </div>
-          </div>
-
-          <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
-          <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
-
-          <h2 style="margin-top:14px;">Bank details</h2>
-          <div class="row2">
-            <div>
-              <label class="sub {bad_label('acc_no')}">Account Number</label>
-              <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
-            </div>
-            <div>
-              <label class="sub {bad_label('sort_code')}">Sort Code</label>
-              <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
-            </div>
-          </div>
-          <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
-          <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
-
-          <h2 style="margin-top:14px;">Company details</h2>
-          <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
-          <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
-
-          <h2 style="margin-top:14px;">Contract & site</h2>
-          <div class="row2">
-            <div>
-              <label class="sub {bad_label('contract_date')}">Date of Contract</label>
-              <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
-            </div>
-            <div>
-              <label class="sub {bad_label('site_address')}">Site address</label>
-              <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
-            </div>
-          </div>
-
-          <h2 style="margin-top:14px;">Upload documents</h2>
-          <p class="sub">Draft: optional uploads. Final: all 4 required. (If Final fails, re-select files.)</p>
-
-          <div class="uploadTitle {bad_label('passport_file')}">Passport or Birth Certificate</div>
-          <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
-
-          <div class="uploadTitle {bad_label('cscs_file')}">CSCS Card (front & back)</div>
-          <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
-
-          <div class="uploadTitle {bad_label('pli_file')}">Public Liability Insurance</div>
-          <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
-
-          <div class="uploadTitle {bad_label('share_file')}">Share Code / Confirmation</div>
-          <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
-
-          <h2 style="margin-top:14px;">Contract</h2>
-          <div class="contractBox">{escape(CONTRACT_TEXT)}</div>
-
-          <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-            <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
-            I have read and accept the contract terms (required for Final)
-          </label>
-
-          <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
-          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
-
-          <div class="row2" style="margin-top:14px;">
-            <button class="btnSoft" name="submit_type" value="draft" type="submit">Save Draft</button>
-            <button class="btnSoft" name="submit_type" value="final" type="submit" style="background:rgba(109,40,217,.18);">Submit Final</button>
-          </div>
-        </form>
-      </div>
-    """
-
-
-# ---------- PROFILE (DETAILS + CHANGE PASSWORD) ----------
-@app.route("/password", methods=["GET", "POST"])
-def change_password():
-    gate = require_login()
-    if gate:
-        return gate
-
-    csrf = get_csrf()
-    username = session["username"]
-    role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
-
-    details_html = onboarding_details_block(username)
-
-    msg = ""
-    ok = False
-
-    if request.method == "POST":
-        require_csrf()
-        current = request.form.get("current", "")
-        new1 = request.form.get("new1", "")
-        new2 = request.form.get("new2", "")
-
-        stored_pw = None
-        for user in employees_sheet.get_all_records():
-            if user.get("Username") == username:
-                stored_pw = user.get("Password", "")
-                break
-
-        if stored_pw is None or not is_password_valid(stored_pw, current):
-            msg = "Current password is incorrect."
-            ok = False
-        elif len(new1) < 4:
-            msg = "New password too short (min 4)."
-            ok = False
-        elif new1 != new2:
-            msg = "New passwords do not match."
-            ok = False
-        else:
-            ok = update_employee_password(username, new1)
-            msg = "Password updated successfully." if ok else "Could not update password."
-
-        details_html = onboarding_details_block(username)
-
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Profile</h1>
-          <p class="sub">{escape(display_name)}</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
-      </div>
 
-      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
-      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+        <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
+        <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
 
-      <div class="card" style="padding:14px;">
-        <h2>My Details</h2>
-        <p class="sub">Saved from Starter Form (files not shown).</p>
-        {details_html}
-      </div>
+        <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
+        <div class="row2">
+          <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
+          <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
+        </div>
 
-      <div class="card" style="padding:14px; margin-top:12px;">
-        <h2>Change Password</h2>
-        <form method="POST">
-          <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <label class="sub">Current password</label>
-          <input class="input" type="password" name="current" required>
+        <h2>Address</h2>
+        <input class="input" name="street" placeholder="Street Address" value="{escape(val('street','StreetAddress'))}">
+        <div class="row2">
+          <input class="input" name="city" placeholder="City" value="{escape(val('city','City'))}">
+          <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode','Postcode'))}">
+        </div>
 
-          <label class="sub" style="margin-top:10px; display:block;">New password</label>
-          <input class="input" type="password" name="new1" required>
+        <div class="row2">
+          <div>
+            <label class="sub {bad_label('email')}">Email</label>
+            <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
+            <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
+          </div>
+        </div>
 
-          <label class="sub" style="margin-top:10px; display:block;">Repeat new password</label>
-          <input class="input" type="password" name="new2" required>
+        <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
+        <div class="row2">
+          <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
+          <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
+        </div>
 
-          <button class="btnSoft" type="submit" style="margin-top:12px;">Save</button>
-        </form>
-      </div>
+        <h2>Medical</h2>
+        <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
+        <div class="row2">
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
+          </label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
+          </label>
+        </div>
+        <label class="sub" style="margin-top:10px; display:block;">Details</label>
+        <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
+
+        <h2>Position</h2>
+        <div class="row2">
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
+          </label>
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
+          </label>
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
+          </label>
+          <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
+          </label>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
+            <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
+            <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
+          </div>
+        </div>
+
+        <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
+        <select class="input {bad('emp_type')}" name="emp_type">
+          <option value="">Please Select</option>
+          <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
+          <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
+          <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
+          <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
+        </select>
+
+        <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
+        <div class="row2">
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
+          </label>
+          <label class="sub" style="display:flex; gap:10px; align-items:center;">
+            <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
+          </label>
+        </div>
+
+        <div class="row2">
+          <div>
+            <label class="sub {bad_label('ni')}">National Insurance</label>
+            <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('utr')}">UTR</label>
+            <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
+          </div>
+        </div>
+
+        <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
+        <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
+
+        <h2>Bank details</h2>
+        <div class="row2">
+          <div>
+            <label class="sub {bad_label('acc_no')}">Account Number</label>
+            <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('sort_code')}">Sort Code</label>
+            <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
+          </div>
+        </div>
+        <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
+        <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
+
+        <h2>Company details</h2>
+        <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
+        <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
+
+        <h2>Contract & site</h2>
+        <div class="row2">
+          <div>
+            <label class="sub {bad_label('contract_date')}">Date of Contract</label>
+            <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
+          </div>
+          <div>
+            <label class="sub {bad_label('site_address')}">Site address</label>
+            <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
+          </div>
+        </div>
+
+        <h2>Upload documents</h2>
+        <p class="sub">Draft: optional uploads. Final: all 4 required. (Files must be re-selected if a Final submit fails.)</p>
+
+        <!-- MORE VISIBLE UPLOAD TITLES -->
+        <div class="uploadLabel {bad('passport_file')}">
+          <div class="text">Passport or Birth Certificate</div>
+          <div class="hint">Required for Final</div>
+        </div>
+        <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
+
+        <div class="uploadLabel {bad('cscs_file')}">
+          <div class="text">CSCS Card (front & back)</div>
+          <div class="hint">Required for Final</div>
+        </div>
+        <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
+
+        <div class="uploadLabel {bad('pli_file')}">
+          <div class="text">Public Liability</div>
+          <div class="hint">Required for Final</div>
+        </div>
+        <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
+
+        <div class="uploadLabel {bad('share_file')}">
+          <div class="text">Share Code / Confirmation</div>
+          <div class="hint">Required for Final</div>
+        </div>
+        <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
+        <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
+
+        <h2>Contract</h2>
+        <div class="contract"><pre style="white-space:pre-wrap; margin:0;">{escape(CONTRACT_TEXT)}</pre></div>
+
+        <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
+          <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
+          I have read and accept the contract terms (required for Final)
+        </label>
+
+        <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
+        <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
+
+        <div class="btnrow actionbar">
+          <button class="green" name="submit_type" value="draft" type="submit">Save Draft</button>
+          <button class="purple" name="submit_type" value="final" type="submit">Submit Final</button>
+          <a href="/"><button class="gray" type="button">Back</button></a>
+        </div>
+
+        <div class="navgrid">
+          {admin_btn if admin_btn else ""}
+        </div>
+      </form>
+    </div></div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("profile", role, content))
 
 
-# ---------- ADMIN ----------
+# ---------- ADMIN DASHBOARD ----------
 @app.get("/admin")
 def admin():
     gate = require_admin()
     if gate:
         return gate
-
-    open_shifts = _get_open_shifts()
-    if open_shifts:
-        rows = []
-        for s in open_shifts:
-            rows.append(f"""
-              <tr>
-                <td>
-                  <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="avatar">{escape(initials(s['name']))}</div>
-                    <div>
-                      <div style="font-weight:950;">{escape(s['name'])}</div>
-                      <div class="sub" style="margin:2px 0 0 0;">{escape(s['user'])} • Start: {escape(s['start_label'])}</div>
-                    </div>
-                  </div>
-                </td>
-                <td class="num"><span class="chip ok">Clocked In</span></td>
-                <td class="num"><span class="netBadge" data-start="{escape(s['start_iso'])}">00:00:00</span></td>
-              </tr>
-            """)
-        # ✅ FIXED: escaped braces in the JS below ({{ and }})
-        open_html = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In Employees</h2>
-            <p class="sub">Live timer updates every second (who is currently working).</p>
-            <div class="tablewrap" style="margin-top:12px;">
-              <table style="min-width:840px;">
-                <thead><tr><th>Employee</th><th class="num">Status</th><th class="num">Live Time</th></tr></thead>
-                <tbody>{''.join(rows)}</tbody>
-              </table>
-            </div>
-            <script>
-              (function(){{
-                function pad(n){{ return String(n).padStart(2,"0"); }}
-                function tick(){{
-                  document.querySelectorAll("[data-start]").forEach(el=>{{
-                    const startIso = el.getAttribute("data-start");
-                    const start = new Date(startIso);
-                    const now = new Date();
-                    let diff = Math.floor((now - start)/1000);
-                    if(diff < 0) diff = 0;
-                    const h = Math.floor(diff/3600);
-                    const m = Math.floor((diff%3600)/60);
-                    const s = diff%60;
-                    el.textContent = pad(h)+":"+pad(m)+":"+pad(s);
-                  }});
-                }}
-                tick(); setInterval(tick, 1000);
-              }})();
-            </script>
-          </div>
-        """
-    else:
-        open_html = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In Employees</h2>
-            <p class="sub">No one is currently clocked in.</p>
-          </div>
-        """
-
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Admin</h1>
-          <p class="sub">Payroll + onboarding</p>
-        </div>
-        <div class="badge admin">ADMIN</div>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Admin</h1><p class="sub">Payroll + onboarding + reports</p></div>
+        <div class="badge">ADMIN</div>
       </div>
-
-      <div class="card menu">
-        <a class="menuItem active" href="/admin/payroll">
-          <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Payroll Report</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/admin/onboarding">
-          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Onboarding</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/connect-drive">
-          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Connect Drive</div></div>
-          <div class="chev">›</div>
-        </a>
+      <div class="navgrid actionbar">
+        <a href="/connect-drive"><button class="blue btnSmall" type="button">Connect Drive</button></a>
+        <a href="/admin/onboarding"><button class="purple btnSmall" type="button">Onboarding</button></a>
+        <a href="/admin/times"><button class="blue btnSmall" type="button">All Times</button></a>
+        <a href="/weekly"><button class="blue btnSmall" type="button">Weekly Payroll</button></a>
+        <a href="/monthly"><button class="blue btnSmall" type="button">Monthly Payroll</button></a>
+        <a href="/"><button class="gray btnSmall" type="button">Back</button></a>
       </div>
-
-      {open_html}
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    </div></div>
+    """)
 
 
-@app.post("/admin/save-shift")
-def admin_save_shift():
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
-
-    username = (request.form.get("user") or "").strip()
-    date_str = (request.form.get("date") or "").strip()
-    cin = (request.form.get("cin") or "").strip()
-    cout = (request.form.get("cout") or "").strip()
-    hours_in = (request.form.get("hours") or "").strip()
-    pay_in = (request.form.get("pay") or "").strip()
-    recalc = (request.form.get("recalc") == "yes")
-
-    if not username or not date_str:
-        return redirect(request.referrer or "/admin/payroll")
-
-    rate = _get_user_rate(username)
-
-    hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
-    pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
-
-    if recalc:
-        computed = _compute_hours_from_times(date_str, cin, cout)
-        if computed is not None:
-            hours_val = computed
-            pay_val = round(computed * rate, 2)
-
-    hours_cell = "" if hours_val is None else str(hours_val)
-    pay_cell = "" if pay_val is None else str(pay_val)
-
-    try:
-        vals = work_sheet.get_all_values()
-        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
-        if rownum:
-            work_sheet.update_cell(rownum, COL_IN + 1, cin)
-            work_sheet.update_cell(rownum, COL_OUT + 1, cout)
-            work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
-            work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
-        else:
-            work_sheet.append_row([username, date_str, cin, cout, hours_cell, pay_cell])
-    except Exception:
-        pass
-
-    return redirect(request.referrer or "/admin/payroll")
-
-
-@app.post("/admin/mark-paid")
-def admin_mark_paid():
+# ---------- ADMIN: PROFESSIONAL PAYROLL SHEET (ALL TIMES) ----------
+@app.get("/admin/times")
+def admin_times():
     gate = require_admin()
     if gate:
         return gate
 
-    try:
-        require_csrf()
-    except Exception:
-        return redirect(request.referrer or "/admin/payroll")
-
-    try:
-        week_start = (request.form.get("week_start") or "").strip()
-        week_end = (request.form.get("week_end") or "").strip()
-        username = (request.form.get("user") or "").strip()
-
-        gross = safe_float(request.form.get("gross", "0") or "0", 0.0)
-        tax = safe_float(request.form.get("tax", "0") or "0", 0.0)
-        net = safe_float(request.form.get("net", "0") or "0", 0.0)
-
-        paid_by = session.get("username", "admin")
-
-        if week_start and week_end and username:
-            _append_paid_record_safe(week_start, week_end, username, gross, tax, net, paid_by)
-    except Exception:
-        pass
-
-    return redirect(request.referrer or "/admin/payroll")
-
-
-@app.get("/admin/payroll")
-def admin_payroll():
-    gate = require_admin()
-    if gate:
-        return gate
-
-    csrf = get_csrf()
-
-    q = (request.args.get("q", "") or "").strip().lower()
-    date_from = (request.args.get("from", "") or "").strip()
-    date_to = (request.args.get("to", "") or "").strip()
+    q = (request.args.get("q", "") or "").strip().lower()           # username search
+    date_from = (request.args.get("from", "") or "").strip()        # YYYY-MM-DD
+    date_to = (request.args.get("to", "") or "").strip()            # YYYY-MM-DD
+    download = (request.args.get("download", "") or "").strip()     # "1" => CSV
 
     rows = work_sheet.get_all_values()
-
-    today = datetime.now(TZ).date()
-    wk_offset_raw = (request.args.get("wk", "0") or "0").strip()
-    try:
-        wk_offset = max(0, int(wk_offset_raw))
-    except Exception:
-        wk_offset = 0
-
-    this_monday = today - timedelta(days=today.weekday())
-    week_start = this_monday - timedelta(days=7 * wk_offset)
-    week_end = week_start + timedelta(days=6)
-    week_start_str = week_start.strftime("%Y-%m-%d")
-    week_end_str = week_end.strftime("%Y-%m-%d")
-
-    def week_label(d0):
-        iso = d0.isocalendar()
-        return f"Week {iso[1]} ({d0.strftime('%d %b')} – {(d0+timedelta(days=6)).strftime('%d %b %Y')})"
 
     def in_range(d: str) -> bool:
         if not d:
             return False
+        # Stored as YYYY-MM-DD, safe to compare as strings
         if date_from and d < date_from:
             return False
         if date_to and d > date_to:
@@ -2618,357 +1664,138 @@ def admin_payroll():
         return True
 
     filtered = []
+    per_user = {}  # user -> {"hours": float, "gross": float}
+    total_hours = 0.0
+    total_gross = 0.0
+
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        user = (r[COL_USER] or "").strip()
-        d = (r[COL_DATE] or "").strip()
+
+        user = r[COL_USER]
+        d = r[COL_DATE]
+        cin = r[COL_IN]
+        cout = r[COL_OUT]
+        hrs = r[COL_HOURS]
+        pay = r[COL_PAY]
+
         if not in_range(d):
             continue
-        if q and q not in user.lower():
+        if q and q not in (user or "").lower():
             continue
-        filtered.append({
-            "user": user,
-            "date": d,
-            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
-            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
-            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
-            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
-        })
 
-    by_user = {}
-    overall_hours = 0.0
-    overall_gross = 0.0
+        filtered.append([user, d, cin, cout, hrs, pay])
 
-    for row in filtered:
-        u = row["user"] or "Unknown"
-        by_user.setdefault(u, {"hours": 0.0, "gross": 0.0})
-        if row["hours"] != "":
-            h = safe_float(row["hours"], 0.0)
-            g = safe_float(row["pay"], 0.0)
-            by_user[u]["hours"] += h
-            by_user[u]["gross"] += g
-            overall_hours += h
-            overall_gross += g
+        if hrs != "":
+            h = safe_float(hrs, 0.0)
+            g = safe_float(pay, 0.0)
+            per_user.setdefault(user, {"hours": 0.0, "gross": 0.0})
+            per_user[user]["hours"] += h
+            per_user[user]["gross"] += g
+            total_hours += h
+            total_gross += g
 
-    overall_tax = round(overall_gross * TAX_RATE, 2)
-    overall_net = round(overall_gross - overall_tax, 2)
-
-    # Week lookup for editable tables
-    week_lookup = {}
-    for r in rows[1:]:
-        if len(r) <= COL_PAY:
-            continue
-        user = (r[COL_USER] or "").strip()
-        d = (r[COL_DATE] or "").strip()
-        if not user or not d:
-            continue
-        if d < week_start_str or d > week_end_str:
-            continue
-        week_lookup.setdefault(user, {})
-        week_lookup[user][d] = {
-            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
-            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
-            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
-            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
-        }
-
-    # All users from Employees sheet
-    all_users = []
-    try:
-        for rec in employees_sheet.get_all_records():
-            un = (rec.get("Username") or "").strip()
-            if un:
-                all_users.append(un)
-    except Exception:
-        all_users = list(by_user.keys())
-
-    if q:
-        all_users = [u for u in all_users if q in u.lower() or q in (get_employee_display_name(u) or "").lower()]
-
-    # Week pills
-    pills = []
-    for i in range(0, 13):
-        d0 = this_monday - timedelta(days=7*i)
-        active = "active" if i == wk_offset else ""
-        pills.append(
-            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}'>"
-            f"{escape(week_label(d0))}</a>"
+    if download == "1":
+        out = io.StringIO()
+        w = csv.writer(out)
+        w.writerow(["Username", "Date", "Clock In", "Clock Out", "Hours", "Pay"])
+        for row in filtered:
+            w.writerow(row)
+        w.writerow([])
+        w.writerow(["TOTAL HOURS", round(total_hours, 2)])
+        w.writerow(["TOTAL GROSS", round(total_gross, 2)])
+        return Response(
+            out.getvalue(),
+            mimetype="text/csv",
+            headers={"Content-Disposition": "attachment; filename=all_times.csv"},
         )
-    week_nav_html = "<div class='weekRow'>" + "".join(pills) + "</div>"
 
-    # KPI strip (PRO)
-    kpi_strip = f"""
-      <div class="kpiStrip">
-        <div class="kpiMini"><div class="k">Hours</div><div class="v">{round(overall_hours,2)}</div></div>
-        <div class="kpiMini"><div class="k">Gross</div><div class="v">£{money(overall_gross)}</div></div>
-        <div class="kpiMini"><div class="k">Tax</div><div class="v">£{money(overall_tax)}</div></div>
-        <div class="kpiMini"><div class="k">Net</div><div class="v">£{money(overall_net)}</div></div>
-      </div>
-    """
-
-    # Summary table (polished + paid under name)
+    # Summary table by user
     summary_rows = []
-    for u in sorted(all_users, key=lambda s: s.lower()):
-        gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
+    for user, dct in sorted(per_user.items(), key=lambda x: x[0].lower()):
+        gross = round(dct["gross"], 2)
         tax = round(gross * TAX_RATE, 2)
         net = round(gross - tax, 2)
-        hours = round(by_user.get(u, {}).get("hours", 0.0), 2)
-
-        display = get_employee_display_name(u)
-        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
-
-        paid_line = ""
-        if paid:
-            paid_line = f"<div class='sub' style='margin:2px 0 0 0;'><span class='chip ok'>Paid</span></div>"
-            if paid_at:
-                paid_line += f"<div class='sub' style='margin:2px 0 0 0;'>Paid at: {escape(paid_at)}</div>"
-        else:
-            paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='chip warn'>Not paid</span></div>"
-
-        mark_paid_btn = ""
-        if (not paid) and gross > 0:
-            mark_paid_btn = f"""
-              <form method="POST" action="/admin/mark-paid" style="margin:0;">
-                <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                <input type="hidden" name="user" value="{escape(u)}">
-                <input type="hidden" name="gross" value="{gross}">
-                <input type="hidden" name="tax" value="{tax}">
-                <input type="hidden" name="net" value="{net}">
-                <button class="btnTiny dark" type="submit">Mark Paid</button>
-              </form>
-            """
-
-        row_class = "rowHasValue" if gross > 0 else ""
-
-        name_cell = f"""
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div class="avatar">{escape(initials(display))}</div>
-            <div>
-              <div style="font-weight:950;">{escape(display)}</div>
-              <div class="sub" style="margin:2px 0 0 0;">{escape(u)}</div>
-              {paid_line}
-            </div>
-          </div>
-        """
-
         summary_rows.append(
-            f"<tr class='{row_class}'>"
-            f"<td>{name_cell}</td>"
-            f"<td class='num'>{hours:.2f}</td><td class='num'>£{money(gross)}</td><td class='num'>£{money(tax)}</td><td class='num'>£{money(net)}</td>"
-            f"<td style='text-align:right;'>{mark_paid_btn}</td>"
-            f"</tr>"
+            f"<tr><td>{escape(user)}</td><td>{round(dct['hours'],2)}</td><td>{gross}</td><td>{tax}</td><td>{net}</td></tr>"
         )
+    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='5'>No data.</td></tr>"
 
-    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='6'>No employees.</td></tr>"
+    # Detail table
+    body_rows = []
+    for user, d, cin, cout, hrs, pay in filtered[-600:]:  # keep UI fast; last 600 rows shown
+        body_rows.append(
+            f"<tr><td>{escape(user)}</td><td>{escape(d)}</td><td>{escape(cin)}</td><td>{escape(cout)}</td>"
+            f"<td>{escape(hrs)}</td><td>{escape(pay)}</td></tr>"
+        )
+    details_html = "".join(body_rows) if body_rows else "<tr><td colspan='6'>No rows.</td></tr>"
 
-    # Per-user weekly editable tables
-    day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
-    blocks = []
-    for u in sorted(all_users, key=lambda s: s.lower()):
-        display = get_employee_display_name(u)
-        user_days = week_lookup.get(u, {})
+    # KPI totals
+    total_tax = round(total_gross * TAX_RATE, 2)
+    total_net = round(total_gross - total_tax, 2)
 
-        wk_hours = 0.0
-        wk_gross = 0.0
-        wk_overtime_days = 0
-
-        for di in range(7):
-            d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
-            rec = user_days.get(d_str)
-            if rec and rec.get("hours"):
-                h = safe_float(rec.get("hours","0"), 0.0)
-                wk_hours += h
-                if h > OVERTIME_HOURS:
-                    wk_overtime_days += 1
-            if rec and rec.get("pay"):
-                wk_gross += safe_float(rec.get("pay","0"), 0.0)
-
-        wk_hours = round(wk_hours, 2)
-        wk_gross = round(wk_gross, 2)
-        wk_tax = round(wk_gross * TAX_RATE, 2)
-        wk_net = round(wk_gross - wk_tax, 2)
-
-        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
-        header_chip = "<span class='chip ok'>Paid</span>" if paid else "<span class='chip warn'>Not paid</span>"
-        header_sub = f"<span class='sub' style='margin-left:10px;'>Paid at: {escape(paid_at)}</span>" if paid and paid_at else ""
-
-        pay_btn = ""
-        if (not paid) and wk_gross > 0:
-            pay_btn = f"""
-              <form method="POST" action="/admin/mark-paid" style="margin:0;">
-                <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                <input type="hidden" name="user" value="{escape(u)}">
-                <input type="hidden" name="gross" value="{wk_gross}">
-                <input type="hidden" name="tax" value="{wk_tax}">
-                <input type="hidden" name="net" value="{wk_net}">
-                <button class="btnTiny dark" type="submit">Mark Paid</button>
-              </form>
-            """
-
-        overtime_note = ""
-        if wk_overtime_days > 0:
-            overtime_note = f"<span class='overtimeChip'>Overtime days: {wk_overtime_days}</span>"
-
-        rows_html = []
-        for di in range(7):
-            d_dt = week_start + timedelta(days=di)
-            d_str = d_dt.strftime("%Y-%m-%d")
-            rec = user_days.get(d_str)
-
-            cin = rec["cin"] if rec else ""
-            cout = rec["cout"] if rec else ""
-            hrs = rec["hours"] if rec else ""
-            pay = rec["pay"] if rec else ""
-
-            h_val = safe_float(hrs, 0.0) if str(hrs).strip() != "" else 0.0
-            overtime_row_class = "overtimeRow" if (str(hrs).strip() != "" and h_val > OVERTIME_HOURS) else ""
-
-            if rec:
-                if cout.strip() == "" and cin.strip() != "":
-                    status_html = "<span class='chip bad'>Open</span>"
-                elif cin.strip() and cout.strip():
-                    status_html = "<span class='chip ok'>Complete</span>"
-                else:
-                    status_html = "<span class='chip warn'>Partial</span>"
-            else:
-                status_html = "<span class='chip'>Missing</span>"
-
-            ot_badge = ""
-            if overtime_row_class:
-                ot_badge = "<span class='overtimeChip'>Overtime</span>"
-
-            rows_html.append(f"""
-              <tr class="{overtime_row_class}">
-                <td><b>{day_names[di]}</b></td>
-                <td>{escape(d_str)}</td>
-                <td>
-                  <form method="POST" action="/admin/save-shift" style="margin:0;">
-                    <input type="hidden" name="csrf" value="{escape(csrf)}">
-                    <input type="hidden" name="user" value="{escape(u)}">
-                    <input type="hidden" name="date" value="{escape(d_str)}">
-                    <input class="input" name="cin" value="{escape(cin)}" placeholder="HH:MM:SS" style="margin-top:0; max-width:140px;">
-                </td>
-                <td>
-                    <input class="input" name="cout" value="{escape(cout)}" placeholder="HH:MM:SS" style="margin-top:0; max-width:140px;">
-                </td>
-                <td>
-                    <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8.5" style="margin-top:0; max-width:110px;">
-                </td>
-                <td>
-                    <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" style="margin-top:0; max-width:110px;">
-                </td>
-                <td style="min-width:260px;">
-                    <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
-                      <input type="checkbox" name="recalc" value="yes">
-                      Recalculate (break deducted)
-                    </label>
-                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                      <button class="btnTiny" type="submit">Save</button>
-                      {status_html}
-                      {ot_badge}
-                    </div>
-                  </form>
-                </td>
-              </tr>
-            """)
-
-        blocks.append(f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div class="avatar">{escape(initials(display))}</div>
-                <div>
-                  <div style="font-weight:950; font-size:16px;">{escape(display)} <span class="sub">({escape(u)})</span></div>
-                  <div class="sub" style="margin:4px 0 0 0;">
-                    {header_chip}{header_sub}
-                    <span class="sub" style="margin-left:10px;">Week totals: Hours {wk_hours:.2f} • Gross £{money(wk_gross)} • Tax £{money(wk_tax)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <span class="netBadge">Weekly Net: £{money(wk_net)}</span>
-                {overtime_note}
-                {pay_btn}
-              </div>
-            </div>
-
-            <div class="tablewrap" style="margin-top:12px;">
-              <table style="min-width:1100px;">
-                <thead>
-                  <tr>
-                    <th>Day</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num">Hours</th><th class="num">Pay</th><th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {''.join(rows_html)}
-                </tbody>
-              </table>
-            </div>
-            <p class="sub" style="margin-top:10px;">
-              Rule: if shift is ≥ {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}h then {UNPAID_BREAK_HOURS}h break is deducted. Overtime highlight: > {OVERTIME_HOURS}h/day.
-            </p>
-          </div>
-        """)
-
-    last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
-
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Payroll Report</h1>
-          <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title">
+          <h1>All Times</h1>
+          <p class="sub">Payroll-style view for all employees (filters + totals + CSV export)</p>
         </div>
-        <div class="badge admin">ADMIN</div>
+        <div class="badge">CSV ready</div>
       </div>
 
-      <div class="card" style="padding:12px;">
-        <form method="GET">
-          <div class="row2">
-            <div>
-              <label class="sub">Username contains</label>
-              <input class="input" name="q" value="{escape(q)}" placeholder="e.g. john">
-            </div>
-            <div>
-              <label class="sub">Date range (summary table only)</label>
-              <div class="row2">
-                <input class="input" type="date" name="from" value="{escape(date_from)}">
-                <input class="input" type="date" name="to" value="{escape(date_to)}">
-              </div>
+      <form method="GET" class="sectionCard">
+        <div class="row2">
+          <div>
+            <label class="sub">Username contains</label>
+            <input class="input" name="q" placeholder="e.g. john" value="{escape(q)}">
+          </div>
+          <div>
+            <label class="sub">Date range</label>
+            <div class="row2">
+              <input class="input" type="date" name="from" value="{escape(date_from)}">
+              <input class="input" type="date" name="to" value="{escape(date_to)}">
             </div>
           </div>
-          <input type="hidden" name="wk" value="{wk_offset}">
-          <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
-        </form>
-
-        {week_nav_html}
-
-        {kpi_strip}
-
-        <div class="tablewrap" style="margin-top:12px;">
-          <table style="min-width:980px;">
-            <thead><tr><th>Employee</th><th class="num">Hours</th><th class="num">Gross</th><th class="num">Tax</th><th class="num">Net</th><th style="text-align:right;">Paid</th></tr></thead>
-            <tbody>{summary_html}</tbody>
-          </table>
         </div>
+
+        <div class="btnrow" style="margin-top:10px;">
+          <button class="blue btnSmall" type="submit">Apply</button>
+          <a href="/admin/times?{('q='+escape(q)+'&from='+escape(date_from)+'&to='+escape(date_to)+'&download=1')}">
+            <button class="purple btnSmall" type="button">Download CSV</button>
+          </a>
+          <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+        </div>
+      </form>
+
+      <div class="kpi">
+        <div class="box"><div class="sub">Total Hours</div><div class="big">{round(total_hours,2)}</div></div>
+        <div class="box"><div class="sub">Total Gross</div><div class="big">{round(total_gross,2)}</div></div>
+        <div class="box"><div class="sub">Total Tax (20%)</div><div class="big">{total_tax}</div></div>
+        <div class="box"><div class="sub">Total Net</div><div class="big">{total_net}</div></div>
       </div>
 
-      <div class="card" style="padding:12px; margin-top:12px;">
-        <h2>Weekly History (Editable)</h2>
-        <p class="sub">Week: <b>{escape(week_start_str)}</b> to <b>{escape(week_end_str)}</b>. Edit and save per day.</p>
+      <h2>Summary by employee</h2>
+      <div class="tablewrap">
+        <table style="min-width:720px;">
+          <thead><tr><th>Username</th><th>Hours</th><th>Gross</th><th>Tax</th><th>Net</th></tr></thead>
+          <tbody>{summary_html}</tbody>
+        </table>
       </div>
 
-      {''.join(blocks)}
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+      <h2>Detailed rows (latest 600)</h2>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Username</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th>Hours</th><th>Pay</th></tr></thead>
+          <tbody>{details_html}</tbody>
+        </table>
+      </div>
+    </div></div>
+    """)
 
 
-# ---------- ADMIN ONBOARDING LIST / DETAIL ----------
+# ---------- ADMIN ONBOARDING ----------
 @app.get("/admin/onboarding")
 def admin_onboarding_list():
     gate = require_admin()
@@ -3000,45 +1827,38 @@ def admin_onboarding_list():
             if q and (q not in u.lower() and q not in name.lower()):
                 continue
             rows_html.append(
-                f"<tr><td><a href='/admin/onboarding/{escape(u)}' style='color:var(--purple);font-weight:950;'>{escape(name)}</a></td>"
+                f"<tr><td><a href='/admin/onboarding/{escape(u)}'>{escape(name)}</a></td>"
                 f"<td>{escape(u)}</td><td>{escape(sub)}</td></tr>"
             )
         body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No matches.</td></tr>"
 
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Onboarding</h1>
-          <p class="sub">Click a name to view details</p>
-        </div>
-        <div class="badge admin">ADMIN</div>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Onboarding</h1><p class="sub">Click a name to view full details</p></div>
       </div>
 
-      <div class="card" style="padding:12px;">
-        <form method="GET">
-          <label class="sub">Search</label>
-          <div class="row2">
-            <input class="input" name="q" value="{escape(q)}" placeholder="name or username">
-            <button class="btnSoft" type="submit" style="margin-top:8px;">Search</button>
-          </div>
-        </form>
+      <form method="GET" class="btnrow">
+        <input class="input" name="q" placeholder="Search name or username" value="{escape(q)}">
+        <button class="blue btnSmall" type="submit">Search</button>
+        <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+      </form>
 
-        <div class="tablewrap" style="margin-top:12px;">
-          <table style="min-width: 640px;">
-            <thead><tr><th>Name</th><th>Username</th><th>Last saved</th></tr></thead>
-            <tbody>{body}</tbody>
-          </table>
-        </div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Name</th><th>Username</th><th>Last saved</th></tr></thead>
+          <tbody>{body}</tbody>
+        </table>
       </div>
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    </div></div>
+    """)
 
 @app.get("/admin/onboarding/<username>")
 def admin_onboarding_detail(username):
     gate = require_admin()
     if gate:
         return gate
-
     rec = get_onboarding_record(username)
     if not rec:
         abort(404)
@@ -3046,7 +1866,7 @@ def admin_onboarding_detail(username):
     def row(label, key, link=False):
         v_ = rec.get(key, "")
         vv = linkify(v_) if link else escape(v_)
-        return f"<tr><th style='width:260px;'>{escape(label)}</th><td>{vv}</td></tr>"
+        return f"<tr><th>{escape(label)}</th><td>{vv}</td></tr>"
 
     details = ""
     for label, key in [
@@ -3065,31 +1885,145 @@ def admin_onboarding_detail(username):
     ]:
         details += row(label, key)
 
-    details += row("Passport/Birth cert", "PassportOrBirthCertLink", link=True)
-    details += row("CSCS front/back", "CSCSFrontBackLink", link=True)
-    details += row("Public liability", "PublicLiabilityLink", link=True)
-    details += row("Share code", "ShareCodeLink", link=True)
+    details += row("Passport or Birth Certificate", "PassportOrBirthCertLink", link=True)
+    details += row("CSCS Card (front & back)", "CSCSFrontBackLink", link=True)
+    details += row("Public Liability", "PublicLiabilityLink", link=True)
+    details += row("Share Code / Confirmation", "ShareCodeLink", link=True)
+
     details += row("Contract accepted", "ContractAccepted")
     details += row("Signature name", "SignatureName")
     details += row("Signature time", "SignatureDateTime")
     details += row("Last saved", "SubmittedAt")
 
-    content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Onboarding Details</h1>
-          <p class="sub">{escape(username)}</p>
-        </div>
-        <div class="badge admin">ADMIN</div>
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Onboarding Details</h1><p class="sub">{escape(username)}</p></div>
       </div>
+      <div class="btnrow">
+        <a href="/admin/onboarding"><button class="gray btnSmall" type="button">Back</button></a>
+      </div>
+      <div class="tablewrap">
+        <table style="min-width: 640px;"><tbody>{details}</tbody></table>
+      </div>
+    </div></div>
+    """)
 
-      <div class="card" style="padding:12px;">
-        <div class="tablewrap">
-          <table style="min-width: 720px;"><tbody>{details}</tbody></table>
-        </div>
+
+# ---------- WEEKLY PAYROLL ----------
+@app.get("/weekly")
+def weekly_report():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    now = datetime.now(TZ)
+    year, week_number, _ = now.isocalendar()
+    generated_on = now.strftime("%Y-%m-%d %H:%M:%S")
+
+    existing = payroll_sheet.get_all_records()
+    for row in existing:
+        if row.get("Type") == "Weekly" and safe_int(row.get("Year", 0)) == year and safe_int(row.get("Week", 0)) == week_number:
+            return "Weekly payroll already generated."
+
+    rows = work_sheet.get_all_values()
+    payroll = {}
+
+    for r in rows[1:]:
+        if len(r) <= COL_PAY or r[COL_HOURS] == "":
+            continue
+        try:
+            row_date = datetime.strptime(r[COL_DATE], "%Y-%m-%d")
+        except Exception:
+            continue
+        y, w, _ = row_date.isocalendar()
+        if y == year and w == week_number:
+            emp = r[COL_USER]
+            payroll.setdefault(emp, {"hours": 0.0, "pay": 0.0})
+            payroll[emp]["hours"] += safe_float(r[COL_HOURS], 0.0)
+            payroll[emp]["pay"] += safe_float(r[COL_PAY], 0.0)
+
+    for employee, data in payroll.items():
+        gross = round(data["pay"], 2)
+        tax = round(gross * TAX_RATE, 2)
+        net = round(gross - tax, 2)
+
+        payroll_sheet.append_row([
+            "Weekly", year, week_number, employee,
+            round(data["hours"], 2),
+            gross,
+            tax,
+            net,
+            generated_on
+        ])
+
+    return "Weekly payroll stored successfully."
+
+
+# ---------- MONTHLY PAYROLL ----------
+@app.route("/monthly", methods=["GET", "POST"])
+def monthly_report():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    if request.method == "POST":
+        selected = request.form["month"]  # YYYY-MM
+        year = int(selected.split("-")[0])
+        month = int(selected.split("-")[1])
+        generated_on = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+        existing = payroll_sheet.get_all_records()
+        for row in existing:
+            if row.get("Type") == "Monthly" and safe_int(row.get("Year", 0)) == year and safe_int(row.get("Week", 0)) == month:
+                return "Monthly payroll already generated."
+
+        rows = work_sheet.get_all_values()
+        payroll = {}
+
+        for r in rows[1:]:
+            if len(r) <= COL_PAY or r[COL_HOURS] == "":
+                continue
+            try:
+                row_date = datetime.strptime(r[COL_DATE], "%Y-%m-%d")
+            except Exception:
+                continue
+            if row_date.year == year and row_date.month == month:
+                emp = r[COL_USER]
+                payroll.setdefault(emp, {"hours": 0.0, "pay": 0.0})
+                payroll[emp]["hours"] += safe_float(r[COL_HOURS], 0.0)
+                payroll[emp]["pay"] += safe_float(r[COL_PAY], 0.0)
+
+        for employee, data in payroll.items():
+            gross = round(data["pay"], 2)
+            tax = round(gross * TAX_RATE, 2)
+            net = round(gross - tax, 2)
+
+            payroll_sheet.append_row([
+                "Monthly", year, month, employee,
+                round(data["hours"], 2),
+                gross,
+                tax,
+                net,
+                generated_on
+            ])
+
+        return "Monthly payroll stored successfully."
+
+    return render_template_string(f"""
+    {STYLE}{VIEWPORT}{PWA_TAGS}
+    <div class="app"><div class="card">
+      <div class="header">{HEADER_ICON}
+        <div class="title"><h1>Monthly Payroll</h1><p class="sub">Generate payroll for a month</p></div>
       </div>
-    """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+      <form method="POST" class="btnrow">
+        <input class="input" type="month" name="month" required>
+        <button class="blue btnSmall" type="submit">Generate</button>
+        <a href="/admin"><button class="gray btnSmall" type="button">Back</button></a>
+      </form>
+    </div></div>
+    """)
 
 
 # ================= LOCAL RUN =================
