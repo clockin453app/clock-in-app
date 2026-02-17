@@ -6,18 +6,16 @@
 # - Profile shows onboarding details (text only) + change password.
 # - Logout separated at bottom of desktop sidebar; on mobile it's a small icon in bottom nav.
 #
-# ✅ Premium upgrades included in THIS file (no new software/services):
-# - Company name shown in UI + inserted into agreement: New Era Brickwork Ltd
-# - Google Sheets read caching (+ cache bust after writes)
-# - Fewer Google Sheets API calls: batch updates instead of multiple update_cell
-# - Fast in-memory indexing for common lookups (employees, workhours)
-# - Top bar header (company, page title, avatar, role badge, theme toggle)
-# - Standardized content width (max 1200px) on employee pages; Admin Payroll stays wide/full
-# - Toast notifications + prevents double-submit on forms
-# - Clock page disables invalid actions (Clock In / Clock Out) based on status
+# ✅ Added:
+# - Desktop layout uses full screen width (no small centered UI).
+# - Payroll: KPI strip, better numeric formatting, row emphasis, weekly net badge.
+# - Overtime highlight > 8.5h/day.
+# - Dark mode toggle (localStorage).
+# - Admin dashboard: live timers for currently clocked-in employees.
+# - Unpaid break deduction: subtract 0.5h on shifts >= 6h (so 8am–5pm => 8.5h recorded).
 #
-# ✅ Important:
-# - Your Employees sheet header is "EarlyAcces" (without second 's'). This code reads that header.
+# ✅ Fix:
+# - Escaped JS curly braces inside f-strings to avoid Render SyntaxError.
 
 import os
 import json
@@ -59,8 +57,6 @@ app.config.update(
 
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
 
-COMPANY_NAME = "New Era Brickwork Ltd"
-
 
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 SCOPE = [
@@ -89,12 +85,6 @@ employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 onboarding_sheet = spreadsheet.worksheet("Onboarding")
-
-# Optional sheet (recommended): AuditLog
-try:
-    audit_sheet = spreadsheet.worksheet("AuditLog")
-except Exception:
-    audit_sheet = None
 
 
 # ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
@@ -252,16 +242,10 @@ STYLE = """
   --border:rgba(15,23,42,.08);
   --shadow: 0 10px 28px rgba(15,23,42,.08);
   --shadow2: 0 16px 46px rgba(15,23,42,.12);
-  --radius: 18px;
+  --radius: 22px;
 
-  --space-1: 8px;
-  --space-2: 12px;
-  --space-3: 16px;
-  --space-4: 24px;
-  --space-5: 32px;
-
-  --purple:#0e2a47;
-  --purpleSoft:rgba(14,42,71,.10);
+  --purple:#6d28d9;
+  --purpleSoft:#efe9ff;
   --green:#16a34a;
   --red:#dc2626;
   --amber:#f59e0b;
@@ -277,7 +261,7 @@ body{
   margin:0;
   font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background:
-    radial-gradient(1000px 550px at 20% 0%, rgba(14,42,71,.10) 0%, rgba(14,42,71,0) 60%),
+    radial-gradient(1000px 550px at 20% 0%, rgba(109,40,217,.10) 0%, rgba(109,40,217,0) 60%),
     radial-gradient(900px 500px at 80% 10%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 60%),
     var(--bg);
   color: var(--text);
@@ -287,15 +271,6 @@ a{color:inherit;text-decoration:none;}
 h1{font-size:var(--h1); margin:0;}
 h2{font-size:var(--h2); margin: 0 0 8px 0;}
 .sub{color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35;}
-
-.contentWrap{
-  width: 100%;
-  max-width: 1200px;
-  margin: 0 auto;
-}
-.fullBleed{
-  max-width: none !important;
-}
 
 .card{
   background: var(--card);
@@ -322,7 +297,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 }
 
 .menuItem, .btnSoft, .navIcon, .sideItem, .input{
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease, opacity .16s ease;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
 }
 .menuItem:hover, .sideItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
 .btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
@@ -331,17 +306,9 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 .sidebar{ display:none; }
 .main{ width:100%; }
 
-.topbar{
-  padding: 14px;
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
+.headerTop{
+  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
   margin-bottom: 14px;
-}
-.topbarTitle{ font-weight: 950; font-size: 22px; }
-.topbarRight{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; justify-content:flex-end; }
-.companyBadge{
-  background: rgba(14,42,71,.10);
-  border-color: rgba(14,42,71,.16);
-  color: rgba(14,42,71,.95);
 }
 
 .kpiRow{
@@ -367,14 +334,14 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   gap: 12px;
   padding: 10px 6px 0 6px;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(14,42,71,.04) 0%, rgba(14,42,71,0) 60%);
-  border: 1px solid rgba(14,42,71,.10);
+  background: linear-gradient(180deg, rgba(109,40,217,.04) 0%, rgba(109,40,217,0) 60%);
+  border: 1px solid rgba(109,40,217,.10);
 }
 .bar{
   width: 16%;
   border-radius: 14px 14px 10px 10px;
-  background: linear-gradient(180deg, rgba(14,42,71,.95), rgba(14,42,71,.55));
-  box-shadow: 0 8px 20px rgba(14,42,71,.22);
+  background: linear-gradient(180deg, rgba(109,40,217,.95), rgba(109,40,217,.55));
+  box-shadow: 0 8px 20px rgba(109,40,217,.22);
 }
 .barLabels{
   display:flex; justify-content:space-around; gap:12px;
@@ -395,7 +362,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
 }
 .menuItem.active{
   background: var(--purpleSoft);
-  border-color: rgba(14,42,71,.12);
+  border-color: rgba(109,40,217,.12);
 }
 .menuLeft{display:flex; align-items:center; gap:12px;}
 .icoBox{
@@ -404,18 +371,18 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   background: rgba(255,255,255,.92);
   border: 1px solid rgba(15,23,42,.06);
   display:grid; place-items:center;
-  color: rgba(14,42,71,.92);
+  color: rgba(109,40,217,.92);
 }
 .icoBox svg{ width: 22px; height: 22px; }
 .menuText{
   font-weight: 950;
   font-size: 20px;
   letter-spacing:.1px;
-  color: rgba(14,42,71,.95);
+  color: rgba(109,40,217,.95);
 }
 .chev{
   font-size: 26px;
-  color: rgba(14,42,71,.90);
+  color: rgba(109,40,217,.90);
   font-weight: 900;
 }
 
@@ -429,7 +396,7 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   outline:none;
   margin-top: 8px;
 }
-.input:focus{ border-color: rgba(14,42,71,.35); box-shadow: 0 0 0 3px rgba(14,42,71,.10); }
+.input:focus{ border-color: rgba(109,40,217,.35); box-shadow: 0 0 0 3px rgba(109,40,217,.10); }
 
 .row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
 @media (max-width: 520px){ .row2{ grid-template-columns: 1fr; } }
@@ -466,11 +433,10 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   font-size: 16px;
   cursor:pointer;
   box-shadow: 0 10px 18px rgba(15,23,42,.08);
-  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease, opacity .16s ease;
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
 }
 .btn:hover{ transform: translateY(-1px); filter: brightness(1.02); }
 .btn:active{ transform: translateY(0px); filter: brightness(.98); }
-.btn:disabled{ opacity: .55; cursor:not-allowed; transform:none; filter:none; }
 .btnIn{ background: var(--green); color: white;}
 .btnOut{ background: var(--red); color: white;}
 
@@ -482,10 +448,9 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   font-weight: 950;
   font-size: 15px;
   cursor:pointer;
-  background: rgba(14,42,71,.12);
-  color: rgba(14,42,71,.98);
+  background: rgba(109,40,217,.12);
+  color: rgba(109,40,217,.98);
 }
-.btnSoft:disabled{ opacity:.6; cursor:not-allowed; }
 
 .btnTiny{
   border:none;
@@ -494,28 +459,27 @@ h2{font-size:var(--h2); margin: 0 0 8px 0;}
   font-weight: 950;
   font-size: 13px;
   cursor:pointer;
-  background: rgba(14,42,71,.12);
-  color: rgba(14,42,71,.98);
+  background: rgba(109,40,217,.12);
+  color: rgba(109,40,217,.98);
   white-space: nowrap;
 }
 .btnTiny.dark{
   background: rgba(15,23,42,.10);
   color: rgba(15,23,42,.90);
 }
-.btnTiny:disabled{ opacity:.6; cursor:not-allowed; }
 
 .tablewrap{ margin-top:14px; overflow:auto; border-radius: 18px; border:1px solid rgba(15,23,42,.08); }
 table{ width:100%; border-collapse: collapse; min-width: 720px; background:#fff; }
 th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(15,23,42,.08); text-align:left; font-size: 14px; vertical-align: top;}
 th{ position: sticky; top:0; background: rgba(248,250,252,.96); }
 table tbody tr:nth-child(even){ background: rgba(15,23,42,.02); }
-table tbody tr:hover{ background: rgba(14,42,71,.05); }
+table tbody tr:hover{ background: rgba(109,40,217,.05); }
 
 /* Pro numeric formatting */
 .num{ text-align:right; font-variant-numeric: tabular-nums; }
 
 /* Row emphasis if gross > 0 */
-.rowHasValue{ background: rgba(14,42,71,.045) !important; }
+.rowHasValue{ background: rgba(109,40,217,.045) !important; }
 
 /* Overtime highlight */
 .overtimeRow{ outline: 2px solid rgba(245,158,11,.35); background: rgba(245,158,11,.08) !important; }
@@ -547,7 +511,7 @@ table tbody tr:hover{ background: rgba(14,42,71,.05); }
   margin-top: 12px;
   font-weight: 950;
   font-size: 15px;
-  color: rgba(14,42,71,.95);
+  color: rgba(109,40,217,.95);
 }
 
 .bottomNav{
@@ -572,9 +536,9 @@ table tbody tr:hover{ background: rgba(14,42,71,.05); }
   width: 46px; height: 46px;
   border-radius: 16px;
   display:grid; place-items:center;
-  color: rgba(14,42,71,.92);
+  color: rgba(109,40,217,.92);
 }
-.navIcon.active{ background: rgba(14,42,71,.10); }
+.navIcon.active{ background: rgba(109,40,217,.10); }
 .navIcon svg{ width: 22px; height: 22px; }
 
 .safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
@@ -617,9 +581,9 @@ table tbody tr:hover{ background: rgba(14,42,71,.05); }
   display:grid;
   place-items:center;
   font-weight: 950;
-  color: rgba(14,42,71,.95);
-  background: rgba(14,42,71,.10);
-  border: 1px solid rgba(14,42,71,.14);
+  color: rgba(109,40,217,.95);
+  background: rgba(109,40,217,.10);
+  border: 1px solid rgba(109,40,217,.14);
 }
 
 /* Week selector row */
@@ -640,8 +604,8 @@ table tbody tr:hover{ background: rgba(14,42,71,.05); }
 }
 .weekPill.active{
   background: var(--purpleSoft);
-  border-color: rgba(14,42,71,.18);
-  color: rgba(14,42,71,.95);
+  border-color: rgba(109,40,217,.18);
+  color: rgba(109,40,217,.95);
 }
 
 /* KPI strip */
@@ -670,36 +634,14 @@ table tbody tr:hover{ background: rgba(14,42,71,.05); }
   gap:8px;
   padding: 8px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(14,42,71,.18);
-  background: rgba(14,42,71,.10);
-  color: rgba(14,42,71,.98);
+  border: 1px solid rgba(109,40,217,.18);
+  background: rgba(109,40,217,.10);
+  color: rgba(109,40,217,.98);
   font-weight: 950;
   font-variant-numeric: tabular-nums;
 }
 
-/* Toast */
-.toast{
-  position: fixed;
-  left: 50%;
-  transform: translateX(-50%);
-  bottom: 18px;
-  z-index: 9999;
-  padding: 12px 14px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.92);
-  box-shadow: var(--shadow2);
-  font-weight: 950;
-  opacity: 0;
-  pointer-events: none;
-  transition: opacity .2s ease, transform .2s ease;
-}
-.toast.show{
-  opacity: 1;
-  transform: translateX(-50%) translateY(-6px);
-}
-
-/* Dark mode */
+/* Dark mode toggle */
 body.dark{
   --bg:#0b1220;
   --card:#0f172a;
@@ -719,14 +661,30 @@ body.dark .kpiMini{
 body.dark th{
   background: rgba(255,255,255,.04) !important;
 }
-body.dark .toast{ background: rgba(15,23,42,.92); }
+.themeToggle{
+  position: fixed;
+  top: 14px;
+  right: 14px;
+  z-index: 999;
+  width: 44px; height: 44px;
+  border-radius: 16px;
+  border: 1px solid var(--border);
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(10px);
+  display:grid;
+  place-items:center;
+  cursor:pointer;
+  box-shadow: var(--shadow);
+  font-weight: 950;
+}
+body.dark .themeToggle{ background: rgba(255,255,255,.06); }
 
-/* ===== Desktop wide layout (FULL WIDTH SHELL, but contentWrap centers content) ===== */
+/* ===== Desktop wide layout (FULL WIDTH) ===== */
 @media (min-width: 980px){
   body{ padding: 18px 18px 22px 18px; }
   .shell{
-    max-width: none;
-    width: calc(100vw - 36px);
+    max-width: none;              /* ✅ full width */
+    width: calc(100vw - 36px);    /* ✅ use entire screen minus padding */
     margin: 0 auto;
     display: grid;
     grid-template-columns: 320px 1fr;
@@ -755,8 +713,6 @@ body.dark .toast{ background: rgba(15,23,42,.92); }
     color: rgba(15,23,42,.85);
     margin: 0 0 10px 2px;
   }
-  body.dark .sideTitle{ color: rgba(229,231,235,.85); }
-
   .sideItem{
     display:flex;
     align-items:center;
@@ -770,7 +726,7 @@ body.dark .toast{ background: rgba(15,23,42,.92); }
   }
   .sideItem.active{
     background: var(--purpleSoft);
-    border-color: rgba(14,42,71,.14);
+    border-color: rgba(109,40,217,.14);
   }
   .sideLeft{ display:flex; align-items:center; gap:12px; }
   .sideText{ font-weight: 950; font-size: 16px; letter-spacing:.1px; }
@@ -780,7 +736,7 @@ body.dark .toast{ background: rgba(15,23,42,.92); }
     background: rgba(255,255,255,.92);
     border: 1px solid rgba(15,23,42,.06);
     display:grid; place-items:center;
-    color: rgba(14,42,71,.92);
+    color: rgba(109,40,217,.92);
   }
   .sideIcon svg{ width:20px; height:20px; }
 
@@ -800,11 +756,10 @@ body.dark .toast{ background: rgba(15,23,42,.92); }
 
 /* Print tidy */
 @media print{
-  .sidebar, .bottomNav, .toast, button, input, select, .weekRow, #themeToggle { display:none !important; }
+  .sidebar, .bottomNav, .themeToggle, button, input, select, .weekRow { display:none !important; }
   body{ padding:0 !important; background:#fff !important; }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
   .card{ box-shadow:none !important; }
-  .contentWrap{ max-width:none !important; }
 }
 </style>
 """
@@ -845,9 +800,9 @@ def _svg_logout():
 
 
 # ================= CONTRACT TEXT =================
-CONTRACT_TEXT = f"""Contract
+CONTRACT_TEXT = """Contract
 
-By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for {COMPANY_NAME}, you are acting as a self-employed subcontractor and not as an employee.
+By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
 
 You agree to:
 
@@ -863,7 +818,7 @@ Maintain valid public liability insurance
 
 Supply your own hand tools
 
-Manage and pay your own Tax and National Insurance contributions (CIS tax will be deducted by {COMPANY_NAME} and submitted to HMRC)
+Manage and pay your own Tax and National Insurance contributions (CIS tax will be deducted by us and submitted to HMRC)
 
 You are not required to:
 
@@ -905,7 +860,7 @@ You also agree that this document represents the entire agreement between both p
 
 Contractor Relationship
 
-For the purposes of this agreement, you are the subcontractor, and {COMPANY_NAME} is the contractor.
+For the purposes of this agreement, you are the subcontractor, and we are the contractor.
 
 We agree to:
 
@@ -996,81 +951,6 @@ def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
         return CLOCKIN_EARLIEST.strftime("%H:%M:%S")
     return now_dt.strftime("%H:%M:%S")
 
-
-# ====== In-memory caching for sheet reads (no new software) ======
-_CACHE = {}
-
-def _now_ts():
-    return datetime.now(TZ).timestamp()
-
-def cache_get(key: str, ttl: int = 15):
-    item = _CACHE.get(key)
-    if not item:
-        return None
-    if (_now_ts() - item["t"]) < ttl:
-        return item["v"]
-    return None
-
-def cache_set(key: str, value):
-    _CACHE[key] = {"t": _now_ts(), "v": value}
-    return value
-
-def cache_bust(*keys):
-    for k in keys:
-        _CACHE.pop(k, None)
-
-def employees_vals(ttl=30):
-    v = cache_get("employees_vals", ttl)
-    if v is None:
-        v = employees_sheet.get_all_values()
-        cache_set("employees_vals", v)
-    return v
-
-def work_vals(ttl=15):
-    v = cache_get("work_vals", ttl)
-    if v is None:
-        v = work_sheet.get_all_values()
-        cache_set("work_vals", v)
-    return v
-
-def onboarding_vals(ttl=30):
-    v = cache_get("onboarding_vals", ttl)
-    if v is None:
-        v = onboarding_sheet.get_all_values()
-        cache_set("onboarding_vals", v)
-    return v
-
-
-# ===== Fast indexing helpers (in-memory) =====
-def employees_index():
-    vals = employees_vals()
-    if not vals:
-        return {}, {}
-    headers = vals[0]
-    idx = {h: i for i, h in enumerate(headers)}
-    by_user = {}
-    ucol = idx.get("Username", None)
-    for r in vals[1:]:
-        if ucol is None or ucol >= len(r):
-            continue
-        u = (r[ucol] or "").strip()
-        if u:
-            by_user[u] = r
-    return idx, by_user
-
-def work_index_user_date():
-    vals = work_vals()
-    by_user_date = {}
-    for i in range(1, len(vals)):
-        r = vals[i]
-        u = (r[COL_USER] if len(r) > COL_USER else "").strip()
-        d = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
-        if u and d:
-            by_user_date[(u, d)] = i + 1  # sheet row number (1-indexed)
-    return vals, by_user_date
-
-
-# ===== other helpers =====
 def has_any_row_today(rows, username: str, today_str: str) -> bool:
     for r in rows[1:]:
         if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
@@ -1104,7 +984,7 @@ def find_row_by_username(sheet, username: str):
 
 def get_employee_display_name(username: str) -> str:
     try:
-        vals = employees_vals()
+        vals = employees_sheet.get_all_values()
         if not vals:
             return username
         headers = vals[0]
@@ -1125,7 +1005,7 @@ def get_employee_display_name(username: str) -> str:
         return username
 
 def set_employee_field(username: str, field: str, value: str):
-    vals = employees_vals(ttl=0)  # force fresh
+    vals = employees_sheet.get_all_values()
     if not vals:
         return False
     headers = vals[0]
@@ -1142,11 +1022,10 @@ def set_employee_field(username: str, field: str, value: str):
     if not rownum:
         return False
     employees_sheet.update_cell(rownum, fcol, value)
-    cache_bust("employees_vals")
     return True
 
 def set_employee_first_last(username: str, first: str, last: str):
-    vals = employees_vals(ttl=0)  # force fresh
+    vals = employees_sheet.get_all_values()
     if not vals:
         return
     headers = vals[0]
@@ -1169,10 +1048,9 @@ def set_employee_first_last(username: str, first: str, last: str):
         employees_sheet.update_cell(rownum, fn_col, first or "")
     if ln_col:
         employees_sheet.update_cell(rownum, ln_col, last or "")
-    cache_bust("employees_vals")
 
 def update_employee_password(username: str, new_password: str) -> bool:
-    vals = employees_vals(ttl=0)  # force fresh
+    vals = employees_sheet.get_all_values()
     if not vals:
         return False
     headers = vals[0]
@@ -1185,7 +1063,6 @@ def update_employee_password(username: str, new_password: str) -> bool:
         row = vals[i]
         if len(row) > ucol and row[ucol] == username:
             employees_sheet.update_cell(i + 1, pcol, hashed)
-            cache_bust("employees_vals")
             return True
     return False
 
@@ -1218,11 +1095,10 @@ def update_or_append_onboarding(username: str, data: dict):
         onboarding_sheet.update(f"A{rownum}:{end_col}{rownum}", [row_values])
     else:
         onboarding_sheet.append_row(row_values)
-    cache_bust("onboarding_vals")
 
 def get_onboarding_record(username: str):
     headers = get_sheet_headers(onboarding_sheet)
-    vals = onboarding_vals()
+    vals = onboarding_sheet.get_all_values()
     if not vals or "Username" not in headers:
         return None
     ucol = headers.index("Username")
@@ -1298,45 +1174,9 @@ def get_csrf() -> str:
     return tok
 
 def require_csrf():
-    """CSRF guard.
-    For reliability on hosted platforms, this will NOT hard-fail with 400.
-    If the token is missing/mismatched, it rotates the token and allows the request.
-    (If you want strict CSRF, change this to abort(400).)
-    """
     if request.method == "POST":
-        sent = request.form.get("csrf", "")
-        expected = session.get("csrf", "")
-        if sent and expected and secrets.compare_digest(sent, expected):
-            return
-        # rotate token to keep forms working even if cookies refresh
-        session["csrf"] = secrets.token_urlsafe(24)
-        return
-
-# ===== Audit log (admin actions) =====
-AUDIT_HEADERS = ["Timestamp","Admin","Action","TargetUser","TargetDate","Details","IP"]
-
-def _ensure_audit_headers():
-    if not audit_sheet:
-        return
-    try:
-        vals = audit_sheet.get_all_values()
-        if not vals:
-            audit_sheet.update("A1:G1", [AUDIT_HEADERS])
-    except Exception:
-        pass
-
-def audit_log(action: str, target_user: str = "", target_date: str = "", details: str = ""):
-    if not audit_sheet:
-        return
-    try:
-        _ensure_audit_headers()
-        ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        admin = session.get("username", "")
-        ip = request.headers.get("X-Forwarded-For", request.remote_addr) or ""
-        audit_sheet.append_row([ts, admin, action, target_user, target_date, details, ip])
-    except Exception:
-        pass
-
+        if request.form.get("csrf") != session.get("csrf"):
+            abort(400)
 
 
 # ===== Paid confirmation storage (SAFE: no row insertion) =====
@@ -1368,7 +1208,6 @@ def _append_paid_record_safe(week_start: str, week_end: str, username: str,
     ]
     try:
         payroll_sheet.append_row(row)
-        cache_bust("payroll_vals")
     except Exception:
         pass
 
@@ -1448,10 +1287,19 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
     except Exception:
         return None
 
+def _find_workhours_row_by_user_date(all_vals, username: str, date_str: str):
+    for idx in range(1, len(all_vals)):
+        r = all_vals[idx]
+        u = (r[COL_USER] if len(r) > COL_USER else "").strip()
+        d = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        if u == username and d == date_str:
+            return idx + 1
+    return None
+
 def _get_open_shifts():
     out = []
     try:
-        rows = work_vals()
+        rows = work_sheet.get_all_values()
         for r in rows[1:]:
             if len(r) <= COL_OUT:
                 continue
@@ -1534,75 +1382,34 @@ def sidebar_html(active: str, role: str) -> str:
       </div>
     """
 
-def topbar(title: str, subtitle: str, role: str, user_display: str, show_theme: bool = True) -> str:
-    theme_btn = ""
-    if show_theme:
-        theme_btn = "<button class='btnTiny dark' id='themeToggle' type='button' title='Toggle dark mode'>☾</button>"
-    return f"""
-      <div class="card topbar">
-        <div>
-          <div class="topbarTitle">{escape(title)}</div>
-          <div class="sub">{escape(subtitle)}</div>
-        </div>
-        <div class="topbarRight">
-          <span class="badge companyBadge">{escape(COMPANY_NAME)}</span>
-          <div class="avatar">{escape(initials(user_display))}</div>
-          <span class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</span>
-          {theme_btn}
-        </div>
-      </div>
+def layout_shell(active: str, role: str, content_html: str) -> str:
+    theme_toggle = """
+    <button class="themeToggle" id="themeToggle" title="Toggle dark mode">☾</button>
+    <script>
+    (function(){
+      const key="wh_theme";
+      const btn=document.getElementById("themeToggle");
+      const set=(v)=>{ document.body.classList.toggle("dark", v==="dark"); btn.textContent = (v==="dark") ? "☀" : "☾"; };
+      const saved=localStorage.getItem(key) || "light";
+      set(saved);
+      btn.addEventListener("click", ()=>{
+        const now = document.body.classList.contains("dark") ? "light" : "dark";
+        localStorage.setItem(key, now);
+        set(now);
+      });
+    })();
+    </script>
     """
-
-def layout_shell(active: str, role: str, content_html: str, full_bleed: bool = False) -> str:
-    content_class = "contentWrap fullBleed" if full_bleed else "contentWrap"
     return f"""
       <div class="shell">
         {sidebar_html(active, role)}
         <div class="main">
-          <div class="{content_class}">
-            {content_html}
-          </div>
+          {content_html}
           <div class="safeBottom"></div>
         </div>
       </div>
+      {theme_toggle}
       {bottom_nav(active if active in ('home','clock','times','reports','profile') else 'home', role)}
-      <div class="toast" id="toast"></div>
-
-      <script>
-      // Theme
-      (function(){{
-        const key="wh_theme";
-        const btn=document.getElementById("themeToggle");
-        const set=(v)=>{{ document.body.classList.toggle("dark", v==="dark"); if(btn) btn.textContent = (v==="dark") ? "☀" : "☾"; }};
-        const saved=localStorage.getItem(key) || "light";
-        set(saved);
-        if(btn){{
-          btn.addEventListener("click", ()=>{{
-            const now = document.body.classList.contains("dark") ? "light" : "dark";
-            localStorage.setItem(key, now);
-            set(now);
-          }});
-        }}
-      }})();
-      // Toast + prevent double submit
-      function showToast(msg){{
-        const t=document.getElementById("toast");
-        if(!t) return;
-        t.textContent=msg;
-        t.classList.add("show");
-        setTimeout(()=>t.classList.remove("show"), 2800);
-      }}
-      document.querySelectorAll("form").forEach(f=>{{
-        f.addEventListener("submit", ()=>{{
-          const btn=f.querySelector("button[type=submit],button:not([type])");
-          if(btn && !btn.disabled){{
-            btn.dataset.old=btn.textContent;
-            btn.textContent="Saving...";
-            btn.disabled=true;
-          }}
-        }});
-      }});
-      </script>
     """
 
 
@@ -1672,7 +1479,6 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        # Use cached read for speed
         for user in employees_sheet.get_all_records():
             if user.get("Username") == username and is_password_valid(user.get("Password", ""), password):
                 migrate_password_if_plain(username, user.get("Password", ""), password)
@@ -1681,8 +1487,7 @@ def login():
                 session["username"] = username
                 session["role"] = user.get("Role", "employee")
                 session["rate"] = safe_float(user.get("Rate", 0), 0.0)
-                # IMPORTANT: Your sheet header is "EarlyAcces"
-                session["early_access"] = parse_bool(user.get("EarlyAcces", False))
+                session["early_access"] = parse_bool(user.get("EarlyAccess", False))
                 return redirect(url_for("home"))
 
         msg = "Invalid login"
@@ -1690,19 +1495,24 @@ def login():
     html = f"""
     <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
       <div class="main">
-        <div class="contentWrap">
-          {topbar("WorkHours", "Sign in", "employee", "WH", show_theme=True)}
-          <div class="card" style="padding:14px;">
-            <form method="POST">
-              <input type="hidden" name="csrf" value="{escape(csrf)}">
-              <label class="sub">Username</label>
-              <input class="input" name="username" required>
-              <label class="sub" style="margin-top:10px; display:block;">Password</label>
-              <input class="input" type="password" name="password" required>
-              <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
-            </form>
-            {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
+        <div class="headerTop">
+          <div>
+            <h1>WorkHours</h1>
+            <p class="sub">Sign in</p>
           </div>
+          <div class="badge">Secure</div>
+        </div>
+
+        <div class="card" style="padding:14px;">
+          <form method="POST">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <label class="sub">Username</label>
+            <input class="input" name="username" required>
+            <label class="sub" style="margin-top:10px; display:block;">Password</label>
+            <input class="input" type="password" name="password" required>
+            <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
+          </form>
+          {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
         </div>
       </div>
     </div>
@@ -1728,7 +1538,7 @@ def home():
 
     now = datetime.now(TZ)
     today = now.date()
-    rows = work_vals()
+    rows = work_sheet.get_all_values()
 
     monday = today - timedelta(days=today.weekday())
 
@@ -1776,7 +1586,14 @@ def home():
         """
 
     content = f"""
-      {topbar("Dashboard", f"Welcome, {display_name}", role, display_name)}
+      <div class="headerTop">
+        <div>
+          <h1>Dashboard</h1>
+          <p class="sub">Welcome, {escape(display_name)}</p>
+        </div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+      </div>
+
       <div class="kpiRow">
         <div class="card kpi">
           <p class="label">Previous Gross</p>
@@ -1848,7 +1665,7 @@ def clock_page():
     if request.method == "POST":
         require_csrf()
         action = request.form.get("action")
-        rows = work_vals(ttl=0)  # refresh for correctness on submit
+        rows = work_sheet.get_all_values()
 
         if action == "in":
             if has_any_row_today(rows, username, today_str):
@@ -1860,7 +1677,6 @@ def clock_page():
             else:
                 cin = normalized_clock_in_time(now, early_access)
                 work_sheet.append_row([username, today_str, cin, "", "", ""])
-                cache_bust("work_vals")
                 msg = "Clocked In"
                 if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                     msg = "Clocked In (counted from 08:00)"
@@ -1878,18 +1694,13 @@ def clock_page():
                 pay = round(hours_rounded * rate, 2)
 
                 sheet_row = i + 1
-                # Batch update: D:F => Clock Out, Hours, Pay
-                work_sheet.update(
-                    f"D{sheet_row}:F{sheet_row}",
-                    [[now.strftime("%H:%M:%S"), str(hours_rounded), str(pay)]]
-                )
-                cache_bust("work_vals")
+                work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
+                work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
+                work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
                 msg = f"Clocked Out (Break deducted: {UNPAID_BREAK_HOURS}h)"
 
-    rows2 = work_vals()
+    rows2 = work_sheet.get_all_values()
     osf2 = find_open_shift(rows2, username)
-    is_clocked_in = bool(osf2)
-
     active_start_iso = ""
     active_start_label = ""
     if osf2:
@@ -1901,11 +1712,9 @@ def clock_page():
         except Exception:
             pass
 
-    status_chip = "<span class='chip ok'>Clocked In</span>" if is_clocked_in else "<span class='chip'>Not clocked in</span>"
-
     if active_start_iso:
         timer_html = f"""
-        <div class="timerSub">{status_chip}</div>
+        <div class="timerSub">Active session started</div>
         <div class="timerBig" id="timerDisplay">00:00:00</div>
         <div class="timerSub">Start: {escape(active_start_label)} • Break: {UNPAID_BREAK_HOURS}h (deducted on Clock Out)</div>
         <script>
@@ -1929,24 +1738,28 @@ def clock_page():
         """
     else:
         timer_html = f"""
-        <div class="timerSub">{status_chip}</div>
+        <div class="timerSub">No active session</div>
         <div class="timerBig">00:00:00</div>
         <div class="timerSub">Clock in to start the live timer. Break deducted on Clock Out: {UNPAID_BREAK_HOURS}h</div>
         """
 
-    toast_script = f"<script>showToast({json.dumps(msg)})</script>" if msg else ""
-
     content = f"""
-      {topbar("Clock In & Out", f"{display_name} • Live session timer", role, display_name)}
-      {toast_script}
+      <div class="headerTop">
+        <div>
+          <h1>Clock In & Out</h1>
+          <p class="sub">{escape(display_name)} • Live session timer</p>
+        </div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+      </div>
+
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
       <div class="card clockCard">
         {timer_html}
         <form method="POST" class="actionRow">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <button class="btn btnIn" name="action" value="in" {'disabled' if is_clocked_in else ''}>Clock In</button>
-          <button class="btn btnOut" name="action" value="out" {'disabled' if not is_clocked_in else ''}>Clock Out</button>
+          <button class="btn btnIn" name="action" value="in">Clock In</button>
+          <button class="btn btnOut" name="action" value="out">Clock Out</button>
         </form>
         <a href="/my-times" style="display:block;margin-top:12px;">
           <button class="btnSoft" type="button">View my time logs</button>
@@ -1967,7 +1780,7 @@ def my_times():
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
 
-    rows = work_vals()
+    rows = work_sheet.get_all_values()
     body = []
     for r in rows[1:]:
         if len(r) <= COL_PAY:
@@ -1978,10 +1791,16 @@ def my_times():
             f"<tr><td>{escape(r[COL_DATE])}</td><td>{escape(r[COL_IN])}</td>"
             f"<td>{escape(r[COL_OUT])}</td><td class='num'>{escape(r[COL_HOURS])}</td><td class='num'>£{escape(r[COL_PAY])}</td></tr>"
         )
-    table = "".join(body) if body else "<tr><td colspan='5'>No records yet. Clock in to start tracking.</td></tr>"
+    table = "".join(body) if body else "<tr><td colspan='5'>No records yet.</td></tr>"
 
     content = f"""
-      {topbar("Time logs", f"{display_name} • Clock history", role, display_name)}
+      <div class="headerTop">
+        <div>
+          <h1>Time logs</h1>
+          <p class="sub">{escape(display_name)} • Clock history</p>
+        </div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+      </div>
 
       <div class="card" style="padding:12px;">
         <div class="tablewrap">
@@ -2010,7 +1829,7 @@ def my_reports():
     today = now.date()
     week_start = today - timedelta(days=today.weekday())
 
-    rows = work_vals()
+    rows = work_sheet.get_all_values()
     daily_hours = daily_pay = 0.0
     weekly_hours = weekly_pay = 0.0
     monthly_hours = monthly_pay = 0.0
@@ -2050,7 +1869,13 @@ def my_reports():
     m_g, m_t, m_n = gross_tax_net(monthly_pay)
 
     content = f"""
-      {topbar("Timesheets", f"{display_name} • Totals + tax + net", role, display_name)}
+      <div class="headerTop">
+        <div>
+          <h1>Timesheets</h1>
+          <p class="sub">{escape(display_name)} • Totals + tax + net</p>
+        </div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+      </div>
 
       <div class="kpiRow">
         <div class="card kpi">
@@ -2293,12 +2118,15 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
     if role == "admin":
         drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive' style='color:var(--purple);font-weight:950;'>Connect Drive</a> once.</p>"
 
-    toast_script = f"<script>showToast({json.dumps(msg)})</script>" if msg else ""
-
     return f"""
-      {topbar("Starter Form", f"{display_name} • Save Draft anytime • Submit Final when complete", role, display_name)}
-      {drive_hint}
-      {toast_script}
+      <div class="headerTop">
+        <div>
+          <h1>Starter Form</h1>
+          <p class="sub">{escape(display_name)} • Save Draft anytime • Submit Final when complete</p>
+          {drive_hint}
+        </div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+      </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not msg_ok) else ""}
@@ -2475,7 +2303,6 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
 
           <h2 style="margin-top:14px;">Contract</h2>
-          <div class="sub">Company: <b>{escape(COMPANY_NAME)}</b></div>
           <div class="contractBox">{escape(CONTRACT_TEXT)}</div>
 
           <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
@@ -2488,7 +2315,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
 
           <div class="row2" style="margin-top:14px;">
             <button class="btnSoft" name="submit_type" value="draft" type="submit">Save Draft</button>
-            <button class="btnSoft" name="submit_type" value="final" type="submit" style="background:rgba(14,42,71,.18);">Submit Final</button>
+            <button class="btnSoft" name="submit_type" value="final" type="submit" style="background:rgba(109,40,217,.18);">Submit Final</button>
           </div>
         </form>
       </div>
@@ -2539,11 +2366,14 @@ def change_password():
 
         details_html = onboarding_details_block(username)
 
-    toast_script = f"<script>showToast({json.dumps(msg)})</script>" if msg else ""
-
     content = f"""
-      {topbar("Profile", f"{display_name}", role, display_name)}
-      {toast_script}
+      <div class="headerTop">
+        <div>
+          <h1>Profile</h1>
+          <p class="sub">{escape(display_name)}</p>
+        </div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+      </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
@@ -2582,8 +2412,6 @@ def admin():
         return gate
 
     open_shifts = _get_open_shifts()
-    csrf = get_csrf()
-
     if open_shifts:
         rows = []
         for s in open_shifts:
@@ -2593,105 +2421,64 @@ def admin():
                   <div style="display:flex; align-items:center; gap:10px;">
                     <div class="avatar">{escape(initials(s['name']))}</div>
                     <div>
-                      <div style="font-weight:600;">{escape(s['name'])}</div>
-                      <div class="sub" style="margin:2px 0 0 0;">{escape(s['user'])}</div>
+                      <div style="font-weight:950;">{escape(s['name'])}</div>
+                      <div class="sub" style="margin:2px 0 0 0;">{escape(s['user'])} • Start: {escape(s['start_label'])}</div>
                     </div>
                   </div>
                 </td>
-                <td class="num">{escape(s['start_label'])}</td>
-                <td>
-                  <form method="POST" action="/admin/force-clock-out" style="margin:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-                    <input type="hidden" name="csrf" value="{escape(csrf)}">
-                    <input type="hidden" name="user" value="{escape(s['user'])}">
-                    <input class="input" name="cout" placeholder="HH:MM:SS" style="margin-top:0; max-width:120px;">
-                    <input class="input" name="hours" placeholder="hours" style="margin-top:0; max-width:90px;">
-                    <input class="input" name="pay" placeholder="pay" style="margin-top:0; max-width:90px;">
-                    <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
-                      <input type="checkbox" name="recalc" value="yes"> Recalc
-                    </label>
-                    <button class="btnTiny dark" type="submit">Force Clock-Out</button>
-                  </form>
-                  <div class="sub" style="margin-top:6px;">Leave fields empty to clock out now (auto hours/pay).</div>
-                </td>
+                <td class="num"><span class="chip ok">Clocked In</span></td>
+                <td class="num"><span class="netBadge" data-start="{escape(s['start_iso'])}">00:00:00</span></td>
               </tr>
             """)
+        # ✅ FIXED: escaped braces in the JS below ({{ and }})
         open_html = f"""
           <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In</h2>
-            <p class="sub">Force Clock-Out closes the current open shift for the user.</p>
+            <h2>Live Clocked-In Employees</h2>
+            <p class="sub">Live timer updates every second (who is currently working).</p>
             <div class="tablewrap" style="margin-top:12px;">
-              <table style="min-width:980px;">
-                <thead><tr><th>Employee</th><th class="num">Started</th><th>Force Clock-Out</th></tr></thead>
+              <table style="min-width:840px;">
+                <thead><tr><th>Employee</th><th class="num">Status</th><th class="num">Live Time</th></tr></thead>
                 <tbody>{''.join(rows)}</tbody>
               </table>
             </div>
+            <script>
+              (function(){{
+                function pad(n){{ return String(n).padStart(2,"0"); }}
+                function tick(){{
+                  document.querySelectorAll("[data-start]").forEach(el=>{{
+                    const startIso = el.getAttribute("data-start");
+                    const start = new Date(startIso);
+                    const now = new Date();
+                    let diff = Math.floor((now - start)/1000);
+                    if(diff < 0) diff = 0;
+                    const h = Math.floor(diff/3600);
+                    const m = Math.floor((diff%3600)/60);
+                    const s = diff%60;
+                    el.textContent = pad(h)+":"+pad(m)+":"+pad(s);
+                  }});
+                }}
+                tick(); setInterval(tick, 1000);
+              }})();
+            </script>
           </div>
         """
     else:
         open_html = f"""
           <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In</h2>
-            <p class="sub">No one is currently c
-@app.post("/admin/force-clock-out")
-def admin_force_clock_out():
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
-
-    username = (request.form.get("user") or "").strip()
-    cout_in = (request.form.get("cout") or "").strip()
-    hours_in = (request.form.get("hours") or "").strip()
-    pay_in = (request.form.get("pay") or "").strip()
-    recalc = (request.form.get("recalc") == "yes")
-
-    if not username:
-        return redirect(request.referrer or "/admin")
-
-    rows = work_vals(ttl=0)
-    osf = find_open_shift(rows, username)
-    if not osf:
-        audit_log("FORCE_CLOCK_OUT_FAIL", username, "", "No open shift")
-        return redirect(request.referrer or "/admin")
-
-    i, d, cin = osf
-    now = datetime.now(TZ)
-
-    # Determine cout
-    cout = cout_in or now.strftime("%H:%M:%S")
-
-    rate = safe_float(_get_user_rate(username), 0.0)
-
-    # Determine hours/pay
-    hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
-    pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
-
-    if recalc or hours_val is None:
-        computed = _compute_hours_from_times(d, cin, cout)
-        if computed is not None:
-            hours_val = computed
-            if recalc or pay_val is None:
-                pay_val = round(computed * rate, 2)
-    if pay_val is None and hours_val is not None:
-        pay_val = round(hours_val * rate, 2)
-
-    hours_cell = "" if hours_val is None else str(hours_val)
-    pay_cell = "" if pay_val is None else str(pay_val)
-
-    sheet_row = i + 1
-    work_sheet.update(f"D{sheet_row}:F{sheet_row}", [[cout, hours_cell, pay_cell]])
-    cache_bust("work_vals")
-
-    audit_log("FORCE_CLOCK_OUT", username, d, f"cin={cin} cout={cout} hours={hours_cell} pay={pay_cell} recalc={recalc}")
-    return redirect(request.referrer or "/admin")
-
-
-locked in.</p>
+            <h2>Live Clocked-In Employees</h2>
+            <p class="sub">No one is currently clocked in.</p>
           </div>
         """
 
     content = f"""
-      {topbar("Admin", "Payroll + onboarding", "admin", "AD")}
+      <div class="headerTop">
+        <div>
+          <h1>Admin</h1>
+          <p class="sub">Payroll + onboarding</p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
       <div class="card menu">
         <a class="menuItem active" href="/admin/payroll">
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Payroll Report</div></div>
@@ -2706,9 +2493,10 @@ locked in.</p>
           <div class="chev">›</div>
         </a>
       </div>
+
       {open_html}
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
 @app.post("/admin/save-shift")
@@ -2744,17 +2532,15 @@ def admin_save_shift():
     pay_cell = "" if pay_val is None else str(pay_val)
 
     try:
-        vals, by_ud = work_index_user_date()
-        rownum = by_ud.get((username, date_str))
+        vals = work_sheet.get_all_values()
+        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
         if rownum:
-            # Batch update: C:F => Clock In, Clock Out, Hours, Pay
-            work_sheet.update(
-                f"C{rownum}:F{rownum}",
-                [[cin, cout, hours_cell, pay_cell]]
-            )
+            work_sheet.update_cell(rownum, COL_IN + 1, cin)
+            work_sheet.update_cell(rownum, COL_OUT + 1, cout)
+            work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
+            work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
         else:
             work_sheet.append_row([username, date_str, cin, cout, hours_cell, pay_cell])
-        cache_bust("work_vals")
     except Exception:
         pass
 
@@ -2793,8 +2579,6 @@ def admin_mark_paid():
 
 @app.get("/admin/payroll")
 def admin_payroll():
-    # NOTE: This route is long; kept from your original with minimal logic changes.
-    # Main changes here: uses topbar + content stays full width (full_bleed=True) + uses cached work_vals where safe.
     gate = require_admin()
     if gate:
         return gate
@@ -2805,7 +2589,7 @@ def admin_payroll():
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
 
-    rows = work_vals()
+    rows = work_sheet.get_all_values()
 
     today = datetime.now(TZ).date()
     wk_offset_raw = (request.args.get("wk", "0") or "0").strip()
@@ -2923,7 +2707,7 @@ def admin_payroll():
       </div>
     """
 
-    # Summary table
+    # Summary table (polished + paid under name)
     summary_rows = []
     for u in sorted(all_users, key=lambda s: s.lower()):
         gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
@@ -3135,7 +2919,14 @@ def admin_payroll():
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
 
     content = f"""
-      {topbar("Payroll Report", f"Printable • Updated {last_updated}", "admin", "AD")}
+      <div class="headerTop">
+        <div>
+          <h1>Payroll Report</h1>
+          <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
       <div class="card" style="padding:12px;">
         <form method="GET">
           <div class="row2">
@@ -3156,6 +2947,7 @@ def admin_payroll():
         </form>
 
         {week_nav_html}
+
         {kpi_strip}
 
         <div class="tablewrap" style="margin-top:12px;">
@@ -3173,7 +2965,7 @@ def admin_payroll():
 
       {''.join(blocks)}
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
 # ---------- ADMIN ONBOARDING LIST / DETAIL ----------
@@ -3184,7 +2976,7 @@ def admin_onboarding_list():
         return gate
 
     q = (request.args.get("q", "") or "").strip().lower()
-    vals = onboarding_vals()
+    vals = onboarding_sheet.get_all_values()
     if not vals:
         body = "<tr><td colspan='3'>No onboarding data.</td></tr>"
     else:
@@ -3214,7 +3006,14 @@ def admin_onboarding_list():
         body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No matches.</td></tr>"
 
     content = f"""
-      {topbar("Onboarding", "Click a name to view details", "admin", "AD")}
+      <div class="headerTop">
+        <div>
+          <h1>Onboarding</h1>
+          <p class="sub">Click a name to view details</p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
       <div class="card" style="padding:12px;">
         <form method="GET">
           <label class="sub">Search</label>
@@ -3232,7 +3031,7 @@ def admin_onboarding_list():
         </div>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 @app.get("/admin/onboarding/<username>")
 def admin_onboarding_detail(username):
@@ -3276,19 +3075,24 @@ def admin_onboarding_detail(username):
     details += row("Last saved", "SubmittedAt")
 
     content = f"""
-      {topbar("Onboarding Details", username, "admin", "AD")}
+      <div class="headerTop">
+        <div>
+          <h1>Onboarding Details</h1>
+          <p class="sub">{escape(username)}</p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
       <div class="card" style="padding:12px;">
         <div class="tablewrap">
           <table style="min-width: 720px;"><tbody>{details}</tbody></table>
         </div>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content, full_bleed=True))
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
 # ================= LOCAL RUN =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
