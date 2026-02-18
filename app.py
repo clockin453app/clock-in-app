@@ -1957,7 +1957,8 @@ def clock_page():
                         if c:
                             work_sheet.update_cell(sheet_row, c, "" if v is None else str(v))
 
-                    msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m) • Break deducted: {UNPAID_BREAK_HOURS}h"
+      msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
+
             else:
                 msg = "Invalid action."
                 msg_class = "message error"
@@ -4109,4 +4110,5 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
