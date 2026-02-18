@@ -1354,6 +1354,52 @@ def _get_active_sites():
     except Exception:
         return []
 
+
+
+def _get_location(site_name: str):
+    """Return site config dict for a given SiteName, or None.
+
+    Expected Locations sheet columns (headered):
+      SiteName | Lat | Lon | RadiusMeters | Active
+    Returns keys compatible with older code: {Lat, Lon, RadiusM, RadiusMeters, Active}.
+    """
+    if not locations_sheet or not site_name:
+        return None
+    try:
+        vals = locations_sheet.get_all_values()
+        if not vals:
+            return None
+        headers = vals[0]
+        has_headers = ("SiteName" in headers and "Lat" in headers and ("Lon" in headers or "Longitude" in headers))
+        if has_headers:
+            def idx(h): return headers.index(h) if h in headers else None
+            i_name = idx("SiteName")
+            i_lat = idx("Lat")
+            i_lon = idx("Lon") if "Lon" in headers else idx("Longitude")
+            i_rad = idx("RadiusMeters")
+            i_act = idx("Active")
+            rows = vals[1:]
+        else:
+            # Assume raw fixed order
+            i_name, i_lat, i_lon, i_rad, i_act = 0, 1, 2, 3, 4
+            rows = vals
+
+        for r in rows:
+            if len(r) <= max(i_name or 0, i_lat or 0, i_lon or 0, i_rad or 0):
+                continue
+            name = (r[i_name] or "").strip()
+            if name.lower() != site_name.strip().lower():
+                continue
+            lat = (r[i_lat] or "").strip()
+            lon = (r[i_lon] or "").strip()
+            rad = (r[i_rad] or "").strip() if i_rad is not None and i_rad < len(r) else ""
+            act = (r[i_act] or "TRUE").strip() if i_act is not None and i_act < len(r) else "TRUE"
+            # Provide both RadiusM (legacy) and RadiusMeters (current)
+            return {"SiteName": name, "Lat": lat, "Lon": lon, "RadiusM": rad, "RadiusMeters": rad, "Active": act}
+    except Exception:
+        return None
+    return None
+
 def _validate_location_for_user(username: str, lat: float, lon: float):
     """Return (ok, site_name, dist_m, reason)."""
     sites = _get_active_sites()
@@ -2230,11 +2276,11 @@ def clock_page():
                   const rTxt = Math.round(siteRadius);
     
                   if(inside){{
-                    statusEl.textContent = `📍 Location OK: ${{siteName}} (${{dTxt}}m)`;
-                    subEl.textContent = `Allowed radius: ${{rTxt}}m • Accuracy: ${{Math.round(uAcc)}}m`;
+                    statusEl.textContent = `📍 Location OK: ${siteName} (${dTxt}m)`;
+                    subEl.textContent = `Allowed radius: ${rTxt}m • Accuracy: ${Math.round(uAcc)}m`;
                   }} else {{
-                    statusEl.textContent = `📍 Too far: ${{dTxt}}m from ${{siteName}}`;
-                    subEl.textContent = `Allowed radius: ${{rTxt}}m • Move closer • Accuracy: ${{Math.round(uAcc)}}m`;
+                    statusEl.textContent = `📍 Too far: ${dTxt}m from ${siteName}`;
+                    subEl.textContent = `Allowed radius: ${rTxt}m • Move closer • Accuracy: ${Math.round(uAcc)}m`;
                   }}
     
                   updateMap(uLat, uLon);
