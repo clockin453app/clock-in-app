@@ -253,6 +253,14 @@ PWA_TAGS = """
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 """
 
+LEAFLET_TAGS = """
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+ integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+ integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+"""
+
+
 
 # ================= PREMIUM UI =================
 STYLE = """
@@ -1530,6 +1538,25 @@ def _get_open_shifts():
     return out
 
 
+
+
+def _get_assigned_site_meta(username: str) -> tuple[str, str, str, str]:
+    """Returns (site_name, lat, lon, radius_m) as strings for safe HTML embedding.
+    If not assigned/missing, returns empty strings.
+    """
+    try:
+        site = _get_employee_site(username)  # name in Employees sheet (e.g. "Main Site")
+        if not site:
+            return "", "", "", ""
+        cfg = _get_location(site)  # dict with Lat/Lon/RadiusM
+        if not cfg:
+            return site, "", "", ""
+        lat = str(cfg.get("Lat", "")).strip()
+        lon = str(cfg.get("Lon", "")).strip()
+        rad = str(cfg.get("RadiusM", "")).strip()
+        return str(site), lat, lon, rad
+    except Exception:
+        return "", "", "", ""
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
     return f"""
@@ -1782,6 +1809,9 @@ def home():
     username = session["username"]
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
+
+    # Assigned site (for geolocation enforcement + map)
+    site_name, site_lat, site_lon, site_radius = _get_assigned_site_meta(username)
 
     now = datetime.now(TZ)
     today = now.date()
@@ -2048,64 +2078,185 @@ def clock_page():
   </div>
 </div>
 
+      
       <div class="card clockCard">
         {timer_html}
-        
-        <form method="POST" class="actionRow" id="geoClockForm">
+
+        <div class="card" style="padding:12px; margin-top:12px;">
+          <h2 style="margin:0;">Location</h2>
+          <p class="sub" id="locStatusText">📍 Waiting for location permission…</p>
+          <p class="sub" id="locSubText" style="margin-top:4px;"></p>
+
+          <div id="locMapWrap" style="margin-top:10px; border-radius:16px; overflow:hidden; border:1px solid var(--border);">
+            <div id="locMap"
+                 data-site-name="{escape(site_name)}"
+                 data-site-lat="{escape(site_lat)}"
+                 data-site-lon="{escape(site_lon)}"
+                 data-site-radius="{escape(site_radius)}"
+                 style="height:220px; width:100%;"></div>
+          </div>
+
+          <p class="sub" style="margin-top:10px;">
+            You must be inside your assigned site radius to Clock In and Clock Out.
+          </p>
+        </div>
+
+        <form method="POST" id="geoClockForm" style="margin-top:12px;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <input type="hidden" name="action" id="geoAction" value="">
           <input type="hidden" name="lat" id="geoLat" value="">
           <input type="hidden" name="lon" id="geoLon" value="">
           <input type="hidden" name="acc" id="geoAcc" value="">
-          <button class="btn btnIn" type="button" data-act="in" id="btnClockIn">Clock In</button>
-          <button class="btn btnOut" type="button" data-act="out" id="btnClockOut">Clock Out</button>
+          <div class="actionRow">
+            <button class="btn btnIn" type="button" data-act="in" id="btnIn">Clock In</button>
+            <button class="btn btnOut" type="button" data-act="out" id="btnOut">Clock Out</button>
+          </div>
         </form>
 
         <script>
           (function(){{
+            const siteName = (document.getElementById("locMap")?.dataset.siteName || "").trim();
+            const siteLat = parseFloat(document.getElementById("locMap")?.dataset.siteLat || "");
+            const siteLon = parseFloat(document.getElementById("locMap")?.dataset.siteLon || "");
+            const siteRadius = parseFloat(document.getElementById("locMap")?.dataset.siteRadius || "");
+            const hasSite = siteName && isFinite(siteLat) && isFinite(siteLon) && isFinite(siteRadius);
+
+            const statusEl = document.getElementById("locStatusText");
+            const subEl = document.getElementById("locSubText");
+            const mapWrap = document.getElementById("locMapWrap");
+
             const form = document.getElementById("geoClockForm");
             const act = document.getElementById("geoAction");
             const lat = document.getElementById("geoLat");
             const lon = document.getElementById("geoLon");
             const acc = document.getElementById("geoAcc");
 
+            const btnIn = document.getElementById("btnIn");
+            const btnOut = document.getElementById("btnOut");
+
             function setDisabled(v){{
-              document.getElementById("btnClockIn").disabled = v;
-              document.getElementById("btnClockOut").disabled = v;
+              btnIn.disabled = !!v;
+              btnOut.disabled = !!v;
+              btnIn.style.opacity = v ? ".55" : "1";
+              btnOut.style.opacity = v ? ".55" : "1";
             }}
+
+            // No site assigned
+            if(!hasSite){{
+              mapWrap.style.display = "none";
+              statusEl.textContent = "📍 No site assigned. Ask admin to set your site in Employees sheet.";
+              setDisabled(true);
+              return;
+            }}
+
+            // Haversine distance (meters)
+            function distM(lat1, lon1, lat2, lon2){{
+              const R = 6371000;
+              const toRad = (d)=> d * Math.PI / 180;
+              const dLat = toRad(lat2-lat1);
+              const dLon = toRad(lon2-lon1);
+              const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+                        Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*
+                        Math.sin(dLon/2)*Math.sin(dLon/2);
+              const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+              return R * c;
+            }}
+
+            // Leaflet map
+            let map=null, siteMarker=null, userMarker=null, circle=null;
+            function initMap(){{
+              if(!window.L) return;
+              map = L.map("locMap", {{ zoomControl:true }});
+              L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
+                maxZoom: 19,
+                attribution: "&copy; OpenStreetMap"
+              }}).addTo(map);
+
+              const sitePos = [siteLat, siteLon];
+              siteMarker = L.marker(sitePos).addTo(map).bindPopup(siteName);
+              circle = L.circle(sitePos, {{ radius: siteRadius }}).addTo(map);
+              map.fitBounds(circle.getBounds(), {{ padding:[18,18] }});
+            }}
+
+            function updateMap(userLat, userLon){{
+              if(!map || !window.L) return;
+              const pos = [userLat, userLon];
+              if(!userMarker){{
+                userMarker = L.marker(pos).addTo(map).bindPopup("You");
+              }} else {{
+                userMarker.setLatLng(pos);
+              }}
+            }}
+
+            initMap();
+
+            let last = null; // {{lat,lon,acc}}
+            function updateUI(pos){{
+              const uLat = pos.coords.latitude;
+              const uLon = pos.coords.longitude;
+              const uAcc = pos.coords.accuracy || 0;
+              last = {{ lat:uLat, lon:uLon, acc:uAcc }};
+
+              const d = distM(uLat, uLon, siteLat, siteLon);
+              const inside = d <= siteRadius;
+
+              const dTxt = Math.round(d);
+              const rTxt = Math.round(siteRadius);
+
+              if(inside){{
+                statusEl.textContent = `📍 Location OK: ${siteName} (${dTxt}m)`;
+                subEl.textContent = `Allowed radius: ${rTxt}m • Accuracy: ${Math.round(uAcc)}m`;
+              }} else {{
+                statusEl.textContent = `📍 Too far: ${dTxt}m from ${siteName}`;
+                subEl.textContent = `Allowed radius: ${rTxt}m • Move closer • Accuracy: ${Math.round(uAcc)}m`;
+              }}
+
+              updateMap(uLat, uLon);
+              setDisabled(!inside);
+            }}
+
+            function onError(err){{
+              const msg = (err && err.message) ? err.message : "Location permission denied.";
+              statusEl.textContent = "📍 Location required to clock in/out.";
+              subEl.textContent = msg;
+              setDisabled(true);
+            }}
+
+            setDisabled(true);
+            if(!navigator.geolocation){{
+              statusEl.textContent = "📍 Geolocation not supported on this device/browser.";
+              setDisabled(true);
+              return;
+            }}
+
+            // Keep updating so user sees live status while moving
+            navigator.geolocation.watchPosition(updateUI, onError, {{
+              enableHighAccuracy:true,
+              timeout:12000,
+              maximumAge:0
+            }});
 
             function submitWithLocation(action){{
+              if(!last){{ alert("Waiting for location…"); return; }}
               act.value = action;
-              if(!navigator.geolocation){{
-                alert("Geolocation not supported on this device/browser.");
-                return;
-              }}
-              setDisabled(true);
-
-              navigator.geolocation.getCurrentPosition((pos)=>{{
-                lat.value = String(pos.coords.latitude || "");
-                lon.value = String(pos.coords.longitude || "");
-                acc.value = String(pos.coords.accuracy || "");
-                form.submit();
-              }}, (err)=>{{
-                const msg = (err && err.message) ? err.message : "Location permission denied.";
-                alert("Location is required to clock in/out. " + msg);
-                setDisabled(false);
-              }}, {{ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }});
+              lat.value = String(last.lat);
+              lon.value = String(last.lon);
+              acc.value = String(last.acc || "");
+              form.submit();
             }}
 
-            document.querySelectorAll("#geoClockForm button[data-act]").forEach((btn)=>{{
-              btn.addEventListener("click", ()=> submitWithLocation(btn.getAttribute("data-act")));
-            }});
+            btnIn.addEventListener("click", ()=> submitWithLocation("in"));
+            btnOut.addEventListener("click", ()=> submitWithLocation("out"));
           }})();
         </script>
-    
+
         <a href="/my-times" style="display:block;margin-top:12px;">
           <button class="btnSoft" type="button">View my time logs</button>
         </a>
       </div>
+</div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("clock", role, content))
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{LEAFLET_TAGS}" + layout_shell("clock", role, content))
 
 
 # ---------- MY TIMES ----------
