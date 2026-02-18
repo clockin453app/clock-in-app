@@ -2230,11 +2230,11 @@ def clock_page():
                   const rTxt = Math.round(siteRadius);
     
                   if(inside){{
-                    statusEl.textContent = `📍 Location OK: ${siteName} (${dTxt}m)`;
-                    subEl.textContent = `Allowed radius: ${rTxt}m • Accuracy: ${Math.round(uAcc)}m`;
+                    statusEl.textContent = `📍 Location OK: ${{siteName}} (${{dTxt}}m)`;
+                    subEl.textContent = `Allowed radius: ${{rTxt}}m • Accuracy: ${{Math.round(uAcc)}}m`;
                   }} else {{
-                    statusEl.textContent = `📍 Too far: ${dTxt}m from ${siteName}`;
-                    subEl.textContent = `Allowed radius: ${rTxt}m • Move closer • Accuracy: ${Math.round(uAcc)}m`;
+                    statusEl.textContent = `📍 Too far: ${{dTxt}}m from ${{siteName}}`;
+                    subEl.textContent = `Allowed radius: ${{rTxt}}m • Move closer • Accuracy: ${{Math.round(uAcc)}}m`;
                   }}
     
                   updateMap(uLat, uLon);
