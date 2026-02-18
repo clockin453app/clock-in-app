@@ -3752,43 +3752,45 @@ def admin_locations():
     table_body = "".join([row_html(r) for r in all_rows]) if all_rows else "<tr><td colspan='5'>No locations yet.</td></tr>"
 
 
-# Map preview (no API key): OpenStreetMap embed for selected site
-selected = (request.args.get("site") or "").strip()
-chosen = None
-for rr in all_rows:
-    if selected and rr.get("name","").strip().lower() == selected.lower():
-        chosen = rr
-        break
-if not chosen and all_rows:
-    chosen = all_rows[0]
 
-map_card = ""
-if chosen:
-    try:
-        latf = float((chosen.get("lat") or "0").strip())
-        lonf = float((chosen.get("lon") or "0").strip())
-        delta = 0.006
-        left = lonf - delta
-        right = lonf + delta
-        top = latf + delta
-        bottom = latf - delta
-        # OSM embed URL
-        osm = f"https://www.openstreetmap.org/export/embed.html?bbox={left}%2C{bottom}%2C{right}%2C{top}&layer=mapnik&marker={latf}%2C{lonf}"
-        map_card = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Map preview</h2>
-            <div class="sub" style="margin-top:6px;">{escape(chosen.get('name',''))} • {escape(chosen.get('lat',''))}, {escape(chosen.get('lon',''))}</div>
-            <div style="margin-top:12px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);">
-              <iframe title="map" src="{osm}" style="width:100%; height:320px; border:0;" loading="lazy"></iframe>
-            </div>
-            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
-              <a href="https://www.google.com/maps?q={latf},{lonf}" target="_blank" rel="noopener noreferrer" style="color:var(--navy); font-weight:600;">Open in Google Maps</a>
-              <a href="https://www.openstreetmap.org/?mlat={latf}&mlon={lonf}#map=18/{latf}/{lonf}" target="_blank" rel="noopener noreferrer" style="color:var(--navy); font-weight:600;">Open in OSM</a>
-            </div>
-          </div>
-        """
-    except Exception:
-        map_card = ""
+    # Map preview (no API key): OpenStreetMap embed for selected site
+    selected = (request.args.get("site") or "").strip()
+    chosen = None
+    for rr in all_rows:
+        if selected and rr.get("name", "").strip().lower() == selected.lower():
+            chosen = rr
+            break
+    if not chosen and all_rows:
+        chosen = all_rows[0]
+
+    map_card = ""
+    if chosen:
+        try:
+            latf = float((chosen.get("lat") or "0").strip())
+            lonf = float((chosen.get("lon") or "0").strip())
+            delta = 0.006
+            left = lonf - delta
+            right = lonf + delta
+            top = latf + delta
+            bottom = latf - delta
+            # OSM embed URL
+            osm = f"https://www.openstreetmap.org/export/embed.html?bbox={left}%2C{bottom}%2C{right}%2C{top}&layer=mapnik&marker={latf}%2C{lonf}"
+            map_card = f"""
+              <div class="card" style="padding:12px; margin-top:12px;">
+                <h2>Map preview</h2>
+                <div class="sub" style="margin-top:6px;">{escape(chosen.get('name',''))} • {escape(chosen.get('lat',''))}, {escape(chosen.get('lon',''))}</div>
+                <div style="margin-top:12px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);">
+                  <iframe title="map" src="{osm}" style="width:100%; height:320px; border:0;" loading="lazy"></iframe>
+                </div>
+                <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+                  <a href="https://www.google.com/maps?q={latf},{lonf}" target="_blank" rel="noopener noreferrer" style="color:var(--navy); font-weight:600;">Open in Google Maps</a>
+                  <a href="https://www.openstreetmap.org/?mlat={latf}&mlon={lonf}#map=18/{latf}/{lonf}" target="_blank" rel="noopener noreferrer" style="color:var(--navy); font-weight:600;">Open in OSM</a>
+                </div>
+              </div>
+            """
+        except Exception:
+            map_card = ""
+
     content = f"""
       <div class="headerTop">
         <div>
@@ -3846,6 +3848,7 @@ if chosen:
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+
 
 
 def _find_location_row_by_name(name: str):
