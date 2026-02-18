@@ -1945,19 +1945,19 @@ def clock_page():
                     work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
 
                     # store geo fields (clock-out)
-                    vals = work_sheet.get_all_values()
-                    headers = vals[0] if vals else []
-                    def col(name):
-                        return headers.index(name) + 1 if name in headers else None
-         for k, v in [
-             ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
-             ("OutSite", cfg["name"]), ("OutDistM", int(dist_m)),
-         ]:
-             c = col(k)
-             if c:
-                  work_sheet.update_cell(sheet_row, c, "" if v is None else str(v))
+                            vals = work_sheet.get_all_values()
+                            headers = vals[0] if vals else []
+                            def col(name):
+                                return headers.index(name) + 1 if name in headers else None
+                            for k, v in [
+                                ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
+                                ("OutSite", cfg["name"]), ("OutDistM", int(dist_m)),
+                            ]:
+                                c = col(k)
+                                if c:
+                                    work_sheet.update_cell(sheet_row, c, "" if v is None else str(v))
 
-        msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
+                            msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
             else:
                 msg = "Invalid action."
@@ -4110,6 +4110,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
