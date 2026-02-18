@@ -2005,7 +2005,7 @@ def clock_page():
         timer_html = f"""
         <div class="timerSub">No active session</div>
         <div class="timerBig">00:00:00</div>
-        <div class="timerSub">Clock in to start the live timer. Break deducted on Clock Out: {UNPAID_BREAK_HOURS}h</div>
+        <div class="timerSub">Clock in to start the live timer.</div>
         """
 
     # Map config for front-end (if site configured)
