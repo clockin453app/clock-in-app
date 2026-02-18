@@ -1300,59 +1300,28 @@ def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     return 2 * R * math.asin(math.sqrt(h))
 
 def _get_employee_site(username: str) -> str:
-    """Optional Employees.Site column."""
+    """Return the assigned site name for a user from Employees.Site (case-insensitive username match)."""
+    if not username:
+        return ""
+    u_norm = str(username).strip().lower()
     try:
         vals = employees_sheet.get_all_values()
         if not vals:
             return ""
-        headers = vals[0]
+        # normalize headers (trim spaces)
+        headers = [h.strip() for h in vals[0]]
         if "Username" not in headers or "Site" not in headers:
             return ""
         ucol = headers.index("Username")
         scol = headers.index("Site")
-        for i in range(1, len(vals)):
-            r = vals[i]
-            if len(r) > ucol and r[ucol] == username:
+        for r in vals[1:]:
+            if len(r) <= ucol:
+                continue
+            if str(r[ucol]).strip().lower() == u_norm:
                 return (r[scol] if len(r) > scol else "").strip()
     except Exception:
         return ""
     return ""
-
-def _get_active_sites():
-    """Return list of dicts: {name, lat, lon, radius_m}."""
-    if not locations_sheet:
-        return []
-    try:
-        vals = locations_sheet.get_all_values()
-        if not vals:
-            return []
-        headers = vals[0]
-        # Accept either headered or raw
-        if "SiteName" in headers and "Lat" in headers:
-            def idx(h): return headers.index(h) if h in headers else None
-            i_name = idx("SiteName"); i_lat = idx("Lat"); i_lon = idx("Lon")
-            i_rad = idx("RadiusMeters"); i_act = idx("Active")
-            rows = vals[1:]
-        else:
-            i_name, i_lat, i_lon, i_rad, i_act = 0,1,2,3,4
-            rows = vals
-        sites = []
-        for r in rows:
-            if len(r) < 4:
-                continue
-            name = (r[i_name] or "").strip()
-            lat = safe_float(r[i_lat], None)
-            lon = safe_float(r[i_lon], None)
-            rad = safe_float(r[i_rad], None)
-            act = (r[i_act] if i_act is not None and i_act < len(r) else "TRUE") if i_act is not None else "TRUE"
-            if not name or lat is None or lon is None or rad is None:
-                continue
-            if str(act).strip().lower() in ("false","0","no","n","off"):
-                continue
-            sites.append({"name": name, "lat": float(lat), "lon": float(lon), "radius_m": float(rad)})
-        return sites
-    except Exception:
-        return []
 
 def _validate_location_for_user(username: str, lat: float, lon: float):
     """Return (ok, site_name, dist_m, reason)."""
@@ -2093,16 +2062,8 @@ def clock_page():
           </div>
     
           {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
-    
-    
-    <div class="card" style="padding:12px; margin-top:12px;">
-      <h2 style="margin:0;">Location</h2>
-      <p class="sub" id="geoLine">📍 Checking your location…</p>
-      <div id="locMapWrap" style="margin-top:10px; display:none;">
-        <div id="locMap" style="height:260px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);"></div>
-        <p class="sub" style="margin-top:8px;">Green circle = allowed radius. Blue marker = you.</p>
-      </div>
-    </div>
+
+</div>
     
           
           <div class="card clockCard">
@@ -2192,18 +2153,28 @@ def clock_page():
                 let map=null, siteMarker=null, userMarker=null, circle=null;
                 function initMap(){{
                   if(!window.L) return;
+                  const wrap = document.getElementById("locMapWrap");
+                  const el = document.getElementById("locMap");
+                  if(!el) return;
+
+                  // Only show/init the map if we have a valid assigned site
+                  if(!Number.isFinite(siteLat) || !Number.isFinite(siteLon) || !Number.isFinite(siteRadius)) {{
+                    if(wrap) wrap.style.display = "none";
+                    return;
+                  }}
+                  if(wrap) wrap.style.display = "block";
+
                   map = L.map("locMap", {{ zoomControl:true }});
                   L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
-                    maxZoom: 19,
-                    attribution: "&copy; OpenStreetMap"
+                    attribution: "© OpenStreetMap contributors"
                   }}).addTo(map);
-    
-                  const sitePos = [siteLat, siteLon];
-                  siteMarker = L.marker(sitePos).addTo(map).bindPopup(siteName);
-                  circle = L.circle(sitePos, {{ radius: siteRadius }}).addTo(map);
-                  map.fitBounds(circle.getBounds(), {{ padding:[18,18] }});
+
+                  siteMarker = L.marker([siteLat, siteLon]).addTo(map).bindPopup(siteName || "Site").openPopup();
+                  radiusCircle = L.circle([siteLat, siteLon], {{ radius: siteRadius }}).addTo(map);
+
+                  updateMap(); // centers + draws user marker if available
                 }}
-    
+
                 function updateMap(userLat, userLon){{
                   if(!map || !window.L) return;
                   const pos = [userLat, userLon];
