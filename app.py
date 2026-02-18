@@ -1115,6 +1115,34 @@ def find_open_shift(rows, username: str):
             return i, r[COL_DATE], r[COL_IN]
     return None
 
+
+def _get_open_shifts():
+    """Return list of open shifts (rows with Clock In but no Clock Out)."""
+    out = []
+    try:
+        rows = work_sheet.get_all_values()
+        for r in rows[1:]:
+            if len(r) <= COL_OUT:
+                continue
+            u = (r[COL_USER] or "").strip()
+            d = (r[COL_DATE] or "").strip()
+            cin = (r[COL_IN] or "").strip()
+            cout = (r[COL_OUT] or "").strip()
+            if u and d and cin and (cout == ""):
+                try:
+                    start_dt = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+                    out.append({
+                        "user": u,
+                        "name": get_employee_display_name(u),
+                        "start_iso": start_dt.isoformat(),
+                        "start_label": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
+                    })
+                except Exception:
+                    continue
+    except Exception:
+        return []
+    return out
+
 def get_sheet_headers(sheet):
     vals = sheet.get_all_values()
     return vals[0] if vals else []
