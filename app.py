@@ -26,7 +26,7 @@ from urllib.parse import urlparse
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import Flask, render_template_string, request, redirect, session, url_for, abort, jsonify
+from flask import Flask, render_template_string, request, redirect, session, url_for, abort
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 
@@ -91,6 +91,13 @@ try:
     audit_sheet = spreadsheet.worksheet("AuditLog")
 except Exception:
     audit_sheet = None
+
+# Optional: Locations sheet for geo-fencing
+try:
+    locations_sheet = spreadsheet.worksheet("Locations")
+except Exception:
+    locations_sheet = None
+
 
 
 
@@ -252,14 +259,6 @@ PWA_TAGS = """
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 """
-
-LEAFLET_TAGS = """
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
- integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
- integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-"""
-
 
 
 # ================= PREMIUM UI =================
@@ -956,6 +955,120 @@ def linkify(url: str) -> str:
     uesc = escape(u)
     return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer' style='color:var(--navy);font-weight:600;'>Open</a>"
 
+
+
+# ================= GEOLOCATION (GEOFENCE) =================
+# Employees sheet: optional column "Site" that assigns an employee to a site name in Locations sheet.
+# Locations sheet headers (recommended):
+#   SiteName | Lat | Lon | RadiusMeters | Active
+#
+# WorkHours sheet (optional extra columns):
+#   InLat, InLon, InAcc, InSite, InDistM, OutLat, OutLon, OutAcc, OutSite, OutDistM
+
+WORKHOURS_GEO_HEADERS = [
+    "InLat","InLon","InAcc","InSite","InDistM",
+    "OutLat","OutLon","OutAcc","OutSite","OutDistM",
+]
+
+def _ensure_workhours_geo_headers():
+    try:
+        vals = work_sheet.get_all_values()
+        if not vals:
+            return
+        headers = vals[0]
+        base_headers = ["Username","Date","ClockIn","ClockOut","Hours","Pay"]
+        # If there is no header row, do nothing (your sheet should have one).
+        if not headers:
+            return
+        # Extend header row safely
+        if len(headers) < len(base_headers):
+            headers = base_headers[:]
+        missing = [h for h in WORKHOURS_GEO_HEADERS if h not in headers]
+        if missing:
+            headers = headers + missing
+            work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(headers)).replace('1','')}1", [headers])
+    except Exception:
+        return
+
+def _haversine_m(lat1, lon1, lat2, lon2) -> float:
+    # distance in meters
+    from math import radians, sin, cos, asin, sqrt
+    R = 6371000.0
+    phi1, phi2 = radians(lat1), radians(lat2)
+    dphi = radians(lat2 - lat1)
+    dl = radians(lon2 - lon1)
+    a = sin(dphi/2)**2 + cos(phi1)*cos(phi2)*sin(dl/2)**2
+    c = 2 * asin(sqrt(a))
+    return R * c
+
+def _get_employee_site(username: str) -> str:
+    try:
+        vals = employees_sheet.get_all_values()
+        if not vals:
+            return ""
+        headers = vals[0]
+        if "Username" not in headers or "Site" not in headers:
+            return ""
+        ucol = headers.index("Username")
+        scol = headers.index("Site")
+        for i in range(1, len(vals)):
+            row = vals[i]
+            if len(row) > ucol and (row[ucol] or "").strip() == username:
+                return (row[scol] if scol < len(row) else "").strip()
+    except Exception:
+        return ""
+    return ""
+
+def _get_active_locations() -> list[dict]:
+    out = []
+    if not locations_sheet:
+        return out
+    try:
+        vals = locations_sheet.get_all_values()
+        if not vals:
+            return out
+        headers = vals[0]
+        def idx(n): return headers.index(n) if n in headers else None
+        i_name = idx("SiteName"); i_lat = idx("Lat"); i_lon = idx("Lon"); i_rad = idx("RadiusMeters"); i_act = idx("Active")
+        for r in vals[1:]:
+            name = (r[i_name] if i_name is not None and i_name < len(r) else "").strip()
+            if not name:
+                continue
+            active = (r[i_act] if i_act is not None and i_act < len(r) else "TRUE").strip().upper()
+            if active not in ("TRUE","YES","1"):
+                continue
+            lat = safe_float(r[i_lat] if i_lat is not None and i_lat < len(r) else "", None)
+            lon = safe_float(r[i_lon] if i_lon is not None and i_lon < len(r) else "", None)
+            rad = safe_float(r[i_rad] if i_rad is not None and i_rad < len(r) else "", 0.0)
+            if lat is None or lon is None or rad <= 0:
+                continue
+            out.append({"name": name, "lat": float(lat), "lon": float(lon), "radius": float(rad)})
+    except Exception:
+        return []
+    return out
+
+def _get_site_config(site_name: str) -> dict | None:
+    sites = _get_active_locations()
+    if not sites:
+        return None
+    # exact match first
+    for s in sites:
+        if s["name"].strip().lower() == (site_name or "").strip().lower():
+            return s
+    # fallback: first active site
+    return sites[0] if sites else None
+
+def _validate_user_location(username: str, lat: float | None, lon: float | None) -> tuple[bool, dict, float]:
+    """Returns (ok, site_cfg, distance_m). ok=False if outside radius or missing config."""
+    site_pref = _get_employee_site(username)
+    cfg = _get_site_config(site_pref)
+    if not cfg:
+        return False, {"name": site_pref or "Unknown", "lat": 0.0, "lon": 0.0, "radius": 0.0}, 0.0
+    if lat is None or lon is None:
+        return False, cfg, 0.0
+    dist = _haversine_m(float(lat), float(lon), cfg["lat"], cfg["lon"])
+    ok = dist <= float(cfg["radius"])
+    return ok, cfg, dist
 def initials(name: str) -> str:
     s = (name or "").strip()
     if not s:
@@ -1217,326 +1330,8 @@ def require_csrf():
             abort(400)
 
 
-# ================= GEOLOCATION (Clock-in/out requires being within an allowed site) =================
-# Sheets:
-# - Locations sheet (admin managed): SiteName | Lat | Lon | RadiusMeters | Active
-# - Employees sheet (optional): Site (if set, employee must be within that site)
-#
-# WorkHours extra columns (optional): InLat/InLon/InAcc/InSite/OutLat/OutLon/OutAcc/OutSite
-#
-# NOTE: This app enforces HTTPS-only geolocation (Render uses HTTPS). On localhost you must use http://localhost
-# which is allowed by browsers for geolocation.
-
-LOCATIONS_REQUIRED_HEADERS = ["SiteName", "Lat", "Lon", "RadiusMeters", "Active"]
-
-def _ensure_locations_headers():
-    """Create Locations header row if sheet exists and is empty."""
-    try:
-        if not locations_sheet:
-            return
-        vals = locations_sheet.get_all_values()
-        if not vals:
-            locations_sheet.update("A1:E1", [LOCATIONS_REQUIRED_HEADERS])
-    except Exception:
-        return
-
-WORKHOURS_REQUIRED_HEADERS = [
-    "Username","Date","ClockIn","ClockOut","Hours","Pay",
-    "InLat","InLon","InAcc","InSite",
-    "OutLat","OutLon","OutAcc","OutSite",
-]
-
-def _ensure_workhours_headers_and_pad():
-    """Ensure WorkHours has the geolocation columns (safe append + pad)."""
-    try:
-        vals = work_sheet.get_all_values()
-        if not vals:
-            # no data at all: write headers
-            work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(WORKHOURS_REQUIRED_HEADERS)).replace('1','')}1",
-                              [WORKHOURS_REQUIRED_HEADERS])
-            return
-
-        headers = vals[0]
-        # Only touch the sheet if it already looks like it has headers.
-        if not headers or (headers[0] or '').strip().lower() != 'username':
-            return
-
-        if len(headers) < len(WORKHOURS_REQUIRED_HEADERS):
-            new_headers = headers[:] + WORKHOURS_REQUIRED_HEADERS[len(headers):]
-            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
-            work_sheet.update(f"A1:{end_col}1", [new_headers])
-
-        # Pad existing data rows so update_cell doesn't hit trimmed rows.
-        target_len = max(len(headers), len(WORKHOURS_REQUIRED_HEADERS))
-        updates = []
-        for i in range(1, len(vals)):
-            row = vals[i]
-            if len(row) < target_len:
-                row = row + [""]*(target_len-len(row))
-                end_col = gspread.utils.rowcol_to_a1(i+1, target_len).replace(str(i+1),"")
-                updates.append((i+1, row, target_len))
-        if updates:
-            # Batch update ranges
-            data = []
-            for rownum, rowvals, tlen in updates:
-                end_col = gspread.utils.rowcol_to_a1(rownum, tlen).replace(str(rownum),"")
-                data.append({
-                    "range": f"A{rownum}:{end_col}{rownum}",
-                    "values": [rowvals],
-                })
-            work_sheet.batch_update(data)
-    except Exception:
-        return
-
-def _haversine_m(lat1, lon1, lat2, lon2) -> float:
-    """Distance in meters."""
-    R = 6371000.0
-    p = math.pi / 180.0
-    a1 = lat1 * p
-    a2 = lat2 * p
-    dlat = (lat2 - lat1) * p
-    dlon = (lon2 - lon1) * p
-    h = math.sin(dlat/2)**2 + math.cos(a1)*math.cos(a2)*math.sin(dlon/2)**2
-    return 2 * R * math.asin(math.sqrt(h))
-
-def _get_employee_site(username: str) -> str:
-    """Return the assigned site name for a user from Employees.Site (case-insensitive username match)."""
-    if not username:
-        return ""
-    u_norm = str(username).strip().lower()
-    try:
-        vals = employees_sheet.get_all_values()
-        if not vals:
-            return ""
-        # normalize headers (trim spaces)
-        headers = [h.strip() for h in vals[0]]
-        if "Username" not in headers or "Site" not in headers:
-            return ""
-        ucol = headers.index("Username")
-        scol = headers.index("Site")
-        for r in vals[1:]:
-            if len(r) <= ucol:
-                continue
-            if str(r[ucol]).strip().lower() == u_norm:
-                return (r[scol] if len(r) > scol else "").strip()
-    except Exception:
-        return ""
-    return ""
-
-def _validate_location_for_user(username: str, lat: float, lon: float):
-    """Return (ok, site_name, dist_m, reason)."""
-    sites = _get_active_sites()
-    if not sites:
-        return False, "", 0.0, "No locations configured. Admin must add at least one site."
-    required_site = _get_employee_site(username)
-    # choose best match
-    best = None
-    for s in sites:
-        if required_site and s["name"].strip().lower() != required_site.strip().lower():
-            continue
-        dist = _haversine_m(lat, lon, s["lat"], s["lon"])
-        if best is None or dist < best["dist"]:
-            best = {"site": s, "dist": dist}
-    if best is None:
-        return False, "", 0.0, "No matching site found for this employee."
-    if best["dist"] <= best["site"]["radius_m"]:
-        return True, best["site"]["name"], best["dist"], ""
-    return False, best["site"]["name"], best["dist"], f"Outside allowed radius ({int(best['site']['radius_m'])}m)."
-
-# Ensure schemas on boot (safe no-op if sheets missing)
-_ensure_locations_headers()
-_ensure_workhours_headers_and_pad()
 
 
-def log_audit(action: str, actor: str, username: str = "", date_str: str = "", details: str = ""):
-    """Write a simple admin audit row to the AuditLog sheet if it exists.
-    Sheet columns (suggested): Timestamp, Actor, Action, Username, Date, Details
-    """
-    try:
-        if not audit_sheet:
-            return
-        ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        audit_sheet.append_row([ts, actor or "", action or "", username or "", date_str or "", details or ""])
-    except Exception:
-        return
-
-
-
-
-# ===== Paid confirmation storage (SAFE: no row insertion) =====
-PAYROLL_REQUIRED_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "Paid", "PaidAt", "PaidBy"]
-
-def _ensure_payroll_reports_headers_safe():
-    try:
-        vals = payroll_sheet.get_all_values()
-        if not vals:
-            payroll_sheet.update("A1:I1", [PAYROLL_REQUIRED_HEADERS])
-    except Exception:
-        pass
-
-def _append_paid_record_safe(week_start: str, week_end: str, username: str,
-                            gross: float, tax: float, net: float, paid_by: str):
-    _ensure_payroll_reports_headers_safe()
-    now_str = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-
-    row = [
-        week_start,
-        week_end,
-        username,
-        f"{round(gross,2)}",
-        f"{round(tax,2)}",
-        f"{round(net,2)}",
-        "TRUE",
-        now_str,
-        paid_by
-    ]
-    try:
-        payroll_sheet.append_row(row)
-    except Exception:
-        pass
-
-def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
-    try:
-        vals = payroll_sheet.get_all_values()
-        if not vals:
-            return False, ""
-
-        headers = vals[0]
-        has_headers = (len(headers) >= 3 and headers[:3] == ["WeekStart", "WeekEnd", "Username"])
-        rows = vals[1:] if has_headers else vals
-
-        for r in reversed(rows):
-            if len(r) < 7:
-                continue
-            ws = (r[0] or "").strip()
-            we = (r[1] or "").strip()
-            un = (r[2] or "").strip()
-            paid = (r[6] or "").strip().upper()
-            paid_at = (r[7] if len(r) > 7 else "") or ""
-
-            if ws == week_start and we == week_end and un == username:
-                if paid in ("TRUE", "YES", "1"):
-                    return True, paid_at
-        return False, ""
-    except Exception:
-        return False, ""
-
-# ===== Rates + time parse + recalc with break =====
-def _get_user_rate(username: str) -> float:
-    try:
-        for user in employees_sheet.get_all_records():
-            if user.get("Username") == username:
-                return safe_float(user.get("Rate", 0), 0.0)
-    except Exception:
-        pass
-    return 0.0
-
-def _parse_hms(t: str):
-    try:
-        t = (t or "").strip()
-        if not t:
-            return None
-        parts = t.split(":")
-        if len(parts) == 2:
-            h, m = int(parts[0]), int(parts[1])
-            s = 0
-        else:
-            h, m, s = int(parts[0]), int(parts[1]), int(parts[2])
-        if not (0 <= h <= 23 and 0 <= m <= 59 and 0 <= s <= 59):
-            return None
-        return h, m, s
-    except Exception:
-        return None
-
-
-def _norm_hms_str(t: str) -> str:
-    """Normalize times to HH:MM:SS (accepts HH:MM or HH:MM:SS)."""
-    t = (t or "").strip()
-    if not t:
-        return ""
-    parts = t.split(":")
-    if len(parts) == 2:
-        return t + ":00"
-    return t
-
-def _apply_unpaid_break(hours: float) -> float:
-    if hours >= BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS:
-        hours = hours - UNPAID_BREAK_HOURS
-    return round(max(0.0, hours), 2)
-
-def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
-    try:
-        if not date_str:
-            return None
-        a = _parse_hms(cin)
-        b = _parse_hms(cout)
-        if not a or not b:
-            return None
-        base = datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=TZ)
-        start_dt = base.replace(hour=a[0], minute=a[1], second=a[2])
-        end_dt = base.replace(hour=b[0], minute=b[1], second=b[2])
-        if end_dt < start_dt:
-            end_dt = end_dt + timedelta(days=1)
-        hrs = (end_dt - start_dt).total_seconds() / 3600.0
-        return _apply_unpaid_break(hrs)
-    except Exception:
-        return None
-
-def _find_workhours_row_by_user_date(all_vals, username: str, date_str: str):
-    for idx in range(1, len(all_vals)):
-        r = all_vals[idx]
-        u = (r[COL_USER] if len(r) > COL_USER else "").strip()
-        d = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
-        if u == username and d == date_str:
-            return idx + 1
-    return None
-
-def _get_open_shifts():
-    out = []
-    try:
-        rows = work_sheet.get_all_values()
-        for r in rows[1:]:
-            if len(r) <= COL_OUT:
-                continue
-            u = (r[COL_USER] or "").strip()
-            d = (r[COL_DATE] or "").strip()
-            cin = (r[COL_IN] or "").strip()
-            cout = (r[COL_OUT] or "").strip()
-            if u and d and cin and (cout == ""):
-                try:
-                    start_dt = datetime.strptime(f"{d} {_norm_hms_str(cin)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-                    out.append({
-                        "user": u,
-                        "name": get_employee_display_name(u),
-                        "start_iso": start_dt.isoformat(),
-                        "start_label": start_dt.strftime("%Y-%m-%d %H:%M:%S"),
-                    })
-                except Exception:
-                    continue
-    except Exception:
-        return []
-    return out
-
-
-
-
-def _get_assigned_site_meta(username: str) -> tuple[str, str, str, str]:
-    """Returns (site_name, lat, lon, radius_m) as strings for safe HTML embedding.
-    If not assigned/missing, returns empty strings.
-    """
-    try:
-        site = _get_employee_site(username)  # name in Employees sheet (e.g. "Main Site")
-        if not site:
-            return "", "", "", ""
-        cfg = _get_location(site)  # dict with Lat/Lon/RadiusM
-        if not cfg:
-            return site, "", "", ""
-        lat = str(cfg.get("Lat", "")).strip()
-        lon = str(cfg.get("Lon", "")).strip()
-        rad = str(cfg.get("RadiusM", "")).strip()
-        return str(site), lat, lon, rad
-    except Exception:
-        return "", "", "", ""
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
     return f"""
@@ -1633,46 +1428,6 @@ def ping():
     return "pong", 200
 
 
-
-
-@app.get("/geo-status")
-def geo_status():
-    # Logged-in only
-    if "username" not in session:
-        return jsonify({"ok": False, "reason": "Not logged in"}), 401
-
-    lat_s = (request.args.get("lat") or "").strip()
-    lon_s = (request.args.get("lon") or "").strip()
-    try:
-        lat = float(lat_s)
-        lon = float(lon_s)
-    except Exception:
-        return jsonify({"ok": False, "reason": "Missing/invalid coordinates"}), 400
-
-    username = session["username"]
-    ok, site_name, dist_m, reason = _validate_location_for_user(username, lat, lon)
-
-    # Include site center + radius (for map) if we can find it
-    site_center = None
-    radius_m = None
-    required_site = _get_employee_site(username)
-    for s in _get_active_sites():
-        if required_site and s["name"].strip().lower() != required_site.strip().lower():
-            continue
-        if s["name"].strip().lower() == site_name.strip().lower():
-            site_center = {"lat": s["lat"], "lon": s["lon"]}
-            radius_m = s["radius_m"]
-            break
-
-    return jsonify({
-        "ok": ok,
-        "site_name": site_name,
-        "dist_m": float(dist_m),
-        "reason": reason,
-        "required_site": required_site or "",
-        "site_center": site_center,
-        "radius_m": radius_m,
-    })
 # ----- OAUTH CONNECT (ADMIN ONLY) -----
 @app.get("/connect-drive")
 def connect_drive():
@@ -1790,9 +1545,6 @@ def home():
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
 
-    # Assigned site (for geolocation enforcement + map)
-    site_name, site_lat, site_lon, site_radius = _get_assigned_site_meta(username)
-
     now = datetime.now(TZ)
     today = now.date()
     rows = work_sheet.get_all_values()
@@ -1899,75 +1651,63 @@ def home():
 
 
 # ---------- CLOCK PAGE ----------
+
+# ---------- CLOCK PAGE ----------
 @app.route("/clock", methods=["GET", "POST"])
 def clock_page():
-    global work_sheet, employees_sheet, locations_sheet, audit_sheet, payroll_sheet, onboarding_sheet
-    try:
-        gate = require_login()
-        if gate:
-            return gate
-    
-        csrf = get_csrf()
-        username = session["username"]
+    gate = require_login()
+    if gate:
+        return gate
 
-        # Assigned site (used for geofence + map on this page)
-        site_name = ""
-        site_lat = ""
-        site_lon = ""
-        site_radius = ""
+    csrf = get_csrf()
+    username = session["username"]
+    role = session.get("role", "employee")
+    display_name = get_employee_display_name(username)
+
+    rate = safe_float(session.get("rate", 0), 0.0)
+    early_access = bool(session.get("early_access", False))
+
+    now = datetime.now(TZ)
+    today_str = now.strftime("%Y-%m-%d")
+
+    # Geo-fence config (employee assigned site -> Locations sheet)
+    _ensure_workhours_geo_headers()
+    site_pref = _get_employee_site(username)
+    site_cfg = _get_site_config(site_pref)  # may be None
+
+    msg = ""
+    msg_class = "message"
+
+    def _read_float(name):
         try:
-            site_name, site_lat, site_lon, site_radius = _get_assigned_site_meta(username)
+            v = (request.form.get(name) or "").strip()
+            return float(v) if v else None
         except Exception:
-            # If the user has no assigned Site or Locations sheet is missing, keep blanks.
-            # The page JS will hide the map and the server will block clock-in with a clear message.
-            pass
+            return None
 
-        role = session.get("role", "employee")
-        display_name = get_employee_display_name(username)
-    
-        rate = safe_float(session.get("rate", 0), 0.0)
-        early_access = bool(session.get("early_access", False))
-    
-        now = datetime.now(TZ)
-        today_str = now.strftime("%Y-%m-%d")
-    
-        msg = ""
-        msg_class = "message"
-    
-        if request.method == "POST":
-            require_csrf()
-            action = request.form.get("action")
-            # Geolocation required for clock in/out
-            lat_s = (request.form.get("lat") or "").strip()
-            lon_s = (request.form.get("lon") or "").strip()
-            acc_s = (request.form.get("acc") or "").strip()
-            try:
-                lat_v = float(lat_s)
-                lon_v = float(lon_s)
-                acc_v = float(acc_s) if acc_s else ""
-            except Exception:
-                lat_v = None
-                lon_v = None
-                acc_v = ""
-            if action in ("in","out"):
-                if lat_v is None or lon_v is None:
-                    msg = "Location is required. Please enable GPS/Location and try again."
-                    msg_class = "message error"
-                    rows = work_sheet.get_all_values()
-                    # Skip processing
-                    action = None
-                else:
-                    ok_loc, site_name, dist_m, reason = _validate_location_for_user(username, lat_v, lon_v)
-                    if not ok_loc:
-                        extra = ""
-                        if site_name:
-                            extra = f" Closest site: {site_name} ({int(dist_m)}m)."
-                        msg = "Clocking blocked: " + reason + extra
-                        msg_class = "message error"
-                        rows = work_sheet.get_all_values()
-                        action = None
+    if request.method == "POST":
+        require_csrf()
+        action = (request.form.get("action") or "").strip()
+
+        # require geolocation for BOTH clock in and clock out
+        lat_v = _read_float("lat")
+        lon_v = _read_float("lon")
+        acc_v = _read_float("acc")
+
+        ok_loc, cfg, dist_m = _validate_user_location(username, lat_v, lon_v)
+
+        if not ok_loc:
+            # Build a clean error message
+            if not site_cfg and not cfg.get("radius"):
+                msg = "Location system is not configured. Ask Admin to create Locations sheet and set your Site."
+            elif lat_v is None or lon_v is None:
+                msg = "Location is required. Please allow location access and try again."
+            else:
+                msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
+            msg_class = "message error"
+        else:
             rows = work_sheet.get_all_values()
-    
+
             if action == "in":
                 if has_any_row_today(rows, username, today_str):
                     msg = "You already clocked in today (1 per day)."
@@ -1977,11 +1717,26 @@ def clock_page():
                     msg_class = "message error"
                 else:
                     cin = normalized_clock_in_time(now, early_access)
-                    work_sheet.append_row([username, today_str, cin, "", "", "", str(lat_v), str(lon_v), str(acc_v), site_name, "", "", "", ""])
-                    msg = "Clocked In"
+                    # Append base columns
+                    work_sheet.append_row([username, today_str, cin, "", "", ""])
+                    # Find the row we just added and store geo fields
+                    vals = work_sheet.get_all_values()
+                    rownum = _find_workhours_row_by_user_date(vals, username, today_str)
+                    if rownum:
+                        headers = vals[0]
+                        def col(name):
+                            return headers.index(name) + 1 if name in headers else None
+                        for k, v in [
+                            ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
+                            ("InSite", cfg["name"]), ("InDistM", int(dist_m)),
+                        ]:
+                            c = col(k)
+                            if c:
+                                work_sheet.update_cell(rownum, c, "" if v is None else str(v))
+                    msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
-                        msg = "Clocked In (counted from 08:00)"
-    
+                        msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
+
             elif action == "out":
                 osf = find_open_shift(rows, username)
                 if not osf:
@@ -1989,280 +1744,260 @@ def clock_page():
                     msg_class = "message error"
                 else:
                     i, d, t = osf
-                    cin_dt = datetime.strptime(f"{d} {_norm_hms_str(t)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+                    cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                     raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
                     hours_rounded = _apply_unpaid_break(raw_hours)
                     pay = round(hours_rounded * rate, 2)
-    
-                    sheet_row = i + 1
+
+                    sheet_row = i + 1  # find_open_shift returns index in rows list
                     work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                     work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
                     work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
-                    # Store clock-out geolocation
-                    try:
-                        work_sheet.update_cell(sheet_row, COL_OUT_LAT + 1, str(lat_v))
-                        work_sheet.update_cell(sheet_row, COL_OUT_LON + 1, str(lon_v))
-                        work_sheet.update_cell(sheet_row, COL_OUT_ACC + 1, str(acc_v))
-                        work_sheet.update_cell(sheet_row, COL_OUT_SITE + 1, site_name)
-                    except Exception:
-                        pass
-                    msg = f"Clocked Out (Break deducted: {UNPAID_BREAK_HOURS}h)"
-    
-        rows2 = work_sheet.get_all_values()
-        osf2 = find_open_shift(rows2, username)
-        active_start_iso = ""
-        active_start_label = ""
-        if osf2:
-            _, d, t = osf2
-            try:
-                start_dt = datetime.strptime(f"{d} {_norm_hms_str(t)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-                active_start_iso = start_dt.isoformat()
-                active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
-            except Exception:
-                pass
-    
-        if active_start_iso:
-            timer_html = f"""
-            <div class="timerSub">Active session started</div>
-            <div class="timerBig" id="timerDisplay">00:00:00</div>
-            <div class="timerSub">Start: {escape(active_start_label)} • Break: {UNPAID_BREAK_HOURS}h (deducted on Clock Out)</div>
-            <script>
-              (function() {{
-                const startIso = "{escape(active_start_iso)}";
-                const start = new Date(startIso);
-                const el = document.getElementById("timerDisplay");
-                function pad(n) {{ return String(n).padStart(2, "0"); }}
-                function tick() {{
-                  const now = new Date();
-                  let diff = Math.floor((now - start) / 1000);
-                  if (diff < 0) diff = 0;
-                  const h = Math.floor(diff / 3600);
-                  const m = Math.floor((diff % 3600) / 60);
-                  const s = diff % 60;
-                  el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
-                }}
-                tick(); setInterval(tick, 1000);
-              }})();
-            </script>
-            """
-        else:
-            timer_html = f"""
-            <div class="timerSub">No active session</div>
-            <div class="timerBig">00:00:00</div>
-            <div class="timerSub">Clock in to start the live timer. Break deducted on Clock Out: {UNPAID_BREAK_HOURS}h</div>
-            """
-    
-        content = f"""
-          <div class="headerTop">
-            <div>
-              <h1>Clock In & Out</h1>
-              <p class="sub">{escape(display_name)} • Live session timer</p>
-            </div>
-            <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
-          </div>
-    
-          {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
-</div>
-    
-          
-          <div class="card clockCard">
-            {timer_html}
-    
-            <div class="card" style="padding:12px; margin-top:12px;">
-              <h2 style="margin:0;">Location</h2>
-              <p class="sub" id="locStatusText">📍 Waiting for location permission…</p>
-              <p class="sub" id="locSubText" style="margin-top:4px;"></p>
-    
-              <div id="locMapWrap" style="margin-top:10px; border-radius:16px; overflow:hidden; border:1px solid var(--border);">
-                <div id="locMap"
-                     data-site-name="{escape(site_name)}"
-                     data-site-lat="{escape(site_lat)}"
-                     data-site-lon="{escape(site_lon)}"
-                     data-site-radius="{escape(site_radius)}"
-                     style="height:220px; width:100%;"></div>
-              </div>
-    
-              <p class="sub" style="margin-top:10px;">
-                You must be inside your assigned site radius to Clock In and Clock Out.
-              </p>
-            </div>
-    
-            <form method="POST" id="geoClockForm" style="margin-top:12px;">
-              <input type="hidden" name="csrf" value="{escape(csrf)}">
-              <input type="hidden" name="action" id="geoAction" value="">
-              <input type="hidden" name="lat" id="geoLat" value="">
-              <input type="hidden" name="lon" id="geoLon" value="">
-              <input type="hidden" name="acc" id="geoAcc" value="">
-              <div class="actionRow">
-                <button class="btn btnIn" type="button" data-act="in" id="btnIn">Clock In</button>
-                <button class="btn btnOut" type="button" data-act="out" id="btnOut">Clock Out</button>
-              </div>
-            </form>
-    
-            <script>
-              (function(){{
-                const siteName = (document.getElementById("locMap")?.dataset.siteName || "").trim();
-                const siteLat = parseFloat(document.getElementById("locMap")?.dataset.siteLat || "");
-                const siteLon = parseFloat(document.getElementById("locMap")?.dataset.siteLon || "");
-                const siteRadius = parseFloat(document.getElementById("locMap")?.dataset.siteRadius || "");
-                const hasSite = siteName && isFinite(siteLat) && isFinite(siteLon) && isFinite(siteRadius);
-    
-                const statusEl = document.getElementById("locStatusText");
-                const subEl = document.getElementById("locSubText");
-                const mapWrap = document.getElementById("locMapWrap");
-    
-                const form = document.getElementById("geoClockForm");
-                const act = document.getElementById("geoAction");
-                const lat = document.getElementById("geoLat");
-                const lon = document.getElementById("geoLon");
-                const acc = document.getElementById("geoAcc");
-    
-                const btnIn = document.getElementById("btnIn");
-                const btnOut = document.getElementById("btnOut");
-    
-                function setDisabled(v){{
-                  btnIn.disabled = !!v;
-                  btnOut.disabled = !!v;
-                  btnIn.style.opacity = v ? ".55" : "1";
-                  btnOut.style.opacity = v ? ".55" : "1";
-                }}
-    
-                // No site assigned
-                if(!hasSite){{
-                  mapWrap.style.display = "none";
-                  statusEl.textContent = "📍 No site assigned. Ask admin to set your site in Employees sheet.";
-                  setDisabled(true);
-                  return;
-                }}
-    
-                // Haversine distance (meters)
-                function distM(lat1, lon1, lat2, lon2){{
-                  const R = 6371000;
-                  const toRad = (d)=> d * Math.PI / 180;
-                  const dLat = toRad(lat2-lat1);
-                  const dLon = toRad(lon2-lon1);
-                  const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
-                            Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*
-                            Math.sin(dLon/2)*Math.sin(dLon/2);
-                  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-                  return R * c;
-                }}
-    
-                // Leaflet map
-                let map=null, siteMarker=null, userMarker=null, circle=null;
-                function initMap(){{
-                  if(!window.L) return;
-                  const wrap = document.getElementById("locMapWrap");
-                  const el = document.getElementById("locMap");
-                  if(!el) return;
+                    # store geo fields (clock-out)
+                    vals = work_sheet.get_all_values()
+                    headers = vals[0] if vals else []
+                    def col(name):
+                        return headers.index(name) + 1 if name in headers else None
+                    for k, v in [
+                        ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
+                        ("OutSite", cfg["name"]), ("OutDistM", int(dist_m)),
+                    ]:
+                        c = col(k)
+                        if c:
+                            work_sheet.update_cell(sheet_row, c, "" if v is None else str(v))
 
-                  // Only show/init the map if we have a valid assigned site
-                  if(!Number.isFinite(siteLat) || !Number.isFinite(siteLon) || !Number.isFinite(siteRadius)) {{
-                    if(wrap) wrap.style.display = "none";
-                    return;
-                  }}
-                  if(wrap) wrap.style.display = "block";
+                    msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m) • Break deducted: {UNPAID_BREAK_HOURS}h"
+            else:
+                msg = "Invalid action."
+                msg_class = "message error"
 
-                  map = L.map("locMap", {{ zoomControl:true }});
-                  L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
-                    attribution: "© OpenStreetMap contributors"
-                  }}).addTo(map);
+    # Active shift timer
+    rows2 = work_sheet.get_all_values()
+    osf2 = find_open_shift(rows2, username)
+    active_start_iso = ""
+    active_start_label = ""
+    if osf2:
+        _, d, t = osf2
+        try:
+            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+            active_start_iso = start_dt.isoformat()
+            active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
 
-                  siteMarker = L.marker([siteLat, siteLon]).addTo(map).bindPopup(siteName || "Site").openPopup();
-                  radiusCircle = L.circle([siteLat, siteLon], {{ radius: siteRadius }}).addTo(map);
-
-                  updateMap(); // centers + draws user marker if available
-                }}
-
-                function updateMap(userLat, userLon){{
-                  if(!map || !window.L) return;
-                  const pos = [userLat, userLon];
-                  if(!userMarker){{
-                    userMarker = L.marker(pos).addTo(map).bindPopup("You");
-                  }} else {{
-                    userMarker.setLatLng(pos);
-                  }}
-                }}
-    
-                initMap();
-    
-                let last = null; // {{lat,lon,acc}}
-                function updateUI(pos){{
-                  const uLat = pos.coords.latitude;
-                  const uLon = pos.coords.longitude;
-                  const uAcc = pos.coords.accuracy || 0;
-                  last = {{ lat:uLat, lon:uLon, acc:uAcc }};
-    
-                  const d = distM(uLat, uLon, siteLat, siteLon);
-                  const inside = d <= siteRadius;
-    
-                  const dTxt = Math.round(d);
-                  const rTxt = Math.round(siteRadius);
-    
-                  if(inside){{
-                    statusEl.textContent = `📍 Location OK: ${{siteName}} (${{dTxt}}m)`;
-                    subEl.textContent = `Allowed radius: ${{rTxt}}m • Accuracy: ${{Math.round(uAcc)}}m`;
-                  }} else {{
-                    statusEl.textContent = `📍 Too far: ${{dTxt}}m from ${{siteName}}`;
-                    subEl.textContent = `Allowed radius: ${{rTxt}}m • Move closer • Accuracy: ${{Math.round(uAcc)}}m`;
-                  }}
-    
-                  updateMap(uLat, uLon);
-                  setDisabled(!inside);
-                }}
-    
-                function onError(err){{
-                  const msg = (err && err.message) ? err.message : "Location permission denied.";
-                  statusEl.textContent = "📍 Location required to clock in/out.";
-                  subEl.textContent = msg;
-                  setDisabled(true);
-                }}
-    
-                setDisabled(true);
-                if(!navigator.geolocation){{
-                  statusEl.textContent = "📍 Geolocation not supported on this device/browser.";
-                  setDisabled(true);
-                  return;
-                }}
-    
-                // Keep updating so user sees live status while moving
-                navigator.geolocation.watchPosition(updateUI, onError, {{
-                  enableHighAccuracy:true,
-                  timeout:12000,
-                  maximumAge:0
-                }});
-    
-                function submitWithLocation(action){{
-                  if(!last){{ alert("Waiting for location…"); return; }}
-                  act.value = action;
-                  lat.value = String(last.lat);
-                  lon.value = String(last.lon);
-                  acc.value = String(last.acc || "");
-                  form.submit();
-                }}
-    
-                btnIn.addEventListener("click", ()=> submitWithLocation("in"));
-                btnOut.addEventListener("click", ()=> submitWithLocation("out"));
-              }})();
-            </script>
-    
-            <a href="/my-times" style="display:block;margin-top:12px;">
-              <button class="btnSoft" type="button">View my time logs</button>
-            </a>
-          </div>
-    </div>
+    if active_start_iso:
+        timer_html = f"""
+        <div class="timerSub">Active session started</div>
+        <div class="timerBig" id="timerDisplay">00:00:00</div>
+        <div class="timerSub">Start: {escape(active_start_label)} • Break: {UNPAID_BREAK_HOURS}h (deducted on Clock Out)</div>
+        <script>
+          (function() {{
+            const startIso = "{escape(active_start_iso)}";
+            const start = new Date(startIso);
+            const el = document.getElementById("timerDisplay");
+            function pad(n) {{ return String(n).padStart(2, "0"); }}
+            function tick() {{
+              const now = new Date();
+              let diff = Math.floor((now - start) / 1000);
+              if (diff < 0) diff = 0;
+              const h = Math.floor(diff / 3600);
+              const m = Math.floor((diff % 3600) / 60);
+              const s = diff % 60;
+              el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+            }}
+            tick(); setInterval(tick, 1000);
+          }})();
+        </script>
         """
-        return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{LEAFLET_TAGS}" + layout_shell("clock", role, content))
-    
-    
-    # ---------- MY TIMES ----------
-    except Exception as e:
-        # Always show a friendly message instead of a blank 500 page
-        import traceback
-        traceback.print_exc()
-        msg = f"Clock page error: {e}"
-        return render_template_string(f"<h1>Internal Server Error</h1><p>{escape(msg)}</p>")
+    else:
+        timer_html = f"""
+        <div class="timerSub">No active session</div>
+        <div class="timerBig">00:00:00</div>
+        <div class="timerSub">Clock in to start the live timer. Break deducted on Clock Out: {UNPAID_BREAK_HOURS}h</div>
+        """
+
+    # Map config for front-end (if site configured)
+    if site_cfg:
+        site_json = json.dumps({"name": site_cfg["name"], "lat": site_cfg["lat"], "lon": site_cfg["lon"], "radius": site_cfg["radius"]})
+    else:
+        site_json = json.dumps(None)
+
+    leaflet_tags = """
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+"""
+
+    content = f"""
+      {leaflet_tags}
+      <div class="headerTop">
+        <div>
+          <h1>Clock In & Out</h1>
+          <p class="sub">{escape(display_name)} • Location required</p>
+        </div>
+        <div class="badge {{'admin' if role=='admin' else ''}}">{escape(role.upper())}</div>
+      </div>
+
+      {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
+
+      <div class="card clockCard">
+        {timer_html}
+
+        <div class="sub" id="geoStatus" style="margin-top:10px;">📍 Waiting for location…</div>
+
+        <div id="map" style="margin-top:10px; height:240px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);"></div>
+
+        <form method="POST" class="actionRow" id="geoClockForm" style="margin-top:12px;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <input type="hidden" name="action" id="geoAction" value="">
+          <input type="hidden" name="lat" id="geoLat" value="">
+          <input type="hidden" name="lon" id="geoLon" value="">
+          <input type="hidden" name="acc" id="geoAcc" value="">
+          <button class="btn btnIn" type="button" id="btnClockIn">Clock In</button>
+          <button class="btn btnOut" type="button" id="btnClockOut">Clock Out</button>
+        </form>
+
+        <a href="/my-times" style="display:block;margin-top:12px;">
+          <button class="btnSoft" type="button">View my time logs</button>
+        </a>
+      </div>
+
+      <script>
+        (function(){{
+          const SITE = {site_json};
+          const statusEl = document.getElementById("geoStatus");
+          const form = document.getElementById("geoClockForm");
+          const act = document.getElementById("geoAction");
+          const latEl = document.getElementById("geoLat");
+          const lonEl = document.getElementById("geoLon");
+          const accEl = document.getElementById("geoAcc");
+
+          const btnIn = document.getElementById("btnClockIn");
+          const btnOut = document.getElementById("btnClockOut");
+
+          function setDisabled(v){{
+            btnIn.disabled = v;
+            btnOut.disabled = v;
+            btnIn.style.opacity = v ? "0.6" : "1";
+            btnOut.style.opacity = v ? "0.6" : "1";
+          }}
+
+          // Map
+          let map = null;
+          let siteMarker = null;
+          let radiusCircle = null;
+          let youMarker = null;
+
+          function initMap(){{
+            const start = SITE ? [SITE.lat, SITE.lon] : [51.505, -0.09];
+            map = L.map("map", {{ zoomControl: true }}).setView(start, SITE ? 16 : 5);
+            L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
+              maxZoom: 19,
+              attribution: "&copy; OpenStreetMap"
+            }}).addTo(map);
+
+            if(SITE){{
+              siteMarker = L.marker([SITE.lat, SITE.lon]).addTo(map).bindPopup(SITE.name);
+              radiusCircle = L.circle([SITE.lat, SITE.lon], {{
+                radius: SITE.radius
+              }}).addTo(map);
+            }}
+          }}
+
+          function haversineMeters(lat1, lon1, lat2, lon2){{
+            const R = 6371000;
+            const toRad = (x)=> x * Math.PI / 180;
+            const dLat = toRad(lat2-lat1);
+            const dLon = toRad(lon2-lon1);
+            const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+                      Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*
+                      Math.sin(dLon/2)*Math.sin(dLon/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+          }}
+
+          function updateStatus(lat, lon, acc){{
+            if(!SITE){{
+              statusEl.textContent = "📍 Location captured (no site configured)";
+              return;
+            }}
+            const dist = haversineMeters(lat, lon, SITE.lat, SITE.lon);
+            const ok = dist <= SITE.radius;
+            statusEl.textContent = ok
+              ? `📍 Location OK: ${{SITE.name}} (${{Math.round(dist)}}m)`
+              : `📍 Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
+            statusEl.style.color = ok ? "var(--green)" : "var(--red)";
+          }}
+
+          function updateYouMarker(lat, lon){{
+            if(!map) return;
+            if(!youMarker){{
+              youMarker = L.marker([lat, lon]).addTo(map);
+            }} else {{
+              youMarker.setLatLng([lat, lon]);
+            }}
+          }}
+
+          function requestLocationAndSubmit(actionValue){{
+            if(!navigator.geolocation){{
+              alert("Geolocation is not supported on this device/browser.");
+              return;
+            }}
+            setDisabled(true);
+            statusEl.style.color = "var(--muted)";
+            statusEl.textContent = "📍 Getting your location…";
+
+            navigator.geolocation.getCurrentPosition((pos)=>{{
+              const lat = pos.coords.latitude;
+              const lon = pos.coords.longitude;
+              const acc = pos.coords.accuracy;
+
+              latEl.value = lat;
+              lonEl.value = lon;
+              accEl.value = acc;
+
+              updateStatus(lat, lon, acc);
+              updateYouMarker(lat, lon);
+
+              act.value = actionValue;
+              form.submit();
+            }}, (err)=>{{
+              console.log(err);
+              alert("Location is required to clock in/out. Please allow location permission and try again.");
+              statusEl.textContent = "📍 Location required. Please allow permission.";
+              statusEl.style.color = "var(--red)";
+              setDisabled(false);
+            }}, {{
+              enableHighAccuracy: true,
+              timeout: 12000,
+              maximumAge: 0
+            }});
+          }}
+
+          initMap();
+
+          // Try to show status + marker before pressing buttons
+          if(navigator.geolocation){{
+            navigator.geolocation.getCurrentPosition((pos)=>{{
+              const lat = pos.coords.latitude;
+              const lon = pos.coords.longitude;
+              const acc = pos.coords.accuracy;
+              updateStatus(lat, lon, acc);
+              updateYouMarker(lat, lon);
+            }}, ()=>{{
+              statusEl.textContent = "📍 Location required. Please allow permission.";
+              statusEl.style.color = "var(--red)";
+            }}, {{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }});
+          }}
+
+          btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
+          btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
+        }})();
+      </script>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("clock", role, content))
+
+
 @app.get("/my-times")
 def my_times():
     gate = require_login()
