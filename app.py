@@ -1980,7 +1980,7 @@ def clock_page():
         timer_html = f"""
         <div class="timerSub">Active session started</div>
         <div class="timerBig" id="timerDisplay">00:00:00</div>
-        <div class="timerSub">Start: {escape(active_start_label)} • Break: {UNPAID_BREAK_HOURS}h (deducted on Clock Out)</div>
+        <div class="timerSub">Start: {escape(active_start_label)} </div>
         <script>
           (function() {{
             const startIso = "{escape(active_start_iso)}";
@@ -4109,3 +4109,4 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
