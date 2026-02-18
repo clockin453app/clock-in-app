@@ -1,4 +1,3 @@
-
 # ===================== app.py (FULL - Premium UI + Dashboard + Desktop Wide Layout + Admin Payroll Edit + Paid + Overtime + Dark Mode + Live Admin Timers) =====================
 # Notes:
 # - NO reportlab usage in app runtime (Render-friendly).
@@ -27,7 +26,7 @@ from urllib.parse import urlparse
 
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from flask import Flask, render_template_string, request, redirect, session, url_for, abort
+from flask import Flask, render_template_string, request, redirect, session, url_for, abort, jsonify
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 
@@ -1627,6 +1626,46 @@ def ping():
     return "pong", 200
 
 
+
+
+@app.get("/geo-status")
+def geo_status():
+    # Logged-in only
+    if "username" not in session:
+        return jsonify({"ok": False, "reason": "Not logged in"}), 401
+
+    lat_s = (request.args.get("lat") or "").strip()
+    lon_s = (request.args.get("lon") or "").strip()
+    try:
+        lat = float(lat_s)
+        lon = float(lon_s)
+    except Exception:
+        return jsonify({"ok": False, "reason": "Missing/invalid coordinates"}), 400
+
+    username = session["username"]
+    ok, site_name, dist_m, reason = _validate_location_for_user(username, lat, lon)
+
+    # Include site center + radius (for map) if we can find it
+    site_center = None
+    radius_m = None
+    required_site = _get_employee_site(username)
+    for s in _get_active_sites():
+        if required_site and s["name"].strip().lower() != required_site.strip().lower():
+            continue
+        if s["name"].strip().lower() == site_name.strip().lower():
+            site_center = {"lat": s["lat"], "lon": s["lon"]}
+            radius_m = s["radius_m"]
+            break
+
+    return jsonify({
+        "ok": ok,
+        "site_name": site_name,
+        "dist_m": float(dist_m),
+        "reason": reason,
+        "required_site": required_site or "",
+        "site_center": site_center,
+        "radius_m": radius_m,
+    })
 # ----- OAUTH CONNECT (ADMIN ONLY) -----
 @app.get("/connect-drive")
 def connect_drive():
@@ -1998,6 +2037,16 @@ def clock_page():
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
+
+
+<div class="card" style="padding:12px; margin-top:12px;">
+  <h2 style="margin:0;">Location</h2>
+  <p class="sub" id="geoLine">📍 Checking your location…</p>
+  <div id="mapWrap" style="margin-top:10px; display:none;">
+    <div id="geoMap" style="height:260px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);"></div>
+    <p class="sub" style="margin-top:8px;">Green circle = allowed radius. Blue marker = you.</p>
+  </div>
+</div>
 
       <div class="card clockCard">
         {timer_html}
