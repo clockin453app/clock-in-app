@@ -22,6 +22,7 @@ import json
 import io
 import secrets
 import math
+import re
 from urllib.parse import urlparse
 
 import gspread
@@ -1001,23 +1002,59 @@ def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     c = 2 * asin(sqrt(a))
     return R * c
 
-def _get_employee_site(username: str) -> str:
+def _get_employee_sites(username: str) -> list[str]:
+    """Return list of site names assigned to employee.
+    Supports:
+      - Employees sheet column 'Site' with comma/semicolon-separated sites
+      - Optional column 'Site2' (if present)
+    """
     try:
         vals = employees_sheet.get_all_values()
         if not vals:
-            return ""
+            return []
         headers = vals[0]
-        if "Username" not in headers or "Site" not in headers:
-            return ""
+        if "Username" not in headers:
+            return []
         ucol = headers.index("Username")
-        scol = headers.index("Site")
+        scol = headers.index("Site") if "Site" in headers else None
+        s2col = headers.index("Site2") if "Site2" in headers else None
+
         for i in range(1, len(vals)):
             row = vals[i]
             if len(row) > ucol and (row[ucol] or "").strip() == username:
-                return (row[scol] if scol < len(row) else "").strip()
+                sites: list[str] = []
+                if scol is not None and scol < len(row):
+                    raw = (row[scol] or "").strip()
+                    if raw:
+                        # allow comma/semicolon separated
+                        for part in re.split(r"[;,]", raw):
+                            p = (part or "").strip()
+                            if p:
+                                sites.append(p)
+                if s2col is not None and s2col < len(row):
+                    raw2 = (row[s2col] or "").strip()
+                    if raw2:
+                        for part in re.split(r"[;,]", raw2):
+                            p = (part or "").strip()
+                            if p:
+                                sites.append(p)
+                # unique preserve order
+                seen = set()
+                out = []
+                for s in sites:
+                    key = s.lower()
+                    if key not in seen:
+                        seen.add(key)
+                        out.append(s)
+                return out
     except Exception:
-        return ""
-    return ""
+        return []
+    return []
+
+def _get_employee_site(username: str) -> str:
+    """Backwards-compatible: return primary site (first) or empty."""
+    sites = _get_employee_sites(username)
+    return sites[0] if sites else ""
 
 def _get_active_locations() -> list[dict]:
     out = []
@@ -1059,16 +1096,61 @@ def _get_site_config(site_name: str) -> dict | None:
     return sites[0] if sites else None
 
 def _validate_user_location(username: str, lat: float | None, lon: float | None) -> tuple[bool, dict, float]:
-    """Returns (ok, site_cfg, distance_m). ok=False if outside radius or missing config."""
-    site_pref = _get_employee_site(username)
-    cfg = _get_site_config(site_pref)
-    if not cfg:
-        return False, {"name": site_pref or "Unknown", "lat": 0.0, "lon": 0.0, "radius": 0.0}, 0.0
+    """Returns (ok, site_cfg, distance_m).
+
+    Behavior:
+      - If employee has assigned site(s): validate against those sites (passes if inside ANY site radius).
+      - Fallback (no assigned site): validate against ANY active site (passes if inside ANY active site radius),
+        choosing the nearest site as the 'matched' one.
+    """
+    sites = _get_employee_sites(username)
+    active_sites = _get_active_locations()
+
     if lat is None or lon is None:
+        # no coordinates -> always fail (UI message explains)
+        # choose a sensible cfg for messaging
+        if sites:
+            cfg = _get_site_config(sites[0]) or {"name": sites[0], "lat": 0.0, "lon": 0.0, "radius": 0.0}
+        else:
+            cfg = active_sites[0] if active_sites else {"name": "Unknown", "lat": 0.0, "lon": 0.0, "radius": 0.0}
         return False, cfg, 0.0
-    dist = _haversine_m(float(lat), float(lon), cfg["lat"], cfg["lon"])
-    ok = dist <= float(cfg["radius"])
-    return ok, cfg, dist
+
+    latf, lonf = float(lat), float(lon)
+
+    # If no active sites configured at all -> fail
+    if not active_sites:
+        pref = sites[0] if sites else "Unknown"
+        return False, {"name": pref, "lat": 0.0, "lon": 0.0, "radius": 0.0}, 0.0
+
+    # Build candidate list
+    candidates = []
+    if sites:
+        # only those sites (if found/active)
+        for sname in sites:
+            cfg = _get_site_config(sname)
+            if cfg:
+                candidates.append(cfg)
+        # If assigned sites exist but none are active/found, fall back to all active
+        if not candidates:
+            candidates = active_sites[:]
+    else:
+        # fallback: any active site
+        candidates = active_sites[:]
+
+    best_cfg = candidates[0]
+    best_dist = _haversine_m(latf, lonf, best_cfg["lat"], best_cfg["lon"])
+    best_ok = best_dist <= float(best_cfg["radius"])
+
+    for cfg in candidates[1:]:
+        dist = _haversine_m(latf, lonf, cfg["lat"], cfg["lon"])
+        ok = dist <= float(cfg["radius"])
+        if ok and (not best_ok or dist < best_dist):
+            best_cfg, best_dist, best_ok = cfg, dist, ok
+        elif (not best_ok) and dist < best_dist:
+            best_cfg, best_dist, best_ok = cfg, dist, ok
+
+    return bool(best_ok), best_cfg, float(best_dist)
+
 def initials(name: str) -> str:
     s = (name or "").strip()
     if not s:
@@ -1328,6 +1410,114 @@ def require_csrf():
     if request.method == "POST":
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
+
+
+# ================= ADMIN / SHEET HELPERS =================
+AUDIT_HEADERS = ["Timestamp","Actor","Action","Username","Date","Details"]
+PAYROLL_HEADERS = ["WeekStart","WeekEnd","Username","Gross","Tax","Net","PaidAt","PaidBy"]
+
+def _ensure_audit_headers():
+    if not audit_sheet:
+        return
+    try:
+        vals = audit_sheet.get_all_values()
+        if not vals:
+            audit_sheet.append_row(AUDIT_HEADERS)
+            return
+        headers = vals[0]
+        if headers[:len(AUDIT_HEADERS)] != AUDIT_HEADERS:
+            audit_sheet.update("A1:F1", [AUDIT_HEADERS])
+    except Exception:
+        return
+
+def log_audit(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
+    """Best-effort audit logging (never raises)."""
+    if not audit_sheet:
+        return
+    try:
+        _ensure_audit_headers()
+        ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+        audit_sheet.append_row([ts, actor or "", action or "", username or "", date_str or "", details or ""])
+    except Exception:
+        return
+
+def _ensure_locations_headers():
+    """Ensure Locations sheet has required headers."""
+    if not locations_sheet:
+        return
+    required = ["SiteName","Lat","Lon","RadiusMeters","Active"]
+    try:
+        vals = locations_sheet.get_all_values()
+        if not vals:
+            locations_sheet.append_row(required)
+            return
+        headers = vals[0]
+        if "SiteName" not in headers:
+            # treat current as data, insert header at top
+            locations_sheet.insert_row(required, 1)
+            return
+        # ensure at least required columns in correct order (without deleting extras)
+        if headers[:len(required)] != required:
+            new_headers = required + [h for h in headers if h not in required]
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
+            locations_sheet.update(f"A1:{end_col}1", [new_headers])
+    except Exception:
+        return
+
+def _ensure_payroll_headers():
+    try:
+        vals = payroll_sheet.get_all_values()
+        if not vals:
+            payroll_sheet.append_row(PAYROLL_HEADERS)
+            return
+        headers = vals[0]
+        if "WeekStart" not in headers:
+            payroll_sheet.insert_row(PAYROLL_HEADERS, 1)
+            return
+        if headers[:len(PAYROLL_HEADERS)] != PAYROLL_HEADERS:
+            new_headers = PAYROLL_HEADERS + [h for h in headers if h not in PAYROLL_HEADERS]
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
+            payroll_sheet.update(f"A1:{end_col}1", [new_headers])
+    except Exception:
+        return
+
+def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float, paid_by: str):
+    """Append a paid record for the week/user if not already paid."""
+    try:
+        _ensure_payroll_headers()
+        paid, _ = _is_paid_for_week(week_start, week_end, username)
+        if paid:
+            return
+        paid_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+        payroll_sheet.append_row([week_start, week_end, username, money(gross), money(tax), money(net), paid_at, paid_by])
+        log_audit("MARK_PAID", actor=paid_by, username=username, date_str=f"{week_start}..{week_end}", details=f"gross={gross} tax={tax} net={net}")
+    except Exception:
+        return
+
+def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
+    """Return (is_paid, paid_at)."""
+    try:
+        _ensure_payroll_headers()
+        vals = payroll_sheet.get_all_values()
+        if not vals or len(vals) < 2:
+            return (False, "")
+        headers = vals[0]
+        def idx(name):
+            return headers.index(name) if name in headers else None
+        i_ws = idx("WeekStart"); i_we = idx("WeekEnd"); i_u = idx("Username"); i_pa = idx("PaidAt")
+        paid_at = ""
+        for r in vals[1:]:
+            ws = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
+            we = (r[i_we] if i_we is not None and i_we < len(r) else "").strip()
+            uu = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
+            if ws == week_start and we == week_end and uu == username:
+                paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
+        return (paid_at != "", paid_at)
+    except Exception:
+        return (False, "")
+
+
+
 
 
 
@@ -3532,7 +3722,7 @@ def admin_locations():
         badge = "<span class='chip ok'>Active</span>" if act_on else "<span class='chip warn'>Inactive</span>"
         return f"""
           <tr>
-            <td><b>{escape(s.get('name',''))}</b><div class='sub' style='margin:2px 0 0 0;'>{badge}</div></td>
+            <td><b>{escape(s.get('name',''))}</b><div class='sub' style='margin:2px 0 0 0;'>{badge}<div class='sub' style='margin:6px 0 0 0;'><a href='/admin/locations?site={escape(s.get('name',''))}' style='color:var(--navy);font-weight:600;'>View map</a></div></td>
             <td class='num'>{escape(s.get('lat',''))}</td>
             <td class='num'>{escape(s.get('lon',''))}</td>
             <td class='num'>{escape(s.get('rad',''))}</td>
@@ -3561,6 +3751,44 @@ def admin_locations():
 
     table_body = "".join([row_html(r) for r in all_rows]) if all_rows else "<tr><td colspan='5'>No locations yet.</td></tr>"
 
+
+# Map preview (no API key): OpenStreetMap embed for selected site
+selected = (request.args.get("site") or "").strip()
+chosen = None
+for rr in all_rows:
+    if selected and rr.get("name","").strip().lower() == selected.lower():
+        chosen = rr
+        break
+if not chosen and all_rows:
+    chosen = all_rows[0]
+
+map_card = ""
+if chosen:
+    try:
+        latf = float((chosen.get("lat") or "0").strip())
+        lonf = float((chosen.get("lon") or "0").strip())
+        delta = 0.006
+        left = lonf - delta
+        right = lonf + delta
+        top = latf + delta
+        bottom = latf - delta
+        # OSM embed URL
+        osm = f"https://www.openstreetmap.org/export/embed.html?bbox={left}%2C{bottom}%2C{right}%2C{top}&layer=mapnik&marker={latf}%2C{lonf}"
+        map_card = f"""
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <h2>Map preview</h2>
+            <div class="sub" style="margin-top:6px;">{escape(chosen.get('name',''))} • {escape(chosen.get('lat',''))}, {escape(chosen.get('lon',''))}</div>
+            <div style="margin-top:12px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);">
+              <iframe title="map" src="{osm}" style="width:100%; height:320px; border:0;" loading="lazy"></iframe>
+            </div>
+            <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
+              <a href="https://www.google.com/maps?q={latf},{lonf}" target="_blank" rel="noopener noreferrer" style="color:var(--navy); font-weight:600;">Open in Google Maps</a>
+              <a href="https://www.openstreetmap.org/?mlat={latf}&mlon={lonf}#map=18/{latf}/{lonf}" target="_blank" rel="noopener noreferrer" style="color:var(--navy); font-weight:600;">Open in OSM</a>
+            </div>
+          </div>
+        """
+    except Exception:
+        map_card = ""
     content = f"""
       <div class="headerTop">
         <div>
@@ -3569,6 +3797,8 @@ def admin_locations():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+
+      {map_card}
 
       <div class="card" style="padding:12px;">
         <h2>Add location</h2>
@@ -3711,13 +3941,12 @@ def admin_employee_sites():
     # Active location names for dropdowns
     sites = _get_active_locations()
     site_names = [s["name"] for s in sites] if sites else []
-    site_opts = "".join([f"<option value='{escape(n)}'>{escape(n)}</option>" for n in site_names])
 
     # Employees list
     vals = employees_sheet.get_all_values()
-    if not vals:
-        body = "<tr><td colspan='4'>No employees found.</td></tr>"
-    else:
+    rows_html = []
+
+    if vals:
         headers = vals[0]
         def idx(n): return headers.index(n) if n in headers else None
         i_user = idx("Username")
@@ -3725,7 +3954,6 @@ def admin_employee_sites():
         i_ln = idx("LastName")
         i_site = idx("Site")
 
-        rows_html = []
         for r in vals[1:]:
             if i_user is None or i_user >= len(r):
                 continue
@@ -3734,19 +3962,38 @@ def admin_employee_sites():
                 continue
             fn = (r[i_fn] or "").strip() if i_fn is not None and i_fn < len(r) else ""
             ln = (r[i_ln] or "").strip() if i_ln is not None and i_ln < len(r) else ""
-            cur_site = (r[i_site] or "").strip() if i_site is not None and i_site < len(r) else ""
+            raw_site = (r[i_site] or "").strip() if i_site is not None and i_site < len(r) else ""
             disp = (fn + " " + ln).strip() or u
 
-            # Build dropdown with current selected (if present)
-            opts = []
-            if cur_site and cur_site not in site_names:
-                opts.append(f"<option value='{escape(cur_site)}' selected>{escape(cur_site)} (inactive)</option>")
-            if site_names:
-                for n in site_names:
-                    sel = "selected" if (n.strip().lower() == cur_site.strip().lower() and cur_site) else ""
-                    opts.append(f"<option value='{escape(n)}' {sel}>{escape(n)}</option>")
+            assigned = _get_employee_sites(u)  # supports comma/semicolon
+            s1 = assigned[0] if len(assigned) > 0 else ""
+            s2 = assigned[1] if len(assigned) > 1 else ""
+
+            def build_opts(current: str):
+                opts = []
+                cur = (current or "").strip()
+                cur_l = cur.lower()
+                if cur and (cur not in site_names):
+                    opts.append(f"<option value='{escape(cur)}' selected>{escape(cur)} (inactive/unknown)</option>")
+                if not site_names:
+                    opts.append("<option value='' selected>(No active locations)</option>")
+                else:
+                    opts.append("<option value=''>— None —</option>")
+                    for n in site_names:
+                        sel = "selected" if (n.strip().lower() == cur_l and cur) else ""
+                        opts.append(f"<option value='{escape(n)}' {sel}>{escape(n)}</option>")
+                return "".join(opts)
+
+            # Validation chips
+            chips = []
+            if not assigned:
+                chips.append("<span class='chip warn'>No site (fallback to any active)</span>")
             else:
-                opts.append("<option value='' selected>(No active locations)</option>")
+                for s in assigned[:2]:
+                    if s and s in site_names:
+                        chips.append(f"<span class='chip ok'>{escape(s)}</span>")
+                    elif s:
+                        chips.append(f"<span class='chip bad'>{escape(s)}?</span>")
 
             rows_html.append(f"""
               <tr>
@@ -3756,37 +4003,43 @@ def admin_employee_sites():
                     <div>
                       <div style='font-weight:600;'>{escape(disp)}</div>
                       <div class='sub' style='margin:2px 0 0 0;'>{escape(u)}</div>
+                      <div style='margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;'>{''.join(chips)}</div>
                     </div>
                   </div>
                 </td>
-                <td style='min-width:220px;'>
+                <td style='min-width:420px;'>
                   <form method='POST' action='/admin/employee-sites/save' style='margin:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;'>
                     <input type='hidden' name='csrf' value='{escape(csrf)}'>
                     <input type='hidden' name='user' value='{escape(u)}'>
-                    <select class='input' name='site' style='margin-top:0; max-width:220px;'>
-                      {''.join(opts)}
+                    <select class='input' name='site1' style='margin-top:0; max-width:200px;'>
+                      {build_opts(s1)}
+                    </select>
+                    <select class='input' name='site2' style='margin-top:0; max-width:200px;'>
+                      {build_opts(s2)}
                     </select>
                     <button class='btnTiny' type='submit'>Save</button>
                   </form>
+                  <div class='sub' style='margin-top:6px;'>Tip: leave both blank to allow clock-in at any active site.</div>
                 </td>
-                <td class='sub'>{escape(cur_site) if cur_site else ''}</td>
+                <td class='sub'>{escape(raw_site) if raw_site else ''}</td>
               </tr>
             """)
 
-        body = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No employees found.</td></tr>"
+    body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No employees found.</td></tr>"
 
     content = f"""
       <div class="headerTop">
         <div>
           <h1>Employee Sites</h1>
-          <p class="sub">Assign each employee to a site (used for geo-fence clock in/out).</p>
+          <p class="sub">Assign each employee to up to 2 sites (used for geo-fence clock in/out).</p>
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
 
       <div class="card" style="padding:12px;">
         <p class="sub" style="margin-top:0;">
-          This updates the <b>Employees → Site</b> column. Each employee will be validated against their assigned site in <b>Locations</b>.
+          This updates the <b>Employees → Site</b> column. You can save <b>two sites</b>; they will be stored as <b>Site1,Site2</b>.
+          If no site is set for an employee, the app falls back to <b>any active</b> location.
         </p>
         <a href="/admin/locations" style="display:inline-block; margin-top:8px;">
           <button class="btnSoft" type="button">Manage Locations</button>
@@ -3797,7 +4050,7 @@ def admin_employee_sites():
         <h2>Employees</h2>
         <div class="tablewrap" style="margin-top:12px;">
           <table style="min-width:980px;">
-            <thead><tr><th>Employee</th><th>Assign site</th><th>Current</th></tr></thead>
+            <thead><tr><th>Employee</th><th>Assign site(s)</th><th>Raw</th></tr></thead>
             <tbody>{body}</tbody>
           </table>
         </div>
@@ -3814,24 +4067,35 @@ def admin_employee_sites_save():
     require_csrf()
 
     u = (request.form.get("user") or "").strip()
-    site = (request.form.get("site") or "").strip()
+    s1 = (request.form.get("site1") or "").strip()
+    s2 = (request.form.get("site2") or "").strip()
+
+    # normalize duplicates
+    if s1 and s2 and s1.strip().lower() == s2.strip().lower():
+        s2 = ""
+
+    # store in Employees -> Site as "Site1,Site2" (no sheet schema changes needed)
+    site_val = ""
+    if s1 and s2:
+        site_val = f"{s1},{s2}"
+    else:
+        site_val = s1 or s2 or ""
 
     if u:
         # Ensure "Site" column exists
         try:
             headers = get_sheet_headers(employees_sheet)
             if headers and "Site" not in headers:
-                # append header (minimal and safe)
                 headers2 = headers + ["Site"]
                 end_col = gspread.utils.rowcol_to_a1(1, len(headers2)).replace("1", "")
                 employees_sheet.update(f"A1:{end_col}1", [headers2])
         except Exception:
             pass
 
-        set_employee_field(u, "Site", site)
+        set_employee_field(u, "Site", site_val)
 
         actor = session.get("username", "admin")
-        log_audit("EMPLOYEE_SITE_SET", actor=actor, username=u, date_str="", details=f"site={site}")
+        log_audit("EMPLOYEE_SITE_SET", actor=actor, username=u, date_str="", details=f"site={site_val}")
 
     return redirect("/admin/employee-sites")
 
