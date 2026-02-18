@@ -1940,6 +1940,19 @@ def clock_page():
     
         csrf = get_csrf()
         username = session["username"]
+
+        # Assigned site (used for geofence + map on this page)
+        site_name = ""
+        site_lat = ""
+        site_lon = ""
+        site_radius = ""
+        try:
+            site_name, site_lat, site_lon, site_radius = _get_assigned_site_meta(username)
+        except Exception:
+            # If the user has no assigned Site or Locations sheet is missing, keep blanks.
+            # The page JS will hide the map and the server will block clock-in with a clear message.
+            pass
+
         role = session.get("role", "employee")
         display_name = get_employee_display_name(username)
     
