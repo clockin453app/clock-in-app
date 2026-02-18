@@ -1479,17 +1479,6 @@ def _parse_hms(t: str):
     except Exception:
         return None
 
-
-def _norm_hms_str(t: str) -> str:
-    """Normalize times to HH:MM:SS (accepts HH:MM or HH:MM:SS)."""
-    t = (t or "").strip()
-    if not t:
-        return ""
-    parts = t.split(":")
-    if len(parts) == 2:
-        return t + ":00"
-    return t
-
 def _apply_unpaid_break(hours: float) -> float:
     if hours >= BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS:
         hours = hours - UNPAID_BREAK_HOURS
@@ -1535,7 +1524,7 @@ def _get_open_shifts():
             cout = (r[COL_OUT] or "").strip()
             if u and d and cin and (cout == ""):
                 try:
-                    start_dt = datetime.strptime(f"{d} {_norm_hms_str(cin)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+                    start_dt = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                     out.append({
                         "user": u,
                         "name": get_employee_display_name(u),
@@ -2005,7 +1994,7 @@ def clock_page():
                 msg_class = "message error"
             else:
                 i, d, t = osf
-                cin_dt = datetime.strptime(f"{d} {_norm_hms_str(t)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+                cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                 raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
                 hours_rounded = _apply_unpaid_break(raw_hours)
                 pay = round(hours_rounded * rate, 2)
@@ -2031,7 +2020,7 @@ def clock_page():
     if osf2:
         _, d, t = osf2
         try:
-            start_dt = datetime.strptime(f"{d} {_norm_hms_str(t)}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
             active_start_iso = start_dt.isoformat()
             active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
         except Exception:
