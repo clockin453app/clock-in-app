@@ -1,3 +1,4 @@
+
 # ===================== app.py (FULL - Premium UI + Dashboard + Desktop Wide Layout + Admin Payroll Edit + Paid + Overtime + Dark Mode + Live Admin Timers) =====================
 # Notes:
 # - NO reportlab usage in app runtime (Render-friendly).
@@ -21,6 +22,7 @@ import os
 import json
 import io
 import secrets
+import math
 from urllib.parse import urlparse
 
 import gspread
@@ -93,6 +95,12 @@ except Exception:
 
 
 
+
+# Optional: geofenced clocking locations (Admin-managed)
+try:
+    locations_sheet = spreadsheet.worksheet("Locations")
+except Exception:
+    locations_sheet = None
 # ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
 OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive"]
 
@@ -200,6 +208,16 @@ COL_OUT = 3
 COL_HOURS = 4
 COL_PAY = 5
 
+
+# Extra columns (optional; appended after Pay). Used for geolocation.
+COL_IN_LAT = 6
+COL_IN_LON = 7
+COL_IN_ACC = 8
+COL_IN_SITE = 9
+COL_OUT_LAT = 10
+COL_OUT_LON = 11
+COL_OUT_ACC = 12
+COL_OUT_SITE = 13
 TAX_RATE = 0.20
 CLOCKIN_EARLIEST = dtime(8, 0, 0)
 
@@ -486,19 +504,6 @@ th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(11,18,32,.08); text-ali
 th{ position: sticky; top:0; background: rgba(248,250,252,.96); font-weight:500; }
 table tbody tr:nth-child(even){ background: rgba(11,18,32,.02); }
 table tbody tr:hover{ background: rgba(10,42,94,.04); }
-/* Align Hours and Pay columns */
-th:nth-child(5),
-td:nth-child(5),
-th:nth-child(6),
-td:nth-child(6) {
-    text-align: right;
-}
-
-/* Make numbers look clean */
-td:nth-child(5),
-td:nth-child(6) {
-    font-variant-numeric: tabular-nums;
-}
 
 /* Pro numeric formatting */
 .num{ text-align:right; font-variant-numeric: tabular-nums; }
@@ -1205,6 +1210,168 @@ def require_csrf():
             abort(400)
 
 
+# ================= GEOLOCATION (Clock-in/out requires being within an allowed site) =================
+# Sheets:
+# - Locations sheet (admin managed): SiteName | Lat | Lon | RadiusMeters | Active
+# - Employees sheet (optional): Site (if set, employee must be within that site)
+#
+# WorkHours extra columns (optional): InLat/InLon/InAcc/InSite/OutLat/OutLon/OutAcc/OutSite
+#
+# NOTE: This app enforces HTTPS-only geolocation (Render uses HTTPS). On localhost you must use http://localhost
+# which is allowed by browsers for geolocation.
+
+LOCATIONS_REQUIRED_HEADERS = ["SiteName", "Lat", "Lon", "RadiusMeters", "Active"]
+
+def _ensure_locations_headers():
+    """Create Locations header row if sheet exists and is empty."""
+    try:
+        if not locations_sheet:
+            return
+        vals = locations_sheet.get_all_values()
+        if not vals:
+            locations_sheet.update("A1:E1", [LOCATIONS_REQUIRED_HEADERS])
+    except Exception:
+        return
+
+WORKHOURS_REQUIRED_HEADERS = [
+    "Username","Date","ClockIn","ClockOut","Hours","Pay",
+    "InLat","InLon","InAcc","InSite",
+    "OutLat","OutLon","OutAcc","OutSite",
+]
+
+def _ensure_workhours_headers_and_pad():
+    """Ensure WorkHours has the geolocation columns (safe append + pad)."""
+    try:
+        vals = work_sheet.get_all_values()
+        if not vals:
+            # no data at all: write headers
+            work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(WORKHOURS_REQUIRED_HEADERS)).replace('1','')}1",
+                              [WORKHOURS_REQUIRED_HEADERS])
+            return
+
+        headers = vals[0]
+        # Only touch the sheet if it already looks like it has headers.
+        if not headers or (headers[0] or '').strip().lower() != 'username':
+            return
+
+        if len(headers) < len(WORKHOURS_REQUIRED_HEADERS):
+            new_headers = headers[:] + WORKHOURS_REQUIRED_HEADERS[len(headers):]
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
+            work_sheet.update(f"A1:{end_col}1", [new_headers])
+
+        # Pad existing data rows so update_cell doesn't hit trimmed rows.
+        target_len = max(len(headers), len(WORKHOURS_REQUIRED_HEADERS))
+        updates = []
+        for i in range(1, len(vals)):
+            row = vals[i]
+            if len(row) < target_len:
+                row = row + [""]*(target_len-len(row))
+                end_col = gspread.utils.rowcol_to_a1(i+1, target_len).replace(str(i+1),"")
+                updates.append((i+1, row, target_len))
+        if updates:
+            # Batch update ranges
+            data = []
+            for rownum, rowvals, tlen in updates:
+                end_col = gspread.utils.rowcol_to_a1(rownum, tlen).replace(str(rownum),"")
+                data.append({
+                    "range": f"A{rownum}:{end_col}{rownum}",
+                    "values": [rowvals],
+                })
+            work_sheet.batch_update(data)
+    except Exception:
+        return
+
+def _haversine_m(lat1, lon1, lat2, lon2) -> float:
+    """Distance in meters."""
+    R = 6371000.0
+    p = math.pi / 180.0
+    a1 = lat1 * p
+    a2 = lat2 * p
+    dlat = (lat2 - lat1) * p
+    dlon = (lon2 - lon1) * p
+    h = math.sin(dlat/2)**2 + math.cos(a1)*math.cos(a2)*math.sin(dlon/2)**2
+    return 2 * R * math.asin(math.sqrt(h))
+
+def _get_employee_site(username: str) -> str:
+    """Optional Employees.Site column."""
+    try:
+        vals = employees_sheet.get_all_values()
+        if not vals:
+            return ""
+        headers = vals[0]
+        if "Username" not in headers or "Site" not in headers:
+            return ""
+        ucol = headers.index("Username")
+        scol = headers.index("Site")
+        for i in range(1, len(vals)):
+            r = vals[i]
+            if len(r) > ucol and r[ucol] == username:
+                return (r[scol] if len(r) > scol else "").strip()
+    except Exception:
+        return ""
+    return ""
+
+def _get_active_sites():
+    """Return list of dicts: {name, lat, lon, radius_m}."""
+    if not locations_sheet:
+        return []
+    try:
+        vals = locations_sheet.get_all_values()
+        if not vals:
+            return []
+        headers = vals[0]
+        # Accept either headered or raw
+        if "SiteName" in headers and "Lat" in headers:
+            def idx(h): return headers.index(h) if h in headers else None
+            i_name = idx("SiteName"); i_lat = idx("Lat"); i_lon = idx("Lon")
+            i_rad = idx("RadiusMeters"); i_act = idx("Active")
+            rows = vals[1:]
+        else:
+            i_name, i_lat, i_lon, i_rad, i_act = 0,1,2,3,4
+            rows = vals
+        sites = []
+        for r in rows:
+            if len(r) < 4:
+                continue
+            name = (r[i_name] or "").strip()
+            lat = safe_float(r[i_lat], None)
+            lon = safe_float(r[i_lon], None)
+            rad = safe_float(r[i_rad], None)
+            act = (r[i_act] if i_act is not None and i_act < len(r) else "TRUE") if i_act is not None else "TRUE"
+            if not name or lat is None or lon is None or rad is None:
+                continue
+            if str(act).strip().lower() in ("false","0","no","n","off"):
+                continue
+            sites.append({"name": name, "lat": float(lat), "lon": float(lon), "radius_m": float(rad)})
+        return sites
+    except Exception:
+        return []
+
+def _validate_location_for_user(username: str, lat: float, lon: float):
+    """Return (ok, site_name, dist_m, reason)."""
+    sites = _get_active_sites()
+    if not sites:
+        return False, "", 0.0, "No locations configured. Admin must add at least one site."
+    required_site = _get_employee_site(username)
+    # choose best match
+    best = None
+    for s in sites:
+        if required_site and s["name"].strip().lower() != required_site.strip().lower():
+            continue
+        dist = _haversine_m(lat, lon, s["lat"], s["lon"])
+        if best is None or dist < best["dist"]:
+            best = {"site": s, "dist": dist}
+    if best is None:
+        return False, "", 0.0, "No matching site found for this employee."
+    if best["dist"] <= best["site"]["radius_m"]:
+        return True, best["site"]["name"], best["dist"], ""
+    return False, best["site"]["name"], best["dist"], f"Outside allowed radius ({int(best['site']['radius_m'])}m)."
+
+# Ensure schemas on boot (safe no-op if sheets missing)
+_ensure_locations_headers()
+_ensure_workhours_headers_and_pad()
+
+
 def log_audit(action: str, actor: str, username: str = "", date_str: str = "", details: str = ""):
     """Write a simple admin audit row to the AuditLog sheet if it exists.
     Sheet columns (suggested): Timestamp, Actor, Action, Username, Date, Details
@@ -1706,6 +1873,35 @@ def clock_page():
     if request.method == "POST":
         require_csrf()
         action = request.form.get("action")
+        # Geolocation required for clock in/out
+        lat_s = (request.form.get("lat") or "").strip()
+        lon_s = (request.form.get("lon") or "").strip()
+        acc_s = (request.form.get("acc") or "").strip()
+        try:
+            lat_v = float(lat_s)
+            lon_v = float(lon_s)
+            acc_v = float(acc_s) if acc_s else ""
+        except Exception:
+            lat_v = None
+            lon_v = None
+            acc_v = ""
+        if action in ("in","out"):
+            if lat_v is None or lon_v is None:
+                msg = "Location is required. Please enable GPS/Location and try again."
+                msg_class = "message error"
+                rows = work_sheet.get_all_values()
+                # Skip processing
+                action = None
+            else:
+                ok_loc, site_name, dist_m, reason = _validate_location_for_user(username, lat_v, lon_v)
+                if not ok_loc:
+                    extra = ""
+                    if site_name:
+                        extra = f" Closest site: {site_name} ({int(dist_m)}m)."
+                    msg = "Clocking blocked: " + reason + extra
+                    msg_class = "message error"
+                    rows = work_sheet.get_all_values()
+                    action = None
         rows = work_sheet.get_all_values()
 
         if action == "in":
@@ -1717,7 +1913,7 @@ def clock_page():
                 msg_class = "message error"
             else:
                 cin = normalized_clock_in_time(now, early_access)
-                work_sheet.append_row([username, today_str, cin, "", "", ""])
+                work_sheet.append_row([username, today_str, cin, "", "", "", str(lat_v), str(lon_v), str(acc_v), site_name, "", "", "", ""])
                 msg = "Clocked In"
                 if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                     msg = "Clocked In (counted from 08:00)"
@@ -1738,6 +1934,14 @@ def clock_page():
                 work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
                 work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
                 work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
+                # Store clock-out geolocation
+                try:
+                    work_sheet.update_cell(sheet_row, COL_OUT_LAT + 1, str(lat_v))
+                    work_sheet.update_cell(sheet_row, COL_OUT_LON + 1, str(lon_v))
+                    work_sheet.update_cell(sheet_row, COL_OUT_ACC + 1, str(acc_v))
+                    work_sheet.update_cell(sheet_row, COL_OUT_SITE + 1, site_name)
+                except Exception:
+                    pass
                 msg = f"Clocked Out (Break deducted: {UNPAID_BREAK_HOURS}h)"
 
     rows2 = work_sheet.get_all_values()
@@ -1797,11 +2001,56 @@ def clock_page():
 
       <div class="card clockCard">
         {timer_html}
-        <form method="POST" class="actionRow">
+        
+        <form method="POST" class="actionRow" id="geoClockForm">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <button class="btn btnIn" name="action" value="in">Clock In</button>
-          <button class="btn btnOut" name="action" value="out">Clock Out</button>
+          <input type="hidden" name="action" id="geoAction" value="">
+          <input type="hidden" name="lat" id="geoLat" value="">
+          <input type="hidden" name="lon" id="geoLon" value="">
+          <input type="hidden" name="acc" id="geoAcc" value="">
+          <button class="btn btnIn" type="button" data-act="in" id="btnClockIn">Clock In</button>
+          <button class="btn btnOut" type="button" data-act="out" id="btnClockOut">Clock Out</button>
         </form>
+
+        <script>
+          (function(){{
+            const form = document.getElementById("geoClockForm");
+            const act = document.getElementById("geoAction");
+            const lat = document.getElementById("geoLat");
+            const lon = document.getElementById("geoLon");
+            const acc = document.getElementById("geoAcc");
+
+            function setDisabled(v){{
+              document.getElementById("btnClockIn").disabled = v;
+              document.getElementById("btnClockOut").disabled = v;
+            }}
+
+            function submitWithLocation(action){{
+              act.value = action;
+              if(!navigator.geolocation){{
+                alert("Geolocation not supported on this device/browser.");
+                return;
+              }}
+              setDisabled(true);
+
+              navigator.geolocation.getCurrentPosition((pos)=>{{
+                lat.value = String(pos.coords.latitude || "");
+                lon.value = String(pos.coords.longitude || "");
+                acc.value = String(pos.coords.accuracy || "");
+                form.submit();
+              }}, (err)=>{{
+                const msg = (err && err.message) ? err.message : "Location permission denied.";
+                alert("Location is required to clock in/out. " + msg);
+                setDisabled(false);
+              }}, {{ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }});
+            }}
+
+            document.querySelectorAll("#geoClockForm button[data-act]").forEach((btn)=>{{
+              btn.addEventListener("click", ()=> submitWithLocation(btn.getAttribute("data-act")));
+            }});
+          }})();
+        </script>
+    
         <a href="/my-times" style="display:block;margin-top:12px;">
           <button class="btnSoft" type="button">View my time logs</button>
         </a>
@@ -2570,6 +2819,10 @@ def admin():
           <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Onboarding</div></div>
           <div class="chev">›</div>
         </a>
+        <a class="menuItem" href="/admin/locations">
+          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Locations</div></div>
+          <div class="chev">›</div>
+        </a>
         <a class="menuItem" href="/connect-drive">
           <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Connect Drive</div></div>
           <div class="chev">›</div>
@@ -3222,8 +3475,214 @@ def admin_onboarding_detail(username):
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
+
+# ---------- ADMIN LOCATIONS (Geofencing) ----------
+@app.get("/admin/locations")
+def admin_locations():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    _ensure_locations_headers()
+
+    all_rows = []
+    try:
+        if locations_sheet:
+            vals = locations_sheet.get_all_values()
+            if vals:
+                headers = vals[0]
+                rows = vals[1:] if "SiteName" in headers else vals
+                for r in rows:
+                    if len(r) < 4:
+                        continue
+                    name = (r[0] or "").strip()
+                    lat = (r[1] or "").strip() if len(r) > 1 else ""
+                    lon = (r[2] or "").strip() if len(r) > 2 else ""
+                    rad = (r[3] or "").strip() if len(r) > 3 else ""
+                    act = (r[4] or "").strip() if len(r) > 4 else "TRUE"
+                    if name:
+                        all_rows.append({"name": name, "lat": lat, "lon": lon, "rad": rad, "act": act})
+    except Exception:
+        all_rows = []
+
+    def _is_active(v):
+        return str(v or "").strip().lower() not in ("false", "0", "no", "n", "off")
+
+    def row_html(s):
+        act_on = _is_active(s.get("act", "TRUE"))
+        badge = "<span class='chip ok'>Active</span>" if act_on else "<span class='chip warn'>Inactive</span>"
+        return f"""
+          <tr>
+            <td><b>{escape(s.get('name',''))}</b><div class='sub' style='margin:2px 0 0 0;'>{badge}</div></td>
+            <td class='num'>{escape(s.get('lat',''))}</td>
+            <td class='num'>{escape(s.get('lon',''))}</td>
+            <td class='num'>{escape(s.get('rad',''))}</td>
+            <td style='min-width:340px;'>
+              <form method="POST" action="/admin/locations/save" style="margin:0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <input type="hidden" name="orig_name" value="{escape(s.get('name',''))}">
+                <input class="input" name="name" value="{escape(s.get('name',''))}" placeholder="Site name" style="margin-top:0; max-width:160px;">
+                <input class="input" name="lat" value="{escape(s.get('lat',''))}" placeholder="Lat" style="margin-top:0; max-width:120px;">
+                <input class="input" name="lon" value="{escape(s.get('lon',''))}" placeholder="Lon" style="margin-top:0; max-width:120px;">
+                <input class="input" name="rad" value="{escape(s.get('rad',''))}" placeholder="Radius m" style="margin-top:0; max-width:110px;">
+                <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
+                  <input type="checkbox" name="active" value="yes" {"checked" if act_on else ""}>
+                  Active
+                </label>
+                <button class="btnTiny" type="submit">Save</button>
+              </form>
+              <form method="POST" action="/admin/locations/deactivate" style="margin-top:8px;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <input type="hidden" name="name" value="{escape(s.get('name',''))}">
+                <button class="btnTiny dark" type="submit">Deactivate</button>
+              </form>
+            </td>
+          </tr>
+        """
+
+    table_body = "".join([row_html(r) for r in all_rows]) if all_rows else "<tr><td colspan='5'>No locations yet.</td></tr>"
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Locations</h1>
+          <p class="sub">Clock in/out will only work inside an allowed location radius.</p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
+      <div class="card" style="padding:12px;">
+        <h2>Add location</h2>
+        <form method="POST" action="/admin/locations/save">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <input type="hidden" name="orig_name" value="">
+          <div class="row2">
+            <div>
+              <label class="sub">Site name</label>
+              <input class="input" name="name" placeholder="e.g. Site A" required>
+            </div>
+            <div>
+              <label class="sub">Radius (meters)</label>
+              <input class="input" name="rad" placeholder="e.g. 150" required>
+            </div>
+          </div>
+          <div class="row2">
+            <div>
+              <label class="sub">Latitude</label>
+              <input class="input" name="lat" placeholder="e.g. 51.5074" required>
+            </div>
+            <div>
+              <label class="sub">Longitude</label>
+              <input class="input" name="lon" placeholder="e.g. -0.1278" required>
+            </div>
+          </div>
+          <label class="sub" style="display:flex; align-items:center; gap:8px; margin-top:10px;">
+            <input type="checkbox" name="active" value="yes" checked> Active
+          </label>
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Add</button>
+        </form>
+      </div>
+
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <h2>All locations</h2>
+        <div class="tablewrap" style="margin-top:12px;">
+          <table style="min-width:980px;">
+            <thead><tr><th>Site</th><th class="num">Lat</th><th class="num">Lon</th><th class="num">Radius (m)</th><th>Manage</th></tr></thead>
+            <tbody>{table_body}</tbody>
+          </table>
+        </div>
+        <p class="sub" style="margin-top:10px;">
+          Tip: Use your phone’s Google Maps to read the site latitude/longitude (drop a pin → share → coordinates).
+        </p>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+
+
+def _find_location_row_by_name(name: str):
+    if not locations_sheet:
+        return None
+    try:
+        vals = locations_sheet.get_all_values()
+        if not vals:
+            return None
+        headers = vals[0]
+        start_idx = 1 if "SiteName" in headers else 0
+        for i in range(start_idx, len(vals)):
+            r = vals[i]
+            n = (r[0] if len(r) > 0 else "").strip()
+            if n.lower() == name.strip().lower():
+                return i + 1
+    except Exception:
+        return None
+    return None
+
+
+@app.post("/admin/locations/save")
+def admin_locations_save():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    name = (request.form.get("name") or "").strip()
+    orig = (request.form.get("orig_name") or "").strip()
+    lat = (request.form.get("lat") or "").strip()
+    lon = (request.form.get("lon") or "").strip()
+    rad = (request.form.get("rad") or "").strip()
+    active = "TRUE" if (request.form.get("active") == "yes") else "FALSE"
+
+    if not locations_sheet or not name:
+        return redirect("/admin/locations")
+
+    try:
+        float(lat); float(lon); float(rad)
+    except Exception:
+        return redirect("/admin/locations")
+
+    _ensure_locations_headers()
+
+    rownum = _find_location_row_by_name(orig or name)
+    row = [name, lat, lon, rad, active]
+    try:
+        if rownum:
+            locations_sheet.update(f"A{rownum}:E{rownum}", [row])
+        else:
+            locations_sheet.append_row(row)
+    except Exception:
+        pass
+
+    actor = session.get("username", "admin")
+    log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="", details=f"{name} {lat},{lon} r={rad} active={active}")
+    return redirect("/admin/locations")
+
+
+@app.post("/admin/locations/deactivate")
+def admin_locations_deactivate():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    name = (request.form.get("name") or "").strip()
+    if not locations_sheet or not name:
+        return redirect("/admin/locations")
+
+    rownum = _find_location_row_by_name(name)
+    if rownum:
+        try:
+            locations_sheet.update_cell(rownum, 5, "FALSE")
+        except Exception:
+            pass
+
+    actor = session.get("username", "admin")
+    log_audit("LOCATIONS_DEACTIVATE", actor=actor, username="", date_str="", details=name)
+    return redirect("/admin/locations")
+
+
+
 # ================= LOCAL RUN =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
