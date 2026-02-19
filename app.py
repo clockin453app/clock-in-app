@@ -1223,7 +1223,7 @@ def _get_site_config(site_name: str) -> dict | None:
     # fallback: first active site
     return sites[0] if sites else None
 
-def _validate_user_location(username: str, lat: float | None, lon: float | None) -> tuple[bool, dict, float]:
+def _validate_user_location(username: str, lat: float | None, lon: float | None, acc_m: float | None = None) -> tuple[bool, dict, float]:
     """Returns (ok, site_cfg, distance_m).
 
     Behavior:
@@ -1244,6 +1244,21 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None)
         return False, cfg, 0.0
 
     latf, lonf = float(lat), float(lon)
+
+    # GPS accuracy can be noisy (especially desktop / Wi‑Fi positioning).
+    # If provided, allow a small uncertainty buffer so users don't get falsely blocked.
+    try:
+        acc_buf = float(acc_m) if acc_m is not None else 0.0
+        if acc_buf < 0:
+            acc_buf = 0.0
+    except Exception:
+        acc_buf = 0.0
+
+    def _inside(dist_m: float, radius_m: float) -> bool:
+        # Cap buffer to avoid accidental huge values
+        buf = min(max(acc_buf, 0.0), 2000.0)
+        return dist_m <= (float(radius_m) + buf)
+
 
     # If no active sites configured at all -> fail
     if not active_sites:
@@ -1267,11 +1282,11 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None)
 
     best_cfg = candidates[0]
     best_dist = _haversine_m(latf, lonf, best_cfg["lat"], best_cfg["lon"])
-    best_ok = best_dist <= float(best_cfg["radius"])
+    best_ok = _inside(best_dist, float(best_cfg["radius"]))
 
     for cfg in candidates[1:]:
         dist = _haversine_m(latf, lonf, cfg["lat"], cfg["lon"])
-        ok = dist <= float(cfg["radius"])
+        ok = _inside(dist, float(cfg["radius"]))
         if ok and (not best_ok or dist < best_dist):
             best_cfg, best_dist, best_ok = cfg, dist, ok
         elif (not best_ok) and dist < best_dist:
@@ -1319,15 +1334,46 @@ def has_any_row_today(rows, username: str, today_str: str) -> bool:
     return False
 
 def find_open_shift(rows, username: str):
+    # Find the most recent row for this user where ClockOut is still blank.
+    # Be tolerant of stray whitespace in cells.
+    u = (username or "").strip()
     for i in range(len(rows) - 1, 0, -1):
         r = rows[i]
-        if len(r) > COL_OUT and r[COL_USER] == username and r[COL_OUT] == "":
-            return i, r[COL_DATE], r[COL_IN]
+        if len(r) <= COL_OUT:
+            continue
+        if (r[COL_USER] or "").strip() == u and (r[COL_OUT] or "").strip() == "":
+            return i, (r[COL_DATE] or "").strip(), (r[COL_IN] or "").strip()
     return None
+
 
 def get_sheet_headers(sheet):
     vals = sheet.get_all_values()
     return vals[0] if vals else []
+
+def _find_workhours_row_by_user_date(vals, username: str, date_str: str):
+    """Return the 1-based row number in WorkHours matching (Username, Date)."""
+    if not vals or len(vals) < 2:
+        return None
+    headers = vals[0]
+    try:
+        uidx = headers.index("Username")
+    except Exception:
+        uidx = COL_USER
+    try:
+        didx = headers.index("Date")
+    except Exception:
+        didx = COL_DATE
+
+    u = (username or "").strip()
+    d = (date_str or "").strip()
+    for i in range(1, len(vals)):
+        r = vals[i]
+        if len(r) <= max(uidx, didx):
+            continue
+        if (r[uidx] or "").strip() == u and (r[didx] or "").strip() == d:
+            return i + 1
+    return None
+
 
 def find_row_by_username(sheet, username: str):
     vals = sheet.get_all_values()
@@ -2012,84 +2058,104 @@ def clock_page():
         lon_v = _read_float("lon")
         acc_v = _read_float("acc")
 
-        ok_loc, cfg, dist_m = _validate_user_location(username, lat_v, lon_v)
+        try:
+            ok_loc, cfg, dist_m = _validate_user_location(username, lat_v, lon_v, acc_v)
 
-        if not ok_loc:
-            # Build a clean error message
-            if not site_cfg and not cfg.get("radius"):
-                msg = "Location system is not configured. Ask Admin to create Locations sheet and set your Site."
-            elif lat_v is None or lon_v is None:
-                msg = "Location is required. Please allow location access and try again."
-            else:
-                msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
-            msg_class = "message error"
-        else:
-            rows = work_sheet.get_all_values()
-
-            if action == "in":
-                if has_any_row_today(rows, username, today_str):
-                    msg = "You already clocked in today (1 per day)."
-                    msg_class = "message error"
-                elif find_open_shift(rows, username):
-                    msg = "You are already clocked in."
-                    msg_class = "message error"
+            if not ok_loc:
+                # Build a clean error message
+                if not site_cfg and not cfg.get("radius"):
+                    msg = "Location system is not configured. Ask Admin to create Locations sheet and set your Site."
+                elif lat_v is None or lon_v is None:
+                    msg = "Location is required. Please allow location access and try again."
                 else:
-                    cin = normalized_clock_in_time(now, early_access)
-                    # Append base columns
-                    work_sheet.append_row([username, today_str, cin, "", "", ""])
-                    # Find the row we just added and store geo fields
-                    vals = work_sheet.get_all_values()
-                    rownum = _find_workhours_row_by_user_date(vals, username, today_str)
-                    if rownum:
-                        headers = vals[0]
-                        def col(name):
-                            return headers.index(name) + 1 if name in headers else None
-                        for k, v in [
-                            ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
-                            ("InSite", cfg["name"]), ("InDistM", int(dist_m)),
-                        ]:
-                            c = col(k)
-                            if c:
-                                work_sheet.update_cell(rownum, c, "" if v is None else str(v))
+                    msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
+                msg_class = "message error"
+            else:
+                rows = work_sheet.get_all_values()
+
+                if action == "in":
+                    if has_any_row_today(rows, username, today_str):
+                        msg = "You already clocked in today (1 per day)."
+                        msg_class = "message error"
+                    elif find_open_shift(rows, username):
+                        msg = "You are already clocked in."
+                        msg_class = "message error"
+                    else:
+                        cin = normalized_clock_in_time(now, early_access)
+                        # Append base columns
+                        work_sheet.append_row([username, today_str, cin, "", "", ""])
+                        # Find the row we just added and store geo fields
+                        vals = work_sheet.get_all_values()
+                        rownum = _find_workhours_row_by_user_date(vals, username, today_str)
+                        if rownum:
+                            headers = vals[0] if vals else []
+                            def _col(name):
+                                return headers.index(name) + 1 if name in headers else None
+
+                            updates = []
+                            for k, v in [
+                                ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
+                                ("InSite", cfg.get("name", "")), ("InDistM", int(dist_m)),
+                            ]:
+                                c = _col(k)
+                                if c:
+                                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if v is None else str(v)]]})
+
+                            if updates:
+                                work_sheet.batch_update(updates)
+
                     msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                         msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
 
-            elif action == "out":
-                osf = find_open_shift(rows, username)
-                if not osf:
-                    msg = "No active shift found."
-                    msg_class = "message error"
-                else:
-                    i, d, t = osf
-                    cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-                    raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-                    hours_rounded = _apply_unpaid_break(raw_hours)
-                    pay = round(hours_rounded * rate, 2)
+                elif action == "out":
+                    osf = find_open_shift(rows, username)
+                    if not osf:
+                        msg = "No active shift found."
+                        msg_class = "message error"
+                    else:
+                        i, d, t = osf
+                        cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+                        raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
+                        hours_rounded = _apply_unpaid_break(raw_hours)
+                        pay = round(hours_rounded * rate, 2)
 
-                    sheet_row = i + 1  # find_open_shift returns index in rows list
-                    work_sheet.update_cell(sheet_row, COL_OUT + 1, now.strftime("%H:%M:%S"))
-                    work_sheet.update_cell(sheet_row, COL_HOURS + 1, hours_rounded)
-                    work_sheet.update_cell(sheet_row, COL_PAY + 1, pay)
+                        sheet_row = i + 1  # find_open_shift returns index in rows list
+                        cout = now.strftime("%H:%M:%S")
 
-                    # store geo fields (clock-out)
-                    vals = work_sheet.get_all_values()
-                    headers = vals[0] if vals else []
-                    def col(name):
-                        return headers.index(name) + 1 if name in headers else None
-                    for k, v in [
-                        ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
-                        ("OutSite", cfg["name"]), ("OutDistM", int(dist_m)),
-                    ]:
-                        c = col(k)
-                        if c:
-                            work_sheet.update_cell(sheet_row, c, "" if v is None else str(v))
+                        updates = [
+                            {
+                                "range": f"{gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1)}:{gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1)}",
+                                "values": [[cout, hours_rounded, pay]],
+                            }
+                        ]
+
+                        # Store geo fields (clock-out) in the same batch update (if headers exist)
+                        vals = work_sheet.get_all_values()
+                        headers = vals[0] if vals else []
+                        def _col(name):
+                            return headers.index(name) + 1 if name in headers else None
+
+                        for k, v in [
+                            ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
+                            ("OutSite", cfg.get("name", "")), ("OutDistM", int(dist_m)),
+                        ]:
+                            c = _col(k)
+                            if c:
+                                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c), "values": [["" if v is None else str(v)]]})
+
+                        work_sheet.batch_update(updates)
 
                     msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
-            else:
-                msg = "Invalid action."
-                msg_class = "message error"
+                else:
+                    msg = "Invalid action."
+                    msg_class = "message error"
+        except Exception as e:
+            app.logger.exception('Clock POST failed')
+            msg = 'Internal error while saving. Please refresh and try again.'
+            msg_class = 'message error'
+
 
     # Active shift timer
     rows2 = work_sheet.get_all_values()
