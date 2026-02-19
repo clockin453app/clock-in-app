@@ -2441,7 +2441,9 @@ def my_times():
       <div class="card" style="padding:12px;">
         <div class="tablewrap">
           <table style="min-width:640px;">
-            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class='num'>Hours</th><th class='num'>Pay</th></tr></thead>
+            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num" style="text-align:center;">Hours</th>
+<th class="num" style="text-align:center;">Pay</th>
+</tr></thead>
             <tbody>{table}</tbody>
           </table>
         </div>
@@ -4327,5 +4329,6 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
