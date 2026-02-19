@@ -23,6 +23,8 @@ import io
 import secrets
 import math
 import re
+import time
+import random
 from urllib.parse import urlparse
 
 import gspread
@@ -132,6 +134,21 @@ try:
 except Exception:
     # If gspread internals change, app still runs without caching.
     pass
+# ============ GOOGLE SHEETS SAFE WRITE ============
+
+def _gs_write_with_retry(fn, *, tries: int = 3, base_sleep: float = 0.6):
+    """
+    Retry wrapper for transient Google Sheets / network errors.
+    """
+    last_err = None
+    for attempt in range(tries):
+        try:
+            return fn()
+        except Exception as e:
+            last_err = e
+            sleep_s = base_sleep * (2 ** attempt) + random.uniform(0, 0.25)
+            time.sleep(sleep_s)
+    raise last_err
 
 
 # ================= APP =================
@@ -2125,7 +2142,10 @@ def clock_page():
                     else:
                         cin = normalized_clock_in_time(now, early_access)
                         # Append base columns
-                        work_sheet.append_row([username, today_str, cin, "", "", ""])
+                        _gs_write_with_retry(
+    lambda: work_sheet.append_row([username, today_str, cin, "", "", ""], value_input_option="USER_ENTERED")
+)
+
                         # Find the row we just added and store geo fields
                         vals = work_sheet.get_all_values()
                         rownum = _find_workhours_row_by_user_date(vals, username, today_str)
@@ -2145,7 +2165,7 @@ def clock_page():
 
                             if updates:
                                 if updates:
-                                    work_sheet.batch_update(updates)
+                                    _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
                     msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                         msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
@@ -4350,6 +4370,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
