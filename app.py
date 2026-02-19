@@ -924,8 +924,27 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
   .sidebar, .bottomNav, .themeToggle, button, input, select, .weekRow { display:none !important; }
   body{ padding:0 !important; background:#fff !important; }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
-  .card{ box-shadow:none !important; }
+  .card{ box-shadow:none !important; 
+  }
 }
+/* Fix Hours & Pay alignment */
+
+.tablewrap table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+th.num,
+td.num {
+    text-align: center;
+}
+
+td.num input {
+    width: 100%;
+    box-sizing: border-box;
+    text-align: center;
+}
+
 </style>
 
 """
@@ -4329,6 +4348,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
