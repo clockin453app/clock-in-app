@@ -40,6 +40,99 @@ from google.auth.transport.requests import Request
 
 from werkzeug.security import generate_password_hash, check_password_hash
 
+# ================= PERFORMANCE: gspread caching (TTL) =================
+# Google Sheets reads are slow + rate-limited. This monkeypatch caches common
+# full-sheet reads for a short TTL and invalidates cache on writes.
+#
+# Configure with env vars:
+#   SHEETS_CACHE_TTL_SECONDS (default 15)
+#   SHEETS_CACHE_MAX_ENTRIES (default 256)
+import time as _time
+from collections import OrderedDict as _OrderedDict
+
+_SHEETS_CACHE_TTL = int(os.environ.get("SHEETS_CACHE_TTL_SECONDS", "15") or "15")
+_SHEETS_CACHE_MAX = int(os.environ.get("SHEETS_CACHE_MAX_ENTRIES", "256") or "256")
+_sheets_cache = _OrderedDict()  # key -> (expires_at, value)
+
+def _cache_get(key):
+    now = _time.time()
+    item = _sheets_cache.get(key)
+    if not item:
+        return None
+    expires_at, value = item
+    if expires_at < now:
+        _sheets_cache.pop(key, None)
+        return None
+    # refresh LRU
+    _sheets_cache.move_to_end(key, last=True)
+    return value
+
+def _cache_set(key, value, ttl=_SHEETS_CACHE_TTL):
+    now = _time.time()
+    expires_at = now + max(0, int(ttl))
+    _sheets_cache[key] = (expires_at, value)
+    _sheets_cache.move_to_end(key, last=True)
+    while len(_sheets_cache) > _SHEETS_CACHE_MAX:
+        _sheets_cache.popitem(last=False)
+
+def _cache_invalidate_prefix(prefix):
+    # prefix: tuple prefix
+    for k in list(_sheets_cache.keys()):
+        if isinstance(k, tuple) and k[:len(prefix)] == prefix:
+            _sheets_cache.pop(k, None)
+
+try:
+    from gspread.worksheet import Worksheet as _Worksheet
+
+    _orig_get_all_values = _Worksheet.get_all_values
+    _orig_get_all_records = _Worksheet.get_all_records
+
+    def _ws_key(ws, op, args, kwargs):
+        # Spreadsheet ID is stable; Worksheet.id is numeric sheet id
+        sid = getattr(getattr(ws, "spreadsheet", None), "id", None)
+        wid = getattr(ws, "id", None)
+        return (sid, wid, op, args, tuple(sorted(kwargs.items())))
+
+    def cached_get_all_values(self, *args, **kwargs):
+        key = _ws_key(self, "get_all_values", args, kwargs)
+        hit = _cache_get(key)
+        if hit is not None:
+            return hit
+        val = _orig_get_all_values(self, *args, **kwargs)
+        _cache_set(key, val)
+        return val
+
+    def cached_get_all_records(self, *args, **kwargs):
+        key = _ws_key(self, "get_all_records", args, kwargs)
+        hit = _cache_get(key)
+        if hit is not None:
+            return hit
+        val = _orig_get_all_records(self, *args, **kwargs)
+        _cache_set(key, val)
+        return val
+
+    _Worksheet.get_all_values = cached_get_all_values
+    _Worksheet.get_all_records = cached_get_all_records
+
+    # Invalidate cache on common writes
+    def _wrap_invalidate(method_name):
+        orig = getattr(_Worksheet, method_name, None)
+        if not orig:
+            return
+        def wrapped(self, *args, **kwargs):
+            res = orig(self, *args, **kwargs)
+            sid = getattr(getattr(self, "spreadsheet", None), "id", None)
+            wid = getattr(self, "id", None)
+            _cache_invalidate_prefix((sid, wid))
+            return res
+        setattr(_Worksheet, method_name, wrapped)
+
+    for _m in ("update", "update_cell", "update_cells", "append_row", "append_rows", "batch_update", "delete_rows", "insert_row", "insert_rows", "clear"):
+        _wrap_invalidate(_m)
+except Exception:
+    # If gspread internals change, app still runs without caching.
+    pass
+
 
 # ================= APP =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -49,7 +142,10 @@ app = Flask(
     static_folder=os.path.join(BASE_DIR, "static"),
     static_url_path="/static",
 )
-app.secret_key = os.environ.get("SECRET_KEY", "dev-only-change-me")
+SECRET_KEY = os.environ.get("SECRET_KEY", "").strip()
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable must be set (do not use a default in production).")
+app.secret_key = SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "15")) * 1024 * 1024
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
@@ -116,37 +212,70 @@ OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "").strip()
 OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
 OAUTH_REDIRECT_URI = os.environ.get("OAUTH_REDIRECT_URI", "").strip()
 
-DRIVE_TOKEN_PATH = os.path.join(BASE_DIR, "drive_token.json")
-DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()
+# ---- Drive OAuth token storage (SERVER-SIDE) ----
+# Avoid storing OAuth tokens in Flask sessions (client-side cookies by default).
+# We keep tokens server-side in an encrypted file (recommended) or plaintext file as fallback.
+#
+# Env vars:
+#   DRIVE_TOKEN_STORE_PATH (default: ./instance/drive_token.enc)
+#   DRIVE_TOKEN_ENCRYPTION_KEY (recommended): urlsafe base64 32-byte key (Fernet).
+#   DRIVE_TOKEN_JSON (optional): bootstrap token JSON (e.g., for migration), but prefer file store.
+try:
+    from cryptography.fernet import Fernet, InvalidToken
+except Exception:
+    Fernet = None
+    InvalidToken = Exception
 
-def _make_oauth_flow():
-    if not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
-        raise RuntimeError("Missing OAuth env vars: OAUTH_CLIENT_ID / OAUTH_CLIENT_SECRET / OAUTH_REDIRECT_URI")
-    client_config = {
-        "web": {
-            "client_id": OAUTH_CLIENT_ID,
-            "client_secret": OAUTH_CLIENT_SECRET,
-            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
-            "token_uri": "https://oauth2.googleapis.com/token",
-            "redirect_uris": [OAUTH_REDIRECT_URI],
-        }
-    }
-    return Flow.from_client_config(client_config, scopes=OAUTH_SCOPES, redirect_uri=OAUTH_REDIRECT_URI)
+DRIVE_TOKEN_STORE_PATH = os.environ.get(
+    "DRIVE_TOKEN_STORE_PATH",
+    os.path.join(BASE_DIR, "instance", "drive_token.enc"),
+)
+DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()
+DRIVE_TOKEN_ENCRYPTION_KEY = os.environ.get("DRIVE_TOKEN_ENCRYPTION_KEY", "").strip()
+
+def _ensure_instance_dir():
+    d = os.path.dirname(DRIVE_TOKEN_STORE_PATH)
+    if d and not os.path.exists(d):
+        os.makedirs(d, exist_ok=True)
+
+def _fernet():
+    if not DRIVE_TOKEN_ENCRYPTION_KEY or not Fernet:
+        return None
+    try:
+        return Fernet(DRIVE_TOKEN_ENCRYPTION_KEY.encode("utf-8"))
+    except Exception:
+        return None
 
 def _save_drive_token(token_dict: dict):
+    _ensure_instance_dir()
+    payload = json.dumps(token_dict).encode("utf-8")
+    f = _fernet()
     try:
-        with open(DRIVE_TOKEN_PATH, "w", encoding="utf-8") as f:
-            json.dump(token_dict, f)
+        if f:
+            payload = f.encrypt(payload)
+        with open(DRIVE_TOKEN_STORE_PATH, "wb") as fp:
+            fp.write(payload)
     except Exception:
+        # Don't crash app on token write failure; uploads will fail until fixed.
         pass
 
 def _load_drive_token() -> dict | None:
+    # 1) Encrypted/plain file
     try:
-        if os.path.exists(DRIVE_TOKEN_PATH):
-            with open(DRIVE_TOKEN_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
+        if os.path.exists(DRIVE_TOKEN_STORE_PATH):
+            blob = open(DRIVE_TOKEN_STORE_PATH, "rb").read()
+            f = _fernet()
+            if f:
+                try:
+                    blob = f.decrypt(blob)
+                except InvalidToken:
+                    # Wrong key / corrupted file
+                    return None
+            return json.loads(blob.decode("utf-8"))
     except Exception:
         pass
+
+    # 2) Optional env bootstrap (migration only)
     if DRIVE_TOKEN_ENV:
         try:
             return json.loads(DRIVE_TOKEN_ENV)
@@ -155,7 +284,7 @@ def _load_drive_token() -> dict | None:
     return None
 
 def get_user_drive_service():
-    token_data = session.get("drive_token") or _load_drive_token()
+    token_data = _load_drive_token()
     if not token_data:
         return None
 
@@ -165,7 +294,6 @@ def get_user_drive_service():
         token_data["token"] = creds_user.token
         if creds_user.refresh_token:
             token_data["refresh_token"] = creds_user.refresh_token
-        session["drive_token"] = token_data
         _save_drive_token(token_data)
 
     return build("drive", "v3", credentials=creds_user, cache_discovery=False)
@@ -1662,7 +1790,7 @@ def oauth2callback():
         "client_secret": creds_user.client_secret,
         "scopes": creds_user.scopes,
     }
-    session["drive_token"] = token_dict
+    session["drive_connected"] = True
     _save_drive_token(token_dict)
     return redirect(url_for("home"))
 
@@ -2409,7 +2537,7 @@ def onboarding():
 
             req(signature_name, "signature_name", "Signature name")
 
-            if not _load_drive_token() and not session.get("drive_token"):
+            if not _load_drive_token():
                 missing.append("Upload system not connected (admin must click Connect Drive)")
 
             if not passport_file or not passport_file.filename:
