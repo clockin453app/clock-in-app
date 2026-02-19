@@ -2122,7 +2122,7 @@ def clock_page():
                             ]:
                                 c = _col(k)
                                 if c:
-                                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if v is None else str(v)]]})
+                                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if v is None else v ]]})
 
                             if updates:
                                 if updates:
@@ -4327,4 +4327,5 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
