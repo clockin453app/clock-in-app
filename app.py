@@ -2119,18 +2119,18 @@ def clock_page():
       </div>
 
       <script>
-        (function(){{
-          const SITE = {site_json};
+        (function(){{{{
+          const SITE = {{site_json}};
           const statusEl = document.getElementById("geoStatus");
 
           const ACTIVE_SESSION = {str(bool(osf2)).lower()};
           const btnIn = document.getElementById("btnClockIn");
           const btnOut = document.getElementById("btnClockOut");
-          if (ACTIVE_SESSION) {
+          if (ACTIVE_SESSION) {{
             if (btnIn) btnIn.style.display = "none";
-          } else {
+          }} else {{
             if (btnOut) btnOut.style.display = "none";
-          }
+          }}
 
           const form = document.getElementById("geoClockForm");
           const act = document.getElementById("geoAction");
@@ -2141,12 +2141,12 @@ def clock_page():
           const btnIn = document.getElementById("btnClockIn");
           const btnOut = document.getElementById("btnClockOut");
 
-          function setDisabled(v){{
+          function setDisabled(v){{{{
             btnIn.disabled = v;
             btnOut.disabled = v;
             btnIn.style.opacity = v ? "0.6" : "1";
             btnOut.style.opacity = v ? "0.6" : "1";
-          }}
+          }}}}
 
           // Map
           let map = null;
@@ -2154,23 +2154,23 @@ def clock_page():
           let radiusCircle = null;
           let youMarker = null;
 
-          function initMap(){{
+          function initMap(){{{{
             const start = SITE ? [SITE.lat, SITE.lon] : [51.505, -0.09];
-            map = L.map("map", {{ zoomControl: true }}).setView(start, SITE ? 16 : 5);
-            L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
+            map = L.map("map", {{{{ zoomControl: true }}}}).setView(start, SITE ? 16 : 5);
+            L.tileLayer("https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png", {{{{
               maxZoom: 19,
               attribution: "&copy; OpenStreetMap"
-            }}).addTo(map);
+            }}}}).addTo(map);
 
-            if(SITE){{
+            if(SITE){{{{
               siteMarker = L.marker([SITE.lat, SITE.lon]).addTo(map).bindPopup(SITE.name);
-              radiusCircle = L.circle([SITE.lat, SITE.lon], {{
+              radiusCircle = L.circle([SITE.lat, SITE.lon], {{{{
                 radius: SITE.radius
-              }}).addTo(map);
-            }}
-          }}
+              }}}}).addTo(map);
+            }}}}
+          }}}}
 
-          function haversineMeters(lat1, lon1, lat2, lon2){{
+          function haversineMeters(lat1, lon1, lat2, lon2){{{{
             const R = 6371000;
             const toRad = (x)=> x * Math.PI / 180;
             const dLat = toRad(lat2-lat1);
@@ -2180,40 +2180,40 @@ def clock_page():
                       Math.sin(dLon/2)*Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             return R * c;
-          }}
+          }}}}
 
-          function updateStatus(lat, lon, acc){{
-            if(!SITE){{
+          function updateStatus(lat, lon, acc){{{{
+            if(!SITE){{{{
               statusEl.textContent = "📍 Location captured (no site configured)";
               return;
-            }}
+            }}}}
             const dist = haversineMeters(lat, lon, SITE.lat, SITE.lon);
             const ok = dist <= SITE.radius;
             statusEl.textContent = ok
-              ? `📍 Location OK: ${{SITE.name}} (${{Math.round(dist)}}m)`
-              : `📍 Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
+              ? `📍 Location OK: ${{${{SITE.name}}}} (${{${{Math.round(dist)}}}}m)`
+              : `📍 Outside radius: ${{${{Math.round(dist)}}}}m (limit ${{${{Math.round(SITE.radius)}}}}m)`;
             statusEl.style.color = ok ? "var(--green)" : "var(--red)";
-          }}
+          }}}}
 
-          function updateYouMarker(lat, lon){{
+          function updateYouMarker(lat, lon){{{{
             if(!map) return;
-            if(!youMarker){{
+            if(!youMarker){{{{
               youMarker = L.marker([lat, lon]).addTo(map);
-            }} else {{
+            }}}} else {{{{
               youMarker.setLatLng([lat, lon]);
-            }}
-          }}
+            }}}}
+          }}}}
 
-          function requestLocationAndSubmit(actionValue){{
-            if(!navigator.geolocation){{
+          function requestLocationAndSubmit(actionValue){{{{
+            if(!navigator.geolocation){{{{
               alert("Geolocation is not supported on this device/browser.");
               return;
-            }}
+            }}}}
             setDisabled(true);
             statusEl.style.color = "var(--muted)";
             statusEl.textContent = "📍 Getting your location…";
 
-            navigator.geolocation.getCurrentPosition((pos)=>{{
+            navigator.geolocation.getCurrentPosition((pos)=>{{{{
               const lat = pos.coords.latitude;
               const lon = pos.coords.longitude;
               const acc = pos.coords.accuracy;
@@ -2227,38 +2227,38 @@ def clock_page():
 
               act.value = actionValue;
               form.submit();
-            }}, (err)=>{{
+            }}}}, (err)=>{{{{
               console.log(err);
               alert("Location is required to clock in/out. Please allow location permission and try again.");
               statusEl.textContent = "📍 Location required. Please allow permission.";
               statusEl.style.color = "var(--red)";
               setDisabled(false);
-            }}, {{
+            }}}}, {{{{
               enableHighAccuracy: true,
               timeout: 12000,
               maximumAge: 0
-            }});
-          }}
+            }}}});
+          }}}}
 
           initMap();
 
           // Try to show status + marker before pressing buttons
-          if(navigator.geolocation){{
-            navigator.geolocation.getCurrentPosition((pos)=>{{
+          if(navigator.geolocation){{{{
+            navigator.geolocation.getCurrentPosition((pos)=>{{{{
               const lat = pos.coords.latitude;
               const lon = pos.coords.longitude;
               const acc = pos.coords.accuracy;
               updateStatus(lat, lon, acc);
               updateYouMarker(lat, lon);
-            }}, ()=>{{
+            }}}}, ()=>{{{{
               statusEl.textContent = "📍 Location required. Please allow permission.";
               statusEl.style.color = "var(--red)";
-            }}, {{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }});
-          }}
+            }}}}, {{{{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }}}});
+          }}}}
 
           btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
-        }})();
+        }}}})();
       </script>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("clock", role, content))
