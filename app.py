@@ -477,6 +477,42 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
 .btnIn{ background: var(--green); color: white;}
 .btnOut{ background: var(--red); color: white;}
 
+/* ===== Accent menu colors (Dashboard) ===== */
+.menuItem[data-accent]{ position:relative; overflow:hidden; }
+.menuItem[data-accent]::before{
+  content:"";
+  position:absolute;
+  left:0; top:0; bottom:0;
+  width:6px;
+  border-radius: 18px 0 0 18px;
+  opacity:.9;
+}
+.menuItem[data-accent="blue"]::before{ background:#2563eb; }
+.menuItem[data-accent="purple"]::before{ background:#7c3aed; }
+.menuItem[data-accent="teal"]::before{ background:#0d9488; }
+.menuItem[data-accent="amber"]::before{ background:#f59e0b; }
+.menuItem[data-accent="navy"]::before{ background:#0a2a5e; }
+.menuItem[data-accent="slate"]::before{ background:#334155; }
+
+.menuItem[data-accent="blue"] .icoBox{ background: rgba(37,99,235,.10); color:#1d4ed8; border-color: rgba(37,99,235,.20); }
+.menuItem[data-accent="purple"] .icoBox{ background: rgba(124,58,237,.10); color:#6d28d9; border-color: rgba(124,58,237,.20); }
+.menuItem[data-accent="teal"] .icoBox{ background: rgba(13,148,136,.10); color:#0f766e; border-color: rgba(13,148,136,.20); }
+.menuItem[data-accent="amber"] .icoBox{ background: rgba(245,158,11,.12); color:#b45309; border-color: rgba(245,158,11,.22); }
+.menuItem[data-accent="navy"] .icoBox{ background: rgba(10,42,94,.12); color:#0a2a5e; border-color: rgba(10,42,94,.22); }
+.menuItem[data-accent="slate"] .icoBox{ background: rgba(51,65,85,.10); color:#334155; border-color: rgba(51,65,85,.20); }
+
+/* ===== Clock buttons style refresh ===== */
+.btn{ display:flex; align-items:center; justify-content:center; gap:10px; }
+.btnIco{
+  width:28px; height:28px;
+  border-radius:10px;
+  display:grid; place-items:center;
+  background: rgba(255,255,255,.22);
+}
+.btnIn{ background: linear-gradient(135deg, #2563eb, #1d4ed8); }
+.btnOut{ background: linear-gradient(135deg, #ef4444, #dc2626); }
+
+
 .btnSoft{
   width:100%;
   border:none;
@@ -798,66 +834,6 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
   .card{ box-shadow:none !important; }
 }
-
-/* ===== Neo clock page (design-only) ===== */
-.clockNeo{
-  background: linear-gradient(180deg, rgba(37,99,235,.10), rgba(255,255,255,0) 45%), #fff;
-  border: 1px solid rgba(15,23,42,.08);
-}
-.clockNeo #map{ border-radius:20px !important; }
-.clockActions{ display:flex; flex-direction:column; gap:10px; }
-.clockMainRow{ display:flex; gap:12px; }
-@media (max-width:560px){ .clockMainRow{ flex-direction:column; } }
-.neoMain{
-  flex:1;
-  display:flex; align-items:center; justify-content:center; gap:10px;
-  padding:14px 16px;
-  border-radius:18px;
-  border:1px solid rgba(15,23,42,.10);
-  font-weight:800;
-  cursor:pointer;
-  box-shadow: 0 12px 30px rgba(15,23,42,.10);
-  transition: transform .08s ease, box-shadow .12s ease, filter .12s ease;
-}
-.neoMain:active{ transform: translateY(1px); box-shadow: 0 8px 20px rgba(15,23,42,.10); }
-.neoIcon{ font-size:18px; line-height:1; }
-.neoIn{ background: linear-gradient(180deg, #3B82F6, #2563EB); color:#fff; border-color: rgba(37,99,235,.45); }
-.neoOut{ background: linear-gradient(180deg, #F87171, #EF4444); color:#fff; border-color: rgba(239,68,68,.45); }
-.neoMain:hover{ filter: brightness(1.03); }
-.clockSubRow{ display:flex; }
-.neoGhost{
-  flex:1;
-  display:flex; align-items:center; justify-content:center; gap:10px;
-  padding:12px 14px;
-  border-radius:18px;
-  background:#fff;
-  border:1px dashed rgba(15,23,42,.18);
-  color: rgba(15,23,42,.70);
-}
-.neoGhost[disabled]{ opacity:.75; cursor:not-allowed; }
-
-/* ===== Colorful Dashboard menu items (Hubstaff-like accents) ===== */
-.menu .menuItem{ position:relative; }
-.menu .menuItem::before{
-  content:"";
-  position:absolute; left:10px; top:10px; bottom:10px;
-  width:6px; border-radius:999px;
-  background: rgba(148,163,184,.55);
-}
-.menu .menuItem .icoBox{ border-radius:14px; }
-.menu .menuItem.miClock::before{ background:#2563EB; }
-.menu .menuItem.miLogs::before{ background:#0D9488; }
-.menu .menuItem.miTimesheets::before{ background:#7C3AED; }
-.menu .menuItem.miStarter::before{ background:#F59E0B; }
-.menu .menuItem.miAdmin::before{ background:#1E3A8A; }
-.menu .menuItem.miProfile::before{ background:#64748B; }
-.menu .menuItem.miClock .icoBox{ background: rgba(37,99,235,.10); border-color: rgba(37,99,235,.18); }
-.menu .menuItem.miLogs .icoBox{ background: rgba(13,148,136,.10); border-color: rgba(13,148,136,.18); }
-.menu .menuItem.miTimesheets .icoBox{ background: rgba(124,58,237,.10); border-color: rgba(124,58,237,.18); }
-.menu .menuItem.miStarter .icoBox{ background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.20); }
-.menu .menuItem.miAdmin .icoBox{ background: rgba(30,58,138,.10); border-color: rgba(30,58,138,.18); }
-.menu .menuItem.miProfile .icoBox{ background: rgba(100,116,139,.10); border-color: rgba(100,116,139,.18); }
-
 </style>
 
 """
@@ -1838,7 +1814,7 @@ def home():
     admin_item = ""
     if role == "admin":
         admin_item = f"""
-        <a class="menuItem miAdmin" href="/admin">
+        <a class="menuItem" data-accent="navy" href="/admin">
           <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Admin</div></div>
           <div class="chev">›</div>
         </a>
@@ -1874,24 +1850,24 @@ def home():
       </div>
 
       <div class="card menu">
-        <a class="menuItem active miClock" href="/clock">
+        <a class="menuItem active" data-accent="blue" href="/clock">
           <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem miLogs" href="/my-times">
+        <a class="menuItem" data-accent="purple" href="/my-times">
           <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Time logs</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem miTimesheets" href="/my-reports">
+        <a class="menuItem" data-accent="teal" href="/my-reports">
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem miStarter" href="/onboarding">
+        <a class="menuItem" data-accent="amber" href="/onboarding">
           <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
           <div class="chev">›</div>
         </a>
         {admin_item}
-        <a class="menuItem miProfile" href="/password">
+        <a class="menuItem" data-accent="slate" href="/password">
           <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Profile</div></div>
           <div class="chev">›</div>
         </a>
@@ -2091,26 +2067,21 @@ def clock_page():
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
-      <div class="card clockCard clockNeo">
+      <div class="card clockCard">
         {timer_html}
 
         <div class="sub" id="geoStatus" style="margin-top:10px;">📍 Waiting for location…</div>
 
         <div id="map" style="margin-top:10px; height:240px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);"></div>
 
-        <form method="POST" class="clockActions" id="geoClockForm" style="margin-top:14px;">
+        <form method="POST" class="actionRow" id="geoClockForm" style="margin-top:12px;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <input type="hidden" name="action" id="geoAction" value="">
           <input type="hidden" name="lat" id="geoLat" value="">
           <input type="hidden" name="lon" id="geoLon" value="">
           <input type="hidden" name="acc" id="geoAcc" value="">
-          <div class="clockMainRow">
-            <button class="neoMain neoIn" type="button" id="btnClockIn"><span class="neoIcon">⏱</span><span>Clock in</span></button>
-            <button class="neoMain neoOut" type="button" id="btnClockOut"><span class="neoIcon">⏹</span><span>End shift</span></button>
-          </div>
-          <div class="clockSubRow">
-            <button class="neoGhost" type="button" disabled title="Breaks coming soon"><span class="neoIcon">☕</span><span>Start break</span></button>
-          </div>
+          <button class="btn btnIn" type="button" id="btnClockIn"><span class="btnIco">⏵</span><span>Clock In</span></button>
+          <button class="btn btnOut" type="button" id="btnClockOut"><span class="btnIco">⏹</span><span>Clock Out</span></button>
         </form>
 
         <a href="/my-times" style="display:block;margin-top:12px;">
@@ -2119,19 +2090,9 @@ def clock_page():
       </div>
 
       <script>
-        (function(){{{{
-          const SITE = {{site_json}};
+        (function(){{
+          const SITE = {site_json};
           const statusEl = document.getElementById("geoStatus");
-
-          const ACTIVE_SESSION = {str(bool(osf2)).lower()};
-          const btnIn = document.getElementById("btnClockIn");
-          const btnOut = document.getElementById("btnClockOut");
-          if (ACTIVE_SESSION) {{
-            if (btnIn) btnIn.style.display = "none";
-          }} else {{
-            if (btnOut) btnOut.style.display = "none";
-          }}
-
           const form = document.getElementById("geoClockForm");
           const act = document.getElementById("geoAction");
           const latEl = document.getElementById("geoLat");
@@ -2141,12 +2102,12 @@ def clock_page():
           const btnIn = document.getElementById("btnClockIn");
           const btnOut = document.getElementById("btnClockOut");
 
-          function setDisabled(v){{{{
+          function setDisabled(v){{
             btnIn.disabled = v;
             btnOut.disabled = v;
             btnIn.style.opacity = v ? "0.6" : "1";
             btnOut.style.opacity = v ? "0.6" : "1";
-          }}}}
+          }}
 
           // Map
           let map = null;
@@ -2154,23 +2115,23 @@ def clock_page():
           let radiusCircle = null;
           let youMarker = null;
 
-          function initMap(){{{{
+          function initMap(){{
             const start = SITE ? [SITE.lat, SITE.lon] : [51.505, -0.09];
-            map = L.map("map", {{{{ zoomControl: true }}}}).setView(start, SITE ? 16 : 5);
-            L.tileLayer("https://{{{{s}}}}.tile.openstreetmap.org/{{{{z}}}}/{{{{x}}}}/{{{{y}}}}.png", {{{{
+            map = L.map("map", {{ zoomControl: true }}).setView(start, SITE ? 16 : 5);
+            L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
               maxZoom: 19,
               attribution: "&copy; OpenStreetMap"
-            }}}}).addTo(map);
+            }}).addTo(map);
 
-            if(SITE){{{{
+            if(SITE){{
               siteMarker = L.marker([SITE.lat, SITE.lon]).addTo(map).bindPopup(SITE.name);
-              radiusCircle = L.circle([SITE.lat, SITE.lon], {{{{
+              radiusCircle = L.circle([SITE.lat, SITE.lon], {{
                 radius: SITE.radius
-              }}}}).addTo(map);
-            }}}}
-          }}}}
+              }}).addTo(map);
+            }}
+          }}
 
-          function haversineMeters(lat1, lon1, lat2, lon2){{{{
+          function haversineMeters(lat1, lon1, lat2, lon2){{
             const R = 6371000;
             const toRad = (x)=> x * Math.PI / 180;
             const dLat = toRad(lat2-lat1);
@@ -2180,40 +2141,40 @@ def clock_page():
                       Math.sin(dLon/2)*Math.sin(dLon/2);
             const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
             return R * c;
-          }}}}
+          }}
 
-          function updateStatus(lat, lon, acc){{{{
-            if(!SITE){{{{
+          function updateStatus(lat, lon, acc){{
+            if(!SITE){{
               statusEl.textContent = "📍 Location captured (no site configured)";
               return;
-            }}}}
+            }}
             const dist = haversineMeters(lat, lon, SITE.lat, SITE.lon);
             const ok = dist <= SITE.radius;
             statusEl.textContent = ok
-              ? `📍 Location OK: ${{${{SITE.name}}}} (${{${{Math.round(dist)}}}}m)`
-              : `📍 Outside radius: ${{${{Math.round(dist)}}}}m (limit ${{${{Math.round(SITE.radius)}}}}m)`;
+              ? `📍 Location OK: ${{SITE.name}} (${{Math.round(dist)}}m)`
+              : `📍 Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
             statusEl.style.color = ok ? "var(--green)" : "var(--red)";
-          }}}}
+          }}
 
-          function updateYouMarker(lat, lon){{{{
+          function updateYouMarker(lat, lon){{
             if(!map) return;
-            if(!youMarker){{{{
+            if(!youMarker){{
               youMarker = L.marker([lat, lon]).addTo(map);
-            }}}} else {{{{
+            }} else {{
               youMarker.setLatLng([lat, lon]);
-            }}}}
-          }}}}
+            }}
+          }}
 
-          function requestLocationAndSubmit(actionValue){{{{
-            if(!navigator.geolocation){{{{
+          function requestLocationAndSubmit(actionValue){{
+            if(!navigator.geolocation){{
               alert("Geolocation is not supported on this device/browser.");
               return;
-            }}}}
+            }}
             setDisabled(true);
             statusEl.style.color = "var(--muted)";
             statusEl.textContent = "📍 Getting your location…";
 
-            navigator.geolocation.getCurrentPosition((pos)=>{{{{
+            navigator.geolocation.getCurrentPosition((pos)=>{{
               const lat = pos.coords.latitude;
               const lon = pos.coords.longitude;
               const acc = pos.coords.accuracy;
@@ -2227,38 +2188,38 @@ def clock_page():
 
               act.value = actionValue;
               form.submit();
-            }}}}, (err)=>{{{{
+            }}, (err)=>{{
               console.log(err);
               alert("Location is required to clock in/out. Please allow location permission and try again.");
               statusEl.textContent = "📍 Location required. Please allow permission.";
               statusEl.style.color = "var(--red)";
               setDisabled(false);
-            }}}}, {{{{
+            }}, {{
               enableHighAccuracy: true,
               timeout: 12000,
               maximumAge: 0
-            }}}});
-          }}}}
+            }});
+          }}
 
           initMap();
 
           // Try to show status + marker before pressing buttons
-          if(navigator.geolocation){{{{
-            navigator.geolocation.getCurrentPosition((pos)=>{{{{
+          if(navigator.geolocation){{
+            navigator.geolocation.getCurrentPosition((pos)=>{{
               const lat = pos.coords.latitude;
               const lon = pos.coords.longitude;
               const acc = pos.coords.accuracy;
               updateStatus(lat, lon, acc);
               updateYouMarker(lat, lon);
-            }}}}, ()=>{{{{
+            }}, ()=>{{
               statusEl.textContent = "📍 Location required. Please allow permission.";
               statusEl.style.color = "var(--red)";
-            }}}}, {{{{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }}}});
-          }}}}
+            }}, {{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }});
+          }}
 
           btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
-        }}}})();
+        }})();
       </script>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("clock", role, content))
