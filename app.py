@@ -2285,8 +2285,7 @@ def clock_page():
         <div class="badge {{'admin' if role=='admin' else ''}}">{escape(role.upper())}</div>
       </div>
 
-      {("<div id='flashMsg' class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
-
+      {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
       <div class="card clockCard">
         {timer_html}
@@ -2329,31 +2328,6 @@ def clock_page():
             btnIn.style.opacity = v ? "0.6" : "1";
             btnOut.style.opacity = v ? "0.6" : "1";
           }}
-const btnIn = document.getElementById("btnClockIn");
-const btnOut = document.getElementById("btnClockOut");
-
-// --- Beep sound ---
-function playBeep(freq = 880){{
-  try {{
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AudioCtx();
-    const oscillator = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-
-    oscillator.type = "sine";
-    oscillator.frequency.value = freq;
-    gainNode.gain.value = 0.05;
-
-    oscillator.connect(gainNode);
-    gainNode.connect(ctx.destination);
-
-    oscillator.start();
-    setTimeout(() => {{
-      oscillator.stop();
-      ctx.close();
-    }}, 120);
-  }} catch (e) {{}}
-}}
 
           // Map
           let map = null;
@@ -2465,14 +2439,6 @@ function playBeep(freq = 880){{
 
           btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
-          // --- Confirmation beep after success ---
-const msgEl = document.getElementById("flashMsg");
-if (msgEl) {{
-  const t = (msgEl.textContent || "").toLowerCase();
-  if (t.includes("clocked in")) setTimeout(() => playBeep(900), 150);
-  if (t.includes("clocked out")) setTimeout(() => playBeep(600), 150);
-}}
-
         }})();
       </script>
     """
@@ -4404,9 +4370,6 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
-
 
 
 
