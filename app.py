@@ -798,6 +798,66 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
   .card{ box-shadow:none !important; }
 }
+
+/* ===== Neo clock page (design-only) ===== */
+.clockNeo{
+  background: linear-gradient(180deg, rgba(37,99,235,.10), rgba(255,255,255,0) 45%), #fff;
+  border: 1px solid rgba(15,23,42,.08);
+}
+.clockNeo #map{ border-radius:20px !important; }
+.clockActions{ display:flex; flex-direction:column; gap:10px; }
+.clockMainRow{ display:flex; gap:12px; }
+@media (max-width:560px){ .clockMainRow{ flex-direction:column; } }
+.neoMain{
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  padding:14px 16px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.10);
+  font-weight:800;
+  cursor:pointer;
+  box-shadow: 0 12px 30px rgba(15,23,42,.10);
+  transition: transform .08s ease, box-shadow .12s ease, filter .12s ease;
+}
+.neoMain:active{ transform: translateY(1px); box-shadow: 0 8px 20px rgba(15,23,42,.10); }
+.neoIcon{ font-size:18px; line-height:1; }
+.neoIn{ background: linear-gradient(180deg, #3B82F6, #2563EB); color:#fff; border-color: rgba(37,99,235,.45); }
+.neoOut{ background: linear-gradient(180deg, #F87171, #EF4444); color:#fff; border-color: rgba(239,68,68,.45); }
+.neoMain:hover{ filter: brightness(1.03); }
+.clockSubRow{ display:flex; }
+.neoGhost{
+  flex:1;
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  padding:12px 14px;
+  border-radius:18px;
+  background:#fff;
+  border:1px dashed rgba(15,23,42,.18);
+  color: rgba(15,23,42,.70);
+}
+.neoGhost[disabled]{ opacity:.75; cursor:not-allowed; }
+
+/* ===== Colorful Dashboard menu items (Hubstaff-like accents) ===== */
+.menu .menuItem{ position:relative; }
+.menu .menuItem::before{
+  content:"";
+  position:absolute; left:10px; top:10px; bottom:10px;
+  width:6px; border-radius:999px;
+  background: rgba(148,163,184,.55);
+}
+.menu .menuItem .icoBox{ border-radius:14px; }
+.menu .menuItem.miClock::before{ background:#2563EB; }
+.menu .menuItem.miLogs::before{ background:#0D9488; }
+.menu .menuItem.miTimesheets::before{ background:#7C3AED; }
+.menu .menuItem.miStarter::before{ background:#F59E0B; }
+.menu .menuItem.miAdmin::before{ background:#1E3A8A; }
+.menu .menuItem.miProfile::before{ background:#64748B; }
+.menu .menuItem.miClock .icoBox{ background: rgba(37,99,235,.10); border-color: rgba(37,99,235,.18); }
+.menu .menuItem.miLogs .icoBox{ background: rgba(13,148,136,.10); border-color: rgba(13,148,136,.18); }
+.menu .menuItem.miTimesheets .icoBox{ background: rgba(124,58,237,.10); border-color: rgba(124,58,237,.18); }
+.menu .menuItem.miStarter .icoBox{ background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.20); }
+.menu .menuItem.miAdmin .icoBox{ background: rgba(30,58,138,.10); border-color: rgba(30,58,138,.18); }
+.menu .menuItem.miProfile .icoBox{ background: rgba(100,116,139,.10); border-color: rgba(100,116,139,.18); }
+
 </style>
 
 """
@@ -1778,7 +1838,7 @@ def home():
     admin_item = ""
     if role == "admin":
         admin_item = f"""
-        <a class="menuItem" href="/admin">
+        <a class="menuItem miAdmin" href="/admin">
           <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Admin</div></div>
           <div class="chev">›</div>
         </a>
@@ -1814,24 +1874,24 @@ def home():
       </div>
 
       <div class="card menu">
-        <a class="menuItem active" href="/clock">
+        <a class="menuItem active miClock" href="/clock">
           <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" href="/my-times">
+        <a class="menuItem miLogs" href="/my-times">
           <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Time logs</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" href="/my-reports">
+        <a class="menuItem miTimesheets" href="/my-reports">
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" href="/onboarding">
+        <a class="menuItem miStarter" href="/onboarding">
           <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
           <div class="chev">›</div>
         </a>
         {admin_item}
-        <a class="menuItem" href="/password">
+        <a class="menuItem miProfile" href="/password">
           <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Profile</div></div>
           <div class="chev">›</div>
         </a>
@@ -2031,21 +2091,26 @@ def clock_page():
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
 
-      <div class="card clockCard">
+      <div class="card clockCard clockNeo">
         {timer_html}
 
         <div class="sub" id="geoStatus" style="margin-top:10px;">📍 Waiting for location…</div>
 
         <div id="map" style="margin-top:10px; height:240px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);"></div>
 
-        <form method="POST" class="actionRow" id="geoClockForm" style="margin-top:12px;">
+        <form method="POST" class="clockActions" id="geoClockForm" style="margin-top:14px;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <input type="hidden" name="action" id="geoAction" value="">
           <input type="hidden" name="lat" id="geoLat" value="">
           <input type="hidden" name="lon" id="geoLon" value="">
           <input type="hidden" name="acc" id="geoAcc" value="">
-          <button class="btn btnIn" type="button" id="btnClockIn">Clock In</button>
-          <button class="btn btnOut" type="button" id="btnClockOut">Clock Out</button>
+          <div class="clockMainRow">
+            <button class="neoMain neoIn" type="button" id="btnClockIn"><span class="neoIcon">⏱</span><span>Clock in</span></button>
+            <button class="neoMain neoOut" type="button" id="btnClockOut"><span class="neoIcon">⏹</span><span>End shift</span></button>
+          </div>
+          <div class="clockSubRow">
+            <button class="neoGhost" type="button" disabled title="Breaks coming soon"><span class="neoIcon">☕</span><span>Start break</span></button>
+          </div>
         </form>
 
         <a href="/my-times" style="display:block;margin-top:12px;">
@@ -2057,6 +2122,16 @@ def clock_page():
         (function(){{
           const SITE = {site_json};
           const statusEl = document.getElementById("geoStatus");
+
+          const ACTIVE_SESSION = {str(bool(osf2)).lower()};
+          const btnIn = document.getElementById("btnClockIn");
+          const btnOut = document.getElementById("btnClockOut");
+          if (ACTIVE_SESSION) {
+            if (btnIn) btnIn.style.display = "none";
+          } else {
+            if (btnOut) btnOut.style.display = "none";
+          }
+
           const form = document.getElementById("geoClockForm");
           const act = document.getElementById("geoAction");
           const latEl = document.getElementById("geoLat");
