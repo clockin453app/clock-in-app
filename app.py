@@ -2333,8 +2333,8 @@ const btnIn = document.getElementById("btnClockIn");
 const btnOut = document.getElementById("btnClockOut");
 
 // --- Beep sound ---
-function playBeep(freq = 880){
-  try {
+function playBeep(freq = 880){{
+  try {{
     const AudioCtx = window.AudioContext || window.webkitAudioContext;
     const ctx = new AudioCtx();
     const oscillator = ctx.createOscillator();
@@ -2348,12 +2348,12 @@ function playBeep(freq = 880){
     gainNode.connect(ctx.destination);
 
     oscillator.start();
-    setTimeout(() => {
+    setTimeout(() => {{
       oscillator.stop();
       ctx.close();
-    }, 120);
-  } catch (e) {}
-}
+    }}, 120);
+  }} catch (e) {{}}
+}}
 
           // Map
           let map = null;
@@ -2467,11 +2467,11 @@ function playBeep(freq = 880){
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
           // --- Confirmation beep after success ---
 const msgEl = document.getElementById("flashMsg");
-if (msgEl) {
+if (msgEl) {{
   const t = (msgEl.textContent || "").toLowerCase();
   if (t.includes("clocked in")) setTimeout(() => playBeep(900), 150);
   if (t.includes("clocked out")) setTimeout(() => playBeep(600), 150);
-}
+}}
 
         }})();
       </script>
@@ -4404,6 +4404,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
