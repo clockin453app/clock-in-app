@@ -2140,8 +2140,8 @@ def clock_page():
                         i, d, t = osf
                         cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                         raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-                        hours_rounded = _apply_unpaid_break(raw_hours)
-                        pay = round(hours_rounded * rate, 2)
+                        hours_rounded = round(_apply_unpaid_break(raw_hours), 2)
+                        pay = round(hours_rounded * float(rate), 2)
 
                         sheet_row = i + 1  # find_open_shift returns index in rows list
                         cout = now.strftime("%H:%M:%S")
@@ -4327,3 +4327,4 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
