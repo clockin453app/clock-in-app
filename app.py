@@ -477,42 +477,6 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
 .btnIn{ background: var(--green); color: white;}
 .btnOut{ background: var(--red); color: white;}
 
-/* ===== Accent menu colors (Dashboard) ===== */
-.menuItem[data-accent]{ position:relative; overflow:hidden; }
-.menuItem[data-accent]::before{
-  content:"";
-  position:absolute;
-  left:0; top:0; bottom:0;
-  width:6px;
-  border-radius: 18px 0 0 18px;
-  opacity:.9;
-}
-.menuItem[data-accent="blue"]::before{ background:#2563eb; }
-.menuItem[data-accent="purple"]::before{ background:#7c3aed; }
-.menuItem[data-accent="teal"]::before{ background:#0d9488; }
-.menuItem[data-accent="amber"]::before{ background:#f59e0b; }
-.menuItem[data-accent="navy"]::before{ background:#0a2a5e; }
-.menuItem[data-accent="slate"]::before{ background:#334155; }
-
-.menuItem[data-accent="blue"] .icoBox{ background: rgba(37,99,235,.10); color:#1d4ed8; border-color: rgba(37,99,235,.20); }
-.menuItem[data-accent="purple"] .icoBox{ background: rgba(124,58,237,.10); color:#6d28d9; border-color: rgba(124,58,237,.20); }
-.menuItem[data-accent="teal"] .icoBox{ background: rgba(13,148,136,.10); color:#0f766e; border-color: rgba(13,148,136,.20); }
-.menuItem[data-accent="amber"] .icoBox{ background: rgba(245,158,11,.12); color:#b45309; border-color: rgba(245,158,11,.22); }
-.menuItem[data-accent="navy"] .icoBox{ background: rgba(10,42,94,.12); color:#0a2a5e; border-color: rgba(10,42,94,.22); }
-.menuItem[data-accent="slate"] .icoBox{ background: rgba(51,65,85,.10); color:#334155; border-color: rgba(51,65,85,.20); }
-
-/* ===== Clock buttons style refresh ===== */
-.btn{ display:flex; align-items:center; justify-content:center; gap:10px; }
-.btnIco{
-  width:28px; height:28px;
-  border-radius:10px;
-  display:grid; place-items:center;
-  background: rgba(255,255,255,.22);
-}
-.btnIn{ background: linear-gradient(135deg, #2563eb, #1d4ed8); }
-.btnOut{ background: linear-gradient(135deg, #ef4444, #dc2626); }
-
-
 .btnSoft{
   width:100%;
   border:none;
@@ -834,6 +798,17 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
   .card{ box-shadow:none !important; }
 }
+
+/* --- Timesheet-like table styling (Payroll / Weekly Edit) --- */
+.tablewrap{overflow:auto;border:1px solid rgba(0,0,0,.08);border-radius:14px;background:#fff}
+.tablewrap table{width:100%;border-collapse:separate;border-spacing:0;font-size:14px;min-width:1100px}
+.tablewrap th,.tablewrap td{padding:10px 12px;border-bottom:1px solid rgba(0,0,0,.06);vertical-align:middle}
+.tablewrap thead th{position:sticky;top:0;background:rgba(248,250,252,.95);backdrop-filter:blur(8px);z-index:2}
+.tablewrap thead tr.group th{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:rgba(0,0,0,.55);border-bottom:0}
+.tablewrap tbody tr:hover td{background:rgba(2,132,199,.04)}
+.tablewrap .num{text-align:right;font-variant-numeric:tabular-nums}
+.tablewrap .btnTiny{border-radius:10px}
+
 </style>
 
 """
@@ -1814,7 +1789,7 @@ def home():
     admin_item = ""
     if role == "admin":
         admin_item = f"""
-        <a class="menuItem" data-accent="navy" href="/admin">
+        <a class="menuItem" href="/admin">
           <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Admin</div></div>
           <div class="chev">›</div>
         </a>
@@ -1850,24 +1825,24 @@ def home():
       </div>
 
       <div class="card menu">
-        <a class="menuItem active" data-accent="blue" href="/clock">
+        <a class="menuItem active" href="/clock">
           <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" data-accent="purple" href="/my-times">
+        <a class="menuItem" href="/my-times">
           <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Time logs</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" data-accent="teal" href="/my-reports">
+        <a class="menuItem" href="/my-reports">
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
           <div class="chev">›</div>
         </a>
-        <a class="menuItem" data-accent="amber" href="/onboarding">
+        <a class="menuItem" href="/onboarding">
           <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
           <div class="chev">›</div>
         </a>
         {admin_item}
-        <a class="menuItem" data-accent="slate" href="/password">
+        <a class="menuItem" href="/password">
           <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Profile</div></div>
           <div class="chev">›</div>
         </a>
@@ -2080,8 +2055,8 @@ def clock_page():
           <input type="hidden" name="lat" id="geoLat" value="">
           <input type="hidden" name="lon" id="geoLon" value="">
           <input type="hidden" name="acc" id="geoAcc" value="">
-          <button class="btn btnIn" type="button" id="btnClockIn"><span class="btnIco">⏵</span><span>Clock In</span></button>
-          <button class="btn btnOut" type="button" id="btnClockOut"><span class="btnIco">⏹</span><span>Clock Out</span></button>
+          <button class="btn btnIn" type="button" id="btnClockIn">Clock In</button>
+          <button class="btn btnOut" type="button" id="btnClockOut">Clock Out</button>
         </form>
 
         <a href="/my-times" style="display:block;margin-top:12px;">
@@ -3529,8 +3504,17 @@ def admin_payroll():
             <div class="tablewrap" style="margin-top:12px;">
               <table style="min-width:1100px;">
                 <thead>
+                  <tr class="group">
+                    <th rowspan="2">Day</th>
+                    <th rowspan="2">Date</th>
+                    <th colspan="3">Time Worked</th>
+                    <th rowspan="2" class="num">Pay</th>
+                    <th rowspan="2">Actions</th>
+                  </tr>
                   <tr>
-                    <th>Day</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num">Hours</th><th class="num">Pay</th><th>Actions</th>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th class="num">Hours</th>
                   </tr>
                 </thead>
                 <tbody>
