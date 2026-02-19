@@ -3686,12 +3686,14 @@ def admin_payroll():
                 <td>
                     <input class="input" type="time" step="1" name="cout" value="{escape(cout)}" style="margin-top:0; max-width:150px;">
                 </td>
-                <td>
-                    <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8.5" style="margin-top:0; max-width:110px;">
-                </td>
-                <td>
-                    <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" style="margin-top:0; max-width:110px;">
-                </td>
+                <td class="num">
+  <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8.5" style="margin-top:0; width:100%;">
+</td>
+
+<td class="num">
+  <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" style="margin-top:0; width:100%;">
+</td>
+
                 <td style="min-width:260px;">
                     <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
                       <input type="checkbox" name="recalc" value="yes">
@@ -4348,6 +4350,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
