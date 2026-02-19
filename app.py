@@ -1061,6 +1061,29 @@ If any part of this agreement is breached or found unenforceable, the remaining 
 
 
 # ================= HELPERS =================
+
+
+# --- Break policy (unpaid break) ---------------------------------------------
+# Default: subtract 30 minutes from shifts >= 6 hours.
+UNPAID_BREAK_ENABLED = True
+UNPAID_BREAK_THRESHOLD_HOURS = 6.0
+UNPAID_BREAK_MINUTES = 30
+
+def _apply_unpaid_break(raw_hours: float) -> float:
+    """Return payable hours after applying unpaid break policy."""
+    try:
+        h = float(raw_hours or 0.0)
+    except Exception:
+        return 0.0
+
+    if not UNPAID_BREAK_ENABLED:
+        return max(0.0, h)
+
+    if h >= float(UNPAID_BREAK_THRESHOLD_HOURS):
+        h -= float(UNPAID_BREAK_MINUTES) / 60.0
+
+    return max(0.0, h)
+
 def safe_float(x, default=0.0):
     try:
         return float(x)
@@ -2102,8 +2125,8 @@ def clock_page():
                                     updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if v is None else str(v)]]})
 
                             if updates:
-                                work_sheet.batch_update(updates)
-
+                                if updates:
+                                    work_sheet.batch_update(updates)
                     msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                         msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
@@ -2144,8 +2167,8 @@ def clock_page():
                             if c:
                                 updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c), "values": [["" if v is None else str(v)]]})
 
-                        work_sheet.batch_update(updates)
-
+                        if updates:
+                            work_sheet.batch_update(updates)
                     msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
                 else:
