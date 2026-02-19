@@ -811,6 +811,37 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
 
 </style>
 
+
+/* ===== Payroll table polish (UI only) ===== */
+.payrollEmp{ padding:14px !important; }
+.payrollEmp .avatar{ background: linear-gradient(180deg, rgba(59,130,246,.18), rgba(16,185,129,.12)); border:1px solid rgba(11,18,32,.10); }
+.payrollEmp .chip{ display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px; font-size:12px; border:1px solid rgba(11,18,32,.10); background: rgba(255,255,255,.65); }
+.payrollEmp .chip.warn{ background: rgba(245,158,11,.12); border-color: rgba(245,158,11,.22); color: rgba(146,64,14,.95); }
+.payrollEmp .chip.ok{ background: rgba(16,185,129,.12); border-color: rgba(16,185,129,.22); color: rgba(6,95,70,.95); }
+
+.payrollEmp .tablewrap{ border-radius:16px; border:1px solid rgba(11,18,32,.10); overflow:hidden; }
+.payrollEmp table{ min-width: 980px; border-collapse: separate; border-spacing:0; }
+.payrollEmp th{ font-size:12px; letter-spacing:.02em; text-transform:none; font-weight:700; color: rgba(11,18,32,.72); background: rgba(248,250,252,.98); }
+.payrollEmp td{ font-size:14px; }
+.payrollEmp table tbody tr:nth-child(even){ background: rgba(11,18,32,.015); }
+.payrollEmp table tbody tr:hover{ background: rgba(59,130,246,.06); }
+
+.payrollEmp .input{ height: 38px; padding: 10px 12px; border-radius: 12px; }
+.payrollEmp .btnTiny{ border-radius: 999px; padding: 10px 14px; }
+.payrollEmp .btnTiny.primary{ background: rgba(59,130,246,.14); color: rgba(30,64,175,.95); }
+.payrollEmp .btnTiny.ghost{ background: rgba(11,18,32,.06); color: rgba(11,18,32,.78); }
+
+/* Make right column actions look like icon pills */
+.payrollEmp .actionPills{ display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.payrollEmp .pillIcon{
+  width:34px; height:34px; border-radius:999px;
+  display:inline-flex; align-items:center; justify-content:center;
+  border:1px solid rgba(11,18,32,.10);
+  background: rgba(255,255,255,.75);
+  cursor:pointer;
+}
+.payrollEmp .pillIcon:hover{ background: rgba(59,130,246,.10); }
+
 """
 
 
@@ -3124,64 +3155,7 @@ def admin_force_clockout():
     idx, d, cin = osf  # idx is 0-based data index (within rows list)
     rate = _get_user_rate(username)
 
-    # normalize to HH:MM:SS
-    if len(out_time.split(":")) == 2:
-        out_time = out_time + ":00"
-
-    computed_hours = _compute_hours_from_times(d, cin, out_time)
-    if computed_hours is None:
-        return redirect(request.referrer or "/admin")
-
-    pay = round(computed_hours * rate, 2)
-
-    sheet_row = idx + 1  # idx already is row index in sheet values? find_open_shift returns i as index in rows list
-    # In this codebase: find_open_shift returns i, date, in_time where i is index in rows list.
-    sheet_row = idx + 1
-
-    try:
-        work_sheet.update_cell(sheet_row, COL_OUT + 1, out_time)
-        work_sheet.update_cell(sheet_row, COL_HOURS + 1, str(computed_hours))
-        work_sheet.update_cell(sheet_row, COL_PAY + 1, str(pay))
-    except Exception:
-        pass
-
-    actor = session.get("username", "admin")
-    log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d, details=f"out={out_time} hours={computed_hours} pay={pay}")
-    return redirect(request.referrer or "/admin")
-
-
-@app.post("/admin/mark-paid")
-def admin_mark_paid():
-    gate = require_admin()
-    if gate:
-        return gate
-
-    try:
-        require_csrf()
-    except Exception:
-        return redirect(request.referrer or "/admin/payroll")
-
-    try:
-        week_start = (request.form.get("week_start") or "").strip()
-        week_end = (request.form.get("week_end") or "").strip()
-        username = (request.form.get("user") or "").strip()
-
-        gross = safe_float(request.form.get("gross", "0") or "0", 0.0)
-        tax = safe_float(request.form.get("tax", "0") or "0", 0.0)
-        net = safe_float(request.form.get("net", "0") or "0", 0.0)
-
-        paid_by = session.get("username", "admin")
-
-        if week_start and week_end and username:
-            _append_paid_record_safe(week_start, week_end, username, gross, tax, net, paid_by)
-    except Exception:
-        pass
-
-    return redirect(request.referrer or "/admin/payroll")
-
-
-@app.get("/admin/payroll")
-def admin_payroll():
+    # normalizedef admin_payroll():
     gate = require_admin()
     if gate:
         return gate
@@ -3471,7 +3445,7 @@ def admin_payroll():
                       Recalculate (break deducted)
                     </label>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                      <button class="btnTiny" type="submit">Save</button>
+                      <button class="btnTiny primary" type="submit">Save</button>
                       {status_html}
                       {ot_badge}
                     </div>
@@ -3481,7 +3455,7 @@ def admin_payroll():
             """)
 
         blocks.append(f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
+          <div class="card payrollEmp" style="padding:12px; margin-top:12px;">
             <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
               <div style="display:flex; align-items:center; gap:10px;">
                 <div class="avatar">{escape(initials(display))}</div>
@@ -3529,6 +3503,58 @@ def admin_payroll():
         """)
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Payroll Report</h1>
+          <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
+      <div class="card" style="padding:12px;">
+        <form method="GET">
+          <div class="row2">
+            <div>
+              <label class="sub">Username contains</label>
+              <input class="input" name="q" value="{escape(q)}" placeholder="e.g. john">
+            </div>
+            <div>
+              <label class="sub">Date range (summary table only)</label>
+              <div class="row2">
+                <input class="input" type="date" name="from" value="{escape(date_from)}">
+                <input class="input" type="date" name="to" value="{escape(date_to)}">
+              </div>
+            </div>
+          </div>
+          <input type="hidden" name="wk" value="{wk_offset}">
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
+        </form>
+
+        {week_nav_html}
+
+        {kpi_strip}
+
+        <div class="tablewrap" style="margin-top:12px;">
+          <table style="min-width:980px;">
+            <thead><tr><th>Employee</th><th class="num">Hours</th><th class="num">Gross</th><th class="num">Tax</th><th class="num">Net</th><th style="text-align:right;">Paid</th></tr></thead>
+            <tbody>{summary_html}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <h2>Weekly History (Editable)</h2>
+        <p class="sub">Week: <b>{escape(week_start_str)}</b> to <b>{escape(week_end_str)}</b>. Edit and save per day.</p>
+      </div>
+
+      {''.join(blocks)}
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+
+
+# ---------- ADMIN ONBOARDING LIST / DETAIL ----------
 
     content = f"""
       <div class="headerTop">
