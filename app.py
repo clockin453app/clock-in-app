@@ -1198,6 +1198,64 @@ th{
     border-radius: 22px;
   }
 }
+/* ===== Payroll Status Badges (Step 2) ===== */
+
+.status-unpaid{
+  background: #fef3c7;
+  color: #92400e;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+
+.status-paid{
+  background: #dcfce7;
+  color: #166534;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+}
+/* ===== Payroll Table Upgrade (Step 3) ===== */
+
+table{
+  border-collapse: separate;
+  border-spacing: 0 8px;
+}
+
+table tbody tr{
+  background: white;
+  transition: all .15s ease;
+}
+
+table tbody tr:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(11,18,32,.08);
+}
+
+table td{
+  padding: 14px 12px;
+}
+
+/* Add subtle rounding */
+table tbody tr td:first-child{
+  border-top-left-radius: 14px;
+  border-bottom-left-radius: 14px;
+}
+
+table tbody tr td:last-child{
+  border-top-right-radius: 14px;
+  border-bottom-right-radius: 14px;
+}
+/* Row status accent */
+tr.paidRow{
+  border-left: 4px solid var(--green);
+}
+
+tr.unpaidRow{
+  border-left: 4px solid #f59e0b;
+}
 </style>
 
 """
@@ -3799,14 +3857,31 @@ def admin_payroll():
     week_nav_html = "<div class='weekRow'>" + "".join(pills) + "</div>"
 
     # KPI strip (PRO)
-    kpi_strip = f"""
-      <div class="kpiStrip">
-        <div class="kpiMini"><div class="k">Hours</div><div class="v">{round(overall_hours,2)}</div></div>
-        <div class="kpiMini"><div class="k">Gross</div><div class="v">£{money(overall_gross)}</div></div>
-        <div class="kpiMini"><div class="k">Tax</div><div class="v">£{money(overall_tax)}</div></div>
-        <div class="kpiMini"><div class="k">Net</div><div class="v">£{money(overall_net)}</div></div>
-      </div>
-    """
+kpi_strip = f"""
+  <div class="kpiStrip payrollKpis">
+
+    <div class="kpiMini">
+      <div class="k">Hours</div>
+      <div class="v">{round(overall_hours,2)}</div>
+    </div>
+
+    <div class="kpiMini gross">
+      <div class="k">Gross</div>
+      <div class="v">£{money(overall_gross)}</div>
+    </div>
+
+    <div class="kpiMini tax">
+      <div class="k">Tax</div>
+      <div class="v">£{money(overall_tax)}</div>
+    </div>
+
+    <div class="kpiMini net">
+      <div class="k">Net</div>
+      <div class="v">£{money(overall_net)}</div>
+    </div>
+
+  </div>
+"""
 
     # Summary table (polished + paid under name)
     summary_rows = []
@@ -3821,11 +3896,11 @@ def admin_payroll():
 
         paid_line = ""
         if paid:
-            paid_line = f"<div class='sub' style='margin:2px 0 0 0;'><span class='chip ok'>Paid</span></div>"
+paid_line = f"<div class='sub' style='margin:2px 0 0 0;'><span class='status-paid'>Paid</span></div>"
             if paid_at:
                 paid_line += f"<div class='sub' style='margin:2px 0 0 0;'>Paid at: {escape(paid_at)}</div>"
         else:
-            paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='chip warn'>Not paid</span></div>"
+paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='status-unpaid'>Not paid</span></div>"
 
         mark_paid_btn = ""
         if (not paid) and gross > 0:
@@ -3843,7 +3918,10 @@ def admin_payroll():
             """
 
         row_class = "rowHasValue" if gross > 0 else ""
-
+if paid:
+    row_class += " paidRow"
+else:
+    row_class += " unpaidRow"
         name_cell = f"""
           <div style="display:flex; align-items:center; gap:10px;">
             <div class="avatar">{escape(initials(display))}</div>
@@ -4621,6 +4699,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
