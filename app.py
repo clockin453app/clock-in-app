@@ -961,7 +961,90 @@ td.num input {
     box-sizing: border-box;
     text-align: center;
 }
+/* ===== Premium SaaS polish (SAFE: CSS only) ===== */
 
+/* 1) KPI polish */
+.kpiFancy{
+  position: relative;
+  overflow: hidden;
+}
+.kpiFancy:before{
+  content:"";
+  position:absolute;
+  inset:-60px -60px auto auto;
+  width:180px;
+  height:180px;
+  background: radial-gradient(circle at 30% 30%, rgba(10,42,94,.22), rgba(10,42,94,0) 62%);
+  transform: rotate(18deg);
+  pointer-events:none;
+}
+.kpiPrimary:before{
+  background: radial-gradient(circle at 30% 30%, rgba(22,163,74,.22), rgba(22,163,74,0) 62%);
+}
+.kpiTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.kpi .value{
+  letter-spacing:.2px;
+}
+
+/* 3) Table premium hover + header */
+.tablewrap{
+  background: rgba(255,255,255,.65);
+  backdrop-filter: blur(8px);
+}
+table tbody tr{
+  transition: transform .14s ease, background .14s ease;
+}
+table tbody tr:hover{
+  transform: translateY(-1px);
+}
+th{
+  letter-spacing:.2px;
+}
+
+/* Desktop: optional sticky first column (SAFE) */
+@media (min-width: 980px){
+  .tablewrap table td:first-child,
+  .tablewrap table th:first-child{
+    position: sticky;
+    left: 0;
+    background: inherit;
+    z-index: 2;
+  }
+  .tablewrap table th:first-child{ z-index: 3; }
+}
+
+/* 4) Sidebar active indicator */
+@media (min-width: 980px){
+  .sidebar{
+    background: rgba(255,255,255,.70);
+  }
+  body.dark .sidebar{
+    background: rgba(255,255,255,.04);
+  }
+  .sideItem{
+    position: relative;
+    overflow: hidden;
+  }
+  .sideItem.active:before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:10px;
+    bottom:10px;
+    width:4px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(10,42,94,1), rgba(22,163,74,.95));
+    box-shadow: 0 0 0 3px rgba(10,42,94,.10);
+  }
+  .sideItem.active{
+    box-shadow: 0 16px 46px rgba(11,18,32,.12);
+  }
+}
 </style>
 
 """
@@ -4381,6 +4464,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
