@@ -1045,6 +1045,120 @@ th{
     box-shadow: 0 16px 46px rgba(11,18,32,.12);
   }
 }
+/* ===== Mobile Premium Polish (SAFE: CSS only) ===== */
+
+/* Make everything feel less cramped + more premium on mobile */
+@media (max-width: 980px){
+  body{
+    padding: 14px 12px calc(98px + env(safe-area-inset-bottom)) 12px;
+  }
+
+  /* KPIs: stack nicely and feel stronger */
+  .kpiRow{
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .kpi{
+    padding: 16px;
+    border-radius: 22px;
+  }
+  .kpi .value{
+    font-size: 34px;
+    margin-top: 8px;
+  }
+  .kpi .sub{
+    margin-top: 6px;
+    opacity: .95;
+  }
+  .kpiTop .chip{
+    transform: translateY(-1px);
+  }
+
+  /* Cards: slightly deeper and smoother on mobile */
+  .card{
+    border-radius: 22px;
+  }
+
+  /* Menu items: more tappable, more “SaaS” */
+  .menu{
+    padding: 12px;
+  }
+  .menuItem{
+    padding: 16px 14px;
+    border-radius: 20px;
+  }
+  .icoBox{
+    width: 48px;
+    height: 48px;
+    border-radius: 16px;
+  }
+  .menuText{
+    font-size: 17px;
+  }
+  .chev{
+    opacity: .65;
+  }
+
+  /* Buttons: better touch targets */
+  .btn, .btnSoft{
+    border-radius: 20px;
+    padding: 15px 14px;
+  }
+  .btn:active, .btnSoft:active{
+    transform: scale(0.99);
+  }
+
+  /* Clock screen: feel like a “hero” action */
+  .clockCard{
+    padding: 16px;
+    border-radius: 24px;
+  }
+  .timerBig{
+    font-size: 40px;
+    letter-spacing: .6px;
+  }
+  .actionRow{
+    gap: 12px;
+  }
+
+  /* Bottom nav: cleaner premium pill feel */
+  .bottomNav{
+    padding: 10px 12px calc(14px + env(safe-area-inset-bottom)) 12px;
+    border-radius: 24px 24px 0 0;
+    background: rgba(255,255,255,.92);
+  }
+  body.dark .bottomNav{
+    background: rgba(11,23,48,.80);
+    border-top-color: rgba(255,255,255,.10);
+  }
+  .navInner{
+    max-width: 560px;
+  }
+  .navIcon{
+    width: 50px;
+    height: 50px;
+    border-radius: 18px;
+  }
+  .navIcon.active{
+    box-shadow: 0 12px 28px rgba(11,18,32,.12);
+  }
+
+  /* Tables: reduce min-width so it doesn’t feel “broken” on mobile */
+  table{
+    min-width: 640px; /* still scrollable, but less wide */
+  }
+  th, td{
+    padding: 10px 10px;
+  }
+}
+
+/* Slightly stronger dark mode cards on mobile (still safe) */
+@media (max-width: 980px){
+  body.dark .card{
+    background: rgba(255,255,255,.04);
+    border-color: rgba(255,255,255,.10);
+  }
+}
 </style>
 
 """
@@ -4464,6 +4578,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
