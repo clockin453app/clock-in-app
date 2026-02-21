@@ -2025,17 +2025,28 @@ def home():
         </div>
         <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
+<div class="kpiRow">
+  <div class="card kpi kpiFancy">
+    <div class="kpiTop">
+      <p class="label">Previous Gross</p>
+      <span class="chip">Week total</span>
+    </div>
+    <p class="value">£{money(prev_gross)}</p>
+    <p class="sub">Sum of prior 4 weeks</p>
+  </div>
 
-      <div class="kpiRow">
-        <div class="card kpi">
-          <p class="label">Previous Gross</p>
-          <p class="value">£{money(prev_gross)}</p>
-        </div>
-        <div class="card kpi">
-          <p class="label">Current Gross</p>
-          <p class="value">£{money(curr_gross)}</p>
-        </div>
-      </div>
+  <div class="card kpi kpiFancy kpiPrimary">
+    <div class="kpiTop">
+      <p class="label">Current Gross</p>
+      <span class="chip {'ok' if curr_gross >= prev_gross else 'warn'}">
+        {'▲' if curr_gross >= prev_gross else '▼'}
+        {money(((curr_gross - prev_gross) / (prev_gross if prev_gross > 0 else 1.0)) * 100.0)}%
+      </span>
+    </div>
+    <p class="value">£{money(curr_gross)}</p>
+    <p class="sub">This week (so far)</p>
+  </div>
+</div>
 
       <div class="card graphCard">
         <div class="graphTop">
@@ -4370,6 +4381,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
