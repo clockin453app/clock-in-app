@@ -3892,30 +3892,30 @@ kpi_strip = f"""
         hours = round(by_user.get(u, {}).get("hours", 0.0), 2)
 
         display = get_employee_display_name(u)
-        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
+    paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
-        paid_line = ""
-        if paid:
-paid_line = f"<div class='sub' style='margin:2px 0 0 0;'><span class='status-paid'>Paid</span></div>"
-            if paid_at:
-                paid_line += f"<div class='sub' style='margin:2px 0 0 0;'>Paid at: {escape(paid_at)}</div>"
-        else:
-paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='status-unpaid'>Not paid</span></div>"
+    paid_line = ""
+    if paid:
+        paid_line = f"<div class='sub' style='margin:2px 0 0 0;'><span class='status-paid'>Paid</span></div>"
+        if paid_at:
+            paid_line += f"<div class='sub' style='margin:2px 0 0 0;'>Paid at: {escape(paid_at)}</div>"
+    else:
+        paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='status-unpaid'>Not paid</span></div>"
 
-        mark_paid_btn = ""
-        if (not paid) and gross > 0:
-            mark_paid_btn = f"""
-              <form method="POST" action="/admin/mark-paid" style="margin:0;">
-                <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                <input type="hidden" name="user" value="{escape(u)}">
-                <input type="hidden" name="gross" value="{gross}">
-                <input type="hidden" name="tax" value="{tax}">
-                <input type="hidden" name="net" value="{net}">
-                <button class="btnTiny dark" type="submit">Mark Paid</button>
-              </form>
-            """
+   mark_paid_btn = ""
+   if (not paid) and gross > 0:
+        mark_paid_btn = f"""
+          <form method="POST" action="/admin/mark-paid" style="margin:0;">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+            <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+            <input type="hidden" name="user" value="{escape(u)}">
+            <input type="hidden" name="gross" value="{gross}">
+            <input type="hidden" name="tax" value="{tax}">
+            <input type="hidden" name="net" value="{net}">
+            <button class="btnTiny dark" type="submit">Mark Paid</button>
+          </form>
+        """
 
         row_class = "rowHasValue" if gross > 0 else ""
 if paid:
@@ -4700,6 +4700,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
