@@ -1159,6 +1159,45 @@ th{
     border-color: rgba(255,255,255,.10);
   }
 }
+/* ===== Strong Mobile Clock Feel ===== */
+@media (max-width: 980px){
+
+  .clockCard{
+    padding: 18px;
+    border-radius: 26px;
+    box-shadow: 0 18px 45px rgba(11,18,32,.12);
+  }
+
+  .timerBig{
+    font-size: 42px;
+    letter-spacing: .8px;
+  }
+
+  .clockMeta{
+    margin-top: 8px;
+    margin-bottom: 6px;
+  }
+
+  .clockMeta .chip{
+    background: rgba(10,42,94,.10);
+    border-color: rgba(10,42,94,.18);
+  }
+
+  .btnIn, .btnOut{
+    padding: 18px 14px;
+    font-size: 16px;
+    border-radius: 22px;
+  }
+
+  .btnIn:active,
+  .btnOut:active{
+    transform: scale(0.98);
+  }
+
+  #map{
+    border-radius: 22px;
+  }
+}
 </style>
 
 """
@@ -2494,11 +2533,15 @@ def clock_page():
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
+<div class="card clockCard">
+  {timer_html}
 
-      <div class="card clockCard">
-        {timer_html}
+  <div class="clockMeta">
+    <span class="chip" id="clockStateChip">Status</span>
+    <span class="sub" style="margin:0;">Tap Clock In/Out — location required</span>
+  </div>
 
-        <div class="sub" id="geoStatus" style="margin-top:10px;">📍 Waiting for location…</div>
+  <div class="sub" id="geoStatus" style="margin-top:10px;">📍 Waiting for location…</div>
 
         <div id="map" style="margin-top:10px; height:240px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);"></div>
 
@@ -4578,6 +4621,7 @@ def admin_employee_sites_save():
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
+
 
 
 
