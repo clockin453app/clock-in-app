@@ -56,7 +56,6 @@ _SHEETS_CACHE_TTL = int(os.environ.get("SHEETS_CACHE_TTL_SECONDS", "15") or "15"
 _SHEETS_CACHE_MAX = int(os.environ.get("SHEETS_CACHE_MAX_ENTRIES", "256") or "256")
 _sheets_cache = _OrderedDict()  # key -> (expires_at, value)
 
-
 def _cache_get(key):
     now = _time.time()
     item = _sheets_cache.get(key)
@@ -70,7 +69,6 @@ def _cache_get(key):
     _sheets_cache.move_to_end(key, last=True)
     return value
 
-
 def _cache_set(key, value, ttl=_SHEETS_CACHE_TTL):
     now = _time.time()
     expires_at = now + max(0, int(ttl))
@@ -79,13 +77,11 @@ def _cache_set(key, value, ttl=_SHEETS_CACHE_TTL):
     while len(_sheets_cache) > _SHEETS_CACHE_MAX:
         _sheets_cache.popitem(last=False)
 
-
 def _cache_invalidate_prefix(prefix):
     # prefix: tuple prefix
     for k in list(_sheets_cache.keys()):
         if isinstance(k, tuple) and k[:len(prefix)] == prefix:
             _sheets_cache.pop(k, None)
-
 
 try:
     from gspread.worksheet import Worksheet as _Worksheet
@@ -93,13 +89,11 @@ try:
     _orig_get_all_values = _Worksheet.get_all_values
     _orig_get_all_records = _Worksheet.get_all_records
 
-
     def _ws_key(ws, op, args, kwargs):
         # Spreadsheet ID is stable; Worksheet.id is numeric sheet id
         sid = getattr(getattr(ws, "spreadsheet", None), "id", None)
         wid = getattr(ws, "id", None)
         return (sid, wid, op, args, tuple(sorted(kwargs.items())))
-
 
     def cached_get_all_values(self, *args, **kwargs):
         key = _ws_key(self, "get_all_values", args, kwargs)
@@ -110,7 +104,6 @@ try:
         _cache_set(key, val)
         return val
 
-
     def cached_get_all_records(self, *args, **kwargs):
         key = _ws_key(self, "get_all_records", args, kwargs)
         hit = _cache_get(key)
@@ -120,35 +113,27 @@ try:
         _cache_set(key, val)
         return val
 
-
     _Worksheet.get_all_values = cached_get_all_values
     _Worksheet.get_all_records = cached_get_all_records
-
 
     # Invalidate cache on common writes
     def _wrap_invalidate(method_name):
         orig = getattr(_Worksheet, method_name, None)
         if not orig:
             return
-
         def wrapped(self, *args, **kwargs):
             res = orig(self, *args, **kwargs)
             sid = getattr(getattr(self, "spreadsheet", None), "id", None)
             wid = getattr(self, "id", None)
             _cache_invalidate_prefix((sid, wid))
             return res
-
         setattr(_Worksheet, method_name, wrapped)
 
-
-    for _m in ("update", "update_cell", "update_cells", "append_row", "append_rows", "batch_update", "delete_rows",
-               "insert_row", "insert_rows", "clear"):
+    for _m in ("update", "update_cell", "update_cells", "append_row", "append_rows", "batch_update", "delete_rows", "insert_row", "insert_rows", "clear"):
         _wrap_invalidate(_m)
 except Exception:
     # If gspread internals change, app still runs without caching.
     pass
-
-
 # ============ GOOGLE SHEETS SAFE WRITE ============
 
 def _gs_write_with_retry(fn, *, tries: int = 3, base_sleep: float = 0.6):
@@ -187,12 +172,12 @@ app.config.update(
 
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
 
+
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 SCOPE = [
     "https://spreadsheets.google.com/feeds",
     "https://www.googleapis.com/auth/drive",
 ]
-
 
 def load_google_creds_dict():
     raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
@@ -200,7 +185,6 @@ def load_google_creds_dict():
         return json.loads(raw)
     with open("credentials.json", "r", encoding="utf-8") as f:
         return json.load(f)
-
 
 creds_dict = load_google_creds_dict()
 creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
@@ -227,6 +211,10 @@ try:
     locations_sheet = spreadsheet.worksheet("Locations")
 except Exception:
     locations_sheet = None
+
+
+
+
 
 # Optional: geofenced clocking locations (Admin-managed)
 try:
@@ -262,12 +250,10 @@ DRIVE_TOKEN_STORE_PATH = os.environ.get(
 DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()
 DRIVE_TOKEN_ENCRYPTION_KEY = os.environ.get("DRIVE_TOKEN_ENCRYPTION_KEY", "").strip()
 
-
 def _ensure_instance_dir():
     d = os.path.dirname(DRIVE_TOKEN_STORE_PATH)
     if d and not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
-
 
 def _fernet():
     if not DRIVE_TOKEN_ENCRYPTION_KEY or not Fernet:
@@ -276,7 +262,6 @@ def _fernet():
         return Fernet(DRIVE_TOKEN_ENCRYPTION_KEY.encode("utf-8"))
     except Exception:
         return None
-
 
 def _save_drive_token(token_dict: dict):
     _ensure_instance_dir()
@@ -290,7 +275,6 @@ def _save_drive_token(token_dict: dict):
     except Exception:
         # Don't crash app on token write failure; uploads will fail until fixed.
         pass
-
 
 def _load_drive_token() -> dict | None:
     # 1) Encrypted/plain file
@@ -316,7 +300,6 @@ def _load_drive_token() -> dict | None:
             return None
     return None
 
-
 def get_user_drive_service():
     token_data = _load_drive_token()
     if not token_data:
@@ -331,7 +314,6 @@ def get_user_drive_service():
         _save_drive_token(token_data)
 
     return build("drive", "v3", credentials=creds_user, cache_discovery=False)
-
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
     drive_service = get_user_drive_service()
@@ -378,6 +360,7 @@ COL_OUT = 3
 COL_HOURS = 4
 COL_PAY = 5
 
+
 # Extra columns (optional; appended after Pay). Used for geolocation.
 COL_IN_LAT = 6
 COL_IN_LON = 7
@@ -391,7 +374,7 @@ TAX_RATE = 0.20
 CLOCKIN_EARLIEST = dtime(8, 0, 0)
 
 # Break rules:
-UNPAID_BREAK_HOURS = 0.5  # deduct 30 minutes
+UNPAID_BREAK_HOURS = 0.5     # deduct 30 minutes
 BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS = 6.0  # safety threshold
 
 # Overtime highlight:
@@ -414,7 +397,6 @@ def manifest():
         ],
     }, 200, {"Content-Type": "application/manifest+json"}
 
-
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 PWA_TAGS = """
 <link rel="manifest" href="/manifest.webmanifest">
@@ -423,6 +405,7 @@ PWA_TAGS = """
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 """
+
 
 # ================= PREMIUM UI =================
 STYLE = """
@@ -1215,64 +1198,6 @@ th{
     border-radius: 22px;
   }
 }
-/* ===== Payroll Status Badges (Step 2) ===== */
-
-.status-unpaid{
-  background: #fef3c7;
-  color: #92400e;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-}
-
-.status-paid{
-  background: #dcfce7;
-  color: #166534;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-}
-/* ===== Payroll Table Upgrade (Step 3) ===== */
-
-table{
-  border-collapse: separate;
-  border-spacing: 0 8px;
-}
-
-table tbody tr{
-  background: white;
-  transition: all .15s ease;
-}
-
-table tbody tr:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 12px 28px rgba(11,18,32,.08);
-}
-
-table td{
-  padding: 14px 12px;
-}
-
-/* Add subtle rounding */
-table tbody tr td:first-child{
-  border-top-left-radius: 14px;
-  border-bottom-left-radius: 14px;
-}
-
-table tbody tr td:last-child{
-  border-top-right-radius: 14px;
-  border-bottom-right-radius: 14px;
-}
-/* Row status accent */
-tr.paidRow{
-  border-left: 4px solid var(--green);
-}
-
-tr.unpaidRow{
-  border-left: 4px solid #f59e0b;
-}
 </style>
 
 """
@@ -1283,34 +1208,28 @@ def _svg_clock():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l4 2"></path></svg>"""
 
-
 def _svg_clipboard():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <rect x="8" y="2" width="8" height="4" rx="1"></rect>
       <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"></path></svg>"""
-
 
 def _svg_chart():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M4 19V5"></path><path d="M4 19h16"></path>
       <path d="M8 17V9"></path><path d="M12 17V7"></path><path d="M16 17v-4"></path></svg>"""
 
-
 def _svg_doc():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>"""
-
 
 def _svg_user():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M20 21a8 8 0 1 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>"""
 
-
 def _svg_grid():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M4 4h7v7H4z"></path><path d="M13 4h7v7h-7z"></path>
       <path d="M4 13h7v7H4z"></path><path d="M13 13h7v7h-7z"></path></svg>"""
-
 
 def _svg_logout():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -1412,6 +1331,7 @@ This agreement is governed by the laws of England and Wales
 If any part of this agreement is breached or found unenforceable, the remaining clauses will continue to apply
 """.strip()
 
+
 # ================= HELPERS =================
 
 
@@ -1420,7 +1340,6 @@ If any part of this agreement is breached or found unenforceable, the remaining 
 UNPAID_BREAK_ENABLED = True
 UNPAID_BREAK_THRESHOLD_HOURS = 6.0
 UNPAID_BREAK_MINUTES = 30
-
 
 def _apply_unpaid_break(raw_hours: float) -> float:
     """Return payable hours after applying unpaid break policy."""
@@ -1437,22 +1356,18 @@ def _apply_unpaid_break(raw_hours: float) -> float:
 
     return max(0.0, h)
 
-
 def safe_float(x, default=0.0):
     try:
         return float(x)
     except Exception:
         return default
 
-
 def parse_bool(v) -> bool:
     s = str(v).strip().lower()
     return s in ("1", "true", "yes", "y", "on")
 
-
 def escape(s: str) -> str:
-    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
-
+    return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
 
 def linkify(url: str) -> str:
     u = (url or "").strip()
@@ -1465,6 +1380,7 @@ def linkify(url: str) -> str:
     return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer' style='color:var(--navy);font-weight:600;'>Open</a>"
 
 
+
 # ================= GEOLOCATION (GEOFENCE) =================
 # Employees sheet: optional column "Site" that assigns an employee to a site name in Locations sheet.
 # Locations sheet headers (recommended):
@@ -1474,10 +1390,9 @@ def linkify(url: str) -> str:
 #   InLat, InLon, InAcc, InSite, InDistM, OutLat, OutLon, OutAcc, OutSite, OutDistM
 
 WORKHOURS_GEO_HEADERS = [
-    "InLat", "InLon", "InAcc", "InSite", "InDistM",
-    "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM",
+    "InLat","InLon","InAcc","InSite","InDistM",
+    "OutLat","OutLon","OutAcc","OutSite","OutDistM",
 ]
-
 
 def _ensure_workhours_geo_headers():
     try:
@@ -1485,7 +1400,7 @@ def _ensure_workhours_geo_headers():
         if not vals:
             return
         headers = vals[0]
-        base_headers = ["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay"]
+        base_headers = ["Username","Date","ClockIn","ClockOut","Hours","Pay"]
         # If there is no header row, do nothing (your sheet should have one).
         if not headers:
             return
@@ -1495,10 +1410,9 @@ def _ensure_workhours_geo_headers():
         missing = [h for h in WORKHOURS_GEO_HEADERS if h not in headers]
         if missing:
             headers = headers + missing
-            work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(headers)).replace('1', '')}1", [headers])
+            work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(headers)).replace('1','')}1", [headers])
     except Exception:
         return
-
 
 def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     # distance in meters
@@ -1507,10 +1421,9 @@ def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     phi1, phi2 = radians(lat1), radians(lat2)
     dphi = radians(lat2 - lat1)
     dl = radians(lon2 - lon1)
-    a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dl / 2) ** 2
+    a = sin(dphi/2)**2 + cos(phi1)*cos(phi2)*sin(dl/2)**2
     c = 2 * asin(sqrt(a))
     return R * c
-
 
 def _get_employee_sites(username: str) -> list[str]:
     """Return list of site names assigned to employee.
@@ -1561,12 +1474,10 @@ def _get_employee_sites(username: str) -> list[str]:
         return []
     return []
 
-
 def _get_employee_site(username: str) -> str:
     """Backwards-compatible: return primary site (first) or empty."""
     sites = _get_employee_sites(username)
     return sites[0] if sites else ""
-
 
 def _get_active_locations() -> list[dict]:
     out = []
@@ -1577,21 +1488,14 @@ def _get_active_locations() -> list[dict]:
         if not vals:
             return out
         headers = vals[0]
-
-        def idx(n):
-            return headers.index(n) if n in headers else None
-
-        i_name = idx("SiteName");
-        i_lat = idx("Lat");
-        i_lon = idx("Lon");
-        i_rad = idx("RadiusMeters");
-        i_act = idx("Active")
+        def idx(n): return headers.index(n) if n in headers else None
+        i_name = idx("SiteName"); i_lat = idx("Lat"); i_lon = idx("Lon"); i_rad = idx("RadiusMeters"); i_act = idx("Active")
         for r in vals[1:]:
             name = (r[i_name] if i_name is not None and i_name < len(r) else "").strip()
             if not name:
                 continue
             active = (r[i_act] if i_act is not None and i_act < len(r) else "TRUE").strip().upper()
-            if active not in ("TRUE", "YES", "1"):
+            if active not in ("TRUE","YES","1"):
                 continue
             lat = safe_float(r[i_lat] if i_lat is not None and i_lat < len(r) else "", None)
             lon = safe_float(r[i_lon] if i_lon is not None and i_lon < len(r) else "", None)
@@ -1602,7 +1506,6 @@ def _get_active_locations() -> list[dict]:
     except Exception:
         return []
     return out
-
 
 def _get_site_config(site_name: str) -> dict | None:
     sites = _get_active_locations()
@@ -1615,9 +1518,7 @@ def _get_site_config(site_name: str) -> dict | None:
     # fallback: first active site
     return sites[0] if sites else None
 
-
-def _validate_user_location(username: str, lat: float | None, lon: float | None, acc_m: float | None = None) -> tuple[
-    bool, dict, float]:
+def _validate_user_location(username: str, lat: float | None, lon: float | None, acc_m: float | None = None) -> tuple[bool, dict, float]:
     """Returns (ok, site_cfg, distance_m).
 
     Behavior:
@@ -1653,6 +1554,7 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None,
         buf = min(max(acc_buf, 0.0), 2000.0)
         return dist_m <= (float(radius_m) + buf)
 
+
     # If no active sites configured at all -> fail
     if not active_sites:
         pref = sites[0] if sites else "Unknown"
@@ -1687,7 +1589,6 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None,
 
     return bool(best_ok), best_cfg, float(best_dist)
 
-
 def initials(name: str) -> str:
     s = (name or "").strip()
     if not s:
@@ -1697,19 +1598,16 @@ def initials(name: str) -> str:
         return parts[0][:2].upper()
     return (parts[0][:1] + parts[-1][:1]).upper()
 
-
 def money(x: float) -> str:
     try:
         return f"{float(x):.2f}"
     except Exception:
         return "0.00"
 
-
 def require_login():
     if "username" not in session:
         return redirect(url_for("login"))
     return None
-
 
 def require_admin():
     gate = require_login()
@@ -1719,19 +1617,16 @@ def require_admin():
         return redirect(url_for("home"))
     return None
 
-
 def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
     if (not early_access) and (now_dt.time() < CLOCKIN_EARLIEST):
         return CLOCKIN_EARLIEST.strftime("%H:%M:%S")
     return now_dt.strftime("%H:%M:%S")
-
 
 def has_any_row_today(rows, username: str, today_str: str) -> bool:
     for r in rows[1:]:
         if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
             return True
     return False
-
 
 def find_open_shift(rows, username: str):
     # Find the most recent row for this user where ClockOut is still blank.
@@ -1749,7 +1644,6 @@ def find_open_shift(rows, username: str):
 def get_sheet_headers(sheet):
     vals = sheet.get_all_values()
     return vals[0] if vals else []
-
 
 def _find_workhours_row_by_user_date(vals, username: str, date_str: str):
     """Return the 1-based row number in WorkHours matching (Username, Date)."""
@@ -1790,7 +1684,6 @@ def find_row_by_username(sheet, username: str):
             return i + 1
     return None
 
-
 def get_employee_display_name(username: str) -> str:
     try:
         vals = employees_sheet.get_all_values()
@@ -1813,7 +1706,6 @@ def get_employee_display_name(username: str) -> str:
     except Exception:
         return username
 
-
 def set_employee_field(username: str, field: str, value: str):
     vals = employees_sheet.get_all_values()
     if not vals:
@@ -1833,7 +1725,6 @@ def set_employee_field(username: str, field: str, value: str):
         return False
     employees_sheet.update_cell(rownum, fcol, value)
     return True
-
 
 def set_employee_first_last(username: str, first: str, last: str):
     vals = employees_sheet.get_all_values()
@@ -1860,7 +1751,6 @@ def set_employee_first_last(username: str, first: str, last: str):
     if ln_col:
         employees_sheet.update_cell(rownum, ln_col, last or "")
 
-
 def update_employee_password(username: str, new_password: str) -> bool:
     vals = employees_sheet.get_all_values()
     if not vals:
@@ -1878,19 +1768,16 @@ def update_employee_password(username: str, new_password: str) -> bool:
             return True
     return False
 
-
 def is_password_valid(stored: str, provided: str) -> bool:
     stored = stored or ""
     if stored.startswith("pbkdf2:") or stored.startswith("scrypt:"):
         return check_password_hash(stored, provided)
     return stored == provided
 
-
 def migrate_password_if_plain(username: str, stored: str, provided: str):
     stored = stored or ""
     if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
         update_employee_password(username, provided)
-
 
 def update_or_append_onboarding(username: str, data: dict):
     headers = get_sheet_headers(onboarding_sheet)
@@ -1911,7 +1798,6 @@ def update_or_append_onboarding(username: str, data: dict):
     else:
         onboarding_sheet.append_row(row_values)
 
-
 def get_onboarding_record(username: str):
     headers = get_sheet_headers(onboarding_sheet)
     vals = onboarding_sheet.get_all_values()
@@ -1926,7 +1812,6 @@ def get_onboarding_record(username: str):
                 rec[h] = row[j] if j < len(row) else ""
             return rec
     return None
-
 
 def onboarding_details_block(username: str) -> str:
     rec = get_onboarding_record(username)
@@ -1983,14 +1868,12 @@ def onboarding_details_block(username: str) -> str:
       </div>
     """
 
-
 def get_csrf() -> str:
     tok = session.get("csrf")
     if not tok:
         tok = secrets.token_urlsafe(24)
         session["csrf"] = tok
     return tok
-
 
 def require_csrf():
     if request.method == "POST":
@@ -1999,9 +1882,8 @@ def require_csrf():
 
 
 # ================= ADMIN / SHEET HELPERS =================
-AUDIT_HEADERS = ["Timestamp", "Actor", "Action", "Username", "Date", "Details"]
-PAYROLL_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "PaidAt", "PaidBy"]
-
+AUDIT_HEADERS = ["Timestamp","Actor","Action","Username","Date","Details"]
+PAYROLL_HEADERS = ["WeekStart","WeekEnd","Username","Gross","Tax","Net","PaidAt","PaidBy"]
 
 def _ensure_audit_headers():
     if not audit_sheet:
@@ -2017,7 +1899,6 @@ def _ensure_audit_headers():
     except Exception:
         return
 
-
 def log_audit(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
     """Best-effort audit logging (never raises)."""
     if not audit_sheet:
@@ -2029,12 +1910,11 @@ def log_audit(action: str, actor: str = "", username: str = "", date_str: str = 
     except Exception:
         return
 
-
 def _ensure_locations_headers():
     """Ensure Locations sheet has required headers."""
     if not locations_sheet:
         return
-    required = ["SiteName", "Lat", "Lon", "RadiusMeters", "Active"]
+    required = ["SiteName","Lat","Lon","RadiusMeters","Active"]
     try:
         vals = locations_sheet.get_all_values()
         if not vals:
@@ -2048,11 +1928,10 @@ def _ensure_locations_headers():
         # ensure at least required columns in correct order (without deleting extras)
         if headers[:len(required)] != required:
             new_headers = required + [h for h in headers if h not in required]
-            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
             locations_sheet.update(f"A1:{end_col}1", [new_headers])
     except Exception:
         return
-
 
 def _ensure_payroll_headers():
     try:
@@ -2066,14 +1945,12 @@ def _ensure_payroll_headers():
             return
         if headers[:len(PAYROLL_HEADERS)] != PAYROLL_HEADERS:
             new_headers = PAYROLL_HEADERS + [h for h in headers if h not in PAYROLL_HEADERS]
-            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
             payroll_sheet.update(f"A1:{end_col}1", [new_headers])
     except Exception:
         return
 
-
-def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float,
-                             paid_by: str):
+def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float, paid_by: str):
     """Append a paid record for the week/user if not already paid."""
     try:
         _ensure_payroll_headers()
@@ -2081,13 +1958,10 @@ def _append_paid_record_safe(week_start: str, week_end: str, username: str, gros
         if paid:
             return
         paid_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        payroll_sheet.append_row(
-            [week_start, week_end, username, money(gross), money(tax), money(net), paid_at, paid_by])
-        log_audit("MARK_PAID", actor=paid_by, username=username, date_str=f"{week_start}..{week_end}",
-                  details=f"gross={gross} tax={tax} net={net}")
+        payroll_sheet.append_row([week_start, week_end, username, money(gross), money(tax), money(net), paid_at, paid_by])
+        log_audit("MARK_PAID", actor=paid_by, username=username, date_str=f"{week_start}..{week_end}", details=f"gross={gross} tax={tax} net={net}")
     except Exception:
         return
-
 
 def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
     """Return (is_paid, paid_at)."""
@@ -2097,14 +1971,9 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
         if not vals or len(vals) < 2:
             return (False, "")
         headers = vals[0]
-
         def idx(name):
             return headers.index(name) if name in headers else None
-
-        i_ws = idx("WeekStart");
-        i_we = idx("WeekEnd");
-        i_u = idx("Username");
-        i_pa = idx("PaidAt")
+        i_ws = idx("WeekStart"); i_we = idx("WeekEnd"); i_u = idx("Username"); i_pa = idx("PaidAt")
         paid_at = ""
         for r in vals[1:]:
             ws = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
@@ -2117,20 +1986,24 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
         return (False, "")
 
 
+
+
+
+
+
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
     return f"""
     <div class="bottomNav">
       <div class="navInner">
-        <a class="navIcon {'active' if active == 'home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
-        <a class="navIcon {'active' if active == 'clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
-        <a class="navIcon {'active' if active == 'times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
-        <a class="navIcon {'active' if active == 'reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
+        <a class="navIcon {'active' if active=='home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
+        <a class="navIcon {'active' if active=='clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
+        <a class="navIcon {'active' if active=='times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
+        <a class="navIcon {'active' if active=='reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
         <a class="navIcon" href="/logout" title="Logout" style="color: rgba(220,38,38,.92);">{_svg_logout()}</a>
       </div>
     </div>
     """
-
 
 def sidebar_html(active: str, role: str) -> str:
     items = [
@@ -2147,7 +2020,7 @@ def sidebar_html(active: str, role: str) -> str:
     links = []
     for key, href, label, icon in items:
         links.append(f"""
-          <a class="sideItem {'active' if active == key else ''}" href="{href}">
+          <a class="sideItem {'active' if active==key else ''}" href="{href}">
             <div class="sideLeft">
               <div class="sideIcon">{icon}</div>
               <div class="sideText">{escape(label)}</div>
@@ -2177,7 +2050,6 @@ def sidebar_html(active: str, role: str) -> str:
       </div>
     """
 
-
 def layout_shell(active: str, role: str, content_html: str) -> str:
     theme_toggle = """
     <button class="themeToggle" id="themeToggle" title="Toggle dark mode">☾</button>
@@ -2205,7 +2077,7 @@ def layout_shell(active: str, role: str, content_html: str) -> str:
         </div>
       </div>
       {theme_toggle}
-      {bottom_nav(active if active in ('home', 'clock', 'times', 'reports', 'profile') else 'home', role)}
+      {bottom_nav(active if active in ('home','clock','times','reports','profile') else 'home', role)}
     """
 
 
@@ -2232,7 +2104,6 @@ def connect_drive():
     )
     session["oauth_state"] = state
     return redirect(auth_url)
-
 
 @app.get("/oauth2callback")
 def oauth2callback():
@@ -2316,7 +2187,6 @@ def login():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{html}")
 
-
 @app.get("/logout")
 def logout():
     session.clear()
@@ -2341,7 +2211,7 @@ def home():
     monday = today - timedelta(days=today.weekday())
 
     def week_key_for_n(n: int):
-        d2 = monday - timedelta(days=7 * n)
+        d2 = monday - timedelta(days=7*n)
         yy, ww, _ = d2.isocalendar()
         return yy, ww
 
@@ -2368,7 +2238,7 @@ def home():
     max_g = max(weekly_gross) if weekly_gross else 0.0
     max_g = max(max_g, 1.0)
 
-    bars_html = "".join([f"<div class='bar' style='height:{int((g / max_g) * 165)}px;'></div>" for g in weekly_gross])
+    bars_html = "".join([f"<div class='bar' style='height:{int((g/max_g)*165)}px;'></div>" for g in weekly_gross])
     labels_html = "".join([f"<div style='width:16%;text-align:center;'>{escape(x)}</div>" for x in week_labels])
 
     prev_gross = round(sum(weekly_gross[:-1]), 2)
@@ -2389,7 +2259,7 @@ def home():
           <h1>Dashboard</h1>
           <p class="sub">Welcome, {escape(display_name)}</p>
         </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 <div class="kpiRow">
   <div class="card kpi kpiFancy">
@@ -2520,16 +2390,14 @@ def clock_page():
                         cin = normalized_clock_in_time(now, early_access)
                         # Append base columns
                         _gs_write_with_retry(
-                            lambda: work_sheet.append_row([username, today_str, cin, "", "", ""],
-                                                          value_input_option="USER_ENTERED")
-                        )
+    lambda: work_sheet.append_row([username, today_str, cin, "", "", ""], value_input_option="USER_ENTERED")
+)
 
                         # Find the row we just added and store geo fields
                         vals = work_sheet.get_all_values()
                         rownum = _find_workhours_row_by_user_date(vals, username, today_str)
                         if rownum:
                             headers = vals[0] if vals else []
-
                             def _col(name):
                                 return headers.index(name) + 1 if name in headers else None
 
@@ -2540,8 +2408,7 @@ def clock_page():
                             ]:
                                 c = _col(k)
                                 if c:
-                                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c),
-                                                    "values": [["" if v is None else v]]})
+                                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if v is None else v ]]})
 
                             if updates:
                                 if updates:
@@ -2575,7 +2442,6 @@ def clock_page():
                         # Store geo fields (clock-out) in the same batch update (if headers exist)
                         vals = work_sheet.get_all_values()
                         headers = vals[0] if vals else []
-
                         def _col(name):
                             return headers.index(name) + 1 if name in headers else None
 
@@ -2585,8 +2451,7 @@ def clock_page():
                         ]:
                             c = _col(k)
                             if c:
-                                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c),
-                                                "values": [["" if v is None else str(v)]]})
+                                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c), "values": [["" if v is None else str(v)]]})
 
                         if updates:
                             work_sheet.batch_update(updates)
@@ -2599,6 +2464,7 @@ def clock_page():
             app.logger.exception('Clock POST failed')
             msg = 'Internal error while saving. Please refresh and try again.'
             msg_class = 'message error'
+
 
     # Active shift timer
     rows2 = work_sheet.get_all_values()
@@ -2647,8 +2513,7 @@ def clock_page():
 
     # Map config for front-end (if site configured)
     if site_cfg:
-        site_json = json.dumps(
-            {"name": site_cfg["name"], "lat": site_cfg["lat"], "lon": site_cfg["lon"], "radius": site_cfg["radius"]})
+        site_json = json.dumps({"name": site_cfg["name"], "lat": site_cfg["lat"], "lon": site_cfg["lon"], "radius": site_cfg["radius"]})
     else:
         site_json = json.dumps(None)
 
@@ -2860,7 +2725,7 @@ def my_times():
           <h1>Time logs</h1>
           <p class="sub">{escape(display_name)} • Clock history</p>
         </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="card" style="padding:12px;">
@@ -2937,26 +2802,26 @@ def my_reports():
           <h1>Timesheets</h1>
           <p class="sub">{escape(display_name)} • Totals + tax + net</p>
         </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="kpiRow">
         <div class="card kpi">
           <p class="label">Today Gross</p>
           <p class="value">£{money(d_g)}</p>
-          <p class="sub">Hours: {round(daily_hours, 2)} • Tax: £{money(d_t)} • Net: £{money(d_n)}</p>
+          <p class="sub">Hours: {round(daily_hours,2)} • Tax: £{money(d_t)} • Net: £{money(d_n)}</p>
         </div>
         <div class="card kpi">
           <p class="label">This Week Gross</p>
           <p class="value">£{money(w_g)}</p>
-          <p class="sub">Hours: {round(weekly_hours, 2)} • Tax: £{money(w_t)} • Net: £{money(w_n)}</p>
+          <p class="sub">Hours: {round(weekly_hours,2)} • Tax: £{money(w_t)} • Net: £{money(w_n)}</p>
         </div>
       </div>
 
       <div class="card kpi" style="margin-top:12px;">
         <p class="label">This Month Gross</p>
         <p class="value">£{money(m_g)}</p>
-        <p class="sub">Hours: {round(monthly_hours, 2)} • Tax: £{money(m_t)} • Net: £{money(m_n)}</p>
+        <p class="sub">Hours: {round(monthly_hours,2)} • Tax: £{money(m_t)} • Net: £{money(m_n)}</p>
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
@@ -2987,38 +2852,20 @@ def onboarding():
         submit_type = request.form.get("submit_type", "draft")
         is_final = (submit_type == "final")
 
-        def g(name):
-            return (request.form.get(name, "") or "").strip()
+        def g(name): return (request.form.get(name, "") or "").strip()
 
-        first = g("first");
-        last = g("last");
-        birth = g("birth")
-        phone_cc = g("phone_cc") or "+44";
-        phone_num = g("phone_num")
-        street = g("street");
-        city = g("city");
-        postcode = g("postcode")
+        first = g("first"); last = g("last"); birth = g("birth")
+        phone_cc = g("phone_cc") or "+44"; phone_num = g("phone_num")
+        street = g("street"); city = g("city"); postcode = g("postcode")
         email = g("email")
-        ec_name = g("ec_name");
-        ec_cc = g("ec_cc") or "+44";
-        ec_phone = g("ec_phone")
-        medical = g("medical");
-        medical_details = g("medical_details")
-        position = g("position");
-        cscs_no = g("cscs_no");
-        cscs_exp = g("cscs_exp")
-        emp_type = g("emp_type");
-        rtw = g("rtw")
-        ni = g("ni");
-        utr = g("utr");
-        start_date = g("start_date")
-        acc_no = g("acc_no");
-        sort_code = g("sort_code");
-        acc_name = g("acc_name")
-        comp_trading = g("comp_trading");
-        comp_reg = g("comp_reg")
-        contract_date = g("contract_date");
-        site_address = g("site_address")
+        ec_name = g("ec_name"); ec_cc = g("ec_cc") or "+44"; ec_phone = g("ec_phone")
+        medical = g("medical"); medical_details = g("medical_details")
+        position = g("position"); cscs_no = g("cscs_no"); cscs_exp = g("cscs_exp")
+        emp_type = g("emp_type"); rtw = g("rtw")
+        ni = g("ni"); utr = g("utr"); start_date = g("start_date")
+        acc_no = g("acc_no"); sort_code = g("sort_code"); acc_name = g("acc_name")
+        comp_trading = g("comp_trading"); comp_reg = g("comp_reg")
+        contract_date = g("contract_date"); site_address = g("site_address")
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
@@ -3175,7 +3022,6 @@ def onboarding():
     content = _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields)
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, content))
 
-
 def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields):
     typed = typed or {}
 
@@ -3207,7 +3053,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <p class="sub">{escape(display_name)} • Save Draft anytime • Submit Final when complete</p>
           {drive_hint}
         </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
@@ -3221,147 +3067,147 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <div class="row2">
             <div>
               <label class="sub {bad_label('first')}">First Name</label>
-              <input class="input {bad('first')}" name="first" value="{escape(val('first', 'FirstName'))}">
+              <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
             </div>
             <div>
               <label class="sub {bad_label('last')}">Last Name</label>
-              <input class="input {bad('last')}" name="last" value="{escape(val('last', 'LastName'))}">
+              <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
-          <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth', 'BirthDate'))}">
+          <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
 
           <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
           <div class="row2">
-            <input class="input" name="phone_cc" value="{escape(val('phone_cc', 'PhoneCountryCode') or '+44')}">
-            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num', 'PhoneNumber'))}">
+            <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
+            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
           </div>
 
           <h2 style="margin-top:14px;">Address</h2>
-          <input class="input" name="street" placeholder="Street Address" value="{escape(val('street', 'StreetAddress'))}">
+          <input class="input" name="street" placeholder="Street Address" value="{escape(val('street','StreetAddress'))}">
           <div class="row2">
-            <input class="input" name="city" placeholder="City" value="{escape(val('city', 'City'))}">
-            <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode', 'Postcode'))}">
+            <input class="input" name="city" placeholder="City" value="{escape(val('city','City'))}">
+            <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode','Postcode'))}">
           </div>
 
           <div class="row2">
             <div>
               <label class="sub {bad_label('email')}">Email</label>
-              <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email', 'Email'))}">
+              <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
             </div>
             <div>
               <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
-              <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name', 'EmergencyContactName'))}">
+              <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
           <div class="row2">
-            <input class="input" name="ec_cc" value="{escape(val('ec_cc', 'EmergencyContactPhoneCountryCode') or '+44')}">
-            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone', 'EmergencyContactPhoneNumber'))}">
+            <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
+            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
           </div>
 
           <h2 style="margin-top:14px;">Medical</h2>
           <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
           <div class="row2">
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="medical" value="no" {checked_radio('medical', 'MedicalCondition', 'no')}> No
+              <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
             </label>
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="medical" value="yes" {checked_radio('medical', 'MedicalCondition', 'yes')}> Yes
+              <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
             </label>
           </div>
           <label class="sub" style="margin-top:10px; display:block;">Details</label>
-          <input class="input" name="medical_details" value="{escape(val('medical_details', 'MedicalDetails'))}">
+          <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
 
           <h2 style="margin-top:14px;">Position</h2>
           <div class="row2">
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Bricklayer" {"checked" if val('position', 'Position') == 'Bricklayer' else ""}> Bricklayer
+              <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
             </label>
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Labourer" {"checked" if val('position', 'Position') == 'Labourer' else ""}> Labourer
+              <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
             </label>
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Fixer" {"checked" if val('position', 'Position') == 'Fixer' else ""}> Fixer
+              <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
             </label>
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position', 'Position') == 'Supervisor/Foreman' else ""}> Supervisor/Foreman
+              <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
             </label>
           </div>
 
           <div class="row2">
             <div>
               <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
-              <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no', 'CSCSNumber'))}">
+              <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
             </div>
             <div>
               <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
-              <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp', 'CSCSExpiryDate'))}">
+              <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
           <select class="input {bad('emp_type')}" name="emp_type">
             <option value="">Please Select</option>
-            <option value="Self-employed" {selected('emp_type', 'EmploymentType', 'Self-employed')}>Self-employed</option>
-            <option value="Ltd Company" {selected('emp_type', 'EmploymentType', 'Ltd Company')}>Ltd Company</option>
-            <option value="Agency" {selected('emp_type', 'EmploymentType', 'Agency')}>Agency</option>
-            <option value="PAYE" {selected('emp_type', 'EmploymentType', 'PAYE')}>PAYE</option>
+            <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
+            <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
+            <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
+            <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
           </select>
 
           <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
           <div class="row2">
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="rtw" value="yes" {checked_radio('rtw', 'RightToWorkUK', 'yes')}> Yes
+              <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
             </label>
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="rtw" value="no" {checked_radio('rtw', 'RightToWorkUK', 'no')}> No
+              <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
             </label>
           </div>
 
           <div class="row2">
             <div>
               <label class="sub {bad_label('ni')}">National Insurance</label>
-              <input class="input {bad('ni')}" name="ni" value="{escape(val('ni', 'NationalInsurance'))}">
+              <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
             </div>
             <div>
               <label class="sub {bad_label('utr')}">UTR</label>
-              <input class="input {bad('utr')}" name="utr" value="{escape(val('utr', 'UTR'))}">
+              <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
-          <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date', 'StartDate'))}">
+          <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
 
           <h2 style="margin-top:14px;">Bank details</h2>
           <div class="row2">
             <div>
               <label class="sub {bad_label('acc_no')}">Account Number</label>
-              <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no', 'BankAccountNumber'))}">
+              <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
             </div>
             <div>
               <label class="sub {bad_label('sort_code')}">Sort Code</label>
-              <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code', 'SortCode'))}">
+              <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
             </div>
           </div>
           <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
-          <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name', 'AccountHolderName'))}">
+          <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
 
           <h2 style="margin-top:14px;">Company details</h2>
-          <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading', 'CompanyTradingName'))}">
-          <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg', 'CompanyRegistrationNo'))}">
+          <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
+          <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
 
           <h2 style="margin-top:14px;">Contract & site</h2>
           <div class="row2">
             <div>
               <label class="sub {bad_label('contract_date')}">Date of Contract</label>
-              <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date', 'DateOfContract'))}">
+              <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
             </div>
             <div>
               <label class="sub {bad_label('site_address')}">Site address</label>
-              <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address', 'SiteAddress'))}">
+              <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
             </div>
           </div>
 
@@ -3370,30 +3216,30 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
 
           <div class="uploadTitle {bad_label('passport_file')}">Passport or Birth Certificate</div>
           <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink', ''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
 
           <div class="uploadTitle {bad_label('cscs_file')}">CSCS Card (front & back)</div>
           <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink', ''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
 
           <div class="uploadTitle {bad_label('pli_file')}">Public Liability Insurance</div>
           <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink', ''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
 
           <div class="uploadTitle {bad_label('share_file')}">Share Code / Confirmation</div>
           <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink', ''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
 
           <h2 style="margin-top:14px;">Contract</h2>
           <div class="contractBox">{escape(CONTRACT_TEXT)}</div>
 
           <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-            <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept') == 'yes' else ""}>
+            <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
             I have read and accept the contract terms (required for Final)
           </label>
 
           <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
-          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name', 'SignatureName'))}">
+          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
 
           <div class="row2" style="margin-top:14px;">
             <button class="btnSoft" name="submit_type" value="draft" type="submit">Save Draft</button>
@@ -3454,7 +3300,7 @@ def change_password():
           <h1>Profile</h1>
           <p class="sub">{escape(display_name)}</p>
         </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
@@ -3486,6 +3332,8 @@ def change_password():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("profile", role, content))
 
 
+
+
 def _get_user_rate(username: str) -> float:
     """Fetch hourly rate for a username from Employees sheet; fall back to session rate or 0."""
     try:
@@ -3507,7 +3355,6 @@ def _get_user_rate(username: str) -> float:
         pass
     return safe_float(session.get("rate", 0), 0.0)
 
-
 def _get_open_shifts() -> list[dict]:
     """Return currently open shifts (ClockOut empty) with display metadata for Admin dashboard."""
     out = []
@@ -3516,7 +3363,6 @@ def _get_open_shifts() -> list[dict]:
         if not rows or len(rows) < 2:
             return out
         headers = rows[0]
-
         # fall back to fixed indexes if headers are missing
         def hidx(name, default_idx):
             return headers.index(name) if (headers and name in headers) else default_idx
@@ -3561,7 +3407,6 @@ def _get_open_shifts() -> list[dict]:
     except Exception:
         return []
     return out
-
 
 # ---------- ADMIN ----------
 @app.get("/admin")
@@ -3755,6 +3600,7 @@ def admin_save_shift():
     return redirect(request.referrer or "/admin/payroll")
 
 
+
 @app.post("/admin/force-clockout")
 def admin_force_clockout():
     gate = require_admin()
@@ -3798,8 +3644,7 @@ def admin_force_clockout():
         pass
 
     actor = session.get("username", "admin")
-    log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
-              details=f"out={out_time} hours={computed_hours} pay={pay}")
+    log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d, details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
 
 
@@ -3862,7 +3707,7 @@ def admin_payroll():
 
     def week_label(d0):
         iso = d0.isocalendar()
-        return f"Week {iso[1]} ({d0.strftime('%d %b')} – {(d0 + timedelta(days=6)).strftime('%d %b %Y')})"
+        return f"Week {iso[1]} ({d0.strftime('%d %b')} – {(d0+timedelta(days=6)).strftime('%d %b %Y')})"
 
     def in_range(d: str) -> bool:
         if not d:
@@ -3896,51 +3741,76 @@ def admin_payroll():
     overall_hours = 0.0
     overall_gross = 0.0
 
-    for item in filtered:
-        u = item["user"]
-        h = safe_float(item["hours"], 0.0)
-        p = safe_float(item["pay"], 0.0)
-        overall_hours += h
-        overall_gross += p
-        if u not in by_user:
-            by_user[u] = {"hours": 0.0, "gross": 0.0}
-        by_user[u]["hours"] += h
-        by_user[u]["gross"] += p
+    for row in filtered:
+        u = row["user"] or "Unknown"
+        by_user.setdefault(u, {"hours": 0.0, "gross": 0.0})
+        if row["hours"] != "":
+            h = safe_float(row["hours"], 0.0)
+            g = safe_float(row["pay"], 0.0)
+            by_user[u]["hours"] += h
+            by_user[u]["gross"] += g
+            overall_hours += h
+            overall_gross += g
 
-    overall_hours = round(overall_hours, 2)
-    overall_gross = round(overall_gross, 2)
     overall_tax = round(overall_gross * TAX_RATE, 2)
     overall_net = round(overall_gross - overall_tax, 2)
 
-    # Week nav pills
+    # Week lookup for editable tables
+    week_lookup = {}
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+        user = (r[COL_USER] or "").strip()
+        d = (r[COL_DATE] or "").strip()
+        if not user or not d:
+            continue
+        if d < week_start_str or d > week_end_str:
+            continue
+        week_lookup.setdefault(user, {})
+        week_lookup[user][d] = {
+            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
+            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
+            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
+            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
+        }
+
+    # All users from Employees sheet
+    all_users = []
+    try:
+        for rec in employees_sheet.get_all_records():
+            un = (rec.get("Username") or "").strip()
+            if un:
+                all_users.append(un)
+    except Exception:
+        all_users = list(by_user.keys())
+
+    if q:
+        all_users = [u for u in all_users if q in u.lower() or q in (get_employee_display_name(u) or "").lower()]
+
+    # Week pills
     pills = []
-    for i in range(0, 12):
-        d0 = this_monday - timedelta(days=7 * i)
+    for i in range(0, 13):
+        d0 = this_monday - timedelta(days=7*i)
         active = "active" if i == wk_offset else ""
-        pills.append(f"<a class='pill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}'>{escape(week_label(d0))}</a>")
+        pills.append(
+            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}'>"
+            f"{escape(week_label(d0))}</a>"
+        )
     week_nav_html = "<div class='weekRow'>" + "".join(pills) + "</div>"
 
-    # KPI strip (your new payroll class)
+    # KPI strip (PRO)
     kpi_strip = f"""
-      <div class="kpiStrip payrollKpis">
-        <div class="kpiMini">
-          <div class="k">Hours</div><div class="v">{round(overall_hours, 2)}</div>
-        </div>
-        <div class="kpiMini gross">
-          <div class="k">Gross</div><div class="v">£{money(overall_gross)}</div>
-        </div>
-        <div class="kpiMini tax">
-          <div class="k">Tax</div><div class="v">£{money(overall_tax)}</div>
-        </div>
-        <div class="kpiMini net">
-          <div class="k">Net</div><div class="v">£{money(overall_net)}</div>
-        </div>
+      <div class="kpiStrip">
+        <div class="kpiMini"><div class="k">Hours</div><div class="v">{round(overall_hours,2)}</div></div>
+        <div class="kpiMini"><div class="k">Gross</div><div class="v">£{money(overall_gross)}</div></div>
+        <div class="kpiMini"><div class="k">Tax</div><div class="v">£{money(overall_tax)}</div></div>
+        <div class="kpiMini"><div class="k">Net</div><div class="v">£{money(overall_net)}</div></div>
       </div>
     """
 
-    # Summary table (paid under name)
+    # Summary table (polished + paid under name)
     summary_rows = []
-    for u in sorted(by_user.keys(), key=lambda s: s.lower()):
+    for u in sorted(all_users, key=lambda s: s.lower()):
         gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
         tax = round(gross * TAX_RATE, 2)
         net = round(gross - tax, 2)
@@ -3949,15 +3819,14 @@ def admin_payroll():
         display = get_employee_display_name(u)
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
-        # paid line under username
+        paid_line = ""
         if paid:
-            paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='status-paid'>Paid</span></div>"
+            paid_line = f"<div class='sub' style='margin:2px 0 0 0;'><span class='chip ok'>Paid</span></div>"
             if paid_at:
                 paid_line += f"<div class='sub' style='margin:2px 0 0 0;'>Paid at: {escape(paid_at)}</div>"
         else:
-            paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='status-unpaid'>Not paid</span></div>"
+            paid_line = "<div class='sub' style='margin:2px 0 0 0;'><span class='chip warn'>Not paid</span></div>"
 
-        # mark paid button (only if gross > 0 and not paid)
         mark_paid_btn = ""
         if (not paid) and gross > 0:
             mark_paid_btn = f"""
@@ -3974,10 +3843,6 @@ def admin_payroll():
             """
 
         row_class = "rowHasValue" if gross > 0 else ""
-        if paid:
-            row_class += " paidRow"
-        else:
-            row_class += " unpaidRow"
 
         name_cell = f"""
           <div style="display:flex; align-items:center; gap:10px;">
@@ -3993,47 +3858,127 @@ def admin_payroll():
         summary_rows.append(
             f"<tr class='{row_class}'>"
             f"<td>{name_cell}</td>"
-            f"<td class='num'>{hours:.2f}</td>"
-            f"<td class='num'>£{money(gross)}</td>"
-            f"<td class='num'>£{money(tax)}</td>"
-            f"<td class='num'>£{money(net)}</td>"
+            f"<td class='num'>{hours:.2f}</td><td class='num'>£{money(gross)}</td><td class='num'>£{money(tax)}</td><td class='num'>£{money(net)}</td>"
             f"<td style='text-align:right;'>{mark_paid_btn}</td>"
             f"</tr>"
         )
 
-    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='6'>No data.</td></tr>"
+    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='6'>No employees.</td></tr>"
 
-    # Weekly blocks (editable tables)
+    # Per-user weekly editable tables
+    day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
     blocks = []
-    users_for_week = sorted(set([x["user"] for x in filtered]), key=lambda s: s.lower())
-    for u in users_for_week:
+    for u in sorted(all_users, key=lambda s: s.lower()):
         display = get_employee_display_name(u)
-
-        user_rows = [x for x in filtered if x["user"] == u and (week_start_str <= x["date"] <= week_end_str)]
-        if not user_rows:
-            continue
+        user_days = week_lookup.get(u, {})
 
         wk_hours = 0.0
         wk_gross = 0.0
-        for it in user_rows:
-            wk_hours += safe_float(it["hours"], 0.0)
-            wk_gross += safe_float(it["pay"], 0.0)
-        wk_tax = wk_gross * TAX_RATE
-        wk_net = wk_gross - wk_tax
+        wk_overtime_days = 0
+
+        for di in range(7):
+            d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
+            rec = user_days.get(d_str)
+            if rec and rec.get("hours"):
+                h = safe_float(rec.get("hours","0"), 0.0)
+                wk_hours += h
+                if h > OVERTIME_HOURS:
+                    wk_overtime_days += 1
+            if rec and rec.get("pay"):
+                wk_gross += safe_float(rec.get("pay","0"), 0.0)
+
+        wk_hours = round(wk_hours, 2)
+        wk_gross = round(wk_gross, 2)
+        wk_tax = round(wk_gross * TAX_RATE, 2)
+        wk_net = round(wk_gross - wk_tax, 2)
+
+        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
+        header_chip = "<span class='chip ok'>Paid</span>" if paid else "<span class='chip warn'>Not paid</span>"
+        header_sub = f"<span class='sub' style='margin-left:10px;'>Paid at: {escape(paid_at)}</span>" if paid and paid_at else ""
+
+        pay_btn = ""
+        if (not paid) and wk_gross > 0:
+            pay_btn = f"""
+              <form method="POST" action="/admin/mark-paid" style="margin:0;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                <input type="hidden" name="user" value="{escape(u)}">
+                <input type="hidden" name="gross" value="{wk_gross}">
+                <input type="hidden" name="tax" value="{wk_tax}">
+                <input type="hidden" name="net" value="{wk_net}">
+                <button class="btnTiny dark" type="submit">Mark Paid</button>
+              </form>
+            """
+
+        overtime_note = ""
+        if wk_overtime_days > 0:
+            overtime_note = f"<span class='overtimeChip'>Overtime days: {wk_overtime_days}</span>"
 
         rows_html = []
-        for it in user_rows:
-            # You already have your row rendering logic elsewhere; keep simple
-            rows_html.append(
-                f"<tr>"
-                f"<td>{escape(it['date'])}</td>"
-                f"<td>{escape(it['cin'])}</td>"
-                f"<td>{escape(it['cout'])}</td>"
-                f"<td class='num'>{escape(it['hours'])}</td>"
-                f"<td class='num'>£{escape(it['pay'])}</td>"
-                f"<td></td>"
-                f"</tr>"
-            )
+        for di in range(7):
+            d_dt = week_start + timedelta(days=di)
+            d_str = d_dt.strftime("%Y-%m-%d")
+            rec = user_days.get(d_str)
+
+            cin = rec["cin"] if rec else ""
+            cout = rec["cout"] if rec else ""
+            hrs = rec["hours"] if rec else ""
+            pay = rec["pay"] if rec else ""
+
+            h_val = safe_float(hrs, 0.0) if str(hrs).strip() != "" else 0.0
+            overtime_row_class = "overtimeRow" if (str(hrs).strip() != "" and h_val > OVERTIME_HOURS) else ""
+
+            if rec:
+                if cout.strip() == "" and cin.strip() != "":
+                    status_html = "<span class='chip bad'>Open</span>"
+                elif cin.strip() and cout.strip():
+                    status_html = "<span class='chip ok'>Complete</span>"
+                else:
+                    status_html = "<span class='chip warn'>Partial</span>"
+            else:
+                status_html = "<span class='chip'>Missing</span>"
+
+            ot_badge = ""
+            if overtime_row_class:
+                ot_badge = "<span class='overtimeChip'>Overtime</span>"
+
+            rows_html.append(f"""
+              <tr class="{overtime_row_class}">
+                <td><b>{day_names[di]}</b></td>
+                <td>{escape(d_str)}</td>
+                <td>
+                  <form method="POST" action="/admin/save-shift" style="margin:0;">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="user" value="{escape(u)}">
+                    <input type="hidden" name="date" value="{escape(d_str)}">
+                    <input class="input" type="time" step="1" name="cin" value="{escape(cin)}" style="margin-top:0; max-width:150px;">
+                </td>
+                <td>
+                    <input class="input" type="time" step="1" name="cout" value="{escape(cout)}" style="margin-top:0; max-width:150px;">
+                </td>
+                <td class="num">
+  <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8.5" style="margin-top:0; width:100%;">
+</td>
+
+<td class="num">
+  <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" style="margin-top:0; width:100%;">
+</td>
+
+                <td style="min-width:260px;">
+                    <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
+                      <input type="checkbox" name="recalc" value="yes">
+                      Recalculate (break deducted)
+                    </label>
+                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
+                      <button class="btnTiny" type="submit">Save</button>
+                      {status_html}
+                      {ot_badge}
+                    </div>
+                  </form>
+                </td>
+              </tr>
+            """)
 
         blocks.append(f"""
           <div class="card" style="padding:12px; margin-top:12px;">
@@ -4043,13 +3988,16 @@ def admin_payroll():
                 <div>
                   <div style="font-weight:600; font-size:16px;">{escape(display)} <span class="sub">({escape(u)})</span></div>
                   <div class="sub" style="margin:4px 0 0 0;">
-                    Week totals: Hours {wk_hours:.2f} • Gross £{money(wk_gross)} • Tax £{money(wk_tax)}
+                    {header_chip}{header_sub}
+                    <span class="sub" style="margin-left:10px;">Week totals: Hours {wk_hours:.2f} • Gross £{money(wk_gross)} • Tax £{money(wk_tax)}</span>
                   </div>
                 </div>
               </div>
 
               <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
                 <span class="netBadge">Weekly Net: £{money(wk_net)}</span>
+                {overtime_note}
+                {pay_btn}
               </div>
             </div>
 
@@ -4057,7 +4005,7 @@ def admin_payroll():
               <table style="min-width:1100px;">
                 <thead>
                   <tr>
-                    <th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num">Hours</th><th class="num">Pay</th><th>Actions</th>
+                    <th>Day</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num">Hours</th><th class="num">Pay</th><th>Actions</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -4065,6 +4013,9 @@ def admin_payroll():
                 </tbody>
               </table>
             </div>
+            <p class="sub" style="margin-top:10px;">
+              Rule: if shift is ≥ {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}h then {UNPAID_BREAK_HOURS}h break is deducted. Overtime highlight: > {OVERTIME_HOURS}h/day.
+            </p>
           </div>
         """)
 
@@ -4094,7 +4045,6 @@ def admin_payroll():
               </div>
             </div>
           </div>
-
           <input type="hidden" name="wk" value="{wk_offset}">
           <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
         </form>
@@ -4105,16 +4055,7 @@ def admin_payroll():
 
         <div class="tablewrap" style="margin-top:12px;">
           <table style="min-width:980px;">
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th class="num">Hours</th>
-                <th class="num">Gross</th>
-                <th class="num">Tax</th>
-                <th class="num">Net</th>
-                <th style="text-align:right;">Paid</th>
-              </tr>
-            </thead>
+            <thead><tr><th>Employee</th><th class="num">Hours</th><th class="num">Gross</th><th class="num">Tax</th><th class="num">Net</th><th style="text-align:right;">Paid</th></tr></thead>
             <tbody>{summary_html}</tbody>
           </table>
         </div>
@@ -4127,10 +4068,8 @@ def admin_payroll():
 
       {''.join(blocks)}
     """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content)
-    )
 
 # ---------- ADMIN ONBOARDING LIST / DETAIL ----------
 @app.get("/admin/onboarding")
@@ -4197,7 +4136,6 @@ def admin_onboarding_list():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
-
 @app.get("/admin/onboarding/<username>")
 def admin_onboarding_detail(username):
     gate = require_admin()
@@ -4215,18 +4153,18 @@ def admin_onboarding_detail(username):
 
     details = ""
     for label, key in [
-        ("Username", "Username"), ("First name", "FirstName"), ("Last name", "LastName"),
-        ("Birth date", "BirthDate"), ("Phone CC", "PhoneCountryCode"), ("Phone", "PhoneNumber"),
-        ("Email", "Email"), ("Street", "StreetAddress"), ("City", "City"), ("Postcode", "Postcode"),
-        ("Emergency contact", "EmergencyContactName"), ("Emergency CC", "EmergencyContactPhoneCountryCode"),
-        ("Emergency phone", "EmergencyContactPhoneNumber"),
-        ("Medical", "MedicalCondition"), ("Medical details", "MedicalDetails"),
-        ("Position", "Position"), ("CSCS number", "CSCSNumber"), ("CSCS expiry", "CSCSExpiryDate"),
-        ("Employment type", "EmploymentType"), ("Right to work UK", "RightToWorkUK"),
-        ("NI", "NationalInsurance"), ("UTR", "UTR"), ("Start date", "StartDate"),
-        ("Bank account", "BankAccountNumber"), ("Sort code", "SortCode"), ("Account holder", "AccountHolderName"),
-        ("Company trading", "CompanyTradingName"), ("Company reg", "CompanyRegistrationNo"),
-        ("Date of contract", "DateOfContract"), ("Site address", "SiteAddress"),
+        ("Username","Username"),("First name","FirstName"),("Last name","LastName"),
+        ("Birth date","BirthDate"),("Phone CC","PhoneCountryCode"),("Phone","PhoneNumber"),
+        ("Email","Email"),("Street","StreetAddress"),("City","City"),("Postcode","Postcode"),
+        ("Emergency contact","EmergencyContactName"),("Emergency CC","EmergencyContactPhoneCountryCode"),
+        ("Emergency phone","EmergencyContactPhoneNumber"),
+        ("Medical","MedicalCondition"),("Medical details","MedicalDetails"),
+        ("Position","Position"),("CSCS number","CSCSNumber"),("CSCS expiry","CSCSExpiryDate"),
+        ("Employment type","EmploymentType"),("Right to work UK","RightToWorkUK"),
+        ("NI","NationalInsurance"),("UTR","UTR"),("Start date","StartDate"),
+        ("Bank account","BankAccountNumber"),("Sort code","SortCode"),("Account holder","AccountHolderName"),
+        ("Company trading","CompanyTradingName"),("Company reg","CompanyRegistrationNo"),
+        ("Date of contract","DateOfContract"),("Site address","SiteAddress"),
     ]:
         details += row(label, key)
 
@@ -4255,6 +4193,7 @@ def admin_onboarding_detail(username):
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+
 
 
 # ---------- ADMIN LOCATIONS (Geofencing) ----------
@@ -4295,18 +4234,18 @@ def admin_locations():
         badge = "<span class='chip ok'>Active</span>" if act_on else "<span class='chip warn'>Inactive</span>"
         return f"""
           <tr>
-            <td><b>{escape(s.get('name', ''))}</b><div class='sub' style='margin:2px 0 0 0;'>{badge}<div class='sub' style='margin:6px 0 0 0;'><a href='/admin/locations?site={escape(s.get('name', ''))}' style='color:var(--navy);font-weight:600;'>View map</a></div></td>
-            <td class='num'>{escape(s.get('lat', ''))}</td>
-            <td class='num'>{escape(s.get('lon', ''))}</td>
-            <td class='num'>{escape(s.get('rad', ''))}</td>
+            <td><b>{escape(s.get('name',''))}</b><div class='sub' style='margin:2px 0 0 0;'>{badge}<div class='sub' style='margin:6px 0 0 0;'><a href='/admin/locations?site={escape(s.get('name',''))}' style='color:var(--navy);font-weight:600;'>View map</a></div></td>
+            <td class='num'>{escape(s.get('lat',''))}</td>
+            <td class='num'>{escape(s.get('lon',''))}</td>
+            <td class='num'>{escape(s.get('rad',''))}</td>
             <td style='min-width:340px;'>
               <form method="POST" action="/admin/locations/save" style="margin:0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                 <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="orig_name" value="{escape(s.get('name', ''))}">
-                <input class="input" name="name" value="{escape(s.get('name', ''))}" placeholder="Site name" style="margin-top:0; max-width:160px;">
-                <input class="input" name="lat" value="{escape(s.get('lat', ''))}" placeholder="Lat" style="margin-top:0; max-width:120px;">
-                <input class="input" name="lon" value="{escape(s.get('lon', ''))}" placeholder="Lon" style="margin-top:0; max-width:120px;">
-                <input class="input" name="rad" value="{escape(s.get('rad', ''))}" placeholder="Radius m" style="margin-top:0; max-width:110px;">
+                <input type="hidden" name="orig_name" value="{escape(s.get('name',''))}">
+                <input class="input" name="name" value="{escape(s.get('name',''))}" placeholder="Site name" style="margin-top:0; max-width:160px;">
+                <input class="input" name="lat" value="{escape(s.get('lat',''))}" placeholder="Lat" style="margin-top:0; max-width:120px;">
+                <input class="input" name="lon" value="{escape(s.get('lon',''))}" placeholder="Lon" style="margin-top:0; max-width:120px;">
+                <input class="input" name="rad" value="{escape(s.get('rad',''))}" placeholder="Radius m" style="margin-top:0; max-width:110px;">
                 <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
                   <input type="checkbox" name="active" value="yes" {"checked" if act_on else ""}>
                   Active
@@ -4315,15 +4254,16 @@ def admin_locations():
               </form>
               <form method="POST" action="/admin/locations/deactivate" style="margin-top:8px;">
                 <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="name" value="{escape(s.get('name', ''))}">
+                <input type="hidden" name="name" value="{escape(s.get('name',''))}">
                 <button class="btnTiny dark" type="submit">Deactivate</button>
               </form>
             </td>
           </tr>
         """
 
-    table_body = "".join(
-        [row_html(r) for r in all_rows]) if all_rows else "<tr><td colspan='5'>No locations yet.</td></tr>"
+    table_body = "".join([row_html(r) for r in all_rows]) if all_rows else "<tr><td colspan='5'>No locations yet.</td></tr>"
+
+
 
     # Map preview (no API key): OpenStreetMap embed for selected site
     selected = (request.args.get("site") or "").strip()
@@ -4350,7 +4290,7 @@ def admin_locations():
             map_card = f"""
               <div class="card" style="padding:12px; margin-top:12px;">
                 <h2>Map preview</h2>
-                <div class="sub" style="margin-top:6px;">{escape(chosen.get('name', ''))} • {escape(chosen.get('lat', ''))}, {escape(chosen.get('lon', ''))}</div>
+                <div class="sub" style="margin-top:6px;">{escape(chosen.get('name',''))} • {escape(chosen.get('lat',''))}, {escape(chosen.get('lon',''))}</div>
                 <div style="margin-top:12px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);">
                   <iframe title="map" src="{osm}" style="width:100%; height:320px; border:0;" loading="lazy"></iframe>
                 </div>
@@ -4422,6 +4362,7 @@ def admin_locations():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
+
 def _find_location_row_by_name(name: str):
     if not locations_sheet:
         return None
@@ -4459,9 +4400,7 @@ def admin_locations_save():
         return redirect("/admin/locations")
 
     try:
-        float(lat);
-        float(lon);
-        float(rad)
+        float(lat); float(lon); float(rad)
     except Exception:
         return redirect("/admin/locations")
 
@@ -4478,8 +4417,7 @@ def admin_locations_save():
         pass
 
     actor = session.get("username", "admin")
-    log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="",
-              details=f"{name} {lat},{lon} r={rad} active={active}")
+    log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="", details=f"{name} {lat},{lon} r={rad} active={active}")
     return redirect("/admin/locations")
 
 
@@ -4525,10 +4463,7 @@ def admin_employee_sites():
 
     if vals:
         headers = vals[0]
-
-        def idx(n):
-            return headers.index(n) if n in headers else None
-
+        def idx(n): return headers.index(n) if n in headers else None
         i_user = idx("Username")
         i_fn = idx("FirstName")
         i_ln = idx("LastName")
@@ -4680,13 +4615,12 @@ def admin_employee_sites_save():
     return redirect("/admin/employee-sites")
 
 
+
+
 # ================= LOCAL RUN =================
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
-
-
-
 
 
 
