@@ -3872,19 +3872,8 @@ def admin_payroll():
         display = get_employee_display_name(u)
         user_days = week_lookup.get(u, {})
 
-        # Show the editable weekly table only if the employee has at least 1 REAL record in this week
-        has_any = False
-        for rec in user_days.values():
-            if isinstance(rec, dict) and (
-                    rec.get("clock_in") or
-                    rec.get("clock_out") or
-                    safe_float(rec.get("hours", "0"), 0.0) > 0 or
-                    safe_float(rec.get("pay", "0"), 0.0) > 0
-            ):
-                has_any = True
-                break
-
-        if not has_any:
+        # Show the editable weekly table only if the employee has at least 1 record in this week
+        if not user_days:
             continue
 
         wk_hours = 0.0
