@@ -1880,7 +1880,6 @@ def require_csrf():
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
 
-
 # ================= ADMIN / SHEET HELPERS =================
 AUDIT_HEADERS = ["Timestamp","Actor","Action","Username","Date","Details"]
 PAYROLL_HEADERS = ["WeekStart","WeekEnd","Username","Gross","Tax","Net","PaidAt","PaidBy"]
@@ -2147,18 +2146,35 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
 
-        for user in employees_sheet.get_all_records():
-            if user.get("Username") == username and is_password_valid(user.get("Password", ""), password):
-                migrate_password_if_plain(username, user.get("Password", ""), password)
+        ip = _client_ip()
+
+        allowed, retry_after = _login_rate_limit_check(ip)
+        if not allowed:
+            log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="", details=f"RetryAfter={retry_after}s")
+            mins = max(1, int(math.ceil(retry_after / 60)))
+            msg = f"Too many login attempts. Try again in {mins} minute(s)."
+        else:
+            ok_user = None
+            for user in employees_sheet.get_all_records():
+                if user.get("Username") == username:
+                    ok_user = user
+                    break
+
+            if ok_user and is_password_valid(ok_user.get("Password", ""), password):
+                _login_rate_limit_clear(ip)
+
+                migrate_password_if_plain(username, ok_user.get("Password", ""), password)
                 session.clear()
                 session["csrf"] = csrf
                 session["username"] = username
-                session["role"] = user.get("Role", "employee")
-                session["rate"] = safe_float(user.get("Rate", 0), 0.0)
-                session["early_access"] = parse_bool(user.get("EarlyAccess", False))
+                session["role"] = ok_user.get("Role", "employee")
+                session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
+                session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
                 return redirect(url_for("home"))
 
-        msg = "Invalid login"
+            _login_rate_limit_hit(ip)
+            log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="", details="Invalid username or password")
+            msg = "Invalid login"
 
     html = f"""
     <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
@@ -3872,8 +3888,19 @@ def admin_payroll():
         display = get_employee_display_name(u)
         user_days = week_lookup.get(u, {})
 
-        # Show the editable weekly table only if the employee has at least 1 record in this week
-        if not user_days:
+        # Show the editable weekly table only if the employee has at least 1 REAL record in this week
+        has_any = False
+        for rec in user_days.values():
+            if isinstance(rec, dict) and (
+                    rec.get("clock_in") or
+                    rec.get("clock_out") or
+                    safe_float(rec.get("hours", "0"), 0.0) > 0 or
+                    safe_float(rec.get("pay", "0"), 0.0) > 0
+            ):
+                has_any = True
+                break
+
+        if not has_any:
             continue
 
         wk_hours = 0.0
