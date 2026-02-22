@@ -1876,9 +1876,41 @@ def get_csrf() -> str:
     return tok
 
 def require_csrf():
+
     if request.method == "POST":
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
+
+# ================= LOGIN RATE LIMIT =================
+LOGIN_MAX_ATTEMPTS = 5
+LOGIN_WINDOW_SECONDS = 10 * 60
+_login_attempts = {}  # ip -> [timestamps]
+
+def _client_ip():
+    xff = (request.headers.get("X-Forwarded-For") or "").strip()
+    if xff:
+        return xff.split(",")[0].strip() or "unknown"
+    return (request.remote_addr or "").strip() or "unknown"
+
+def _login_rate_limit_check(ip):
+    now = time.time()
+    window_start = now - LOGIN_WINDOW_SECONDS
+    arr = _login_attempts.get(ip, [])
+    arr = [t for t in arr if t >= window_start]
+    _login_attempts[ip] = arr
+
+    if len(arr) >= LOGIN_MAX_ATTEMPTS:
+        retry_after = int(max(0, (arr[0] + LOGIN_WINDOW_SECONDS) - now))
+        return False, retry_after
+    return True, 0
+
+def _login_rate_limit_hit(ip):
+    arr = _login_attempts.get(ip, [])
+    arr.append(time.time())
+    _login_attempts[ip] = arr
+
+def _login_rate_limit_clear(ip):
+    _login_attempts.pop(ip, None)
 
 # ================= ADMIN / SHEET HELPERS =================
 AUDIT_HEADERS = ["Timestamp","Actor","Action","Username","Date","Details"]
@@ -2204,7 +2236,41 @@ def login():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{html}")
 
 @app.get("/logout")
+def logout_confirm():
+    gate = require_login()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    role = session.get("role", "employee")
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Logout</h1>
+          <p class="sub">Are you sure you want to log out?</p>
+        </div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+      </div>
+
+      <div class="card" style="padding:14px;">
+        <form method="POST" action="/logout" style="margin:0;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <div class="actionRow" style="grid-template-columns: 1fr 1fr;">
+            <a href="/" style="display:block;">
+              <button class="btnSoft" type="button" style="width:100%;">Cancel</button>
+            </a>
+            <button class="btnOut" type="submit" style="width:100%;">Logout</button>
+          </div>
+        </form>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content))
+
+
+@app.post("/logout")
 def logout():
+    require_csrf()
     session.clear()
     return redirect(url_for("login"))
 
@@ -3298,8 +3364,8 @@ def change_password():
         if stored_pw is None or not is_password_valid(stored_pw, current):
             msg = "Current password is incorrect."
             ok = False
-        elif len(new1) < 4:
-            msg = "New password too short (min 4)."
+        elif len(new1) < 8:
+            msg = "New password too short (min 8)."
             ok = False
         elif new1 != new2:
             msg = "New passwords do not match."
