@@ -3872,6 +3872,10 @@ def admin_payroll():
         display = get_employee_display_name(u)
         user_days = week_lookup.get(u, {})
 
+        # Show the editable weekly table only if the employee has at least 1 record in this week
+        if not user_days:
+            continue
+
         wk_hours = 0.0
         wk_gross = 0.0
         wk_overtime_days = 0
