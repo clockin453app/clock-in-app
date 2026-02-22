@@ -178,13 +178,21 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-CREDENTIALS_FILE = "credentials.json"
-if not os.path.exists(CREDENTIALS_FILE):
-    raise FileNotFoundError(
-        f"{CREDENTIALS_FILE} not found. Put it next to app.py or update CREDENTIALS_FILE."
-    )
+creds_json = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
 
-creds = SACredentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+if creds_json:
+    # Running on Render (env variable set)
+    service_account_info = json.loads(creds_json)
+    creds = SACredentials.from_service_account_info(service_account_info, scopes=SCOPES)
+else:
+    # Running locally (use credentials.json file)
+    CREDENTIALS_FILE = "credentials.json"
+    if not os.path.exists(CREDENTIALS_FILE):
+        raise FileNotFoundError(
+            "credentials.json not found locally and GOOGLE_CREDENTIALS not set."
+        )
+    creds = SACredentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+
 client = gspread.authorize(creds)
 
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
