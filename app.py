@@ -26,9 +26,8 @@ import re
 import time
 import random
 from urllib.parse import urlparse
-
+from google.oauth2.service_account import Credentials as SACredentials
 import gspread
-from oauth2client.service_account import ServiceAccountCredentials
 from flask import Flask, render_template_string, request, redirect, session, url_for, abort
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
@@ -172,22 +171,20 @@ app.config.update(
 
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
 
-
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
-SCOPE = [
-    "https://spreadsheets.google.com/feeds",
+
+SCOPES = [
+    "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive",
 ]
 
-def load_google_creds_dict():
-    raw = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
-    if raw:
-        return json.loads(raw)
-    with open("credentials.json", "r", encoding="utf-8") as f:
-        return json.load(f)
+CREDENTIALS_FILE = "credentials.json"
+if not os.path.exists(CREDENTIALS_FILE):
+    raise FileNotFoundError(
+        f"{CREDENTIALS_FILE} not found. Put it next to app.py or update CREDENTIALS_FILE."
+    )
 
-creds_dict = load_google_creds_dict()
-creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, SCOPE)
+creds = SACredentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
 client = gspread.authorize(creds)
 
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
@@ -1355,7 +1352,42 @@ def _apply_unpaid_break(raw_hours: float) -> float:
         h -= float(UNPAID_BREAK_MINUTES) / 60.0
 
     return max(0.0, h)
+from datetime import datetime, timedelta
 
+def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
+    """
+    Compute payable hours between cin and cout on date_str.
+    Accepts HH:MM or HH:MM:SS. Supports overnight (clock-out past midnight).
+    Applies unpaid break policy and returns a rounded float.
+    """
+    try:
+        d = (date_str or "").strip()
+        t_in = (cin or "").strip()
+        t_out = (cout or "").strip()
+        if not d or not t_in or not t_out:
+            return None
+
+        # Normalize times to HH:MM:SS
+        if len(t_in.split(":")) == 2:
+            t_in = t_in + ":00"
+        if len(t_out.split(":")) == 2:
+            t_out = t_out + ":00"
+
+        start_dt = datetime.strptime(f"{d} {t_in}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+        end_dt = datetime.strptime(f"{d} {t_out}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+
+        # If clock-out earlier than clock-in, assume it crossed midnight
+        if end_dt < start_dt:
+            end_dt = end_dt + timedelta(days=1)
+
+        raw_hours = max(0.0, (end_dt - start_dt).total_seconds() / 3600.0)
+
+        # Apply your unpaid break policy
+        payable = _apply_unpaid_break(raw_hours)
+
+        return round(payable, 2)
+    except Exception:
+        return None
 def safe_float(x, default=0.0):
     try:
         return float(x)
