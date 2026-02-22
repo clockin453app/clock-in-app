@@ -2618,10 +2618,6 @@ def clock_page():
 <div class="card clockCard">
   {timer_html}
 
-  <div class="clockMeta">
-    <span class="chip" id="clockStateChip">Status</span>
-    <span class="sub" style="margin:0;">Tap Clock In/Out — location required</span>
-  </div>
 
   <div class="sub" id="geoStatus" style="margin-top:10px;">📍 Waiting for location…</div>
 
