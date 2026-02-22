@@ -25,8 +25,6 @@ import math
 import re
 import time
 import random
-import logging
-from logging.handlers import RotatingFileHandler
 from urllib.parse import urlparse
 
 import gspread
@@ -1708,47 +1706,6 @@ def get_employee_display_name(username: str) -> str:
     except Exception:
         return username
 
-def _boolish(v: str) -> bool:
-    return str(v or "").strip().lower() not in ("false", "0", "no", "n", "off", "")
-
-
-def _get_employees_index() -> list[dict]:
-    """Returns list of {username, display, active}. Active defaults True if column missing."""
-    out = []
-    try:
-        vals = employees_sheet.get_all_values()
-        if not vals:
-            return out
-        headers = vals[0]
-
-        def idx(n):
-            return headers.index(n) if n in headers else None
-
-        i_user = idx("Username")
-        i_fn = idx("FirstName")
-        i_ln = idx("LastName")
-        i_act = idx("Active")
-        if i_user is None:
-            return out
-
-        for r in vals[1:]:
-            u = (r[i_user] if i_user < len(r) else "").strip()
-            if not u:
-                continue
-            fn = (r[i_fn] if i_fn is not None and i_fn < len(r) else "").strip()
-            ln = (r[i_ln] if i_ln is not None and i_ln < len(r) else "").strip()
-            disp = (fn + " " + ln).strip() or u
-
-            active_val = "TRUE"
-            if i_act is not None and i_act < len(r):
-                active_val = r[i_act]
-
-            out.append({"username": u, "display": disp, "active": _boolish(active_val)})
-    except Exception:
-        return []
-    return out
-
-
 def set_employee_field(username: str, field: str, value: str):
     vals = employees_sheet.get_all_values()
     if not vals:
@@ -2047,36 +2004,6 @@ def bottom_nav(active: str, role: str) -> str:
       </div>
     </div>
     """
-
-def _get_paid_map_for_week(week_start: str, week_end: str) -> dict[str, str]:
-    """Return {username: paid_at} for a given week."""
-    out: dict[str, str] = {}
-    try:
-        _ensure_payroll_headers()
-        vals = payroll_sheet.get_all_values()
-        if not vals or len(vals) < 2:
-            return out
-        headers = vals[0]
-
-        def idx(name):
-            return headers.index(name) if name in headers else None
-
-        i_ws = idx("WeekStart")
-        i_we = idx("WeekEnd")
-        i_u = idx("Username")
-        i_pa = idx("PaidAt")
-
-        for r in vals[1:]:
-            ws = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
-            we = (r[i_we] if i_we is not None and i_we < len(r) else "").strip()
-            uu = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
-            pa = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
-            if ws == week_start and we == week_end and uu and pa:
-                out[uu] = pa
-    except Exception:
-        return out
-    return out
-
 
 def sidebar_html(active: str, role: str) -> str:
     items = [
@@ -3643,21 +3570,6 @@ def admin_save_shift():
     if not username or not date_str:
         return redirect(request.referrer or "/admin/payroll")
 
-    # Block edits if this user's week is marked Paid
-    try:
-        d_dt = datetime.strptime(date_str, "%Y-%m-%d").date()
-        wk_start = d_dt - timedelta(days=d_dt.weekday())
-        wk_end = wk_start + timedelta(days=6)
-        wk_start_str = wk_start.strftime("%Y-%m-%d")
-        wk_end_str = wk_end.strftime("%Y-%m-%d")
-        paid, _paid_at = _is_paid_for_week(wk_start_str, wk_end_str, username)
-        if paid:
-            actor = session.get("username", "admin")
-            log_audit("EDIT_BLOCKED_PAID_WEEK", actor=actor, username=username, date_str=date_str, details="admin/save-shift blocked")
-            return redirect(request.referrer or "/admin/payroll")
-    except Exception:
-        pass
-
     rate = _get_user_rate(username)
 
     hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
@@ -3778,8 +3690,6 @@ def admin_payroll():
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
 
-    emp_filter = (request.args.get("emp", "active") or "active").strip().lower()  # active/all
-
     rows = work_sheet.get_all_values()
 
     today = datetime.now(TZ).date()
@@ -3794,9 +3704,6 @@ def admin_payroll():
     week_end = week_start + timedelta(days=6)
     week_start_str = week_start.strftime("%Y-%m-%d")
     week_end_str = week_end.strftime("%Y-%m-%d")
-
-    # Paid map for this week (performance)
-    paid_map = _get_paid_map_for_week(week_start_str, week_end_str)
 
     def week_label(d0):
         iso = d0.isocalendar()
@@ -3867,14 +3774,14 @@ def admin_payroll():
             "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
         }
 
-    # All users from Employees sheet (with Active filter)
-    emp_index = _get_employees_index()
-    if emp_filter == "active":
-        all_users = [e["username"] for e in emp_index if e.get("active", True)]
-    else:
-        all_users = [e["username"] for e in emp_index]
-
-    if not all_users:
+    # All users from Employees sheet
+    all_users = []
+    try:
+        for rec in employees_sheet.get_all_records():
+            un = (rec.get("Username") or "").strip()
+            if un:
+                all_users.append(un)
+    except Exception:
         all_users = list(by_user.keys())
 
     if q:
@@ -3886,7 +3793,7 @@ def admin_payroll():
         d0 = this_monday - timedelta(days=7*i)
         active = "active" if i == wk_offset else ""
         pills.append(
-            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&emp={escape(emp_filter)}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}'>"
+            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}'>"
             f"{escape(week_label(d0))}</a>"
         )
     week_nav_html = "<div class='weekRow'>" + "".join(pills) + "</div>"
@@ -3910,8 +3817,7 @@ def admin_payroll():
         hours = round(by_user.get(u, {}).get("hours", 0.0), 2)
 
         display = get_employee_display_name(u)
-        paid_at = paid_map.get(u, "")
-        paid = bool(paid_at)
+        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
         paid_line = ""
         if paid:
@@ -4001,8 +3907,7 @@ def admin_payroll():
         wk_tax = round(wk_gross * TAX_RATE, 2)
         wk_net = round(wk_gross - wk_tax, 2)
 
-        paid_at = paid_map.get(u, "")
-        paid = bool(paid_at)
+        paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
         header_chip = "<span class='chip ok'>Paid</span>" if paid else "<span class='chip warn'>Not paid</span>"
         header_sub = f"<span class='sub' style='margin-left:10px;'>Paid at: {escape(paid_at)}</span>" if paid and paid_at else ""
 
@@ -4062,26 +3967,26 @@ def admin_payroll():
                     <input type="hidden" name="csrf" value="{escape(csrf)}">
                     <input type="hidden" name="user" value="{escape(u)}">
                     <input type="hidden" name="date" value="{escape(d_str)}">
-                    <input class="input" type="time" step="1" name="cin" value="{escape(cin)}" {disabled_attr} style="margin-top:0; max-width:150px;">
+                    <input class="input" type="time" step="1" name="cin" value="{escape(cin)}" style="margin-top:0; max-width:150px;">
                 </td>
                 <td>
-                    <input class="input" type="time" step="1" name="cout" value="{escape(cout)}" {disabled_attr} style="margin-top:0; max-width:150px;">
+                    <input class="input" type="time" step="1" name="cout" value="{escape(cout)}" style="margin-top:0; max-width:150px;">
                 </td>
                 <td class="num">
-  <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8.5" {disabled_attr} style="margin-top:0; width:100%;">
+  <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8.5" style="margin-top:0; width:100%;">
 </td>
 
 <td class="num">
-  <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" {disabled_attr} style="margin-top:0; width:100%;">
+  <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" style="margin-top:0; width:100%;">
 </td>
 
                 <td style="min-width:260px;">
                     <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
-                      <input type="checkbox" name="recalc" value="yes" {disabled_attr}>
+                      <input type="checkbox" name="recalc" value="yes">
                       Recalculate (break deducted)
                     </label>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                      {"<span class='chip ok'>Paid (locked)</span>" if locked else "<button class='btnTiny' type='submit'>Save</button>"}
+                      <button class="btnTiny" type="submit">Save</button>
                       {status_html}
                       {ot_badge}
                     </div>
@@ -4131,13 +4036,6 @@ def admin_payroll():
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
 
-    if not blocks:
-        blocks.append("""
-      <div class="card" style="padding:12px; margin-top:12px;">
-        <div class="sub">No records this week.</div>
-      </div>
-        """)
-
     content = f"""
       <div class="headerTop">
         <div>
@@ -4160,15 +4058,6 @@ def admin_payroll():
                 <input class="input" type="date" name="from" value="{escape(date_from)}">
                 <input class="input" type="date" name="to" value="{escape(date_to)}">
               </div>
-            </div>
-          </div>
-          <div class=\"row2\" style=\"margin-top:12px;\">
-            <div>
-              <label class=\"sub\">Employees</label>
-              <select class=\"input\" name=\"emp\">
-                <option value=\"active\" {"selected" if emp_filter=="active" else ""}>Active only</option>
-                <option value=\"all\" {"selected" if emp_filter=="all" else ""}>All employees</option>
-              </select>
             </div>
           </div>
           <input type="hidden" name="wk" value="{wk_offset}">
@@ -4740,23 +4629,6 @@ def admin_employee_sites_save():
 
     return redirect("/admin/employee-sites")
 
-# ---------- Error handlers ----------
-@app.errorhandler(404)
-def not_found(e):
-    content = "<div class='card' style='padding:14px;'><h2>Not found</h2><p class='sub'>That page doesn’t exist.</p></div>"
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", session.get("role","employee"), content)), 404
-
-
-@app.errorhandler(500)
-def server_error(e):
-    try:
-        app.logger.exception("500 error")
-    except Exception:
-        pass
-    content = "<div class='card' style='padding:14px;'><h2>Something went wrong</h2><p class='sub'>Please refresh and try again.</p></div>"
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", session.get("role","employee"), content)), 500
-
-
 
 
 
@@ -4771,17 +4643,4 @@ if __name__ == "__main__":
 
 
 
-
-
-# ---------- Production logging ----------
-if not app.debug:
-    app.logger.setLevel(logging.INFO)
-    try:
-        handler = RotatingFileHandler("app.log", maxBytes=2_000_000, backupCount=2)
-        handler.setLevel(logging.INFO)
-        formatter = logging.Formatter("%(asctime)s %(levelname)s %(message)s")
-        handler.setFormatter(formatter)
-        app.logger.addHandler(handler)
-    except Exception:
-        pass
 
