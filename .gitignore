@@ -1,1 +1,5 @@
 credentials.json
+.idea/
+.continue/
+.venv/
+__pycache__/
