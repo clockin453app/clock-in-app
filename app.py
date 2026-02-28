@@ -21,6 +21,7 @@ import os
 import json
 import io
 import secrets
+import string
 import math
 import re
 import time
@@ -28,13 +29,12 @@ import random
 from urllib.parse import urlparse
 from google.oauth2.service_account import Credentials as SACredentials
 import gspread
-from flask import Flask, render_template_string, request, redirect, session, url_for, abort
+from flask import Flask, request, session, redirect, url_for, render_template_string, abort, make_response, send_file
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
-
+from datetime import date, timedelta
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaIoBaseUpload
-
 from google_auth_oauthlib.flow import Flow
 from google.oauth2.credentials import Credentials as UserCredentials
 from google.auth.transport.requests import Request
@@ -205,6 +205,10 @@ employees_sheet = spreadsheet.worksheet("Employees")
 work_sheet = spreadsheet.worksheet("WorkHours")
 payroll_sheet = spreadsheet.worksheet("PayrollReports")
 onboarding_sheet = spreadsheet.worksheet("Onboarding")
+try:
+    settings_sheet = spreadsheet.worksheet("Settings")
+except Exception:
+    settings_sheet = None
 # Optional (recommended): Admin audit log
 try:
     audit_sheet = spreadsheet.worksheet("AuditLog")
@@ -412,24 +416,26 @@ PWA_TAGS = """
 """
 
 
-# ================= PREMIUM UI =================
+# ================= PREMIUM UI (CLEAN + STABLE) =================
 STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-:root{
-  --bg:#f4f7fb;
-  --card:#ffffff;
-  --text:#0b1220;
-  --muted:#5b667a;
-  --border:rgba(11,18,32,.10);
-  --shadow: 0 10px 28px rgba(11,18,32,.08);
-  --shadow2: 0 16px 46px rgba(11,18,32,.12);
-  --radius: 20px;
 
-  /* Brand: Navy + Green */
-  --navy:#0a2a5e;
-  --navy2:#0b3a7a;
-  --navySoft:rgba(10,42,94,.10);
+:root{
+  --bg:#f7f9fc;
+  --card:#ffffff;
+  --text:#0f172a;
+  --muted:#64748b;
+  --border:rgba(15,23,42,.10);
+  --shadow: 0 10px 28px rgba(15,23,42,.06);
+  --shadow2: 0 16px 46px rgba(15,23,42,.10);
+  --radius: 18px;
+
+  /* Brand (finance blue) */
+  --navy:#1e40af;
+  --navy2:#1e3a8a;
+  --navySoft:rgba(30,64,175,.08);
+
   --green:#16a34a;
   --red:#dc2626;
   --amber:#f59e0b;
@@ -439,33 +445,35 @@ STYLE = """
   --small: clamp(12px, 2vw, 14px);
 }
 
-*{box-sizing:border-box;}
-html,body{height:100%;}
+*{ box-sizing:border-box; }
+html,body{ height:100%; }
+
 body{
   margin:0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background:
-    radial-gradient(950px 520px at 18% 0%, rgba(10,42,94,.12) 0%, rgba(10,42,94,0) 62%),
-    radial-gradient(900px 520px at 82% 10%, rgba(22,163,74,.10) 0%, rgba(22,163,74,0) 62%),
-    linear-gradient(180deg, rgba(255,255,255,.70), rgba(255,255,255,0) 40%),
+    radial-gradient(900px 520px at 18% 0%, rgba(10,42,94,.08) 0%, rgba(10,42,94,0) 60%),
+    linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,0) 45%),
     var(--bg);
   color: var(--text);
   padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
 }
-a{color:inherit;text-decoration:none;}
-h1{font-size:var(--h1); margin:0; font-weight:700; letter-spacing:.2px;}
-h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
-.sub{color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35; font-weight:400;}
+
+a{ color:inherit; text-decoration:none; }
+
+h1{ font-size:var(--h1); margin:0; font-weight:700; letter-spacing:.2px; }
+h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
+.sub{ color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35; font-weight:400; }
 
 .card{
-  background: color-mix(in srgb, var(--card) 88%, rgba(255,255,255,.0));
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
-  backdrop-filter: blur(10px);
   transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
 }
 
+/* Small badge */
 .badge{
   font-size: 12px;
   padding: 7px 10px;
@@ -478,25 +486,25 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
 }
 .badge.admin{
   background: var(--navy);
-  color:#ffffff;
-  border: 1px solid rgba(255,255,255,.12);
+  color:#fff;
+  border-color: rgba(255,255,255,.12);
 }
 
-.menuItem, .btnSoft, .navIcon, .sideItem, .input{
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
-}
-.menuItem:hover, .sideItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-.btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-
+/* Shell */
 .shell{ max-width: 560px; margin: 0 auto; }
 .sidebar{ display:none; }
 .main{ width:100%; }
 
+/* Header top */
 .headerTop{
-  display:flex; align-items:flex-start; justify-content:space-between; gap:12px;
-  margin-bottom: 14px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
 }
 
+/* KPI cards */
 .kpiRow{
   display:grid;
   grid-template-columns: 1fr 1fr;
@@ -504,9 +512,10 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
   margin-top: 12px;
 }
 .kpi{ padding:14px; }
-.kpi .label{font-size:var(--small); color:var(--muted); margin:0; font-weight:400;}
-.kpi .value{font-size: 28px; font-weight:700; margin: 6px 0 0 0; font-variant-numeric: tabular-nums;}
+.kpi .label{ font-size:var(--small); color:var(--muted); margin:0; font-weight:400; }
+.kpi .value{ font-size: 28px; font-weight:700; margin: 6px 0 0 0; font-variant-numeric: tabular-nums; }
 
+/* Graph */
 .graphCard{ margin-top: 12px; padding: 14px; }
 .graphTop{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
 .graphTitle{ font-weight:600; font-size: 16px; }
@@ -530,27 +539,48 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
   box-shadow: 0 8px 18px rgba(10,42,94,.18);
 }
 .barLabels{
-  display:flex; justify-content:space-around; gap:12px;
+  display:flex;
+  justify-content:space-around;
+  gap:12px;
   margin-top: 10px;
   color: var(--muted);
   font-weight:500;
   font-size: 13px;
 }
 
+/* Menu */
 .menu{ margin-top: 14px; padding: 12px; }
+
+.adminGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 6px;
+}
+.adminGrid .menuItem{ margin-top: 0; height:100%; }
+@media (max-width: 780px){
+  .adminGrid{ grid-template-columns: 1fr; }
+}
+
 .menuItem{
-  display:flex; align-items:center; justify-content:space-between; gap:12px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
   padding: 14px 14px;
   border-radius: 18px;
   background: rgba(255,255,255,.85);
   border: 1px solid rgba(11,18,32,.08);
   margin-top: 10px;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
 }
+.menuItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
 .menuItem.active{
   background: var(--navySoft);
-  border-color: rgba(10,42,94,.18);
+  border-color: rgba(30,64,175,.20);
 }
-.menuLeft{display:flex; align-items:center; gap:12px;}
+
+.menuLeft{ display:flex; align-items:center; gap:12px; }
 .icoBox{
   width: 44px; height: 44px;
   border-radius: 14px;
@@ -559,19 +589,22 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
   display:grid; place-items:center;
   color: var(--navy);
 }
-.icoBox svg{ width: 22px; height: 22px; }
+.icoBox svg{ width:22px; height:22px; }
+
 .menuText{
-  font-weight:600;
-  font-size: 18px;
+  font-weight:700;
+  font-size: 16px;
   letter-spacing:.1px;
   color: var(--navy);
 }
 .chev{
   font-size: 26px;
-  color: color-mix(in srgb, var(--navy) 88%, #000);
-  font-weight:600;
+  color: rgba(30,64,175,.95);
+  font-weight:700;
+  opacity:.85;
 }
 
+/* Inputs */
 .input{
   width:100%;
   padding: 12px 12px;
@@ -582,41 +615,17 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
   outline:none;
   margin-top: 8px;
 }
-.input:focus{ border-color: rgba(10,42,94,.35); box-shadow: 0 0 0 3px rgba(10,42,94,.10); }
-
-.row2{ display:grid; grid-template-columns: 1fr 1fr; gap:10px; }
-@media (max-width: 520px){ .row2{ grid-template-columns: 1fr; } }
-
-.message{
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  font-weight:600;
-  text-align:center;
-  background: rgba(22,163,74,.10);
-  border: 1px solid rgba(22,163,74,.18);
+.input:focus{
+  border-color: rgba(30,64,175,.45);
+  box-shadow: 0 0 0 3px rgba(30,64,175,.10);
 }
-.message.error{ background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.20); }
 
-.clockCard{ margin-top: 12px; padding: 14px; }
-.timerBig{
-  font-weight:700;
-  font-size: clamp(26px, 6vw, 36px);
-  margin-top: 6px;
-  font-variant-numeric: tabular-nums;
-}
-.timerSub{ color: var(--muted); font-weight:400; font-size: 13px; margin-top: 6px; }
-.actionRow{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 14px;
-}
+/* Buttons */
 .btn{
   border:none;
   border-radius: 18px;
   padding: 14px 12px;
-  font-weight:600;
+  font-weight:700;
   font-size: 15px;
   cursor:pointer;
   box-shadow: 0 10px 18px rgba(11,18,32,.08);
@@ -624,61 +633,279 @@ h2{font-size:var(--h2); margin: 0 0 8px 0; font-weight:600;}
 }
 .btn:hover{ transform: translateY(-1px); filter: brightness(1.02); }
 .btn:active{ transform: translateY(0px); filter: brightness(.98); }
-.btnIn{ background: var(--green); color: white;}
-.btnOut{ background: var(--red); color: white;}
+.btnIn{ background: var(--green); color:#fff; }
+.btnOut{ background: var(--red); color:#fff; }
 
 .btnSoft{
   width:100%;
   border:none;
   border-radius: 18px;
   padding: 12px 12px;
-  font-weight:600;
+  font-weight:700;
   font-size: 14px;
   cursor:pointer;
-  background: rgba(10,42,94,.10);
+  background: rgba(30,64,175,.10);
   color: var(--navy);
+  transition: transform .16s ease, box-shadow .16s ease;
 }
+.btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
 
 .btnTiny{
-  border:none;
-  border-radius: 14px;
-  padding: 10px 10px;
-  font-weight:600;
-  font-size: 13px;
+  border: 1px solid rgba(15,23,42,.14);
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-weight:700;
+  font-size: 12px;
   cursor:pointer;
-  background: rgba(10,42,94,.10);
-  color: var(--navy);
+  background: rgba(30,64,175,.08);
+  color: rgba(30,64,175,1);
   white-space: nowrap;
 }
-.btnTiny.dark{
-  background: rgba(11,18,32,.10);
-  color: rgba(11,18,32,.90);
+.btnTiny:hover{
+  background: rgba(30,64,175,.14);
+  border-color: rgba(30,64,175,.35);
+}
+.btnTiny.paidDone{
+  background: rgba(22,163,74,.15);
+  border-color: rgba(22,163,74,.22);
+  color: rgba(21,128,61,.95);
+  cursor: default;
+}
+/* Payroll: unpaid "Paid" button = neutral */
+.payrollSheet form .btnTiny:not(.paidDone),
+.payrollSheet form .btnTiny.dark:not(.paidDone){
+  background: transparent;
+  border-color: rgba(15,23,42,.22);
+  color: rgba(15,23,42,.72);
 }
 
-.tablewrap{ margin-top:14px; overflow:auto; border-radius: 18px; border:1px solid rgba(11,18,32,.10); }
-table{ width:100%; border-collapse: collapse; min-width: 720px; background: rgba(255,255,255,.92); }
-th,td{ padding: 10px 10px; border-bottom: 1px solid rgba(11,18,32,.08); text-align:left; font-size: 14px; vertical-align: top;}
-th{ position: sticky; top:0; background: rgba(248,250,252,.96); font-weight:500; }
-table tbody tr:nth-child(even){ background: rgba(11,18,32,.02); }
-table tbody tr:hover{ background: rgba(10,42,94,.04); }
+.payrollSheet form .btnTiny:not(.paidDone):hover,
+.payrollSheet form .btnTiny.dark:not(.paidDone):hover{
+  background: rgba(15,23,42,.06);
+  border-color: rgba(15,23,42,.32);
+  color: rgba(15,23,42,.86);
+}
+/* Messages */
+.message{
+  margin-top: 12px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  font-weight:700;
+  text-align:center;
+  background: rgba(22,163,74,.10);
+  border: 1px solid rgba(22,163,74,.18);
+}
+.message.error{ background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.20); }
 
-/* Pro numeric formatting */
-.num{ text-align:right; font-variant-numeric: tabular-nums; }
+/* Clock */
+.clockCard{ margin-top: 12px; padding: 14px; }
+.timerBig{
+  font-weight:800;
+  font-size: clamp(26px, 6vw, 36px);
+  margin-top: 6px;
+  font-variant-numeric: tabular-nums;
+}
+.timerSub{ color: var(--muted); font-weight:500; font-size: 13px; margin-top: 6px; }
+.actionRow{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+/* Table wrapper (default app tables) */
+.tablewrap{
+  margin-top:14px;
+  overflow:auto;
+  border-radius: 18px;
+  border:1px solid rgba(11,18,32,.10);
+  background: rgba(255,255,255,.65);
+  backdrop-filter: blur(8px);
+}
+
+.tablewrap table{
+  width:100%;
+  border-collapse: collapse;
+  min-width: 720px;
+  background:#fff;
+}
+
+.tablewrap th,
+.tablewrap td{
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(11,18,32,.08);
+  text-align:left;
+  font-size: 14px;
+  vertical-align: middle;
+  color: rgba(11,18,32,.88);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.tablewrap th{
+  position: sticky;
+  top:0;
+  background: rgba(248,250,252,.96);
+  font-weight: 700;
+  color: rgba(11,18,32,.95);
+  letter-spacing:.2px;
+  z-index: 2;
+}
+
+.tablewrap table tbody tr:nth-child(even){ background: rgba(11,18,32,.02); }
+.tablewrap table tbody tr:hover{ background: rgba(30,64,175,.05); }
+
+/* Numeric cells helper */
+.num{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  white-space: nowrap;
+}
+
+/* Make action buttons (Mark Paid / etc.) consistent inside ANY tablewrap */
+.tablewrap td:last-child button,
+.tablewrap td:last-child a{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.14);
+  background: rgba(30,64,175,.08);
+  color: rgba(30,64,175,1);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all .15s ease;
+  white-space: nowrap;
+}
+.tablewrap td:last-child button:hover,
+.tablewrap td:last-child a:hover{
+  background: rgba(30,64,175,.14);
+  border-color: rgba(30,64,175,.35);
+}
+
+/* Status chips */
+.chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight:700;
+  border: 1px solid rgba(11,18,32,.12);
+  background: rgba(255,255,255,.85);
+  color: rgba(11,18,32,.74);
+  white-space: nowrap;
+}
+.chip.ok{
+  background: rgba(22,163,74,.15);
+  border-color: rgba(22,163,74,.22);
+  color: rgba(21,128,61,.95);
+}
+.chip.warn{
+  background: rgba(234,179,8,.16);
+  border-color: rgba(234,179,8,.20);
+  color: rgba(146,64,14,.95);
+}
+.chip.bad{
+  background: rgba(220,38,38,.12);
+  border-color: rgba(220,38,38,.20);
+  color: rgba(185,28,28,.98);
+}
+
+/* Avatar */
+.avatar{
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  display:grid;
+  place-items:center;
+  font-weight:800;
+  color: var(--navy);
+  background: rgba(30,64,175,.08);
+  border: 1px solid rgba(30,64,175,.14);
+}
+
+/* Week selector row */
+.weekRow{
+  margin-top: 10px;
+  display:flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.weekPill{
+  font-size: 12px;
+  padding: 7px 10px;
+  border-radius: 999px;
+  font-weight:700;
+  border: 1px solid rgba(11,18,32,.12);
+  background: rgba(255,255,255,.75);
+  color: rgba(11,18,32,.72);
+}
+.weekPill.active{
+  background: var(--navySoft);
+  border-color: rgba(30,64,175,.20);
+  color: var(--navy);
+}
+
+/* KPI strip */
+.kpiStrip{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+@media (max-width: 800px){
+  .kpiStrip{ grid-template-columns: 1fr 1fr; }
+}
+.kpiMini{
+  padding: 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(11,18,32,.10);
+  background: rgba(255,255,255,.80);
+}
+.kpiMini .k{ font-size: 12px; color: var(--muted); font-weight:600; }
+.kpiMini .v{ margin-top:6px; font-size: 18px; font-weight:800; font-variant-numeric: tabular-nums; }
+
+/* Weekly net badge */
+.netBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(30,64,175,.18);
+  background: rgba(30,64,175,.10);
+  color: var(--navy);
+  font-weight:800;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Row emphasis if gross > 0 */
-.rowHasValue{ background: rgba(10,42,94,.035) !important; }
+.rowHasValue{ background: rgba(30,64,175,.035) !important; }
 
-/* Overtime highlight */
-.overtimeRow{ outline: 2px solid rgba(245,158,11,.30); background: rgba(245,158,11,.06) !important; }
+/* Overtime highlight (thin left marker, no ugly full-row fill) */
+.overtimeRow{
+  background: transparent !important;
+  box-shadow: inset 4px 0 0 rgba(245,158,11,.75);
+}
 .overtimeChip{
-  display:inline-flex; align-items:center;
-  padding: 4px 10px; border-radius:999px;
-  font-size:12px; font-weight:600;
+  display:inline-flex;
+  align-items:center;
+  padding: 4px 10px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
   background: rgba(245,158,11,.14);
   border: 1px solid rgba(245,158,11,.22);
   color: rgba(146,64,14,.95);
 }
 
+/* Contract box */
 .contractBox{
   margin-top: 12px;
   padding: 12px;
@@ -693,14 +920,9 @@ table tbody tr:hover{ background: rgba(10,42,94,.04); }
   line-height: 1.4;
 }
 .bad{ border: 1px solid rgba(220,38,38,.55) !important; box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important; }
-.badLabel{ color: rgba(220,38,38,.92) !important; font-weight:600 !important; }
-.uploadTitle{
-  margin-top: 12px;
-  font-weight:600;
-  font-size: 14px;
-  color: var(--navy);
-}
+.badLabel{ color: rgba(220,38,38,.92) !important; font-weight:800 !important; }
 
+/* Bottom nav (mobile) */
 .bottomNav{
   position: fixed;
   left: 0; right: 0; bottom: 0;
@@ -724,149 +946,13 @@ table tbody tr:hover{ background: rgba(10,42,94,.04); }
   border-radius: 16px;
   display:grid; place-items:center;
   color: var(--navy);
+  transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
 }
-.navIcon.active{ background: rgba(10,42,94,.10); }
+.navIcon.active{ background: rgba(30,64,175,.10); }
 .navIcon svg{ width: 22px; height: 22px; }
-
 .safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
 
-/* Status chips */
-.chip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight:500;
-  border: 1px solid rgba(11,18,32,.12);
-  background: rgba(255,255,255,.80);
-  color: rgba(11,18,32,.76);
-  white-space: nowrap;
-}
-.chip.ok{
-  background: rgba(22,163,74,.15);
-  border-color: rgba(22,163,74,.22);
-  color: rgba(21,128,61,.95);
-}
-.chip.warn{
-  background: rgba(234,179,8,.16);
-  border-color: rgba(234,179,8,.20);
-  color: rgba(146,64,14,.95);
-}
-.chip.bad{
-  background: rgba(220,38,38,.12);
-  border-color: rgba(220,38,38,.20);
-  color: rgba(185,28,28,.98);
-}
-
-/* Avatar bubble */
-.avatar{
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
-  display:grid;
-  place-items:center;
-  font-weight:600;
-  color: var(--navy);
-  background: rgba(10,42,94,.08);
-  border: 1px solid rgba(10,42,94,.14);
-}
-
-/* Week selector row */
-.weekRow{
-  margin-top: 10px;
-  display:flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-.weekPill{
-  font-size: 12px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-weight:500;
-  border: 1px solid rgba(11,18,32,.12);
-  background: rgba(255,255,255,.75);
-  color: rgba(11,18,32,.72);
-}
-.weekPill.active{
-  background: var(--navySoft);
-  border-color: rgba(10,42,94,.18);
-  color: var(--navy);
-}
-
-/* KPI strip */
-.kpiStrip{
-  margin-top: 12px;
-  display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
-}
-@media (max-width: 800px){
-  .kpiStrip{ grid-template-columns: 1fr 1fr; }
-}
-.kpiMini{
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(11,18,32,.10);
-  background: rgba(255,255,255,.80);
-}
-.kpiMini .k{ font-size: 12px; color: var(--muted); font-weight:400; }
-.kpiMini .v{ margin-top:6px; font-size: 18px; font-weight:600; font-variant-numeric: tabular-nums; }
-
-/* Weekly net badge */
-.netBadge{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(10,42,94,.18);
-  background: rgba(10,42,94,.10);
-  color: var(--navy);
-  font-weight:600;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Dark mode toggle */
-body.dark{
-  --bg:#081225;
-  --card:#0b1730;
-  --text:#e7edf7;
-  --muted:#a6b0c4;
-  --border:rgba(255,255,255,.10);
-  --shadow: 0 10px 28px rgba(0,0,0,.35);
-  --shadow2: 0 16px 46px rgba(0,0,0,.45);
-}
-body.dark .menuItem,
-body.dark .sideItem,
-body.dark table,
-body.dark .input,
-body.dark .kpiMini{
-  background: rgba(255,255,255,.04) !important;
-}
-body.dark th{
-  background: rgba(255,255,255,.06) !important;
-}
-.themeToggle{
-  position: fixed;
-  top: 14px;
-  right: 14px;
-  z-index: 999;
-  width: 44px; height: 44px;
-  border-radius: 16px;
-  border: 1px solid var(--border);
-  background: rgba(255,255,255,.85);
-  backdrop-filter: blur(10px);
-  display:grid;
-  place-items:center;
-  cursor:pointer;
-  box-shadow: var(--shadow);
-  font-weight:600;
-}
-body.dark .themeToggle{ background: rgba(255,255,255,.06); }
-
-/* ===== Desktop wide layout (FULL WIDTH) ===== */
+/* Desktop wide layout */
 @media (min-width: 980px){
   body{ padding: 18px 18px 22px 18px; }
   .shell{
@@ -888,6 +974,10 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
     height: calc(100vh - 36px);
     overflow: hidden;
     padding: 14px;
+    background: rgba(255,255,255,.70);
+    border: 1px solid rgba(11,18,32,.10);
+    border-radius: 18px;
+    box-shadow: var(--shadow);
   }
   .sideScroll{
     overflow:auto;
@@ -895,7 +985,7 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
     flex: 1 1 auto;
   }
   .sideTitle{
-    font-weight:600;
+    font-weight:800;
     font-size: 14px;
     color: rgba(11,18,32,.80);
     margin: 0 0 10px 2px;
@@ -910,13 +1000,29 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
     background: rgba(255,255,255,.85);
     border: 1px solid rgba(11,18,32,.08);
     margin-top: 10px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
   }
+  .sideItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
   .sideItem.active{
     background: var(--navySoft);
-    border-color: rgba(10,42,94,.16);
+    border-color: rgba(30,64,175,.18);
+    box-shadow: 0 16px 46px rgba(11,18,32,.12);
+  }
+  .sideItem.active:before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:10px;
+    bottom:10px;
+    width:4px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(30,64,175,1), rgba(30,64,175,.55));
+    box-shadow: 0 0 0 3px rgba(30,64,175,.10);
   }
   .sideLeft{ display:flex; align-items:center; gap:12px; }
-  .sideText{ font-weight:600; font-size: 15px; letter-spacing:.1px; }
+  .sideText{ font-weight:800; font-size: 15px; letter-spacing:.1px; }
   .sideIcon{
     width: 40px; height: 40px;
     border-radius: 14px;
@@ -932,6 +1038,7 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
     background: rgba(11,18,32,.12);
     margin: 10px 0 6px 0;
   }
+
   .logoutBtn{
     margin-top: 2px;
     background: rgba(220,38,38,.08);
@@ -941,270 +1048,208 @@ body.dark .themeToggle{ background: rgba(255,255,255,.06); }
   .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
 }
 
+/* ================= PAYROLL SHEET (Spreadsheet style) ================= */
+.payrollWrap{
+  margin-top:14px;
+  background:#fff;
+  border:1px solid rgba(15,23,42,.12);
+  border-radius: 14px;
+  overflow:auto;
+  box-shadow: var(--shadow);
+}
+
+.payrollTitleRow{
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap:12px;
+  padding: 14px 14px 10px 14px;
+  border-bottom:1px solid rgba(15,23,42,.08);
+}
+.payrollTitleRow .title{
+  font-weight:800;
+  font-size: 18px;
+  margin:0;
+}
+.payrollTitleRow .sub{
+  margin:4px 0 0 0;
+  color: rgba(15,23,42,.62);
+  font-size: 13px;
+}
+
+.payrollSheet{
+  width:100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  min-width: 1100px;
+  background:#fff;
+}
+
+.payrollSheet tbody tr:hover td{
+  background: rgba(30,64,175,.14);
+}
+.payrollSheet tbody tr:hover td:first-child{
+  box-shadow: inset 3px 0 0 rgba(30,64,175,.45);
+}
+/* Let zebra show through disabled inputs in the weekly grid */
+.payrollSheet input:disabled,
+.payrollSheet select:disabled{
+  background: transparent;
+}
+.payrollSheet input:disabled,
+.payrollSheet select:disabled{
+  background: transparent;
+}
+
+/* PASTE THIS RIGHT HERE */
+.payrollSheet input[type="time"]{
+  font-weight: 800;
+  color: rgba(2,6,23,.98);
+}
+.payrollSheet input[type="time"]:disabled{
+  opacity: 1;
+  -webkit-text-fill-color: rgba(2,6,23,.98);
+}
+/* END PASTE */
+.payrollSheet th{
+  border:1px solid rgba(15,23,42,.10);
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.2;
+  vertical-align: middle;
+  background:#fff;               /* header stays white */
+  color: rgba(11,18,32,.88);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+.payrollSheet td{
+  border:1px solid rgba(15,23,42,.10);
+  padding: 8px 10px;
+  font-size: 15px;
+  line-height: 1.35;
+  vertical-align: middle;
+  background: transparent;       /* allow zebra to show */
+  color: rgba(11,18,32,.88);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  font-weight: 750;
+  color: rgba(2,6,23,.92);
+}
+/* Net column: yellow CELL, normal text */
+.payrollSheet td.net{
+  background: rgba(250,204,21,.22);   /* soft yellow */
+  color: rgba(2,6,23,.92);            /* normal/dark text */
+  font-weight: 800;
+}
+.payrollSheet thead th{
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: #f8fafc;
+  font-weight: 1100;
+  color: rgba(15,23,42,.86);
+    font-size: 13px;
+  letter-spacing: .3px;
+  text-transform: none;
+}
+
+.payrollSheet thead tr.group th{
+  background: #eef2ff;
+  color: rgba(30,64,175,1);
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .6px;
+  font-size: 11px;
+}
+
+.payrollSheet thead tr.cols th{
+  background: #f8fafc;
+  font-weight: 800;
+  font-size: 12px;
+}
+
+.payrollSheet .num{ text-align:right; white-space:nowrap; }
+.payrollSheet .emp{ font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.payrollSheet .empSub{
+  display:block;
+  font-weight:600;
+  color: rgba(15,23,42,.55);
+  margin-top: 2px;
+  font-size: 12px;
+}
+
+.payrollSheet input,
+.payrollSheet select{
+  width: 100%;
+  height: 30px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  border: 1px solid rgba(15,23,42,.14);
+  background: #fff;
+  font-size: 13px;
+  outline: none;
+}
+.payrollSheet input:focus,
+.payrollSheet select:focus{
+  border-color: rgba(30,64,175,.45);
+  box-shadow: 0 0 0 3px rgba(30,64,175,.10);
+}
+
+.payrollSheet tfoot td{
+  background:#f8fafc;
+  font-weight: 900;
+}
+
+.payrollSheet .net{
+  background: rgba(34,197,94,.08);
+  font-weight: 900;
+}
+
+/* Mark Paid button inside payroll sheet */
+.payrollWrap button,
+.payrollWrap a{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(15,23,42,.14);
+  background: rgba(30,64,175,.08);
+  color: rgba(30,64,175,1);
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: all .15s ease;
+  white-space: nowrap;
+}
+.payrollWrap button:hover,
+.payrollWrap a:hover{
+  background: rgba(30,64,175,.14);
+  border-color: rgba(30,64,175,.35);
+}
+/* Keep Net cell yellow even on row hover */
+.payrollSheet tbody tr:hover td.net{
+  background: rgba(250,204,21,.30);
+}
 /* Print tidy */
 @media print{
-  .sidebar, .bottomNav, .themeToggle, button, input, select, .weekRow { display:none !important; }
+  .sidebar, .bottomNav, button, input, select, .weekRow { display:none !important; }
   body{ padding:0 !important; background:#fff !important; }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
-  .card{ box-shadow:none !important; 
-  }
+  .card{ box-shadow:none !important; }
 }
-/* Fix Hours & Pay alignment */
-
-.tablewrap table {
-    width: 100%;
-    table-layout: fixed;
-}
-
-th.num,
-td.num {
-    text-align: center;
-}
-
-td.num input {
-    width: 100%;
-    box-sizing: border-box;
-    text-align: center;
-}
-/* ===== Premium SaaS polish (SAFE: CSS only) ===== */
-
-/* 1) KPI polish */
-.kpiFancy{
-  position: relative;
-  overflow: hidden;
-}
-.kpiFancy:before{
-  content:"";
-  position:absolute;
-  inset:-60px -60px auto auto;
-  width:180px;
-  height:180px;
-  background: radial-gradient(circle at 30% 30%, rgba(10,42,94,.22), rgba(10,42,94,0) 62%);
-  transform: rotate(18deg);
-  pointer-events:none;
-}
-.kpiPrimary:before{
-  background: radial-gradient(circle at 30% 30%, rgba(22,163,74,.22), rgba(22,163,74,0) 62%);
-}
-.kpiTop{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}
-.kpi .value{
-  letter-spacing:.2px;
-}
-
-/* 3) Table premium hover + header */
-.tablewrap{
-  background: rgba(255,255,255,.65);
-  backdrop-filter: blur(8px);
-}
-table tbody tr{
-  transition: transform .14s ease, background .14s ease;
-}
-table tbody tr:hover{
-  transform: translateY(-1px);
-}
-th{
-  letter-spacing:.2px;
-}
-
-/* Desktop: optional sticky first column (SAFE) */
+/* Payroll/admin: hide sidebar to give table full width */
 @media (min-width: 980px){
-  .tablewrap table td:first-child,
-  .tablewrap table th:first-child{
-    position: sticky;
-    left: 0;
-    background: inherit;
-    z-index: 2;
+  .payrollShell{
+    grid-template-columns: 1fr !important;
   }
-  .tablewrap table th:first-child{ z-index: 3; }
-}
-
-/* 4) Sidebar active indicator */
-@media (min-width: 980px){
-  .sidebar{
-    background: rgba(255,255,255,.70);
-  }
-  body.dark .sidebar{
-    background: rgba(255,255,255,.04);
-  }
-  .sideItem{
-    position: relative;
-    overflow: hidden;
-  }
-  .sideItem.active:before{
-    content:"";
-    position:absolute;
-    left:0;
-    top:10px;
-    bottom:10px;
-    width:4px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(10,42,94,1), rgba(22,163,74,.95));
-    box-shadow: 0 0 0 3px rgba(10,42,94,.10);
-  }
-  .sideItem.active{
-    box-shadow: 0 16px 46px rgba(11,18,32,.12);
-  }
-}
-/* ===== Mobile Premium Polish (SAFE: CSS only) ===== */
-
-/* Make everything feel less cramped + more premium on mobile */
-@media (max-width: 980px){
-  body{
-    padding: 14px 12px calc(98px + env(safe-area-inset-bottom)) 12px;
-  }
-
-  /* KPIs: stack nicely and feel stronger */
-  .kpiRow{
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
-  .kpi{
-    padding: 16px;
-    border-radius: 22px;
-  }
-  .kpi .value{
-    font-size: 34px;
-    margin-top: 8px;
-  }
-  .kpi .sub{
-    margin-top: 6px;
-    opacity: .95;
-  }
-  .kpiTop .chip{
-    transform: translateY(-1px);
-  }
-
-  /* Cards: slightly deeper and smoother on mobile */
-  .card{
-    border-radius: 22px;
-  }
-
-  /* Menu items: more tappable, more “SaaS” */
-  .menu{
-    padding: 12px;
-  }
-  .menuItem{
-    padding: 16px 14px;
-    border-radius: 20px;
-  }
-  .icoBox{
-    width: 48px;
-    height: 48px;
-    border-radius: 16px;
-  }
-  .menuText{
-    font-size: 17px;
-  }
-  .chev{
-    opacity: .65;
-  }
-
-  /* Buttons: better touch targets */
-  .btn, .btnSoft{
-    border-radius: 20px;
-    padding: 15px 14px;
-  }
-  .btn:active, .btnSoft:active{
-    transform: scale(0.99);
-  }
-
-  /* Clock screen: feel like a “hero” action */
-  .clockCard{
-    padding: 16px;
-    border-radius: 24px;
-  }
-  .timerBig{
-    font-size: 40px;
-    letter-spacing: .6px;
-  }
-  .actionRow{
-    gap: 12px;
-  }
-
-  /* Bottom nav: cleaner premium pill feel */
-  .bottomNav{
-    padding: 10px 12px calc(14px + env(safe-area-inset-bottom)) 12px;
-    border-radius: 24px 24px 0 0;
-    background: rgba(255,255,255,.92);
-  }
-  body.dark .bottomNav{
-    background: rgba(11,23,48,.80);
-    border-top-color: rgba(255,255,255,.10);
-  }
-  .navInner{
-    max-width: 560px;
-  }
-  .navIcon{
-    width: 50px;
-    height: 50px;
-    border-radius: 18px;
-  }
-  .navIcon.active{
-    box-shadow: 0 12px 28px rgba(11,18,32,.12);
-  }
-
-  /* Tables: reduce min-width so it doesn’t feel “broken” on mobile */
-  table{
-    min-width: 640px; /* still scrollable, but less wide */
-  }
-  th, td{
-    padding: 10px 10px;
-  }
-}
-
-/* Slightly stronger dark mode cards on mobile (still safe) */
-@media (max-width: 980px){
-  body.dark .card{
-    background: rgba(255,255,255,.04);
-    border-color: rgba(255,255,255,.10);
-  }
-}
-/* ===== Strong Mobile Clock Feel ===== */
-@media (max-width: 980px){
-
-  .clockCard{
-    padding: 18px;
-    border-radius: 26px;
-    box-shadow: 0 18px 45px rgba(11,18,32,.12);
-  }
-
-  .timerBig{
-    font-size: 42px;
-    letter-spacing: .8px;
-  }
-
-  .clockMeta{
-    margin-top: 8px;
-    margin-bottom: 6px;
-  }
-
-  .clockMeta .chip{
-    background: rgba(10,42,94,.10);
-    border-color: rgba(10,42,94,.18);
-  }
-
-  .btnIn, .btnOut{
-    padding: 18px 14px;
-    font-size: 16px;
-    border-radius: 22px;
-  }
-
-  .btnIn:active,
-  .btnOut:active{
-    transform: scale(0.98);
-  }
-
-  #map{
-    border-radius: 22px;
+  .payrollShell .sidebar{
+    display: none !important;
   }
 }
 </style>
-
 """
 
 
@@ -1339,13 +1384,106 @@ If any part of this agreement is breached or found unenforceable, the remaining 
 
 # ================= HELPERS =================
 
+def _ensure_employees_columns():
+    """Ensure Employees sheet has required columns (append-only)."""
+    if not employees_sheet:
+        return
+    needed = [
+        "Username", "Password", "Role", "Rate",
+        "EarlyAccess", "OnboardingCompleted",
+        "FirstName", "LastName", "Site", "Workplace_ID",
+    ]
+    try:
+        vals = employees_sheet.get_all_values()
+        if not vals:
+            return
+        headers = vals[0] or []
+        if not headers:
+            return
+        missing = [h for h in needed if h not in headers]
+        if not missing:
+            return
+        new_headers = headers + missing
+        end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
+        employees_sheet.update(f"A1:{end_col}1", [new_headers])
+    except Exception:
+        return
 
+
+def _employees_usernames_for_workplace(wp: str) -> set[str]:
+    """Return lowercase set of usernames in Employees for this workplace (if column exists)."""
+    out = set()
+    try:
+        vals = employees_sheet.get_all_values()
+        if not vals:
+            return out
+        headers = vals[0] or []
+        if "Username" not in headers:
+            return out
+        ucol = headers.index("Username")
+        wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+        target_wp = (wp or "").strip() or "default"
+
+        for r in vals[1:]:
+            u = (r[ucol] if ucol < len(r) else "").strip()
+            if not u:
+                continue
+            if wp_col is not None:
+                row_wp = (r[wp_col] if wp_col < len(r) else "").strip() or "default"
+                if row_wp != target_wp:
+                    continue
+            out.add(u.lower())
+    except Exception:
+        pass
+    return out
+
+
+def _slug_login(s: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", (s or "").lower())
+
+
+def _generate_unique_username(first: str, last: str, wp: str) -> str:
+    existing = _employees_usernames_for_workplace(wp)
+
+    base = _slug_login((first[:1] if first else "") + (last or ""))
+    if not base:
+        base = _slug_login(first or last or "user")
+    if not base:
+        base = "user"
+
+    cand = base
+    if cand.lower() not in existing:
+        return cand
+
+    # Try random numeric suffixes (fast, avoids long loops)
+    for _ in range(200):
+        suffix = 1000 + secrets.randbelow(9000)
+        cand = f"{base}{suffix}"
+        if cand.lower() not in existing:
+            return cand
+
+    # Worst-case fallback
+    return f"{base}{secrets.token_hex(2)}"
+
+
+def _generate_temp_password(length: int = 10) -> str:
+    alphabet = string.ascii_letters + string.digits
+    return "".join(secrets.choice(alphabet) for _ in range(max(8, int(length or 10))))
 # --- Break policy (unpaid break) ---------------------------------------------
 # Default: subtract 30 minutes from shifts >= 6 hours.
 UNPAID_BREAK_ENABLED = True
 UNPAID_BREAK_THRESHOLD_HOURS = 6.0
 UNPAID_BREAK_MINUTES = 30
+def _session_workplace_id():
+    return (session.get("workplace_id") or "").strip() or "default"
 
+
+def _row_workplace_id(row):
+    return (row.get("Workplace_ID") or "").strip() or "default"
+
+
+def _same_workplace(row):
+    return _row_workplace_id(row) == _session_workplace_id()
 def _apply_unpaid_break(raw_hours: float) -> float:
     """Return payable hours after applying unpaid break policy."""
     try:
@@ -1361,7 +1499,79 @@ def _apply_unpaid_break(raw_hours: float) -> float:
 
     return max(0.0, h)
 from datetime import datetime, timedelta
+def user_in_same_workplace(username: str) -> bool:
+    target = (username or "").strip()
+    if not target:
+        return False
 
+    current_wp = _session_workplace_id()
+
+    # IMPORTANT: do NOT return on the first match.
+    # If usernames exist in multiple workplaces, check ALL matches.
+    try:
+        for rec in employees_sheet.get_all_records():
+            rec_user = (rec.get("Username") or "").strip()
+            if rec_user != target:
+                continue
+            rec_wp = (rec.get("Workplace_ID") or "").strip() or "default"
+            if rec_wp == current_wp:
+                return True
+        return False
+    except Exception:
+        return False
+def get_company_settings() -> dict:
+    """Return current workplace settings with safe defaults."""
+    defaults = {
+        "Workplace_ID": _session_workplace_id(),
+        "Tax_Rate": 20.0,
+        "Currency_Symbol": "£",
+        "Company_Name": "Main",
+    }
+
+    if not settings_sheet:
+        return defaults
+
+    try:
+        vals = settings_sheet.get_all_values()
+        if not vals or len(vals) < 2:
+            return defaults
+
+        headers = vals[0]
+
+        def idx(name):
+            return headers.index(name) if name in headers else None
+
+        i_wp = idx("Workplace_ID")
+        i_tax = idx("Tax_Rate")
+        i_cur = idx("Currency_Symbol")
+        i_name = idx("Company_Name")
+
+        current_wp = _session_workplace_id()
+
+        for row in vals[1:]:
+            row_wp = ((row[i_wp] if i_wp is not None and i_wp < len(row) else "").strip() or "default")
+            if row_wp != current_wp:
+                continue
+
+            tax_raw = (row[i_tax] if i_tax is not None and i_tax < len(row) else "").strip()
+            cur = (row[i_cur] if i_cur is not None and i_cur < len(row) else "").strip() or defaults["Currency_Symbol"]
+            name = (row[i_name] if i_name is not None and i_name < len(row) else "").strip() or defaults["Company_Name"]
+
+            try:
+                tax = float(tax_raw) if tax_raw != "" else defaults["Tax_Rate"]
+            except Exception:
+                tax = defaults["Tax_Rate"]
+
+            return {
+                "Workplace_ID": current_wp,
+                "Tax_Rate": tax,
+                "Currency_Symbol": cur,
+                "Company_Name": name,
+            }
+
+        return defaults
+    except Exception:
+        return defaults
 def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
     """
     Compute payable hours between cin and cout on date_str.
@@ -1479,12 +1689,18 @@ def _get_employee_sites(username: str) -> list[str]:
         if "Username" not in headers:
             return []
         ucol = headers.index("Username")
+        wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+        current_wp = _session_workplace_id()
         scol = headers.index("Site") if "Site" in headers else None
         s2col = headers.index("Site2") if "Site2" in headers else None
 
         for i in range(1, len(vals)):
             row = vals[i]
             if len(row) > ucol and (row[ucol] or "").strip() == username:
+                if wp_col is not None:
+                    row_wp = (row[wp_col] if len(row) > wp_col else "").strip() or "default"
+                    if row_wp != current_wp:
+                        continue
                 sites: list[str] = []
                 if scol is not None and scol < len(row):
                     raw = (row[scol] or "").strip()
@@ -1529,8 +1745,20 @@ def _get_active_locations() -> list[dict]:
             return out
         headers = vals[0]
         def idx(n): return headers.index(n) if n in headers else None
-        i_name = idx("SiteName"); i_lat = idx("Lat"); i_lon = idx("Lon"); i_rad = idx("RadiusMeters"); i_act = idx("Active")
+
+        i_name = idx("SiteName");
+        i_lat = idx("Lat");
+        i_lon = idx("Lon");
+        i_rad = idx("RadiusMeters");
+        i_act = idx("Active")
+        i_wp = idx("Workplace_ID");
+        current_wp = _session_workplace_id()
         for r in vals[1:]:
+            # Workplace filter (only if Locations sheet has Workplace_ID column)
+            if i_wp is not None:
+                row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                if row_wp != current_wp:
+                    continue
             name = (r[i_name] if i_name is not None and i_name < len(r) else "").strip()
             if not name:
                 continue
@@ -1663,21 +1891,65 @@ def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
     return now_dt.strftime("%H:%M:%S")
 
 def has_any_row_today(rows, username: str, today_str: str) -> bool:
+    u = (username or "").strip()
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    current_wp = _session_workplace_id()
+
     for r in rows[1:]:
-        if len(r) > COL_DATE and r[COL_USER] == username and r[COL_DATE] == today_str:
+        if len(r) <= COL_DATE or len(r) <= COL_USER:
+            continue
+
+        row_user = (r[COL_USER] or "").strip()
+        if row_user != u:
+            continue
+
+        # Prefer WorkHours row workplace if the column exists
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            # Backward compat (older sheets)
+            if not user_in_same_workplace(row_user):
+                continue
+
+        if (r[COL_DATE] or "").strip() == today_str:
             return True
+
     return False
 
 def find_open_shift(rows, username: str):
     # Find the most recent row for this user where ClockOut is still blank.
-    # Be tolerant of stray whitespace in cells.
+    # Workplace-safe: if WorkHours has Workplace_ID, require it to match session workplace.
     u = (username or "").strip()
+
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    current_wp = _session_workplace_id()
+
     for i in range(len(rows) - 1, 0, -1):
         r = rows[i]
         if len(r) <= COL_OUT:
             continue
-        if (r[COL_USER] or "").strip() == u and (r[COL_OUT] or "").strip() == "":
+
+        row_user = (r[COL_USER] or "").strip()
+        if row_user != u:
+            continue
+
+        # Prefer WorkHours row workplace if the column exists
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            # Backward-compat fallback (older sheets)
+            if not user_in_same_workplace(row_user):
+                continue
+
+        if (r[COL_OUT] or "").strip() == "":
             return i, (r[COL_DATE] or "").strip(), (r[COL_IN] or "").strip()
+
     return None
 
 
@@ -1690,6 +1962,8 @@ def _find_workhours_row_by_user_date(vals, username: str, date_str: str):
     if not vals or len(vals) < 2:
         return None
     headers = vals[0]
+    wp_idx = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+    current_wp = _session_workplace_id()
     try:
         uidx = headers.index("Username")
     except Exception:
@@ -1705,7 +1979,11 @@ def _find_workhours_row_by_user_date(vals, username: str, date_str: str):
         r = vals[i]
         if len(r) <= max(uidx, didx):
             continue
-        if (r[uidx] or "").strip() == u and (r[didx] or "").strip() == d:
+        row_u = (r[uidx] or "").strip()
+        row_d = (r[didx] or "").strip()
+        row_wp = ((r[wp_idx] if (wp_idx is not None and wp_idx < len(r)) else "").strip() or "default")
+
+        if row_u == u and row_d == d and row_wp == current_wp:
             return i + 1
     return None
 
@@ -1714,14 +1992,30 @@ def find_row_by_username(sheet, username: str):
     vals = sheet.get_all_values()
     if not vals:
         return None
+
     headers = vals[0]
     if "Username" not in headers:
         return None
+
     ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+    current_wp = _session_workplace_id()
+    target = (username or "").strip()
+
     for i in range(1, len(vals)):
         row = vals[i]
-        if len(row) > ucol and row[ucol] == username:
-            return i + 1
+        row_user = (row[ucol] if len(row) > ucol else "").strip()
+        if row_user != target:
+            continue
+
+        # If the sheet has Workplace_ID, require it to match the session workplace
+        if wp_col is not None:
+            row_wp = (row[wp_col] if len(row) > wp_col else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+
+        return i + 1  # gspread row number (1-based)
+
     return None
 
 def get_employee_display_name(username: str) -> str:
@@ -1729,19 +2023,36 @@ def get_employee_display_name(username: str) -> str:
         vals = employees_sheet.get_all_values()
         if not vals:
             return username
+
         headers = vals[0]
         if "Username" not in headers:
             return username
+
         ucol = headers.index("Username")
+        wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
         fn_col = headers.index("FirstName") if "FirstName" in headers else None
         ln_col = headers.index("LastName") if "LastName" in headers else None
+
+        current_wp = _session_workplace_id()
+        u = (username or "").strip()
+
         for i in range(1, len(vals)):
             row = vals[i]
-            if len(row) > ucol and row[ucol] == username:
-                fn = row[fn_col] if fn_col is not None and fn_col < len(row) else ""
-                ln = row[ln_col] if ln_col is not None and ln_col < len(row) else ""
-                full = (fn + " " + ln).strip()
-                return full or username
+            row_user = (row[ucol] if len(row) > ucol else "").strip()
+            if row_user != u:
+                continue
+
+            # If Workplace_ID exists, require it to match session workplace
+            if wp_col is not None:
+                row_wp = ((row[wp_col] if len(row) > wp_col else "").strip() or "default")
+                if row_wp != current_wp:
+                    continue
+
+            fn = row[fn_col] if fn_col is not None and fn_col < len(row) else ""
+            ln = row[ln_col] if ln_col is not None and ln_col < len(row) else ""
+            full = (fn + " " + ln).strip()
+            return full or username
+
         return username
     except Exception:
         return username
@@ -1754,11 +2065,18 @@ def set_employee_field(username: str, field: str, value: str):
     if "Username" not in headers or field not in headers:
         return False
     ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     fcol = headers.index(field) + 1
     rownum = None
+    current_wp = _session_workplace_id()
+
     for i in range(1, len(vals)):
         row = vals[i]
-        if len(row) > ucol and row[ucol] == username:
+
+        row_user = (row[ucol] if len(row) > ucol else "").strip()
+        row_wp = ((row[wp_col] if (wp_col is not None and len(row) > wp_col) else "").strip() or "default")
+
+        if row_user == username and row_wp == current_wp:
             rownum = i + 1
             break
     if not rownum:
@@ -1770,22 +2088,35 @@ def set_employee_first_last(username: str, first: str, last: str):
     vals = employees_sheet.get_all_values()
     if not vals:
         return
+
     headers = vals[0]
     if "Username" not in headers:
         return
+
     ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+
     fn_col = headers.index("FirstName") + 1 if "FirstName" in headers else None
     ln_col = headers.index("LastName") + 1 if "LastName" in headers else None
     if not fn_col and not ln_col:
         return
+
+    current_wp = _session_workplace_id()
+
     rownum = None
     for i in range(1, len(vals)):
         row = vals[i]
-        if len(row) > ucol and row[ucol] == username:
+
+        row_user = row[ucol].strip() if len(row) > ucol else ""
+        row_wp = (row[wp_col].strip() if (wp_col is not None and len(row) > wp_col) else "") or "default"
+
+        if row_user == username and row_wp == current_wp:
             rownum = i + 1
             break
+
     if not rownum:
         return
+
     if fn_col:
         employees_sheet.update_cell(rownum, fn_col, first or "")
     if ln_col:
@@ -1799,11 +2130,18 @@ def update_employee_password(username: str, new_password: str) -> bool:
     if "Username" not in headers or "Password" not in headers:
         return False
     ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     pcol = headers.index("Password") + 1
     hashed = generate_password_hash(new_password)
+    current_wp = _session_workplace_id()
+
     for i in range(1, len(vals)):
         row = vals[i]
-        if len(row) > ucol and row[ucol] == username:
+
+        row_user = row[ucol].strip() if len(row) > ucol else ""
+        row_wp = (row[wp_col].strip() if (wp_col is not None and len(row) > wp_col) else "") or "default"
+
+        if row_user == username and row_wp == current_wp:
             employees_sheet.update_cell(i + 1, pcol, hashed)
             return True
     return False
@@ -1818,17 +2156,61 @@ def migrate_password_if_plain(username: str, stored: str, provided: str):
     stored = stored or ""
     if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
         update_employee_password(username, provided)
+def _ensure_onboarding_workplace_header():
+    """Ensure Onboarding sheet has Workplace_ID column (append only; keep existing headers)."""
+    if not onboarding_sheet:
+        return
+    try:
+        vals = onboarding_sheet.get_all_values()
+        if not vals:
+            return
+        headers = vals[0]
+        if not headers or "Username" not in headers:
+            return
+        if "Workplace_ID" in headers:
+            return
 
+        new_headers = headers + ["Workplace_ID"]
+        end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
+        onboarding_sheet.update(range_name+f"A1:{end_col}1", values=[new_heathers])
+    except Exception:
+        return
 def update_or_append_onboarding(username: str, data: dict):
+    _ensure_onboarding_workplace_header()
     headers = get_sheet_headers(onboarding_sheet)
     if not headers or "Username" not in headers:
         raise RuntimeError("Onboarding sheet must have header row with 'Username'.")
-    rownum = find_row_by_username(onboarding_sheet, username)
+
+    vals = onboarding_sheet.get_all_values()
+    if not vals:
+        raise RuntimeError("Onboarding sheet is empty (missing headers).")
+
+    ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+    current_wp = _session_workplace_id()
+
+    # Find row by (Username + Workplace_ID) if Workplace_ID exists
+    rownum = None
+    for i in range(1, len(vals)):
+        row = vals[i]
+        row_u = (row[ucol] if ucol < len(row) else "").strip()
+        if row_u != (username or "").strip():
+            continue
+
+        if wp_col is not None:
+            row_wp = (row[wp_col] if wp_col < len(row) else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+
+        rownum = i + 1
+        break
 
     row_values = []
     for h in headers:
         if h == "Username":
             row_values.append(username)
+        elif h == "Workplace_ID":
+            row_values.append(current_wp)
         else:
             row_values.append(str(data.get(h, "")))
 
@@ -1843,14 +2225,27 @@ def get_onboarding_record(username: str):
     vals = onboarding_sheet.get_all_values()
     if not vals or "Username" not in headers:
         return None
+
     ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+    current_wp = _session_workplace_id()
+
     for i in range(1, len(vals)):
         row = vals[i]
-        if len(row) > ucol and row[ucol] == username:
-            rec = {}
-            for j, h in enumerate(headers):
-                rec[h] = row[j] if j < len(row) else ""
-            return rec
+        row_u = (row[ucol] if ucol < len(row) else "").strip()
+        if row_u != (username or "").strip():
+            continue
+
+        if wp_col is not None:
+            row_wp = (row[wp_col] if wp_col < len(row) else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+
+        rec = {}
+        for j, h in enumerate(headers):
+            rec[h] = row[j] if j < len(row) else ""
+        return rec
+
     return None
 
 def onboarding_details_block(username: str) -> str:
@@ -1916,7 +2311,6 @@ def get_csrf() -> str:
     return tok
 
 def require_csrf():
-
     if request.method == "POST":
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
@@ -1953,8 +2347,8 @@ def _login_rate_limit_clear(ip):
     _login_attempts.pop(ip, None)
 
 # ================= ADMIN / SHEET HELPERS =================
-AUDIT_HEADERS = ["Timestamp","Actor","Action","Username","Date","Details"]
-PAYROLL_HEADERS = ["WeekStart","WeekEnd","Username","Gross","Tax","Net","PaidAt","PaidBy"]
+AUDIT_HEADERS = ["Timestamp","Actor","Action","Username","Date","Details","Workplace_ID"]
+PAYROLL_HEADERS = ["WeekStart","WeekEnd","Username","Gross","Tax","Net","PaidAt","PaidBy","Paid","Workplace_ID"]
 
 def _ensure_audit_headers():
     if not audit_sheet:
@@ -1966,7 +2360,7 @@ def _ensure_audit_headers():
             return
         headers = vals[0]
         if headers[:len(AUDIT_HEADERS)] != AUDIT_HEADERS:
-            audit_sheet.update("A1:F1", [AUDIT_HEADERS])
+            audit_sheet.update(range_name="A1:G1", values=[AUDIT_HEADERS])
     except Exception:
         return
 
@@ -1977,7 +2371,8 @@ def log_audit(action: str, actor: str = "", username: str = "", date_str: str = 
     try:
         _ensure_audit_headers()
         ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        audit_sheet.append_row([ts, actor or "", action or "", username or "", date_str or "", details or ""])
+        audit_sheet.append_row(
+            [ts, actor or "", action or "", username or "", date_str or "", details or "", _session_workplace_id()])
     except Exception:
         return
 
@@ -1985,7 +2380,7 @@ def _ensure_locations_headers():
     """Ensure Locations sheet has required headers."""
     if not locations_sheet:
         return
-    required = ["SiteName","Lat","Lon","RadiusMeters","Active"]
+    required = ["SiteName", "Lat", "Lon", "RadiusMeters", "Active", "Workplace_ID"]
     try:
         vals = locations_sheet.get_all_values()
         if not vals:
@@ -2029,7 +2424,9 @@ def _append_paid_record_safe(week_start: str, week_end: str, username: str, gros
         if paid:
             return
         paid_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        payroll_sheet.append_row([week_start, week_end, username, money(gross), money(tax), money(net), paid_at, paid_by])
+        payroll_sheet.append_row(
+            [week_start, week_end, username, money(gross), money(tax), money(net), paid_at, paid_by, "",
+             _session_workplace_id()])
         log_audit("MARK_PAID", actor=paid_by, username=username, date_str=f"{week_start}..{week_end}", details=f"gross={gross} tax={tax} net={net}")
     except Exception:
         return
@@ -2044,15 +2441,25 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
         headers = vals[0]
         def idx(name):
             return headers.index(name) if name in headers else None
-        i_ws = idx("WeekStart"); i_we = idx("WeekEnd"); i_u = idx("Username"); i_pa = idx("PaidAt")
+
+        i_ws = idx("WeekStart");
+        i_we = idx("WeekEnd");
+        i_u = idx("Username");
+        i_pa = idx("PaidAt");
+        i_wp = idx("Workplace_ID")
         paid_at = ""
+        current_wp = _session_workplace_id()
+
         for r in vals[1:]:
             ws = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
             we = (r[i_we] if i_we is not None and i_we < len(r) else "").strip()
             uu = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
-            if ws == week_start and we == week_end and uu == username:
+            wp = ((r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip() or "default")
+
+            if ws == week_start and we == week_end and uu == username and wp == current_wp:
                 paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
-        return (paid_at != "", paid_at)
+                return (paid_at != "", paid_at)
+        return (False, "")
     except Exception:
         return (False, "")
 
@@ -2121,33 +2528,16 @@ def sidebar_html(active: str, role: str) -> str:
       </div>
     """
 
-def layout_shell(active: str, role: str, content_html: str) -> str:
-    theme_toggle = """
-    <button class="themeToggle" id="themeToggle" title="Toggle dark mode">☾</button>
-    <script>
-    (function(){
-      const key="wh_theme";
-      const btn=document.getElementById("themeToggle");
-      const set=(v)=>{ document.body.classList.toggle("dark", v==="dark"); btn.textContent = (v==="dark") ? "☀" : "☾"; };
-      const saved=localStorage.getItem(key) || "light";
-      set(saved);
-      btn.addEventListener("click", ()=>{
-        const now = document.body.classList.contains("dark") ? "light" : "dark";
-        localStorage.setItem(key, now);
-        set(now);
-      });
-    })();
-    </script>
-    """
+def layout_shell(active: str, role: str, content_html: str, shell_class: str = "") -> str:
+    extra = f" {shell_class}" if shell_class else ""
     return f"""
-      <div class="shell">
+      <div class="shell{extra}">
         {sidebar_html(active, role)}
         <div class="main">
           {content_html}
           <div class="safeBottom"></div>
         </div>
       </div>
-      {theme_toggle}
       {bottom_nav(active if active in ('home','clock','times','reports','profile') else 'home', role)}
     """
 
@@ -2217,6 +2607,7 @@ def login():
         require_csrf()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
+        workplace_id = (request.form.get("workplace_id", "") or "").strip() or "default"
 
         ip = _client_ip()
 
@@ -2228,7 +2619,9 @@ def login():
         else:
             ok_user = None
             for user in employees_sheet.get_all_records():
-                if user.get("Username") == username:
+                row_user = (user.get("Username") or "").strip()
+                row_wp = (user.get("Workplace_ID") or "").strip() or "default"  # backward-compatible
+                if row_user == username and row_wp == workplace_id:
                     ok_user = user
                     break
 
@@ -2239,7 +2632,8 @@ def login():
                 session.clear()
                 session["csrf"] = csrf
                 session["username"] = username
-                session["role"] = ok_user.get("Role", "employee")
+                session["workplace_id"] = workplace_id
+                session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
                 session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
                 session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
                 return redirect(url_for("home"))
@@ -2264,6 +2658,8 @@ def login():
             <input type="hidden" name="csrf" value="{escape(csrf)}">
             <label class="sub">Username</label>
             <input class="input" name="username" required>
+            <label class="sub" style="margin-top:10px; display:block;">Workplace ID</label>
+            <input class="input" name="workplace_id" value="" placeholder="e.g. default" required>
             <label class="sub" style="margin-top:10px; display:block;">Password</label>
             <input class="input" type="password" name="password" required>
             <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
@@ -2325,10 +2721,15 @@ def home():
     username = session["username"]
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
 
     now = datetime.now(TZ)
     today = now.date()
     rows = work_sheet.get_all_values()
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    current_wp = _session_workplace_id()
 
     monday = today - timedelta(days=today.weekday())
 
@@ -2344,8 +2745,18 @@ def home():
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        if (r[COL_USER] or "").strip() != username:
-            continue
+        if len(r) <= COL_USER:
+                continue
+        row_user = (r[COL_USER] or "").strip()
+        # Workplace filter (prefer WorkHours row Workplace_ID)
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            # Backward compat if WorkHours has no Workplace_ID column
+            if not user_in_same_workplace(row_user):
+                continue
         if not r[COL_PAY]:
             continue
         try:
@@ -2389,7 +2800,7 @@ def home():
       <p class="label">Previous Gross</p>
       <span class="chip">Week total</span>
     </div>
-    <p class="value">£{money(prev_gross)}</p>
+    <p class="value">{escape(currency)}{money(prev_gross)}</p>
     <p class="sub">Sum of prior 4 weeks</p>
   </div>
 
@@ -2401,7 +2812,7 @@ def home():
         {money(((curr_gross - prev_gross) / (prev_gross if prev_gross > 0 else 1.0)) * 100.0)}%
       </span>
     </div>
-    <p class="value">£{money(curr_gross)}</p>
+    <p class="value">{escape(currency)}{money(curr_gross)}</p>
     <p class="sub">This week (so far)</p>
   </div>
 </div>
@@ -2512,8 +2923,11 @@ def clock_page():
                         cin = normalized_clock_in_time(now, early_access)
                         # Append base columns
                         _gs_write_with_retry(
-    lambda: work_sheet.append_row([username, today_str, cin, "", "", ""], value_input_option="USER_ENTERED")
-)
+                            lambda: work_sheet.append_row(
+                                values=[username, today_str, cin, "", "", ""],
+                                value_input_option="USER_ENTERED"
+                            )
+                        )
 
                         # Find the row we just added and store geo fields
                         vals = work_sheet.get_all_values()
@@ -2527,6 +2941,7 @@ def clock_page():
                             for k, v in [
                                 ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
                                 ("InSite", cfg.get("name", "")), ("InDistM", int(dist_m)),
+                                ("Workplace_ID", _session_workplace_id()),
                             ]:
                                 c = _col(k)
                                 if c:
@@ -2665,6 +3080,7 @@ def clock_page():
 
         <form method="POST" class="actionRow" id="geoClockForm" style="margin-top:12px;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <input type="hidden" name="action" value="create">
           <input type="hidden" name="action" id="geoAction" value="">
           <input type="hidden" name="lat" id="geoLat" value="">
           <input type="hidden" name="lon" id="geoLon" value="">
@@ -2823,17 +3239,37 @@ def my_times():
     username = session["username"]
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
 
     rows = work_sheet.get_all_values()
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    current_wp = _session_workplace_id()
     body = []
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        if (r[COL_USER] or "").strip() != username:
+        if len(r) <= COL_USER:
             continue
+        row_user = (r[COL_USER] or "").strip()
+        if row_user != username:
+            continue
+
+        # Workplace filter (only if WorkHours has Workplace_ID column)
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            # Backward compat if sheet has no Workplace_ID column
+            if not user_in_same_workplace(row_user):
+                continue
+
+
         body.append(
             f"<tr><td>{escape(r[COL_DATE])}</td><td>{escape(r[COL_IN])}</td>"
-            f"<td>{escape(r[COL_OUT])}</td><td class='num'>{escape(r[COL_HOURS])}</td><td class='num'>£{escape(r[COL_PAY])}</td></tr>"
+            f"<td>{escape(r[COL_OUT])}</td><td class='num'>{escape(r[COL_HOURS])}</td><td class='num'>{escape(currency)}{escape(r[COL_PAY])}</td></tr>"
         )
     table = "".join(body) if body else "<tr><td colspan='5'>No records yet.</td></tr>"
 
@@ -2846,7 +3282,7 @@ def my_times():
         <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
-      <div class="card" style="padding:12px;">
+      <div class="card payrollShell" style="padding:12px;">
         <div class="tablewrap">
           <table style="min-width:640px;">
             <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num" style="text-align:center;">Hours</th>
@@ -2876,6 +3312,9 @@ def my_reports():
     week_start = today - timedelta(days=today.weekday())
 
     rows = work_sheet.get_all_values()
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    current_wp = _session_workplace_id()
     daily_hours = daily_pay = 0.0
     weekly_hours = weekly_pay = 0.0
     monthly_hours = monthly_pay = 0.0
@@ -2885,6 +3324,11 @@ def my_reports():
             continue
         if (r[COL_USER] or "").strip() != username:
             continue
+        # Workplace filter (only if WorkHours has Workplace_ID column)
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
         if not r[COL_HOURS]:
             continue
         try:
@@ -2906,14 +3350,17 @@ def my_reports():
             monthly_pay += pay
 
     def gross_tax_net(gross):
-        tax = round(gross * TAX_RATE, 2)
+        settings = get_company_settings()
+        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
+        tax = round(gross * tax_rate, 2)
         net = round(gross - tax, 2)
         return round(gross, 2), tax, net
 
     d_g, d_t, d_n = gross_tax_net(daily_pay)
     w_g, w_t, w_n = gross_tax_net(weekly_pay)
     m_g, m_t, m_n = gross_tax_net(monthly_pay)
-
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
     content = f"""
       <div class="headerTop">
         <div>
@@ -2926,20 +3373,20 @@ def my_reports():
       <div class="kpiRow">
         <div class="card kpi">
           <p class="label">Today Gross</p>
-          <p class="value">£{money(d_g)}</p>
-          <p class="sub">Hours: {round(daily_hours,2)} • Tax: £{money(d_t)} • Net: £{money(d_n)}</p>
+          <p class="value">{escape(currency)}{money(d_g)}</p>
+          <p class="sub">Hours: {round(daily_hours,2)} • Tax: {escape(currency)}{money(d_t)} • Net: {escape(currency)}{money(d_n)}</p>
         </div>
         <div class="card kpi">
           <p class="label">This Week Gross</p>
-          <p class="value">£{money(w_g)}</p>
-          <p class="sub">Hours: {round(weekly_hours,2)} • Tax: £{money(w_t)} • Net: £{money(w_n)}</p>
+          <p class="value">{escape(currency)}{money(w_g)}</p>
+          <p class="sub">Hours: {round(weekly_hours,2)} • Tax: {escape(currency)}{money(w_t)} • Net: {escape(currency)}{money(w_n)}</p>
         </div>
       </div>
 
       <div class="card kpi" style="margin-top:12px;">
         <p class="label">This Month Gross</p>
-        <p class="value">£{money(m_g)}</p>
-        <p class="sub">Hours: {round(monthly_hours,2)} • Tax: £{money(m_t)} • Net: £{money(m_n)}</p>
+        <p class="value">{escape(currency)}{money(m_g)}</p>
+<p class="sub">Hours: {round(monthly_hours,2)} • Tax: {escape(currency)}{money(m_t)} • Net: {escape(currency)}{money(m_n)}</p>
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
@@ -3130,6 +3577,7 @@ def onboarding():
             set_employee_first_last(username, first, last)
             if is_final:
                 set_employee_field(username, "OnboardingCompleted", "TRUE")
+                set_employee_field(username, "Workplace_ID", _session_workplace_id())
 
             existing = get_onboarding_record(username)
             msg = "Saved draft." if not is_final else "Submitted final successfully."
@@ -3393,6 +3841,8 @@ def change_password():
 
         stored_pw = None
         for user in employees_sheet.get_all_records():
+            if not _same_workplace(user):
+                continue
             if user.get("Username") == username:
                 stored_pw = user.get("Password", "")
                 break
@@ -3464,11 +3914,23 @@ def _get_user_rate(username: str) -> float:
             return safe_float(session.get("rate", 0), 0.0)
         ucol = headers.index("Username")
         rcol = headers.index("Rate") if "Rate" in headers else None
+        wpcol = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+        current_wp = _session_workplace_id()
         for r in vals[1:]:
-            if len(r) > ucol and r[ucol] == username:
-                if rcol is not None and rcol < len(r):
-                    return safe_float(r[rcol], 0.0)
-                break
+            if len(r) <= ucol:
+                continue
+            if (r[ucol] or "").strip() != (username or "").strip():
+                continue
+
+            # Enforce workplace match ONLY if Employees sheet has Workplace_ID
+            if wpcol is not None:
+                row_wp = (r[wpcol] if len(r) > wpcol else "").strip() or "default"
+                if row_wp != current_wp:
+                    continue
+
+            if rcol is not None and rcol < len(r):
+                return safe_float(r[rcol], default=0.0)
+            break
     except Exception:
         pass
     return safe_float(session.get("rate", 0), 0.0)
@@ -3535,6 +3997,12 @@ def admin():
 
     csrf = get_csrf()
 
+    # NEW: currency from Settings
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
+    currency_html = escape(currency)
+    currency_js = currency.replace("\\", "\\\\").replace('"', '\\"')
+
     open_shifts = _get_open_shifts()
     if open_shifts:
         rows = []
@@ -3554,7 +4022,7 @@ def admin():
                 <td>{escape(s['start_label'])}</td>
                 <td class="num"><span class="netBadge" data-live-start="{escape(s['start_iso'])}">00:00:00</span></td>
                 <td class="num" data-est-hours="{escape(s['start_iso'])}">0.00</td>
-                <td class="num" data-est-pay="{escape(s['start_iso'])}" data-rate="{rate}">£0.00</td>
+                <td class="num" data-est-pay="{escape(s['start_iso'])}" data-rate="{rate}">{currency_html}0.00</td>
                 <td style="min-width:240px;">
                   <form method="POST" action="/admin/force-clockout" style="margin:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                     <input type="hidden" name="csrf" value="{escape(csrf)}">
@@ -3586,6 +4054,7 @@ def admin():
             </div>
             <script>
               (function(){{
+                const CURRENCY = "{currency_js}";
                 function pad(n){{ return String(n).padStart(2,"0"); }}
                 function tick(){{
                   const now = new Date();
@@ -3606,6 +4075,7 @@ def admin():
                     let hrs = (now - start) / 3600000.0;
                     if(hrs < 0) hrs = 0;
                     if(hrs >= {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}) hrs = Math.max(0, hrs - {UNPAID_BREAK_HOURS});
+                    hrs = Math.min(hrs, 16);
                     el.textContent = (Math.round(hrs*100)/100).toFixed(2);
                   }});
 
@@ -3616,8 +4086,9 @@ def admin():
                     let hrs = (now - start) / 3600000.0;
                     if(hrs < 0) hrs = 0;
                     if(hrs >= {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}) hrs = Math.max(0, hrs - {UNPAID_BREAK_HOURS});
+                    hrs = Math.min(hrs, 16);
                     const pay = hrs * rate;
-                    el.textContent = "£" + pay.toFixed(2);
+                    el.textContent = CURRENCY + pay.toFixed(2);
                   }});
                 }}
                 tick(); setInterval(tick, 1000);
@@ -3632,6 +4103,28 @@ def admin():
             <p class="sub">No one is currently clocked in.</p>
           </div>
         """
+    employee_options = ""
+    try:
+        vals_emp = employees_sheet.get_all_values()
+        headers_emp = vals_emp[0] if vals_emp else []
+        ucol = headers_emp.index("Username") if "Username" in headers_emp else 0
+        wp_col = headers_emp.index("Workplace_ID") if "Workplace_ID" in headers_emp else None
+        current_wp = _session_workplace_id()
+
+        for r in vals_emp[1:]:
+            u = (r[ucol] if ucol < len(r) else "").strip()
+            if not u:
+                continue
+
+            # Tenant-safe: filter by Employees row Workplace_ID
+            if wp_col is not None:
+                row_wp = (r[wp_col] if wp_col < len(r) else "").strip() or "default"
+                if row_wp != current_wp:
+                    continue
+
+            employee_options += f"<option value='{escape(u)}'>{escape(u)}</option>"
+    except Exception:
+        employee_options = ""
 
     content = f"""
       <div class="headerTop">
@@ -3654,9 +4147,13 @@ def admin():
         <a class="menuItem" href="/admin/locations">
           <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Locations</div></div>
           <div class="chev">›</div>
-        </a>
+          </a>
         <a class="menuItem" href="/admin/employee-sites">
           <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Employee Sites</div></div>
+          <div class="chev">›</div>
+        </a>
+        <a class="menuItem" href="/admin/employees">
+          <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Employees</div></div>
           <div class="chev">›</div>
         </a>
         <a class="menuItem" href="/connect-drive">
@@ -3664,11 +4161,32 @@ def admin():
           <div class="chev">›</div>
         </a>
       </div>
+      <div class="card" style="padding:12px; margin-top:12px;">
+  <h2>Force Clock-In</h2>
+  <p class="sub">Use if someone forgot to clock in (creates/updates today's row).</p>
+  <form method="POST" action="/admin/force-clockin" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <input type="hidden" name="csrf" value="{escape(csrf)}">
+    
+    <input class="input" type="date" name="date" value="{escape(datetime.now(TZ).strftime('%Y-%m-%d'))}" style="margin-top:0; max-width:190px;" required>
+    <select class="input" name="user" style="max-width:260px; margin-top:0;">
+      {employee_options}
+    </select>
 
+    <input class="input" type="time" step="1" name="in_time" style="margin-top:0; max-width:170px;" required>
+
+    <button class="btnTiny" type="submit">Force Clock-In</button>
+  </form>
+</div>
       {open_html}
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
-
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell(
+            active="admin",
+            role="admin",
+            content_html=content,
+            shell_class="payrollShell"
+        )
+    )
 
 @app.post("/admin/save-shift")
 def admin_save_shift():
@@ -3693,7 +4211,12 @@ def admin_save_shift():
     hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
     pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
 
-    if recalc:
+    # Auto-calc when:
+    # - admin ticks "Recalculate", OR
+    # - admin enters Clock In/Out and leaves Hours+Pay blank
+    auto_calc = recalc or (cin and cout and hours_in == "" and pay_in == "")
+
+    if cin and cout and auto_calc:
         computed = _compute_hours_from_times(date_str, cin, cout)
         if computed is not None:
             hours_val = computed
@@ -3711,13 +4234,84 @@ def admin_save_shift():
             work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
             work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
         else:
-            work_sheet.append_row([username, date_str, cin, cout, hours_cell, pay_cell])
+            headers = vals[0] if vals else []
+            new_row = [username, date_str, cin, cout, hours_cell, pay_cell]
+
+            if headers and "Workplace_ID" in headers:
+                wp_idx = headers.index("Workplace_ID")
+                if len(new_row) <= wp_idx:
+                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                new_row[wp_idx] = _session_workplace_id()
+
+            # Pad to header width (prevents misaligned rows if sheet has extra columns)
+            if headers and len(new_row) < len(headers):
+                new_row += [""] * (len(headers) - len(new_row))
+
+            work_sheet.append_row(new_row)
     except Exception:
         pass
 
     return redirect(request.referrer or "/admin/payroll")
 
 
+@app.post("/admin/force-clockin")
+def admin_force_clockin():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    username = (request.form.get("user") or "").strip()
+    in_time = (request.form.get("in_time") or "").strip()  # HH:MM or HH:MM:SS
+    dates = [(d or "").strip() for d in request.form.getlist("date")]
+    dates = [d for d in dates if d]
+    date_str = dates[-1] if dates else datetime.now(TZ).strftime("%Y-%m-%d")
+    if not username or not in_time:
+        return redirect(request.referrer or "/admin")
+
+    # normalize to HH:MM:SS
+    if len(in_time.split(":")) == 2:
+        in_time = in_time + ":00"
+
+    try:
+        vals = work_sheet.get_all_values()
+        headers = vals[0] if vals else []
+
+        # If an open shift already exists, do nothing (avoid duplicates)
+        if find_open_shift(vals, username):
+            return redirect(request.referrer or "/admin")
+
+        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+
+        wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
+
+        if rownum:
+            # Update today's row
+            work_sheet.update_cell(rownum, COL_IN + 1, in_time)
+            if wp_col:
+                work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
+        else:
+            # Create a new row for today
+            new_row = [username, date_str, in_time, "", "", ""]
+
+            if "Workplace_ID" in headers:
+                wp_idx = headers.index("Workplace_ID")
+                if len(new_row) <= wp_idx:
+                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                new_row[wp_idx] = _session_workplace_id()
+
+            # Pad to header width (prevents misaligned rows if sheet has extra columns)
+            if headers and len(new_row) < len(headers):
+                new_row += [""] * (len(headers) - len(new_row))
+
+            work_sheet.append_row(new_row)
+
+    except Exception:
+        pass
+
+    actor = session.get("Username", "admin")
+    log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
+    return redirect(request.referrer or "/admin")
 
 @app.post("/admin/force-clockout")
 def admin_force_clockout():
@@ -3761,7 +4355,7 @@ def admin_force_clockout():
     except Exception:
         pass
 
-    actor = session.get("username", "admin")
+    actor = session.get("Username", "admin")
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d, details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
 
@@ -3780,13 +4374,13 @@ def admin_mark_paid():
     try:
         week_start = (request.form.get("week_start") or "").strip()
         week_end = (request.form.get("week_end") or "").strip()
-        username = (request.form.get("user") or "").strip()
+        username = (request.form.get("user") or request.form.get("username") or "").strip()
 
         gross = safe_float(request.form.get("gross", "0") or "0", 0.0)
         tax = safe_float(request.form.get("tax", "0") or "0", 0.0)
         net = safe_float(request.form.get("net", "0") or "0", 0.0)
 
-        paid_by = session.get("username", "admin")
+        paid_by = session.get("Username") or session.get("username") or "admin"
 
         if week_start and week_end and username:
             _append_paid_record_safe(week_start, week_end, username, gross, tax, net, paid_by)
@@ -3803,12 +4397,17 @@ def admin_payroll():
         return gate
 
     csrf = get_csrf()
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
 
     q = (request.args.get("q", "") or "").strip().lower()
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
 
     rows = work_sheet.get_all_values()
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    current_wp = _session_workplace_id()
 
     today = datetime.now(TZ).date()
     wk_offset_raw = (request.args.get("wk", "0") or "0").strip()
@@ -3841,6 +4440,16 @@ def admin_payroll():
         if len(r) <= COL_PAY:
             continue
         user = (r[COL_USER] or "").strip()
+
+        # Workplace filter: prefer WorkHours row Workplace_ID (tenant-safe)
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            # Backward compat if WorkHours has no Workplace_ID column
+            if not user_in_same_workplace(user):
+                continue
         d = (r[COL_DATE] or "").strip()
         if not in_range(d):
             continue
@@ -3882,6 +4491,14 @@ def admin_payroll():
         d = (r[COL_DATE] or "").strip()
         if not user or not d:
             continue
+        # Workplace filter for weekly tables (tenant-safe)
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            if not user_in_same_workplace(user):
+                continue
         if d < week_start_str or d > week_end_str:
             continue
         week_lookup.setdefault(user, {})
@@ -3896,6 +4513,8 @@ def admin_payroll():
     all_users = []
     try:
         for rec in employees_sheet.get_all_records():
+            if not _same_workplace(rec):
+                continue
             un = (rec.get("Username") or "").strip()
             if un:
                 all_users.append(un)
@@ -3920,17 +4539,21 @@ def admin_payroll():
     kpi_strip = f"""
       <div class="kpiStrip">
         <div class="kpiMini"><div class="k">Hours</div><div class="v">{round(overall_hours,2)}</div></div>
-        <div class="kpiMini"><div class="k">Gross</div><div class="v">£{money(overall_gross)}</div></div>
-        <div class="kpiMini"><div class="k">Tax</div><div class="v">£{money(overall_tax)}</div></div>
-        <div class="kpiMini"><div class="k">Net</div><div class="v">£{money(overall_net)}</div></div>
+        <div class="kpiMini"><div class="k">Gross</div><div class="v">{escape(currency)}{money(overall_gross)}</div></div>
+        <div class="kpiMini"><div class="k">Tax</div><div class="v">{escape(currency)}{money(overall_tax)}</div></div>
+        <div class="kpiMini"><div class="k">Net</div><div class="v">{escape(currency)}{money(overall_net)}</div></div>
       </div>
     """
 
     # Summary table (polished + paid under name)
     summary_rows = []
+    try:
+        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
+    except Exception:
+        tax_rate = 0.20
     for u in sorted(all_users, key=lambda s: s.lower()):
         gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
-        tax = round(gross * TAX_RATE, 2)
+        tax = round(gross * tax_rate, 2)
         net = round(gross - tax, 2)
         hours = round(by_user.get(u, {}).get("hours", 0.0), 2)
 
@@ -3956,7 +4579,7 @@ def admin_payroll():
                 <input type="hidden" name="gross" value="{gross}">
                 <input type="hidden" name="tax" value="{tax}">
                 <input type="hidden" name="net" value="{net}">
-                <button class="btnTiny dark" type="submit">Mark Paid</button>
+                <button class="btnTiny dark" type="submit">Paid</button>
               </form>
             """
 
@@ -3973,15 +4596,84 @@ def admin_payroll():
           </div>
         """
 
-        summary_rows.append(
-            f"<tr class='{row_class}'>"
-            f"<td>{name_cell}</td>"
-            f"<td class='num'>{hours:.2f}</td><td class='num'>£{money(gross)}</td><td class='num'>£{money(tax)}</td><td class='num'>£{money(net)}</td>"
-            f"<td style='text-align:right;'>{mark_paid_btn}</td>"
-            f"</tr>"
-        )
+        day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-    summary_html = "".join(summary_rows) if summary_rows else "<tr><td colspan='6'>No employees.</td></tr>"
+        sheet_rows = []
+
+        for u in sorted(all_users, key=lambda s: s.lower()):
+            display = get_employee_display_name(u)
+            user_days = week_lookup.get(u, {})
+
+            total_hours = 0.0
+            gross = 0.0
+            tax = 0.0
+            net = 0.0
+
+            cells = []
+
+            # Employee cell
+            cells.append(f"""
+                <td>
+                    <span class="emp">{escape(display)}</span>
+                    <span class="empSub">ID: {escape(u)}</span>
+                </td>
+            """)
+
+            # 7 days
+            # 7 days (week_lookup is keyed by YYYY-MM-DD, and uses cin/cout keys)
+            gross = 0.0
+            total_hours = 0.0
+
+            for di in range(7):
+                d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
+                rec = user_days.get(d_str, {}) if isinstance(user_days, dict) else {}
+
+                cin = (rec.get("cin", "") if isinstance(rec, dict) else "") or ""
+                cout = (rec.get("cout", "") if isinstance(rec, dict) else "") or ""
+                hrs = safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0)
+                pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), default=0.0)
+
+                total_hours += hrs
+                gross += pay
+
+                # step="1" allows HH:MM:SS like 08:00:00
+                cells.append(f"<td><input type='time' step='1' value='{escape(cin)}' disabled></td>")
+                cells.append(f"<td><input type='time' step='1' value='{escape(cout)}' disabled></td>")
+                cells.append(f"<td class='num'>{hrs:.2f}</td>")
+
+            gross = round(gross, 2)
+            tax = round(gross * tax_rate, 2)
+            net = round(gross - tax, 2)
+
+            paid, _paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
+
+            if paid:
+                mark_paid_btn = "<button class='btnTiny paidDone' type='button' disabled>Paid</button>"
+            elif gross > 0:
+                mark_paid_btn = f"""
+                <form method="POST" action="/admin/mark-paid" style="margin:0;">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                    <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                    <input type="hidden" name="user" value="{escape(u)}">
+                    <input type="hidden" name="gross" value="{gross}">
+                    <input type="hidden" name="tax" value="{tax}">
+                    <input type="hidden" name="net" value="{net}">
+                    <button class="btnTiny" type="submit">Paid</button>
+                </form>
+                """
+            else:
+                mark_paid_btn = ""
+
+            cells.append(f"<td class='num'>{total_hours:.2f}</td>")
+            cells.append(f"<td class='num'>{escape(currency)}{money(gross)}</td>")
+            cells.append(f"<td class='num'>{escape(currency)}{money(tax)}</td>")
+            cells.append(f"<td class='num net'>{escape(currency)}{money(net)}</td>")
+            cells.append(f"<td>{mark_paid_btn}</td>")
+
+            sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
+
+        sheet_html = "".join(sheet_rows)
 
     # Per-user weekly editable tables
     day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
@@ -4040,7 +4732,7 @@ def admin_payroll():
                 <input type="hidden" name="gross" value="{wk_gross}">
                 <input type="hidden" name="tax" value="{wk_tax}">
                 <input type="hidden" name="net" value="{wk_net}">
-                <button class="btnTiny dark" type="submit">Mark Paid</button>
+                <button class="btnTiny dark" type="submit">Paid</button>
               </form>
             """
 
@@ -4085,26 +4777,30 @@ def admin_payroll():
                     <input type="hidden" name="csrf" value="{escape(csrf)}">
                     <input type="hidden" name="user" value="{escape(u)}">
                     <input type="hidden" name="date" value="{escape(d_str)}">
-                    <input class="input" type="time" step="1" name="cin" value="{escape(cin)}" style="margin-top:0; max-width:150px;">
+                    <input class="input" type="time" step="1" name="cin" value="{escape(cin)}" style="margin-top:0; max-width:150px;" disabled>
+<input type="hidden" name="cin" value="{escape(cin)}">
                 </td>
                 <td>
-                    <input class="input" type="time" step="1" name="cout" value="{escape(cout)}" style="margin-top:0; max-width:150px;">
+                    <input class="input" type="time" step="1" name="cout" value="{escape(cout)}" style="margin-top:0; max-width:150px;" disabled>
+<input type="hidden" name="cout" value="{escape(cout)}">
                 </td>
                 <td class="num">
-  <input class="input" name="hours" value="{escape(str(hrs))}" placeholder="e.g. 8.5" style="margin-top:0; width:100%;">
+  <input class="input" value="{escape(str(hrs))}" placeholder="" style="margin-top:0; width:100%;" disabled>
+<input type="hidden" name="hours" value="{escape(str(hrs))}">
 </td>
 
 <td class="num">
-  <input class="input" name="pay" value="{escape(str(pay))}" placeholder="e.g. 200" style="margin-top:0; width:100%;">
+<input class="input" value="{escape(str(pay))}" placeholder="" style="margin-top:0; width:100%;" disabled>
+<input type="hidden" name="pay" value="{escape(str(pay))}">
 </td>
 
                 <td style="min-width:260px;">
                     <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
-                      <input type="checkbox" name="recalc" value="yes">
+                      <input type="checkbox" name="recalc" value="yes" disabled>
                       Recalculate (break deducted)
                     </label>
                     <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                      <button class="btnTiny" type="submit">Save</button>
+                      <button class="btnTiny" type="submit" disabled title="Locked. Use Admin force clock-in/out tools.">Save</button>
                       {status_html}
                       {ot_badge}
                     </div>
@@ -4153,6 +4849,9 @@ def admin_payroll():
         """)
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
+    csv_url = "/admin/payroll-report.csv"
+    if request.query_string:
+        csv_url += "?" + request.query_string.decode("utf-8", "ignore")
 
     content = f"""
       <div class="headerTop">
@@ -4183,16 +4882,47 @@ def admin_payroll():
         </form>
 
         {week_nav_html}
+        <div style="margin-top:10px;">
+  <a href="{csv_url}">
+    <button class="btnSoft" type="button" style="padding:10px 14px; border:1px solid #0b1220;">
+      Download CSV
+    </button>
+  </a>
+</div>
 
-        {kpi_strip}
-
-        <div class="tablewrap" style="margin-top:12px;">
-          <table style="min-width:980px;">
-            <thead><tr><th>Employee</th><th class="num">Hours</th><th class="num">Gross</th><th class="num">Tax</th><th class="num">Net</th><th style="text-align:right;">Paid</th></tr></thead>
-            <tbody>{summary_html}</tbody>
-          </table>
-        </div>
-      </div>
+        <div class="payrollWrap" style="margin-top:12px;">
+  <table class="payrollSheet">
+    <thead>
+      <tr class="group">
+        <th rowspan="2" style="width:240px;">Employee</th>
+        <th colspan="3">Mon</th>
+        <th colspan="3">Tue</th>
+        <th colspan="3">Wed</th>
+        <th colspan="3">Thu</th>
+        <th colspan="3">Fri</th>
+        <th colspan="3">Sat</th>
+        <th colspan="3">Sun</th>
+        <th rowspan="2">Total</th>
+        <th rowspan="2">Gross</th>
+        <th rowspan="2">Tax</th>
+        <th rowspan="2">Net</th>
+        <th rowspan="2">Payment</th>
+      </tr>
+      <tr class="cols">
+        <th>In</th><th>Out</th><th>Hrs</th>
+        <th>In</th><th>Out</th><th>Hrs</th>
+        <th>In</th><th>Out</th><th>Hrs</th>
+        <th>In</th><th>Out</th><th>Hrs</th>
+        <th>In</th><th>Out</th><th>Hrs</th>
+        <th>In</th><th>Out</th><th>Hrs</th>
+        <th>In</th><th>Out</th><th>Hrs</th>
+      </tr>
+    </thead>
+    <tbody>
+      {sheet_html}
+    </tbody>
+  </table>
+</div>
 
       <div class="card" style="padding:12px; margin-top:12px;">
         <h2>Weekly History (Editable)</h2>
@@ -4201,9 +4931,322 @@ def admin_payroll():
 
       {''.join(blocks)}
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell(active="admin", role="admin", content_html=content, shell_class="payrollShell")
+    )
+def _get_week_range(wk_offset: int):
+    """
+    Returns (week_start_str, week_end_str) for a Monday->Sunday week,
+    offset by wk_offset weeks (0=this week, 1=previous week, etc).
+    """
+    today = date.today()
+    monday = today - timedelta(days=today.weekday())  # Monday
+    week_start = monday - timedelta(days=7 * int(wk_offset))
+    week_end = week_start + timedelta(days=6)  # Sunday
+    return week_start.strftime("%Y-%m-%d"), week_end.strftime("%Y-%m-%d")
 
+@app.get("/admin/payroll-report.csv")
+def admin_payroll_report_csv():
+    gate = require_admin()
+    if gate:
+        return gate
 
+    # Same filters as payroll report page
+    username_q = (request.args.get("q") or "").strip().lower()
+    date_from = (request.args.get("from") or "").strip()
+    date_to = (request.args.get("to") or "").strip()
+    wk_offset = int(request.args.get("wk") or "0")
+
+    wp = _session_workplace_id()
+    wp = ((wp or "default").strip() or "default")
+
+    # Build the same weekly window you use in the Payroll Report page
+    # (Assumes you already compute week_start/week_end similarly in the page)
+    week_start, week_end = _get_week_range(wk_offset)  # <-- this helper should already exist in your code
+    week_start = str(week_start)
+    week_end = str(week_end)
+    use_range = False
+    range_start = range_end = None
+
+    if date_from and date_to:
+        try:
+            range_start = date.fromisoformat(date_from)
+            range_end = date.fromisoformat(date_to)
+            use_range = True
+            # also make filename/CSV columns show the selected range
+            week_start = date_from
+            week_end = date_to
+        except ValueError:
+            use_range = False
+    debug_lines = [
+        f"# DEBUG week_start={week_start} week_end={week_end} wk={wk_offset} wp={wp}",
+    ]
+    try:
+        payroll_reports_sheet = spreadsheet.worksheet("PayrollReports")
+        pv = payroll_reports_sheet.get_all_values()
+        ph = pv[0] if pv else []
+        debug_lines.append(f"# DEBUG payroll_headers={ph}")
+        for rr in (pv[1:4] if len(pv) > 1 else []):
+            debug_lines.append(f"# DEBUG row_weekstart={rr[0] if len(rr)>0 else ''} row_weekend={rr[1] if len(rr)>1 else ''} row_user={rr[2] if len(rr)>2 else ''}")
+    except Exception as e:
+        debug_lines.append(f"# DEBUG payroll_read_error={e}")
+    # Summarise from PayrollReports (preferred) or WorkHours if your page does so.
+    # We'll reuse your existing helper if present:
+    # Build rows directly from PayrollReports sheet
+        rows = []
+        totals = {}
+
+        def _f(x):
+            try:
+                return float((x or "").strip() or 0)
+            except Exception:
+                return 0.0
+
+        try:
+            payroll_reports_sheet = spreadsheet.worksheet("PayrollReports")
+            vals = payroll_reports_sheet.get_all_values()
+            hdr = vals[0] if vals else []
+
+            def hidx(name):
+                if not hdr:
+                    return None
+                target = (name or "").strip().lower()
+                for i, h in enumerate(hdr):
+                    if (h or "").strip().lower() == target:
+                        return i
+                return None
+
+            i_ws = hidx("WeekStart")
+            i_we = hidx("WeekEnd")
+            i_user = hidx("Username")
+            i_g = hidx("Gross")
+            i_t = hidx("Tax")
+            i_n = hidx("Net")
+            i_paid = hidx("Paid")
+            i_wp = hidx("Workplace_ID")
+
+            for r in (vals[1:] if len(vals) > 1 else []):
+                ws = (r[i_ws] if i_ws is not None and len(r) > i_ws else "").strip()
+                we = (r[i_we] if i_we is not None and len(r) > i_we else "").strip()
+                u = (r[i_user] if i_user is not None and len(r) > i_user else "").strip()
+
+                if use_range:
+                    try:
+                        ws_d = date.fromisoformat(ws)
+                        we_d = date.fromisoformat(we)
+                    except ValueError:
+                        continue
+                    if we_d < range_start or ws_d > range_end:
+                        continue
+                else:
+                    if ws != week_start or we != week_end:
+                        continue
+
+                if i_wp is not None:
+                    rwp = ((r[i_wp] if len(r) > i_wp else "").strip() or "default")
+                    if rwp != wp:
+                        continue
+
+                if username_q and username_q not in u.lower():
+                    continue
+
+                if use_range:
+                    t = totals.setdefault(u, {"Gross": 0.0, "Tax": 0.0, "Net": 0.0})
+                    t["Gross"] += _f(r[i_g] if i_g is not None and len(r) > i_g else "")
+                    t["Tax"] += _f(r[i_t] if i_t is not None and len(r) > i_t else "")
+                    t["Net"] += _f(r[i_n] if i_n is not None and len(r) > i_n else "")
+                else:
+                    rows.append({
+                        "Employee": get_employee_display_name(u),
+                        "Username": u,
+                        "Hours": (r[i_h] if i_h is not None and len(r) > i_h else "").strip(),
+                        "Gross": (r[i_g] if i_g is not None and len(r) > i_g else "").strip(),
+                        "Tax": (r[i_t] if i_t is not None and len(r) > i_t else "").strip(),
+                        "Net": (r[i_n] if i_n is not None and len(r) > i_n else "").strip(),
+                        "Paid": (r[i_paid] if i_paid is not None and len(r) > i_paid else "").strip(),
+                    })
+
+            if use_range:
+                rows = []
+                for u, t in totals.items():
+                    rows.append({
+                        "Employee": get_employee_display_name(u),
+                        "Username": u,
+                        "Hours": "",
+                        "Gross": f'{t["Gross"]:.2f}',
+                        "Tax": f'{t["Tax"]:.2f}',
+                        "Net": f'{t["Net"]:.2f}',
+                        "Paid": "",
+                    })
+
+        except Exception as e:
+            rows = []
+            vals = []
+            hdr = [f"BUILD_ERROR: {e}"]
+            i_ws = i_we = i_user = i_wp = i_g = i_t = i_n = i_paid = None
+
+        def _f(x):
+            try:
+                return float((x or "").strip() or 0)
+            except Exception:
+                return 0.0
+    # rows should be list of dicts:
+    # [{"Employee":..., "Username":..., "Hours":..., "Gross":..., "Tax":..., "Net":..., "Paid":...}, ...]
+    if request.args.get("debug") == "1":
+        pass
+    # --- BUILD ROWS FOR CSV EXPORT (guaranteed in function scope) ---
+    rows = []
+    totals = {}
+    vals = []
+    hdr = []
+
+    def _f(x):
+        try:
+            return float((x or "").strip() or 0)
+        except Exception:
+            return 0.0
+
+    try:
+        payroll_reports_sheet = spreadsheet.worksheet("PayrollReports")
+        vals = payroll_reports_sheet.get_all_values()
+        hdr = vals[0] if vals else []
+
+        def hidx(name):
+            target = (name or "").strip().lower()
+            for i, h in enumerate(hdr):
+                if (h or "").strip().lower() == target:
+                    return i
+            return None
+
+        i_ws = hidx("WeekStart")
+        i_we = hidx("WeekEnd")
+        i_user = hidx("Username")
+        i_h = hidx("Hours") or hidx("Hrs")
+        i_g = hidx("Gross")
+        i_t = hidx("Tax")
+        i_n = hidx("Net")
+        i_paid = hidx("Paid")
+        i_wp = hidx("Workplace_ID")
+
+        if i_ws is None or i_we is None or i_user is None:
+            raise RuntimeError(f"Missing headers: WeekStart/WeekEnd/Username in {hdr}")
+
+        for r in (vals[1:] if len(vals) > 1 else []):
+            ws = ((r[i_ws] if len(r) > i_ws else "") or "").strip()[:10]
+            we = ((r[i_we] if len(r) > i_we else "") or "").strip()[:10]
+            u = ((r[i_user] if len(r) > i_user else "") or "").strip()
+
+            if use_range:
+                try:
+                    ws_d = date.fromisoformat(ws)
+                    we_d = date.fromisoformat(we)
+                except ValueError:
+                    continue
+                if we_d < range_start or ws_d > range_end:
+                    continue
+            else:
+                if ws != str(week_start)[:10] or we != str(week_end)[:10]:
+                    continue
+
+            if i_wp is not None:
+                rwp = (((r[i_wp] if len(r) > i_wp else "") or "").strip() or "default")
+                if rwp != wp:
+                    continue
+
+            if username_q and username_q not in u.lower():
+                continue
+
+            if use_range:
+                t = totals.setdefault(u, {"Gross": 0.0, "Tax": 0.0, "Net": 0.0})
+                t["Gross"] += _f(r[i_g] if i_g is not None and len(r) > i_g else "")
+                t["Tax"] += _f(r[i_t] if i_t is not None and len(r) > i_t else "")
+                t["Net"] += _f(r[i_n] if i_n is not None and len(r) > i_n else "")
+            else:
+                rows.append({
+                    "Employee": get_employee_display_name(u),
+                    "Username": u,
+                    "Hours": "",
+                    "Gross": (r[i_g] if i_g is not None and len(r) > i_g else "").strip(),
+                    "Tax": (r[i_t] if i_t is not None and len(r) > i_t else "").strip(),
+                    "Net": (r[i_n] if i_n is not None and len(r) > i_n else "").strip(),
+                    "Paid": (r[i_paid] if i_paid is not None and len(r) > i_paid else "").strip(),
+                })
+
+        if use_range:
+            rows = []
+            for u, t in totals.items():
+                rows.append({
+                    "Employee": get_employee_display_name(u),
+                    "Username": u,
+                    "Hours": "",
+                    "Gross": f'{t["Gross"]:.2f}',
+                    "Tax": f'{t["Tax"]:.2f}',
+                    "Net": f'{t["Net"]:.2f}',
+                    "Paid": "",
+                })
+
+    except Exception as e:
+        # keep debug visible
+        hdr = [f"BUILD_ERROR: {e}"]
+        rows = []
+        totals = {}
+    # --- END BUILD ---
+        msg = []
+        msg.append(f"wp={wp!r}")
+        msg.append(f"wk_offset={wk_offset} week_start={week_start!r} week_end={week_end!r}")
+        msg.append(f"use_range={use_range} from={date_from!r} to={date_to!r} q={username_q!r}")
+        try:
+            hdr_ = locals().get("hdr", None)
+            vals_ = locals().get("vals", None)
+            rows_ = locals().get("rows", None)
+            totals_ = locals().get("totals", None)
+
+            msg.append(f"hdr={hdr_!r}")
+            msg.append(f"vals_exists={vals_ is not None} rows_exists={rows_ is not None} totals_exists={totals_ is not None}")
+
+            if vals_:
+                msg.append(f"total_rows={len(vals_) - 1}")
+                msg.append(f"sample_rows={vals_[1:6]!r}")
+            if rows_ is not None:
+                msg.append(f"built_rows={len(rows_)}")
+            if totals_ is not None:
+                msg.append(f"totals_count={len(totals_)}")
+        except Exception as e:
+            msg.append(f"debug_error={e}")
+        return make_response("\n".join(msg), 200, {"Content-Type": "text/plain"})
+    import csv
+    from io import StringIO
+    output = StringIO()
+    output.write("sep=,\r\n")  # Excel: force comma delimiter
+    if use_range:
+        output.write("# Note: totals include any payroll weeks that overlap the selected date range.\r\n")
+    w = csv.writer(output)
+    w.writerow(["WeekStart", "WeekEnd", "Employee", "Gross", "Tax", "Net"])
+    rows = locals().get("rows", [])
+    for r in rows:
+        w.writerow([
+            str(week_start),
+            str(week_end),
+            r.get("Employee", ""),
+            r.get("Gross", ""),
+            r.get("Tax", ""),
+            r.get("Net", ""),
+        ])
+
+    csv_text = output.getvalue()
+    buf = io.BytesIO(csv_text.encode("utf-8-sig"))  # Excel-friendly
+    buf.seek(0)
+
+    filename = f"payroll_{week_start}_to_{week_end}.csv"
+
+    return send_file(
+        buf,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name=filename,
+        max_age=0
+    )
 # ---------- ADMIN ONBOARDING LIST / DETAIL ----------
 @app.get("/admin/onboarding")
 def admin_onboarding_list():
@@ -4225,10 +5268,23 @@ def admin_onboarding_list():
         i_fn = idx("FirstName")
         i_ln = idx("LastName")
         i_sub = idx("SubmittedAt")
+        i_wp = idx("Workplace_ID")
+        current_wp = _session_workplace_id()
 
         rows_html = []
         for r in vals[1:]:
             u = r[i_user] if i_user is not None and i_user < len(r) else ""
+            if not u:
+                continue
+            # Tenant-safe: filter by Onboarding row Workplace_ID (if column exists)
+            if i_wp is not None:
+                row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                if row_wp != current_wp:
+                    continue
+            else:
+                # Backward compat if Onboarding has no Workplace_ID column
+                if not user_in_same_workplace(u):
+                    continue
             fn = r[i_fn] if i_fn is not None and i_fn < len(r) else ""
             ln = r[i_ln] if i_ln is not None and i_ln < len(r) else ""
             sub = r[i_sub] if i_sub is not None and i_sub < len(r) else ""
@@ -4274,10 +5330,14 @@ def admin_onboarding_detail(username):
     gate = require_admin()
     if gate:
         return gate
-
     rec = get_onboarding_record(username)
     if not rec:
         abort(404)
+    # Tenant-safe: ensure the record is for the current workplace (if field exists)
+    rec_wp = (rec.get("Workplace_ID") or "").strip() or "default"
+    if rec_wp != _session_workplace_id():
+        abort(404)
+
 
     def row(label, key, link=False):
         v_ = rec.get(key, "")
@@ -4345,8 +5405,15 @@ def admin_locations():
             vals = locations_sheet.get_all_values()
             if vals:
                 headers = vals[0]
+                i_wp = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+                current_wp = _session_workplace_id()
                 rows = vals[1:] if "SiteName" in headers else vals
                 for r in rows:
+                    # Workplace filter (only if Locations has Workplace_ID column)
+                    if i_wp is not None:
+                        row_wp = (r[i_wp] if len(r) > i_wp else "").strip() or "default"
+                        if row_wp != current_wp:
+                            continue
                     if len(r) < 4:
                         continue
                     name = (r[0] or "").strip()
@@ -4503,13 +5570,30 @@ def _find_location_row_by_name(name: str):
         vals = locations_sheet.get_all_values()
         if not vals:
             return None
+
         headers = vals[0]
         start_idx = 1 if "SiteName" in headers else 0
+
+        wp_idx = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+        current_wp = _session_workplace_id()
+
+        target = (name or "").strip().lower()
+        if not target:
+            return None
+
         for i in range(start_idx, len(vals)):
             r = vals[i]
-            n = (r[0] if len(r) > 0 else "").strip()
-            if n.lower() == name.strip().lower():
-                return i + 1
+            n = (r[0] if len(r) > 0 else "").strip().lower()
+            if n != target:
+                continue
+
+            # If Workplace_ID exists, require it to match current workplace
+            if wp_idx is not None:
+                row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+                if row_wp != current_wp:
+                    continue
+
+            return i + 1
     except Exception:
         return None
     return None
@@ -4540,10 +5624,10 @@ def admin_locations_save():
     _ensure_locations_headers()
 
     rownum = _find_location_row_by_name(orig or name)
-    row = [name, lat, lon, rad, active]
+    row = [name, lat, lon, rad, active, _session_workplace_id()]
     try:
         if rownum:
-            locations_sheet.update(f"A{rownum}:E{rownum}", [row])
+            locations_sheet.update(f"A{rownum}:F{rownum}", [row])
         else:
             locations_sheet.append_row(row)
     except Exception:
@@ -4601,6 +5685,8 @@ def admin_employee_sites():
         i_fn = idx("FirstName")
         i_ln = idx("LastName")
         i_site = idx("Site")
+        i_wp = idx("Workplace_ID")
+        current_wp = _session_workplace_id()
 
         for r in vals[1:]:
             if i_user is None or i_user >= len(r):
@@ -4608,6 +5694,15 @@ def admin_employee_sites():
             u = (r[i_user] or "").strip()
             if not u:
                 continue
+            # Workplace filter: prefer row Workplace_ID (tenant-safe)
+            if i_wp is not None:
+                row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                if row_wp != current_wp:
+                    continue
+            else:
+                # Backward compat if Employees has no Workplace_ID column
+                if not user_in_same_workplace(u):
+                    continue
             fn = (r[i_fn] or "").strip() if i_fn is not None and i_fn < len(r) else ""
             ln = (r[i_ln] or "").strip() if i_ln is not None and i_ln < len(r) else ""
             raw_site = (r[i_site] or "").strip() if i_site is not None and i_site < len(r) else ""
@@ -4739,7 +5834,8 @@ def admin_employee_sites_save():
                 employees_sheet.update(f"A1:{end_col}1", [headers2])
         except Exception:
             pass
-
+        if not user_in_same_workplace(u):
+            return redirect("/admin/employee-sites")
         set_employee_field(u, "Site", site_val)
 
         actor = session.get("username", "admin")
@@ -4747,6 +5843,420 @@ def admin_employee_sites_save():
 
     return redirect("/admin/employee-sites")
 
+@app.route("/admin/employees", methods=["GET", "POST"])
+def admin_employees():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    msg = ""
+    ok = False
+    created = None
+
+    if request.method == "POST":
+        require_csrf()
+        action = (request.form.get("action") or "create").strip().lower()
+
+        if action == "update":
+            edit_username = (request.form.get("edit_username") or "").strip()
+            edit_role = (request.form.get("edit_role") or "").strip()
+            edit_rate_raw = (request.form.get("edit_rate") or "").strip()
+
+            if not edit_username:
+                ok = False
+                msg = "Enter a username to update."
+            else:
+                _ensure_employees_columns()
+                headers = get_sheet_headers(employees_sheet)
+
+                rownum = find_row_by_username(employees_sheet, edit_username)  # tenant-safe
+                if not rownum:
+                    ok = False
+                    msg = "Employee not found in this workplace."
+                else:
+                    new_rate_str = None
+                    if edit_rate_raw != "":
+                        try:
+                            new_rate_str = str(float(edit_rate_raw))
+                        except Exception:
+                            ok = False
+                            msg = "Hourly rate must be a number."
+
+                    if not msg:
+                        existing = employees_sheet.row_values(rownum)
+                        row = (existing + [""] * max(0, len(headers) - len(existing)))[:len(headers)]
+
+                        changed = []
+
+                        if edit_role != "" and "Role" in headers:
+                            row[headers.index("Role")] = edit_role
+                            changed.append(f"role={edit_role}")
+
+                        if new_rate_str is not None and "Rate" in headers:
+                            row[headers.index("Rate")] = new_rate_str
+                            changed.append(f"rate={new_rate_str}")
+
+                        if not changed:
+                            ok = False
+                            msg = "Nothing to update (enter a new role and/or rate)."
+                        else:
+                            end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
+                            try:
+                                employees_sheet.update(f"A{rownum}:{end_col}{rownum}", [row])
+                                actor = session.get("username", "admin")
+                                log_audit("EMPLOYEE_UPDATE", actor=actor, username=edit_username, date_str="", details=" ".join(changed))
+                                ok = True
+                                msg = "Employee updated."
+                            except Exception:
+                                ok = False
+                                msg = "Could not update employee (sheet write failed)."
+
+        elif action in ("deactivate", "reactivate"):
+            edit_username = (request.form.get("edit_username") or "").strip()
+            if not edit_username:
+                ok = False
+                msg = "Choose an employee."
+            else:
+                _ensure_employees_columns()
+                headers = get_sheet_headers(employees_sheet)
+
+                # Ensure Active column exists
+                if headers and "Active" not in headers:
+                    headers2 = headers + ["Active"]
+                    end_col_h = gspread.utils.rowcol_to_a1(1, len(headers2)).replace("1", "")
+                    employees_sheet.update(f"A1:{end_col_h}1", [headers2])
+                    headers = headers2
+
+                rownum = find_row_by_username(employees_sheet, edit_username)  # tenant-safe
+                if not rownum:
+                    ok = False
+                    msg = "Employee not found in this workplace."
+                else:
+                    existing = employees_sheet.row_values(rownum)
+                    row = (existing + [""] * max(0, len(headers) - len(existing)))[:len(headers)]
+
+                    val = "FALSE" if action == "deactivate" else "TRUE"
+                    if "Active" in headers:
+                        row[headers.index("Active")] = val
+
+                    end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
+                    try:
+                        employees_sheet.update(f"A{rownum}:{end_col}{rownum}", [row])
+                        actor = session.get("username", "admin")
+                        if action == "deactivate":
+                            log_audit("EMPLOYEE_DEACTIVATE", actor=actor, username=edit_username, date_str="", details="active=FALSE")
+                            msg = "Employee deactivated."
+                        else:
+                            log_audit("EMPLOYEE_REACTIVATE", actor=actor, username=edit_username, date_str="", details="active=TRUE")
+                            msg = "Employee reactivated."
+                        ok = True
+                    except Exception:
+                        ok = False
+                        msg = "Could not update employee (sheet write failed)."
+
+        elif action == "create":
+            first = (request.form.get("first") or "").strip()
+            last = (request.form.get("last") or "").strip()
+            role_new = (request.form.get("role") or "employee").strip() or "employee"
+            rate_raw = (request.form.get("rate") or "").strip()
+
+            try:
+                rate_val = float(rate_raw) if rate_raw != "" else 0.0
+            except Exception:
+                rate_val = 0.0
+
+            wp = _session_workplace_id()
+
+            _ensure_employees_columns()
+            headers = get_sheet_headers(employees_sheet)
+
+            new_username = _generate_unique_username(first, last, wp)
+            temp_pw = _generate_temp_password(10)
+            hashed = generate_password_hash(temp_pw)
+
+            row = [""] * (len(headers) if headers else 0)
+
+            def set_col(col_name: str, value: str):
+                if headers and col_name in headers:
+                    row[headers.index(col_name)] = value
+
+            set_col("Username", new_username)
+            set_col("Password", hashed)
+            set_col("Role", role_new)
+            set_col("Rate", str(rate_val))
+            set_col("EarlyAccess", "TRUE")
+            set_col("OnboardingCompleted", "")
+            set_col("FirstName", first)
+            set_col("LastName", last)
+            set_col("Workplace_ID", wp)
+
+            try:
+                employees_sheet.append_row(row)
+                actor = session.get("username", "admin")
+                log_audit("EMPLOYEE_CREATE", actor=actor, username=new_username, date_str="", details=f"role={role_new} rate={rate_val}")
+                ok = True
+                msg = "Employee created."
+                created = {"u": new_username, "p": temp_pw, "wp": wp}
+            except Exception:
+                ok = False
+                msg = "Could not create employee (sheet write failed)."
+
+        else:
+            ok = False
+            msg = "Unknown action."
+
+            try:
+                rate_val = float(rate_raw) if rate_raw != "" else 0.0
+            except Exception:
+                rate_val = 0.0
+
+            wp = _session_workplace_id()
+
+            _ensure_employees_columns()
+            headers = get_sheet_headers(employees_sheet)
+
+            # Generate credentials
+            new_username = _generate_unique_username(first, last, wp)
+            temp_pw = _generate_temp_password(10)
+            hashed = generate_password_hash(temp_pw)
+
+            # Build row aligned to header length
+            row = [""] * (len(headers) if headers else 0)
+
+            def set_col(col_name: str, value: str):
+                if headers and col_name in headers:
+                    row[headers.index(col_name)] = value
+
+            set_col("Username", new_username)
+            set_col("Password", hashed)
+            set_col("Role", role_new)
+            set_col("Rate", str(rate_val))
+            set_col("EarlyAccess", "TRUE")
+            set_col("OnboardingCompleted", "")
+            set_col("FirstName", first)
+            set_col("LastName", last)
+            set_col("Workplace_ID", wp)
+
+            try:
+                employees_sheet.append_row(row)
+                actor = session.get("username", "admin")
+                log_audit("EMPLOYEE_CREATE", actor=actor, username=new_username, date_str="", details=f"role={role_new} rate={rate_val}")
+                ok = True
+                msg = "Employee created."
+                created = {"u": new_username, "p": temp_pw, "wp": wp}
+            except Exception:
+                ok = False
+                msg = "Could not create employee (sheet write failed)."
+
+    # List employees in this workplace
+    wp = _session_workplace_id()
+    rows_html = []
+    try:
+        vals = employees_sheet.get_all_values()
+        headers = vals[0] if vals else []
+        def idx(n): return headers.index(n) if headers and n in headers else None
+        i_u = idx("Username")
+        i_fn = idx("FirstName")
+        i_ln = idx("LastName")
+        i_role = idx("Role")
+        i_rate = idx("Rate")
+        i_wp = idx("Workplace_ID")
+
+        for r in (vals[1:] if len(vals) > 1 else []):
+            u = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
+            if not u:
+                continue
+            if i_wp is not None:
+                row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                if row_wp != wp:
+                    continue
+            fn = (r[i_fn] if i_fn is not None and i_fn < len(r) else "").strip()
+            ln = (r[i_ln] if i_ln is not None and i_ln < len(r) else "").strip()
+            rr = (r[i_role] if i_role is not None and i_role < len(r) else "").strip()
+            rate = (r[i_rate] if i_rate is not None and i_rate < len(r) else "").strip()
+            disp = (fn + " " + ln).strip() or u
+
+            rows_html.append(
+                f"<tr><td>{escape(disp)}</td><td>{escape(u)}</td><td>{escape(rr)}</td><td class='num'>{escape(rate)}</td></tr>"
+            )
+    except Exception:
+        rows_html = []
+    # Role suggestions from Employees sheet (this workplace)
+    role_suggestions = ["employee", "manager", "admin"]
+    try:
+        found = set()
+        # reuse vals/headers from above if they exist
+        if "vals" in locals() and "headers" in locals() and headers and "Role" in headers:
+            i_role2 = headers.index("Role")
+            i_wp2 = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+            for r in (vals[1:] if len(vals) > 1 else []):
+                if i_wp2 is not None:
+                    row_wp = (r[i_wp2] if i_wp2 < len(r) else "").strip() or "default"
+                    if row_wp != wp:
+                        continue
+                rr = (r[i_role2] if i_role2 < len(r) else "").strip()
+                if rr:
+                    found.add(rr)
+        role_suggestions = sorted(set(role_suggestions) | found, key=lambda x: x.lower())
+    except Exception:
+        pass
+
+    role_options_html = "".join(f"<option value='{escape(r)}'></option>" for r in role_suggestions)
+    table = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No employees found.</td></tr>"
+
+    created_card = ""
+    if created:
+        created_card = f"""
+        <div class="card" style="padding:12px; margin-top:12px;">
+          <h2>Employee created</h2>
+          <p class="sub">Give these login details to the employee (they can change password in Profile).</p>
+          <div class="card" style="padding:12px; background:rgba(10,42,94,6);">
+            <div><b>Username:</b> {escape(created["u"])}</div>
+            <div><b>Workplace ID:</b> {escape(created["wp"])}</div>
+            <div><b>Temp password:</b> {escape(created["p"])}</div>
+          </div>
+        </div>
+        """
+        # Build employee dropdown options (this workplace)
+    employee_options_html = "<option value='' selected disabled>Select employee</option>"
+    try:
+        wp_now = _session_workplace_id()
+        vals2 = employees_sheet.get_all_values()
+        headers2 = vals2[0] if vals2 else []
+
+        def idx2(name):
+            if not headers2:
+                return None
+            target = (name or "").strip().lower()
+            for i, h in enumerate(headers2):
+                if (h or "").strip().lower() == target:
+                    return i
+            return None
+
+        i_user = idx2("Username")
+        i_fn = idx2("FirstName")
+        i_ln = idx2("LastName")
+        i_wp = idx2("Workplace_ID")
+        i_active = idx2("Active")
+
+        if i_user is not None:
+            for r in (vals2[1:] if len(vals2) > 1 else []):
+                u = (r[i_user] if len(r) > i_user else "").strip()
+                if not u:
+                    continue
+                if i_wp is not None:
+                    r_wp = (r[i_wp] if len(r) > i_wp else "").strip()
+                    if r_wp != wp_now:
+                        continue
+                if i_active is not None:
+                    a = (r[i_active] if len(r) > i_active else "").strip().lower()
+                    inactive_tag = ""
+                    if a in ("false", "0", "no"):
+                        inactive_tag = " (inactive)"
+
+                fn = (r[i_fn] if i_fn is not None and len(r) > i_fn else "").strip()
+                ln = (r[i_ln] if i_ln is not None and len(r) > i_ln else "").strip()
+                disp = (fn + " " + ln).strip() or u
+
+                employee_options_html += f"<option value='{escape(u)}'>{escape(disp)}{inactive_tag} ({escape(u)})</option>"
+    except Exception:
+        pass
+    content = f"""
+
+      <div class="headerTop">
+        <div>
+          <h1>Create Employee</h1>
+          <p class="sub">Create a new employee login (auto username + temp password)</p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+
+      <div class="card" style="padding:12px;">
+        <form method="POST">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <div class="row2">
+            <div>
+              <label class="sub">First name</label>
+              <input class="input" name="first" placeholder="e.g. John" required>
+            </div>
+            <div>
+              <label class="sub">Last name</label>
+              <input class="input" name="last" placeholder="e.g. Smith" required>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label class="sub">Role</label>
+              <input class="input" name="role" list="role_list" value="employee">
+              <datalist id="role_list">
+                {role_options_html}
+              </datalist>
+            </div>
+            <div>
+              <label class="sub">Hourly rate</label>
+              <input class="input" name="rate" placeholder="e.g. 25">
+            </div>
+          </div>
+
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Create</button>
+        </form>
+        <p class="sub" style="margin-top:10px;">Note: this creates the user inside Workplace_ID <b>{escape(wp)}</b>.</p>
+      </div>
+
+      {created_card}
+      <div class="card" style="padding:12px; margin-top:12px;">
+  <h2>Update Employee</h2>
+  <p class="sub">Update role and/or hourly rate for an existing username in this workplace.</p>
+
+  <form method="POST" style="margin-top:12px;">
+    <input type="hidden" name="csrf" value="{escape(csrf)}">
+   <div style="margin-top:12px; display:flex; gap:10px;">
+  <button class="btnSoft" type="submit" name="action" value="update">Save changes</button>
+
+  <button class="btnSoft" type="submit" name="action" value="deactivate"
+          onclick="return confirm('Deactivate this employee?')">
+    Deactivate
+  </button>
+
+  <button class="btnSoft" type="submit" name="action" value="reactivate"
+          onclick="return confirm('Reactivate this employee?')">
+    Reactivate
+  </button>
+</div>
+
+    <label class="sub">Username</label>
+    <select class="input" name="edit_username" required>
+     {employee_options_html}
+    </select>   
+
+    <div class="row2" style="margin-top:10px;">
+      <div>
+        <label class="sub">New role (optional)</label>
+        <input class="input" name="edit_role" list="role_list" placeholder="Leave blank to keep existing">
+      </div>
+      <div>
+        <label class="sub">New hourly rate (optional)</label>
+        <input class="input" name="edit_rate" placeholder="Leave blank to keep existing">
+      </div>
+    </div>
+  </form>
+</div>
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <h2>Employees (this workplace)</h2>
+        <div class="tablewrap" style="margin-top:12px;">
+          <table style="min-width:760px;">
+            <thead><tr><th>Name</th><th>Username</th><th>Role</th><th class="num">Rate</th></tr></thead>
+            <tbody>{table}</tbody>
+          </table>
+        </div>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
 
