@@ -4086,11 +4086,23 @@ def _get_open_shifts() -> list[dict]:
         i_date = hidx("Date", COL_DATE)
         i_in = hidx("ClockIn", COL_IN)
         i_out = hidx("ClockOut", COL_OUT)
+        i_wp = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+        current_wp = _session_workplace_id()
 
         for r in rows[1:]:
             if len(r) <= max(i_user, i_date, i_in, i_out):
                 continue
             u = (r[i_user] or "").strip()
+            # Tenant-safe: only show open shifts for this workplace
+            if i_wp is not None:
+                row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                if row_wp != current_wp:
+                    continue
+            else:
+                # Backward compat: if WorkHours has no Workplace_ID column
+                # prevent cross-workplace bleed when usernames overlap
+                if u and not user_in_same_workplace(u):
+                    continue
             d = (r[i_date] or "").strip()
             t_in = (r[i_in] or "").strip()
             t_out = (r[i_out] or "").strip()
