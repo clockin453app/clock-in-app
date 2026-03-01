@@ -5093,8 +5093,7 @@ def admin_payroll_report_csv():
                 return 0.0
     # rows should be list of dicts:
     # [{"Employee":..., "Username":..., "Hours":..., "Gross":..., "Tax":..., "Net":..., "Paid":...}, ...]
-    if request.args.get("debug") == "1":
-        pass
+
     # --- BUILD ROWS FOR CSV EXPORT (guaranteed in function scope) ---
     rows = []
     totals = {}
