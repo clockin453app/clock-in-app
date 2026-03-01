@@ -6364,7 +6364,7 @@ def admin_employees():
           <p class="sub">Give these login details to the employee (they can change password in Profile).</p>
           <div class="card" style="padding:12px; background:rgba(56,189,248,.18); border:1px solid rgba(56,189,248,.35); color:rgba(2,6,23,.95);">
             <div><b>Username:</b> {escape(created["u"])}</div>
-            <div><b>Workplace ID:</b> {escape(created["wp"])}</div>
+            <div><b>Company:</b> {escape(get_company_settings().get("Company_Name") or created["wp"])}</div>
             <div><b>Temp password:</b> {escape(created["p"])}</div>
           </div>
         </div>
