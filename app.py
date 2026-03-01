@@ -10,7 +10,7 @@
 # - Desktop layout uses full screen width (no small centered UI).
 # - Payroll: KPI strip, better numeric formatting, row emphasis, weekly net badge.
 # - Overtime highlight > 8.5h/day.
-# - Dark mode toggle (localStorage).
+# - Dark mode toggle (localStorage)
 # - Admin dashboard: live timers for currently clocked-in employees.
 # - Unpaid break deduction: subtract 0.5h on shifts >= 6h (so 8am–5pm => 8.5h recorded).
 #
@@ -3059,6 +3059,8 @@ def clock_page():
                             def _col(name):
                                 return headers.index(name) + 1 if name in headers else None
 
+                            import copy  # put this at the TOP of the file with your other imports
+
                             updates = []
                             for k, v in [
                                 ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
@@ -3067,10 +3069,14 @@ def clock_page():
                             ]:
                                 c = _col(k)
                                 if c:
-                                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if v is None else v ]]})
+                                    updates.append({
+                                        "range": gspread.utils.rowcol_to_a1(rownum, c),
+                                        "values": [["" if v is None else v]],
+                                    })
 
-                                if updates:
-                                    _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
+                            # ✅ IMPORTANT: batch_update must be OUTSIDE the loop
+                            if updates:
+                                _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
                     msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                         msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
@@ -3111,8 +3117,9 @@ def clock_page():
                             if c:
                                 updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c), "values": [["" if v is None else str(v)]]})
 
+                        import copy
                         if updates:
-                            work_sheet.batch_update(updates)
+                            _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
                     msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
                 else:
