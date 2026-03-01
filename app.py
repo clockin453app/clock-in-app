@@ -3080,7 +3080,6 @@ def clock_page():
 
         <form method="POST" class="actionRow" id="geoClockForm" style="margin-top:12px;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <input type="hidden" name="action" value="create">
           <input type="hidden" name="action" id="geoAction" value="">
           <input type="hidden" name="lat" id="geoLat" value="">
           <input type="hidden" name="lon" id="geoLon" value="">
