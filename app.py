@@ -3032,13 +3032,24 @@ def clock_page():
                         msg_class = "message error"
                     else:
                         cin = normalized_clock_in_time(now, early_access)
-                        # Append base columns
-                        _gs_write_with_retry(
-                            lambda: work_sheet.append_row(
-                                values=[username, today_str, cin, "", "", ""],
-                                value_input_option="USER_ENTERED"
-                            )
-                        )
+
+                        # ✅ Append row INCLUDING Workplace_ID so _find_workhours_row_by_user_date can find it
+                        headers_now = work_sheet.row_values(1)  # fresh header row
+
+                        new_row = [username, today_str, cin, "", "",
+                                   ""]  # Username, Date, ClockIn, ClockOut, Hours, Pay
+
+                        if headers_now and "Workplace_ID" in headers_now:
+                            wp_idx = headers_now.index("Workplace_ID")
+                            if len(new_row) <= wp_idx:
+                                new_row += [""] * (wp_idx + 1 - len(new_row))
+                            new_row[wp_idx] = _session_workplace_id()
+
+                        # Pad to header width (prevents misalignment if sheet has extra columns)
+                        if headers_now and len(new_row) < len(headers_now):
+                            new_row += [""] * (len(headers_now) - len(new_row))
+
+                        _gs_write_with_retry(lambda: work_sheet.append_row(new_row, value_input_option="USER_ENTERED"))
 
                         # Find the row we just added and store geo fields
                         vals = work_sheet.get_all_values()
@@ -3058,7 +3069,6 @@ def clock_page():
                                 if c:
                                     updates.append({"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if v is None else v ]]})
 
-                            if updates:
                                 if updates:
                                     _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
                     msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
