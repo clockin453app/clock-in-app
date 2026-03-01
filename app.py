@@ -2676,6 +2676,23 @@ def login():
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         workplace_id = (request.form.get("workplace_id", "") or "").strip() or "default"
+        # Allow entering Company_Name instead of Workplace_ID
+        try:
+            if settings_sheet and workplace_id:
+                svals = settings_sheet.get_all_values()
+                if svals and len(svals) > 1:
+                    sh = svals[0]
+                    i_wp = sh.index("Workplace_ID") if "Workplace_ID" in sh else None
+                    i_name = sh.index("Company_Name") if "Company_Name" in sh else None
+                    if i_wp is not None and i_name is not None:
+                        typed = workplace_id.strip().lower()
+                        for rr in svals[1:]:
+                            nm = (rr[i_name] if i_name < len(rr) else "").strip().lower()
+                            if nm and nm == typed:
+                                workplace_id = ((rr[i_wp] if i_wp < len(rr) else "").strip() or workplace_id)
+                                break
+        except Exception:
+            pass
 
         ip = _client_ip()
 
