@@ -2841,6 +2841,11 @@ def home():
         if len(r) <= COL_USER:
                 continue
         row_user = (r[COL_USER] or "").strip()
+
+        # Employees should see ONLY their own totals (Admin can see whole workplace)
+        if role != "admin" and row_user != username:
+            continue
+
         # Workplace filter (prefer WorkHours row Workplace_ID)
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
