@@ -2703,6 +2703,14 @@ def login():
             msg = f"Too many login attempts. Try again in {mins} minute(s)."
         else:
             ok_user = None
+            # Force fresh read of Employees on login (avoid cached empty sheet after manual edits)
+            try:
+                sid = getattr(spreadsheet, "id", None)
+                wid = getattr(employees_sheet, "id", None)
+                if sid and wid:
+                    _cache_invalidate_prefix((sid, wid))
+            except Exception:
+                pass
             for user in employees_sheet.get_all_records():
                 row_user = (user.get("Username") or "").strip()
                 row_wp = (user.get("Workplace_ID") or "").strip() or "default"  # backward-compatible
