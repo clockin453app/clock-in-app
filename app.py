@@ -4578,10 +4578,25 @@ def admin_force_clockout():
     # In this codebase: find_open_shift returns i, date, in_time where i is index in rows list.
     sheet_row = idx + 1
 
+    sheet_row = idx + 1
+
     try:
-        work_sheet.update_cell(sheet_row, COL_OUT + 1, out_time)
-        work_sheet.update_cell(sheet_row, COL_HOURS + 1, str(computed_hours))
-        work_sheet.update_cell(sheet_row, COL_PAY + 1, str(pay))
+        vals = work_sheet.get_all_values()
+        headers = vals[0] if vals else []
+
+        updates = [
+            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1), "values": [[out_time]]},
+            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_HOURS + 1), "values": [[str(computed_hours)]]},
+            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1), "values": [[str(pay)]]},
+        ]
+
+        # Ensure Workplace_ID is set (if column exists)
+        if headers and "Workplace_ID" in headers:
+            wp_col = headers.index("Workplace_ID") + 1
+            updates.append(
+                {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
+
+        _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
     except Exception:
         pass
 
