@@ -2246,8 +2246,8 @@ def _ensure_onboarding_workplace_header():
             return
 
         new_headers = headers + ["Workplace_ID"]
-        end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
-        onboarding_sheet.update(f"A1:{end_col}1", [new_headers])
+        end_a1 = gspread.utils.rowcol_to_a1(1, len(new_headers))  # e.g. "K1"
+        onboarding_sheet.update(f"A1:{end_a1}", [new_headers])  # e.g. "A1:K1"
     except Exception:
         return
 def update_or_append_onboarding(username: str, data: dict):
@@ -3202,7 +3202,7 @@ def clock_page():
           <h1>Clock In & Out</h1>
           <p class="sub">{escape(display_name)} • Location required</p>
         </div>
-        <div class="badge {{'admin' if role=='admin' else ''}}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
