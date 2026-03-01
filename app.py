@@ -238,6 +238,28 @@ OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "").strip()
 OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
 OAUTH_REDIRECT_URI = os.environ.get("OAUTH_REDIRECT_URI", "").strip()
 
+def _make_oauth_flow():
+    # Only used by /connect-drive and /oauth2callback
+    if not (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
+        raise RuntimeError(
+            "Missing Drive OAuth env vars. Set OAUTH_CLIENT_ID, OAUTH_CLIENT_SECRET, OAUTH_REDIRECT_URI."
+        )
+
+    client_config = {
+        "web": {
+            "client_id": OAUTH_CLIENT_ID,
+            "client_secret": OAUTH_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+            "redirect_uris": [OAUTH_REDIRECT_URI],
+        }
+    }
+
+    return Flow.from_client_config(
+        client_config,
+        scopes=OAUTH_SCOPES,
+        redirect_uri=OAUTH_REDIRECT_URI,
+    )
 # ---- Drive OAuth token storage (SERVER-SIDE) ----
 # Avoid storing OAuth tokens in Flask sessions (client-side cookies by default).
 # We keep tokens server-side in an encrypted file (recommended) or plaintext file as fallback.
@@ -2217,7 +2239,7 @@ def _ensure_onboarding_workplace_header():
         vals = onboarding_sheet.get_all_values()
         if not vals:
             return
-        headers = vals[0]
+        headers = vals[0] or []
         if not headers or "Username" not in headers:
             return
         if "Workplace_ID" in headers:
@@ -2225,7 +2247,7 @@ def _ensure_onboarding_workplace_header():
 
         new_headers = headers + ["Workplace_ID"]
         end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
-        onboarding_sheet.update(range_name+f"A1:{end_col}1", values=[new_heathers])
+        onboarding_sheet.update(f"A1:{end_col}1", [new_headers])
     except Exception:
         return
 def update_or_append_onboarding(username: str, data: dict):
@@ -4514,7 +4536,7 @@ def admin_force_clockin():
     except Exception:
         pass
 
-    actor = session.get("Username", "admin")
+    actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
     return redirect(request.referrer or "/admin")
 
@@ -4560,7 +4582,7 @@ def admin_force_clockout():
     except Exception:
         pass
 
-    actor = session.get("Username", "admin")
+    actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d, details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
 
@@ -4585,7 +4607,7 @@ def admin_mark_paid():
         tax = safe_float(request.form.get("tax", "0") or "0", 0.0)
         net = safe_float(request.form.get("net", "0") or "0", 0.0)
 
-        paid_by = session.get("Username") or session.get("username") or "admin"
+        paid_by = session.get("username", "admin")
 
         if week_start and week_end and username:
             _append_paid_record_safe(week_start, week_end, username, gross, tax, net, paid_by)
