@@ -215,21 +215,12 @@ try:
 except Exception:
     audit_sheet = None
 
-# Optional: Locations sheet for geo-fencing
-try:
-    locations_sheet = spreadsheet.worksheet("Locations")
-except Exception:
-    locations_sheet = None
-
-
-
-
-
 # Optional: geofenced clocking locations (Admin-managed)
 try:
     locations_sheet = spreadsheet.worksheet("Locations")
 except Exception:
     locations_sheet = None
+
 # ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
 OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive"]
 
@@ -1725,14 +1716,14 @@ def _ensure_workhours_geo_headers():
         if not vals:
             return
         headers = vals[0]
-        base_headers = ["Username","Date","ClockIn","ClockOut","Hours","Pay"]
+        base_headers = ["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay", "Workplace_ID"]
         # If there is no header row, do nothing (your sheet should have one).
         if not headers:
             return
         # Extend header row safely
         if len(headers) < len(base_headers):
             headers = base_headers[:]
-        missing = [h for h in WORKHOURS_GEO_HEADERS if h not in headers]
+        missing = [h for h in (["Workplace_ID"] + WORKHOURS_GEO_HEADERS) if h not in headers]
         if missing:
             headers = headers + missing
             work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(headers)).replace('1','')}1", [headers])
@@ -4636,8 +4627,13 @@ def admin_payroll():
         return gate
 
     csrf = get_csrf()
+    _ensure_workhours_geo_headers()
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
+    try:
+        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
+    except Exception:
+        tax_rate = 0.20
 
     q = (request.args.get("q", "") or "").strip().lower()
     date_from = (request.args.get("from", "") or "").strip()
@@ -4718,7 +4714,7 @@ def admin_payroll():
             overall_hours += h
             overall_gross += g
 
-    overall_tax = round(overall_gross * TAX_RATE, 2)
+    overall_tax = round(overall_gross * tax_rate, 2)
     overall_net = round(overall_gross - overall_tax, 2)
 
     # Week lookup for editable tables
@@ -4786,10 +4782,6 @@ def admin_payroll():
 
     # Summary table (polished + paid under name)
     summary_rows = []
-    try:
-        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
-    except Exception:
-        tax_rate = 0.20
     for u in sorted(all_users, key=lambda s: s.lower()):
         gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
         tax = round(gross * tax_rate, 2)
@@ -4958,7 +4950,7 @@ def admin_payroll():
 
         wk_hours = round(wk_hours, 2)
         wk_gross = round(wk_gross, 2)
-        wk_tax = round(wk_gross * TAX_RATE, 2)
+        wk_tax = round(wk_gross * tax_rate, 2)
         wk_net = round(wk_gross - wk_tax, 2)
 
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
