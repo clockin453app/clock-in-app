@@ -466,6 +466,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .sub{ color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35; font-weight:400; }
 
 .card{
+  min-width: 0;
+  max-width: 100%;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
@@ -493,7 +495,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Shell */
 .shell{ max-width: 560px; margin: 0 auto; }
 .sidebar{ display:none; }
-.main{ width:100%; }
+.main{
+  width: 100%;
+  min-width: 0;   /* IMPORTANT: allows wide content to scroll instead of overflowing */
+}
 
 /* Header top */
 .headerTop{
@@ -649,7 +654,16 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   transition: transform .16s ease, box-shadow .16s ease;
 }
 .btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-
+/* Download CSV button styled like week pills (btnTiny) */
+.btnTiny.csvDownload{
+  background: #217346;
+  border-color: #1a5c37;
+  color: #fff;
+}
+.btnTiny.csvDownload:hover{
+  background: #1b5f38;
+  border-color: #144a2b;
+}
 .btnTiny{
   border: 1px solid rgba(15,23,42,.14);
   border-radius: 999px;
@@ -713,14 +727,23 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   margin-top: 14px;
 }
 
-/* Table wrapper (default app tables) */
 .tablewrap{
   margin-top:14px;
-  overflow:auto;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;                 /* IMPORTANT inside flex layouts */
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   border-radius: 18px;
   border:1px solid rgba(11,18,32,.10);
   background: rgba(255,255,255,.65);
   backdrop-filter: blur(8px);
+}
+/* Ensure the table scrolls inside .tablewrap instead of widening the page */
+.tablewrap table{
+  width: max-content;
+  min-width: 100%;
 }
 
 .tablewrap table{
@@ -780,6 +803,31 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   cursor: pointer;
   transition: all .15s ease;
   white-space: nowrap;
+}
+/* Employee weekly tables (below): make ALL table inputs readable
+   (Hours/Pay are <input class="input" ...> with NO type) */
+.tablewrap input.input{
+  font-weight: 800;
+  color: rgba(2,6,23,.95);
+  opacity: 1; /* prevent faded disabled text */
+  -webkit-text-fill-color: rgba(2,6,23,.95); /* Safari/Chrome */
+}
+/* Employee weekly tables: center column headers (keep first column like Date left) */
+.tablewrap table thead th:not(:first-child),
+.tablewrap table thead td:not(:first-child){
+  text-align: center;
+}
+/* Right-align numeric inputs inside numeric cells (Hours/Pay columns) */
+.tablewrap td.num input.input{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+/* Numbers (hours/pay) easier to scan */
+.tablewrap input[type="number"]{
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 .tablewrap td:last-child button:hover,
 .tablewrap td:last-child a:hover{
@@ -960,7 +1008,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     width: calc(100vw - 36px);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 320px 1fr;
+    grid-template-columns: 320px minmax(0, 1fr);
     gap: 18px;
     align-items: start;
   }
@@ -1051,10 +1099,15 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* ================= PAYROLL SHEET (Spreadsheet style) ================= */
 .payrollWrap{
   margin-top:14px;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;                 /* IMPORTANT */
   background:#fff;
   border:1px solid rgba(15,23,42,.12);
   border-radius: 14px;
-  overflow:auto;
+  overflow-x: auto;             /* horizontal scroll */
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
   box-shadow: var(--shadow);
 }
 
@@ -1078,10 +1131,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .payrollSheet{
-  width:100%;
+  width: max-content;     /* allow horizontal scroll */
   border-collapse: collapse;
   table-layout: fixed;
-  min-width: 1100px;
+  min-width: 2600px;      /* enough space so time inputs don't overlap */
   background:#fff;
 }
 
@@ -2530,10 +2583,25 @@ def sidebar_html(active: str, role: str) -> str:
 
 def layout_shell(active: str, role: str, content_html: str, shell_class: str = "") -> str:
     extra = f" {shell_class}" if shell_class else ""
+
+    try:
+        company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
+    except Exception:
+        company_name = "Main"
+
+    company_bar = f"""
+      <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+        <span class="badge" style="background: var(--navy); color:#fff; border-color: rgba(255,255,255,.12);">
+  {escape(company_name)}
+</span>
+      </div>
+    """
+
     return f"""
       <div class="shell{extra}">
         {sidebar_html(active, role)}
         <div class="main">
+          {company_bar}
           {content_html}
           <div class="safeBottom"></div>
         </div>
@@ -3021,6 +3089,9 @@ def clock_page():
         timer_html = f"""
         <div class="timerSub">Active session started</div>
         <div class="timerBig" id="timerDisplay">00:00:00</div>
+        <div style="margin-top:8px;">
+          <span class="chip ok" id="otChip">Normal</span>
+        </div>
         <div class="timerSub">Start: {escape(active_start_label)} </div>
         <script>
           (function() {{
@@ -3036,6 +3107,19 @@ def clock_page():
               const m = Math.floor((diff % 3600) / 60);
               const s = diff % 60;
               el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+
+              const otEl = document.getElementById("otChip");
+              if (otEl) {{
+                const startedAtEight = (start.getHours() === 8 && start.getMinutes() === 0);
+                const overtime = startedAtEight && (diff >= 9 * 3600);
+                if (overtime) {{
+                  otEl.textContent = "Overtime";
+                  otEl.className = "chip warn";
+                }} else {{
+                  otEl.textContent = "Normal";
+                  otEl.className = "chip ok";
+                }}
+              }}
             }}
             tick(); setInterval(tick, 1000);
           }})();
@@ -4139,6 +4223,10 @@ def admin():
           <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Payroll Report</div></div>
           <div class="chev">›</div>
         </a>
+        <a class="menuItem" href="/admin/company">
+          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Company Settings</div></div>
+          <div class="chev">›</div>
+        </a>
         <a class="menuItem" href="/admin/onboarding">
           <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Onboarding</div></div>
           <div class="chev">›</div>
@@ -4186,6 +4274,94 @@ def admin():
             shell_class="payrollShell"
         )
     )
+@app.route("/admin/company", methods=["GET", "POST"])
+def admin_company():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    role = session.get("role", "admin")
+    wp = _session_workplace_id()
+
+    settings = get_company_settings()
+    current_name = (settings.get("Company_Name") or "").strip() or "Main"
+
+    msg = ""
+    ok = False
+
+    if request.method == "POST":
+        require_csrf()
+        new_name = (request.form.get("company_name") or "").strip()
+
+        if not new_name:
+            msg = "Company name required."
+        elif not settings_sheet:
+            msg = "Settings sheet not configured."
+        else:
+            vals = settings_sheet.get_all_values()
+            if not vals:
+                settings_sheet.append_row(["Workplace_ID", "Tax_Rate", "Currency_Symbol", "Company_Name"])
+                vals = settings_sheet.get_all_values()
+
+            hdr = vals[0] if vals else []
+            def idx(n): return hdr.index(n) if n in hdr else None
+
+            i_wp = idx("Workplace_ID")
+            i_name = idx("Company_Name")
+            i_tax = idx("Tax_Rate")
+            i_cur = idx("Currency_Symbol")
+
+            if i_wp is None or i_name is None:
+                msg = "Settings headers missing Workplace_ID or Company_Name."
+            else:
+                rownum = None
+                for i in range(1, len(vals)):
+                    r = vals[i]
+                    row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                    if row_wp == wp:
+                        rownum = i + 1
+                        break
+
+                if rownum:
+                    settings_sheet.update_cell(rownum, i_name + 1, new_name)
+                else:
+                    row = [""] * len(hdr)
+                    row[i_wp] = wp
+                    row[i_name] = new_name
+                    if i_tax is not None:
+                        row[i_tax] = str(settings.get("Tax_Rate", 20.0))
+                    if i_cur is not None:
+                        row[i_cur] = str(settings.get("Currency_Symbol", "£"))
+                    settings_sheet.append_row(row)
+
+                log_audit("SET_COMPANY_NAME", actor=session.get("username", "admin"), details=f"{wp} -> {new_name}")
+                ok = True
+                msg = "Saved."
+                current_name = new_name
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Company Settings</h1>
+          <p class="sub">Workplace: <b>{escape(wp)}</b></p>
+        </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
+
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <form method="POST">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <label class="sub">Company name</label>
+          <input class="input" name="company_name" value="{escape(current_name)}" required>
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Save</button>
+        </form>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", role, content))
 
 @app.post("/admin/save-shift")
 def admin_save_shift():
@@ -4636,9 +4812,14 @@ def admin_payroll():
                 gross += pay
 
                 # step="1" allows HH:MM:SS like 08:00:00
-                cells.append(f"<td><input type='time' step='1' value='{escape(cin)}' disabled></td>")
-                cells.append(f"<td><input type='time' step='1' value='{escape(cout)}' disabled></td>")
-                cells.append(f"<td class='num'>{hrs:.2f}</td>")
+                cells.append(
+                    f"<td style='text-align:center; font-weight:800; font-size:12px;'>{escape((cin or '')[:5])}</td>")
+                cells.append(
+                    f"<td style='text-align:center; font-weight:800; font-size:12px;'>{escape((cout or '')[:5])}</td>")
+                cin_hm = (cin or "")[:5]
+                cout_hm = (cout or "")[:5]
+                ot_badge = " <span class='overtimeChip'>OT</span>" if (cin_hm == "08:00" and cout_hm > "17:00") else ""
+                cells.append(f"<td class='num' style='color: var(--navy); font-weight:900;'>{hrs:.2f}{ot_badge}</td>")
 
             gross = round(gross, 2)
             tax = round(gross * tax_rate, 2)
@@ -4883,50 +5064,92 @@ def admin_payroll():
         {week_nav_html}
         <div style="margin-top:10px;">
   <a href="{csv_url}">
-    <button class="btnSoft" type="button" style="padding:10px 14px; border:1px solid #0b1220;">
+    <button class="btnTiny csvDownload" type="button">
       Download CSV
     </button>
   </a>
 </div>
 
         <div class="payrollWrap" style="margin-top:12px;">
-  <table class="payrollSheet">
-    <thead>
-      <tr class="group">
-        <th rowspan="2" style="width:240px;">Employee</th>
-        <th colspan="3">Mon</th>
-        <th colspan="3">Tue</th>
-        <th colspan="3">Wed</th>
-        <th colspan="3">Thu</th>
-        <th colspan="3">Fri</th>
-        <th colspan="3">Sat</th>
-        <th colspan="3">Sun</th>
-        <th rowspan="2">Total</th>
-        <th rowspan="2">Gross</th>
-        <th rowspan="2">Tax</th>
-        <th rowspan="2">Net</th>
-        <th rowspan="2">Payment</th>
-      </tr>
-      <tr class="cols">
-        <th>In</th><th>Out</th><th>Hrs</th>
-        <th>In</th><th>Out</th><th>Hrs</th>
-        <th>In</th><th>Out</th><th>Hrs</th>
-        <th>In</th><th>Out</th><th>Hrs</th>
-        <th>In</th><th>Out</th><th>Hrs</th>
-        <th>In</th><th>Out</th><th>Hrs</th>
-        <th>In</th><th>Out</th><th>Hrs</th>
-      </tr>
-    </thead>
-    <tbody>
-      {sheet_html}
-    </tbody>
-  </table>
+<table class="payrollSheet">
+  <thead>
+    <tr class="group">
+      <th rowspan="2" style="width:240px;">Employee</th>
+      <th colspan="3">Monday</th>
+      <th colspan="3">Tuesday</th>
+      <th colspan="3">Wednesday</th>
+      <th colspan="3">Thursday</th>
+      <th colspan="3">Friday</th>
+      <th colspan="3">Saturday</th>
+      <th colspan="3">Sunday</th>
+      <th rowspan="2">Total</th>
+      <th rowspan="2">Gross</th>
+      <th rowspan="2">Tax</th>
+      <th rowspan="2">Net</th>
+      <th rowspan="2">Payment</th>
+    </tr>
+    <tr class="cols">
+      <th>In</th><th>Out</th><th>Hrs</th>
+      <th>In</th><th>Out</th><th>Hrs</th>
+      <th>In</th><th>Out</th><th>Hrs</th>
+      <th>In</th><th>Out</th><th>Hrs</th>
+      <th>In</th><th>Out</th><th>Hrs</th>
+      <th>In</th><th>Out</th><th>Hrs</th>
+      <th>In</th><th>Out</th><th>Hrs</th>
+    </tr>
+  </thead>
+  <tbody>
+    {sheet_html}
+  </tbody>
+</table>
 </div>
 
-      <div class="card" style="padding:12px; margin-top:12px;">
-        <h2>Weekly History (Editable)</h2>
-        <p class="sub">Week: <b>{escape(week_start_str)}</b> to <b>{escape(week_end_str)}</b>. Edit and save per day.</p>
-      </div>
+<script>
+(function(){{
+  const table = document.querySelector(".payrollWrap .payrollSheet");
+  if(!table) return;
+  const tbody = table.querySelector("tbody");
+  if(!tbody) return;
+
+  let selected = null;
+
+  function clearRow(tr){{
+    if(!tr) return;
+    tr.querySelectorAll("td").forEach(td => {{
+      td.style.background = "";
+      td.style.boxShadow = "";
+    }});
+  }}
+
+  function applyRow(tr){{
+    tr.querySelectorAll("td").forEach((td, idx) => {{
+      td.style.background = "rgba(30,64,175,.14)";
+      if(idx === 0){{
+        td.style.boxShadow = "inset 3px 0 0 rgba(30,64,175,.45)";
+      }}
+    }});
+  }}
+
+  tbody.querySelectorAll("tr").forEach(tr => {{
+    tr.style.cursor = "pointer";
+    tr.addEventListener("click", () => {{
+      if(selected === tr){{
+        clearRow(tr);
+        selected = null;
+        return;
+      }}
+      clearRow(selected);
+      selected = tr;
+      applyRow(tr);
+    }});
+  }});
+}})();
+</script>
+
+<div class="card" style="padding:12px; margin-top:12px;">
+  <h2>Weekly History (Editable)</h2>
+  <p class="sub">Week: <b>{escape(week_start_str)}</b> to <b>{escape(week_end_str)}</b>. Edit and save per day.</p>
+</div>
 
       {''.join(blocks)}
     """
