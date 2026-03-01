@@ -4606,7 +4606,8 @@ def admin_force_clockout():
             updates.append(
                 {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
 
-        _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
+        import copy
+        _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
     except Exception:
         pass
 
