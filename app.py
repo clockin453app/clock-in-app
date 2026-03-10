@@ -490,19 +490,23 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 /* Small badge */
 .badge{
-  font-size: 12px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(11,18,32,.12);
-  background: rgba(255,255,255,.75);
-  color: rgba(11,18,32,.72);
-  font-weight:600;
-  white-space: nowrap;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:6px 12px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.02em;
+  background: rgba(239,246,255,.96);
+  color: var(--navy);
+  border:1px solid rgba(30,64,175,.16);
+  box-shadow: 0 2px 8px rgba(15,23,42,.05);
 }
 .badge.admin{
-  background: var(--navy);
-  color:#fff;
-  border-color: rgba(255,255,255,.12);
+  background: rgba(239,246,255,.96);
+  color: #1d4ed8;
+  border:1px solid rgba(59,130,246,.18);
 }
 
 /* Shell */
@@ -534,36 +538,643 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .kpi .value{ font-size: 28px; font-weight:700; margin: 6px 0 0 0; font-variant-numeric: tabular-nums; }
 
 /* Graph */
-.graphCard{ margin-top: 12px; padding: 14px; }
-.graphTop{ display:flex; align-items:center; justify-content:space-between; gap:12px; }
-.graphTitle{ font-weight:600; font-size: 16px; }
-.graphRange{ color: var(--muted); font-size: 13px; font-weight:500; }
-.bars{
+.graphCard{
   margin-top: 12px;
+  padding: 16px;
+  border-radius: 22px;
+}
+.graphTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.graphTitle{
+  font-weight:800;
+  font-size: 18px;
+  color: rgba(15,23,42,.96);
+}
+
+.graphRange{
+  color: var(--muted);
+  font-size: 13px;
+  font-weight:600;
+}
+
+.graphShell{
+  margin-top: 14px;
+  padding: 14px 14px 10px 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(10,42,94,.10);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)),
+    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 45%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+.bars{
+  height: 240px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 14px;
+  padding: 8px 6px 0 6px;
+  position: relative;
+}
+
+.barCol{
+  flex: 1 1 0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  min-width: 0;
+}
+
+.barValue{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(30,64,175,.92);
+  min-height: 16px;
+  white-space: nowrap;
+}
+
+.barTrack{
+  width: 100%;
   height: 180px;
   display:flex;
   align-items:flex-end;
-  justify-content:space-around;
-  gap: 12px;
-  padding: 10px 6px 0 6px;
+  justify-content:center;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(10,42,94,.06) 0%, rgba(10,42,94,0) 65%);
-  border: 1px solid rgba(10,42,94,.12);
+  background: linear-gradient(180deg, rgba(30,64,175,.03), rgba(30,64,175,0));
+  position: relative;
 }
+
 .bar{
-  width: 16%;
-  border-radius: 14px 14px 10px 10px;
-  background: linear-gradient(180deg, rgba(10,42,94,.92), rgba(10,42,94,.55));
-  box-shadow: 0 8px 18px rgba(10,42,94,.18);
+  width: 72%;
+  min-width: 24px;
+  border-radius: 18px 18px 12px 12px;
+  background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
+  box-shadow: 0 14px 26px rgba(30,64,175,.22);
 }
+
 .barLabels{
   display:flex;
-  justify-content:space-around;
-  gap:12px;
-  margin-top: 10px;
+  justify-content:space-between;
+  gap:14px;
+  margin-top: 8px;
   color: var(--muted);
-  font-weight:500;
+  font-weight:700;
   font-size: 13px;
+}
+
+.barLabels div{
+  flex:1 1 0;
+  text-align:center;
+}
+
+.graphMeta{
+  margin-top: 14px;
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px;
+}
+
+@media (max-width: 900px){
+  .graphMeta{
+    grid-template-columns: 1fr;
+  }
+}
+
+.graphStat{
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(11,18,32,.08);
+  background: rgba(255,255,255,.82);
+}
+
+.graphStat .k{
+  font-size: 12px;
+  color: var(--muted);
+  font-weight:700;
+}
+
+.graphStat .v{
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight:800;
+  color: rgba(15,23,42,.95);
+}
+.dashboardLower{
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (max-width: 1100px){
+  .dashboardLower{
+    grid-template-columns: 1fr;
+  }
+}
+
+.quickCard,
+.activityCard,
+.sideInfoCard{
+  padding: 14px;
+}
+
+.quickCard{
+  background:
+    linear-gradient(180deg, rgba(239,246,255,.96), rgba(255,255,255,.96));
+  border: 1px solid rgba(59,130,246,.14);
+}
+
+.activityCard{
+  background:
+    linear-gradient(180deg, rgba(245,243,255,.96), rgba(255,255,255,.96));
+  border: 1px solid rgba(139,92,246,.14);
+}
+
+.sideInfoCard{
+  background:
+    linear-gradient(180deg, rgba(236,253,245,.96), rgba(255,255,255,.96));
+  border: 1px solid rgba(34,197,94,.14);
+}
+
+.quickCard h2{
+  color: #1d4ed8;
+}
+
+.activityCard h2{
+  color: #7c3aed;
+}
+
+.sideInfoCard h2{
+  color: #15803d;
+}
+
+.quickGrid{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:10px;
+  margin-top:10px;
+}
+
+.quickMini{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:12px 12px;
+  border-radius:16px;
+  border:1px solid rgba(59,130,246,.12);
+  background: rgba(255,255,255,.88);
+  transition: transform .16s ease, box-shadow .16s ease;
+}
+.quickMini:hover{
+  transform: translateY(-1px);
+  box-shadow: var(--shadow2);
+}
+
+.quickMini .left{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.quickMini .miniIcon{
+  width:36px;
+  height:36px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  color: var(--navy);
+  background: rgba(30,64,175,.10);
+  border:1px solid rgba(30,64,175,.14);
+}
+
+.quickMini .miniText{
+  font-weight:800;
+  font-size:14px;
+  color: rgba(15,23,42,.92);
+}
+
+.activityList{
+  margin-top:10px;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+
+.activityRow{
+  display:grid;
+  grid-template-columns: 92px 54px 54px 48px 64px;
+  gap:8px;
+  align-items:center;
+  padding:10px 10px;
+  border-radius:14px;
+  border:1px solid rgba(139,92,246,.12);
+  background: rgba(255,255,255,.88);
+  font-size:12px;
+  font-weight:700;
+  color: rgba(15,23,42,.88);
+  font-variant-numeric: tabular-nums;
+}
+
+.activityHead{
+  color: var(--muted);
+  font-size:11px;
+  font-weight:800;
+  background: transparent;
+  border:none;
+  padding:0 2px;
+}
+
+.activityEmpty{
+  margin-top:10px;
+  padding:14px;
+  border-radius:14px;
+  border:1px dashed rgba(11,18,32,.14);
+  color: var(--muted);
+  font-weight:600;
+  background: rgba(255,255,255,.60);
+}
+.dashboardBottom{
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1.35fr .85fr;
+  gap: 12px;
+  align-items: start;
+}
+
+@media (max-width: 1100px){
+  .dashboardBottom{
+    grid-template-columns: 1fr;
+  }
+}
+
+.sideInfoCard{
+  padding: 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(11,18,32,.08);
+  background: rgba(255,255,255,.82);
+}
+
+.sideInfoList{
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sideInfoRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  padding:10px 12px;
+  border-radius:14px;
+  border:1px solid rgba(34,197,94,.12);
+  background: rgba(255,255,255,.88);
+}
+
+.sideInfoLabel{
+  font-size: 13px;
+  font-weight: 700;
+  color: rgba(15,23,42,.78);
+}
+
+.sideInfoValue{
+  font-size: 18px;
+  font-weight: 800;
+  color: rgba(15,23,42,.96);
+}
+.weeklyEditTable{
+  width:100%;
+  min-width:100%;
+  table-layout: fixed;
+  border-collapse:separate;
+  border-spacing:0;
+  border-radius:18px;
+  background: rgba(255,255,255,.88);
+  border:1px solid rgba(11,18,32,.08);
+}
+.payrollEmployeeCard{
+  width:100%;
+  box-sizing:border-box;
+}
+
+.payrollEmployeeCard .tablewrap{
+  width:100%;
+  box-sizing:border-box;
+  overflow-x:auto;
+}
+
+.payrollEmployeeCard .weeklyEditTable{
+  width:100%;
+}
+.payrollSummaryBar{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns: repeat(5, minmax(120px, 1fr));
+  gap:10px;
+}
+
+@media (max-width: 1100px){
+  .payrollSummaryBar{
+    grid-template-columns: repeat(2, minmax(120px, 1fr));
+  }
+}
+
+.payrollSummaryItem{
+  padding:12px 14px;
+  border-radius:16px;
+  border:1px solid rgba(11,18,32,.08);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+  box-shadow: 0 4px 12px rgba(15,23,42,.05);
+}
+
+.payrollSummaryItem .k{
+  font-size:12px;
+  font-weight:800;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing:.04em;
+}
+
+.payrollSummaryItem .v{
+  margin-top:4px;
+  font-size:20px;
+  font-weight:800;
+  color: rgba(15,23,42,.96);
+  line-height:1.15;
+}
+
+.payrollSummaryItem.net .v{
+  color:#111827;
+}
+
+.payrollSummaryItem.paidat .v{
+  font-size:16px;
+}
+.weeklyEditTable thead th{
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
+  color: white;
+  font-size:13px;
+  font-weight:800;
+  padding:12px 10px;
+  border-bottom:1px solid rgba(127,29,29,.35);
+}
+
+.weeklyEditTable tbody td{
+  padding:14px 10px;
+  border-bottom:1px solid rgba(11,18,32,.06);
+  color: rgba(15,23,42,.92);
+  font-size:14px;
+  background: rgba(255,255,255,.82);
+  vertical-align:middle;
+}
+
+.weeklyEditTable tbody tr:nth-child(even) td{
+  background: rgba(248,250,252,.78);
+}
+
+.weeklyEditTable tbody tr:hover td{
+  background: rgba(239,246,255,.72);
+}
+
+.weeklyEditTable td.num,
+.weeklyEditTable th.num{
+  text-align:center;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:"tnum";
+}
+
+.weeklyEditTable thead th:nth-child(3),
+.weeklyEditTable thead th:nth-child(4),
+.weeklyEditTable thead th:nth-child(5),
+.weeklyEditTable thead th:nth-child(6),
+.weeklyEditTable thead th:nth-child(7),
+.weeklyEditTable tbody td:nth-child(3),
+.weeklyEditTable tbody td:nth-child(4),
+.weeklyEditTable tbody td:nth-child(5),
+.weeklyEditTable tbody td:nth-child(6),
+.weeklyEditTable tbody td:nth-child(7){
+  text-align:center;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings:"tnum";
+}
+
+.weeklyEditTable tbody td:first-child{
+  font-weight:800;
+  width:70px;
+}
+
+.weeklyEditTable tbody td:nth-child(2){
+  color: var(--muted);
+  width:120px;
+}
+
+.weeklyEditTable tbody td:empty::after{
+  content:"";
+}
+
+.weeklyEditTable tbody tr:last-child td{
+  border-bottom:none;
+}
+.sectionHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:8px;
+}
+
+.sectionHeadLeft{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.sectionIcon{
+  width:36px;
+  height:36px;
+  border-radius:12px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(11,18,32,.08);
+}
+
+.sectionIcon svg{
+  width:18px;
+  height:18px;
+}
+
+.sectionBadge{
+  font-size:12px;
+  font-weight:800;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(11,18,32,.08);
+  background: rgba(255,255,255,.88);
+  white-space:nowrap;
+}
+
+.activityCard .sectionIcon{
+  background: rgba(139,92,246,.14);
+  color: #7c3aed;
+  border-color: rgba(139,92,246,.18);
+}
+
+.activityCard .sectionBadge{
+  color: #7c3aed;
+  border-color: rgba(139,92,246,.18);
+  background: rgba(139,92,246,.08);
+}
+
+.sideInfoCard .sectionIcon{
+  background: rgba(34,197,94,.14);
+  color: #15803d;
+  border-color: rgba(34,197,94,.18);
+}
+
+.sideInfoCard .sectionBadge{
+  color: #15803d;
+  border-color: rgba(34,197,94,.18);
+  background: rgba(34,197,94,.08);
+}
+.graphCard{
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 22px;
+}
+
+.graphTop{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+
+.graphTitle{
+  font-weight:800;
+  font-size: 18px;
+  color: rgba(15,23,42,.96);
+}
+
+.graphRange{
+  color: var(--muted);
+  font-size: 13px;
+  font-weight:600;
+}
+
+.graphShell{
+  margin-top: 14px;
+  padding: 14px 14px 10px 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(10,42,94,.10);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)),
+    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 45%);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+}
+
+.bars{
+  height: 240px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-between;
+  gap: 14px;
+  padding: 8px 6px 0 6px;
+  position: relative;
+}
+
+.barCol{
+  flex: 1 1 0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+  gap:8px;
+  min-width: 0;
+}
+
+.barValue{
+  font-size: 12px;
+  font-weight: 800;
+  color: rgba(30,64,175,.92);
+  min-height: 16px;
+  white-space: nowrap;
+}
+
+.barTrack{
+  width: 100%;
+  height: 180px;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(30,64,175,.03), rgba(30,64,175,0));
+  position: relative;
+}
+
+.bar{
+  width: 72%;
+  min-width: 24px;
+  border-radius: 18px 18px 12px 12px;
+  background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
+  box-shadow: 0 14px 26px rgba(30,64,175,.22);
+}
+
+.barLabels{
+  display:flex;
+  justify-content:space-between;
+  gap:14px;
+  margin-top: 8px;
+  color: var(--muted);
+  font-weight:700;
+  font-size: 13px;
+}
+
+.barLabels div{
+  flex:1 1 0;
+  text-align:center;
+}
+
+.graphMeta{
+  margin-top: 14px;
+  display:grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap:10px;
+}
+
+@media (max-width: 900px){
+  .graphMeta{
+    grid-template-columns: 1fr;
+  }
+}
+
+.graphStat{
+  padding: 10px 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(11,18,32,.08);
+  background: rgba(255,255,255,.82);
+}
+
+.graphStat .k{
+  font-size: 12px;
+  color: var(--muted);
+  font-weight:700;
+}
+
+.graphStat .v{
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight:800;
+  color: rgba(15,23,42,.95);
 }
 
 /* Menu */
@@ -576,6 +1187,224 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   margin-top: 6px;
 }
 .adminGrid .menuItem{ margin-top: 0; height:100%; }
+.adminToolCard{
+  padding: 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+  box-shadow: 0 10px 26px rgba(15,23,42,.08);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  min-height: 132px;
+  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+}
+.adminToolCard:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 16px 34px rgba(15,23,42,.12);
+}
+.adminToolTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.adminToolIcon{
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display:grid;
+  place-items:center;
+  border: 1px solid rgba(15,23,42,.08);
+}
+.adminToolIcon svg{
+  width: 22px;
+  height: 22px;
+}
+.adminToolTitle{
+  font-size: 16px;
+  font-weight: 800;
+  color: rgba(15,23,42,.94);
+}
+.adminToolSub{
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
+/* Different colors for admin cards */
+.adminToolCard.payroll .adminToolIcon{
+  background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
+  color: #1d4ed8;
+  border-color: rgba(37,99,235,.16);
+}
+.adminToolCard.company .adminToolIcon{
+  background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
+  color: #15803d;
+  border-color: rgba(22,163,74,.18);
+}
+.adminToolCard.onboarding .adminToolIcon{
+  background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
+  color: #4338ca;
+  border-color: rgba(79,70,229,.18);
+}
+.adminToolCard.locations .adminToolIcon{
+  background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
+  color: #0e7490;
+  border-color: rgba(8,145,178,.18);
+}
+.adminToolCard.sites .adminToolIcon{
+  background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
+  color: #b45309;
+  border-color: rgba(217,119,6,.18);
+}
+.adminToolCard.employees .adminToolIcon{
+  background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
+  color: #be185d;
+  border-color: rgba(219,39,119,.16);
+}
+.adminToolCard.drive .adminToolIcon{
+  background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
+  color: #0f172a;
+  border-color: rgba(51,65,85,.18);
+}
+/* Admin lower section panels */
+.adminSectionCard{
+  padding: 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(15,23,42,.10);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+  box-shadow: 0 10px 26px rgba(15,23,42,.07);
+}
+
+.adminSectionHead{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+  flex-wrap:wrap;
+  margin-bottom: 12px;
+}
+
+.adminSectionHeadLeft{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+}
+
+.adminSectionIcon{
+  width: 46px;
+  height: 46px;
+  border-radius: 14px;
+  display:grid;
+  place-items:center;
+  border: 1px solid rgba(15,23,42,.08);
+  flex: 0 0 auto;
+}
+.adminSectionIcon svg{
+  width: 22px;
+  height: 22px;
+}
+
+.adminSectionIcon.clockin{
+  background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
+  color: #1d4ed8;
+  border-color: rgba(37,99,235,.16);
+}
+.adminSectionIcon.live{
+  background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
+  color: #15803d;
+  border-color: rgba(22,163,74,.18);
+}
+
+.adminSectionTitle{
+  font-size: 16px;
+  font-weight: 800;
+  color: rgba(15,23,42,.95);
+  margin: 0;
+}
+
+.adminSectionSub{
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--muted);
+  margin: 4px 0 0 0;
+}
+
+.adminFormRow{
+  display:block;
+  width:100%;
+}
+.adminFormRow .input{
+  margin-top:0;
+}
+.adminActionBar{
+  display:grid;
+  grid-template-columns: 190px minmax(220px, 260px) 170px max-content;
+  gap:10px;
+  align-items:center;
+  width: 100%;
+  padding: 12px;
+  border-radius: 16px;
+  background: linear-gradient(180deg, rgba(248,250,252,.95), rgba(241,245,249,.92));
+  border: 1px solid rgba(15,23,42,.08);
+}
+
+.adminActionBar .input{
+  width: 100%;
+  height: 44px;
+  border-radius: 14px;
+  background: rgba(255,255,255,.96);
+}
+
+@media (max-width: 1200px){
+  .adminActionBar{
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+@media (max-width: 700px){
+  .adminActionBar{
+    grid-template-columns: 1fr;
+  }
+}
+
+.adminPrimaryBtn{
+  height: 44px;
+  min-width: 150px;
+  padding: 0 18px;
+  justify-self: start;
+  border: none;
+  border-radius: 14px;
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  background: linear-gradient(180deg, rgba(30,64,175,1), rgba(37,99,235,.96));
+  color: #fff;
+  box-shadow: 0 10px 22px rgba(30,64,175,.18);
+  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+}
+.adminPrimaryBtn:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 14px 26px rgba(30,64,175,.22);
+}
+.adminPrimaryBtn:active{
+  transform: translateY(0);
+  filter: brightness(.98);
+}
+
+.adminHintChip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 800;
+  background: rgba(30,64,175,.08);
+  border: 1px solid rgba(30,64,175,.14);
+  color: var(--navy);
+}
 @media (max-width: 780px){
   .adminGrid{ grid-template-columns: 1fr; }
 }
@@ -920,6 +1749,136 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   grid-template-columns: repeat(4, 1fr);
   gap: 10px;
 }
+.payrollTopGrid{
+  margin-top: 12px;
+  display: grid;
+  grid-template-columns: 1.15fr .85fr;
+  gap: 14px;
+  align-items: stretch;
+}
+
+@media (max-width: 1100px){
+  .payrollTopGrid{
+    grid-template-columns: 1fr;
+  }
+}
+
+.payrollFiltersCard,
+.payrollChartCard{
+  padding: 14px;
+}
+
+.payrollChartCard{
+  background:
+    linear-gradient(180deg, rgba(239,246,255,.96), rgba(255,255,255,.96));
+  border: 1px solid rgba(59,130,246,.14);
+}
+
+.payrollDonutWrap{
+  margin-top: 8px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  min-height: 250px;
+}
+
+.payrollDonut{
+  width: 230px;
+  height: 230px;
+  border-radius: 999px;
+  position: relative;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 12px 26px rgba(15,23,42,.08);
+}
+
+.payrollDonut::after{
+  content:"";
+  position:absolute;
+  inset: 38px;
+  border-radius: 999px;
+  background: white;
+  box-shadow: inset 0 1px 0 rgba(15,23,42,.04);
+}
+
+.payrollDonutCenter{
+  position:absolute;
+  inset:0;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  z-index:2;
+  text-align:center;
+  pointer-events:none;
+}
+
+.payrollDonutCenter .k{
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--muted);
+}
+
+.payrollDonutCenter .v{
+  margin-top: 4px;
+  font-size: 20px;
+  font-weight: 800;
+  color: rgba(15,23,42,.96);
+}
+
+.payrollLegend{
+  margin-top: 12px;
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:8px;
+  align-items:start;
+}
+
+@media (max-width: 1100px){
+  .payrollLegend{
+    grid-template-columns: 1fr;
+  }
+}
+
+.payrollLegendRow{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:8px;
+  padding:7px 9px;
+  border-radius: 12px;
+  border:1px solid rgba(11,18,32,.08);
+  background: rgba(255,255,255,.84);
+  min-width:0;
+}
+
+.payrollLegendLeft{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-width:0;
+}
+
+.payrollLegendDot{
+  width:12px;
+  height:12px;
+  border-radius:999px;
+  flex:0 0 auto;
+}
+
+.payrollLegendName{
+  font-size:12px;
+  font-weight:700;
+  color: rgba(15,23,42,.88);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.payrollLegendVal{
+  font-size:12px;
+  font-weight:800;
+  color: rgba(30,64,175,.95);
+  white-space:nowrap;
+}
 @media (max-width: 800px){
   .kpiStrip{ grid-template-columns: 1fr 1fr; }
 }
@@ -931,6 +1890,59 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .kpiMini .k{ font-size: 12px; color: var(--muted); font-weight:600; }
 .kpiMini .v{ margin-top:6px; font-size: 18px; font-weight:800; font-variant-numeric: tabular-nums; }
+/* Admin summary cards */
+.adminStats .adminStatCard{
+  border-radius: 18px;
+  border: 1px solid rgba(15,23,42,.10);
+  box-shadow: 0 8px 22px rgba(15,23,42,.06);
+}
+
+.adminStats .adminStatCard .k{
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.adminStats .adminStatCard .v{
+  font-size: 18px;
+  font-weight: 900;
+}
+
+/* Individual colors */
+.adminStats .adminStatCard.employees{
+  background: linear-gradient(180deg, rgba(219,234,254,.55), rgba(255,255,255,.96));
+  border-color: rgba(37,99,235,.16);
+}
+.adminStats .adminStatCard.employees .k,
+.adminStats .adminStatCard.employees .v{
+  color: #1d4ed8;
+}
+
+.adminStats .adminStatCard.clocked{
+  background: linear-gradient(180deg, rgba(220,252,231,.55), rgba(255,255,255,.96));
+  border-color: rgba(22,163,74,.16);
+}
+.adminStats .adminStatCard.clocked .k,
+.adminStats .adminStatCard.clocked .v{
+  color: #15803d;
+}
+
+.adminStats .adminStatCard.locations{
+  background: linear-gradient(180deg, rgba(207,250,254,.55), rgba(255,255,255,.96));
+  border-color: rgba(8,145,178,.16);
+}
+.adminStats .adminStatCard.locations .k,
+.adminStats .adminStatCard.locations .v{
+  color: #0e7490;
+}
+
+.adminStats .adminStatCard.onboarding{
+  background: linear-gradient(180deg, rgba(224,231,255,.55), rgba(255,255,255,.96));
+  border-color: rgba(79,70,229,.16);
+}
+.adminStats .adminStatCard.onboarding .k,
+.adminStats .adminStatCard.onboarding .v{
+  color: #4338ca;
+}
 
 /* Weekly net badge */
 .netBadge{
@@ -1016,29 +2028,29 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Desktop wide layout */
 @media (min-width: 980px){
   body{ padding: 18px 18px 22px 18px; }
-  .shell{
+    .shell{
     max-width: none;
     width: calc(100vw - 36px);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 320px minmax(0, 1fr);
-    gap: 18px;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 16px;
     align-items: start;
   }
   .bottomNav{ display:none; }
-  .sidebar{
+    .sidebar{
     display:flex;
     flex-direction:column;
-    gap: 10px;
+    gap: 8px;
     position: sticky;
     top: 18px;
     height: calc(100vh - 36px);
     overflow: hidden;
-    padding: 14px;
-    background: rgba(255,255,255,.70);
-    border: 1px solid rgba(11,18,32,.10);
-    border-radius: 18px;
-    box-shadow: var(--shadow);
+    padding: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(248,250,252,.92));
+    border: 1px solid rgba(30,64,175,.10);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(15,23,42,.08);
   }
   .sideScroll{
     overflow:auto;
@@ -1051,25 +2063,30 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     color: rgba(11,18,32,.80);
     margin: 0 0 10px 2px;
   }
-  .sideItem{
+    .sideItem{
     display:flex;
     align-items:center;
     justify-content:space-between;
-    gap:12px;
-    padding: 12px 12px;
-    border-radius: 16px;
-    background: rgba(255,255,255,.85);
-    border: 1px solid rgba(11,18,32,.08);
-    margin-top: 10px;
+    gap:10px;
+    padding: 10px 11px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.96));
+    border: 1px solid rgba(30,64,175,.08);
+    margin-top: 8px;
     position: relative;
     overflow: hidden;
     transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
   }
-  .sideItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-  .sideItem.active{
-    background: var(--navySoft);
+    .sideItem:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgba(30,64,175,.14);
     border-color: rgba(30,64,175,.18);
-    box-shadow: 0 16px 46px rgba(11,18,32,.12);
+  }
+
+  .sideItem.active{
+    background: linear-gradient(180deg, rgba(30,64,175,.16), rgba(59,130,246,.10));
+    border-color: rgba(30,64,175,.26);
+    box-shadow: 0 12px 30px rgba(30,64,175,.16);
   }
   .sideItem.active:before{
     content:"";
@@ -1083,16 +2100,95 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     box-shadow: 0 0 0 3px rgba(30,64,175,.10);
   }
   .sideLeft{ display:flex; align-items:center; gap:12px; }
-  .sideText{ font-weight:800; font-size: 15px; letter-spacing:.1px; }
+    .sideText{ font-weight:800; font-size: 14px; letter-spacing:.1px; }
+
   .sideIcon{
-    width: 40px; height: 40px;
-    border-radius: 14px;
-    background: rgba(255,255,255,.92);
-    border: 1px solid rgba(11,18,32,.08);
+    width: 36px; height: 36px;
+    border-radius: 12px;
+    background: linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
+    border: 1px solid rgba(30,64,175,.12);
     display:grid; place-items:center;
     color: var(--navy);
   }
-  .sideIcon svg{ width:20px; height:20px; }
+  .sideIcon svg{ width:18px; height:18px; }
+  
+    /* Different colors for each sidebar item */
+  .sideItem.nav-home .sideIcon{
+    background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
+    border-color: rgba(37,99,235,.16);
+    color: #1d4ed8;
+  }
+
+  .sideItem.nav-clock .sideIcon{
+    background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
+    border-color: rgba(22,163,74,.18);
+    color: #15803d;
+  }
+
+  .sideItem.nav-times .sideIcon{
+    background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
+    border-color: rgba(217,119,6,.18);
+    color: #b45309;
+  }
+
+  .sideItem.nav-reports .sideIcon{
+    background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
+    border-color: rgba(79,70,229,.18);
+    color: #4338ca;
+  }
+
+  .sideItem.nav-agreements .sideIcon{
+    background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
+    border-color: rgba(8,145,178,.18);
+    color: #0e7490;
+  }
+
+  .sideItem.nav-profile .sideIcon{
+    background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
+    border-color: rgba(219,39,119,.16);
+    color: #be185d;
+  }
+
+  .sideItem.nav-admin .sideIcon{
+    background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
+    border-color: rgba(51,65,85,.18);
+    color: #0f172a;
+  }
+
+  .sideItem.nav-home.active{
+    background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
+    border-color: rgba(37,99,235,.24);
+  }
+
+  .sideItem.nav-clock.active{
+    background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
+    border-color: rgba(22,163,74,.24);
+  }
+
+  .sideItem.nav-times.active{
+    background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
+    border-color: rgba(245,158,11,.24);
+  }
+
+  .sideItem.nav-reports.active{
+    background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
+    border-color: rgba(79,70,229,.24);
+  }
+
+  .sideItem.nav-agreements.active{
+    background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
+    border-color: rgba(8,145,178,.24);
+  }
+
+  .sideItem.nav-profile.active{
+    background: linear-gradient(180deg, rgba(219,39,119,.14), rgba(244,114,182,.08));
+    border-color: rgba(219,39,119,.22);
+  }
+
+  .sideItem.nav-admin.active{
+    background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
+    border-color: rgba(51,65,85,.24);
+  }
 
   .sideDivider{
     height: 1px;
@@ -1144,10 +2240,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .payrollSheet{
-  width: max-content;     /* allow horizontal scroll */
+  width: max-content;
   border-collapse: collapse;
   table-layout: fixed;
-  min-width: 2600px;      /* enough space so time inputs don't overlap */
+  min-width: 2200px;
   background:#fff;
 }
 
@@ -1179,7 +2275,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* END PASTE */
 .payrollSheet th{
   border:1px solid rgba(15,23,42,.10);
-  padding: 8px 10px;
+  padding: 7px 8px;
   font-size: 13px;
   line-height: 1.2;
   vertical-align: middle;
@@ -1191,7 +2287,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .payrollSheet td{
   border:1px solid rgba(15,23,42,.10);
-  padding: 8px 10px;
+  padding: 7px 8px;
   font-size: 15px;
   line-height: 1.35;
   vertical-align: middle;
@@ -1234,7 +2330,41 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   font-weight: 800;
   font-size: 12px;
 }
+/* Make the big payroll day columns tighter */
+.payrollSheet thead tr.cols th{
+  padding: 6px 4px;
+}
 
+.payrollSheet thead tr.cols th:nth-child(3n+1),
+.payrollSheet thead tr.cols th:nth-child(3n+2){
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+}
+
+.payrollSheet thead tr.cols th:nth-child(3n+3){
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
+}
+
+/* Body cells for the 7 day columns only (cols 2 to 22 in each row) */
+.payrollSheet tbody td:nth-child(3n+2):nth-child(-n+22),
+.payrollSheet tbody td:nth-child(3n+3):nth-child(-n+22){
+  width: 52px;
+  min-width: 52px;
+  max-width: 52px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
+
+.payrollSheet tbody td:nth-child(3n+4):nth-child(-n+22){
+  width: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  padding-left: 4px;
+  padding-right: 4px;
+}
 .payrollSheet .num{ text-align:right; white-space:nowrap; }
 .payrollSheet .emp{ font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .payrollSheet .empSub{
@@ -1256,12 +2386,74 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   font-size: 13px;
   outline: none;
 }
+.payrollSheet input.payrollTimeInput{
+  width: 48px !important;
+  height: 18px !important;
+  padding: 0 !important;
+  border: none !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+  font-size: 10px !important;
+  font-weight: 800 !important;
+  text-align: center !important;
+  color: rgba(15,23,42,.92) !important;
+  outline: none !important;
+  appearance: none;
+  -webkit-appearance: none;
+}
+
+/* Hide the browser's empty time placeholder like --:-- or dots */
+.payrollSheet input.payrollTimeInput[value=""]{
+  color: transparent !important;
+}
+
+.payrollSheet input.payrollTimeInput[value=""]::-webkit-datetime-edit{
+  color: transparent !important;
+}
+
+.payrollSheet input.payrollTimeInput[value=""]::-webkit-date-and-time-value{
+  color: transparent !important;
+}
+
+.payrollSheet input.payrollTimeInput:focus{
+  color: rgba(15,23,42,.92) !important;
+  background: rgba(30,64,175,.06) !important;
+  border-radius: 6px !important;
+  box-shadow: inset 0 0 0 1px rgba(30,64,175,.18) !important;
+}
+
+.payrollSheet input.payrollTimeInput:focus::-webkit-datetime-edit,
+.payrollSheet input.payrollTimeInput:focus::-webkit-date-and-time-value{
+  color: rgba(15,23,42,.92) !important;
+}
 .payrollSheet input:focus,
 .payrollSheet select:focus{
   border-color: rgba(30,64,175,.45);
   box-shadow: 0 0 0 3px rgba(30,64,175,.10);
 }
+.payrollTimeInput{
+  width: 72px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+  color: rgba(15,23,42,.92);
+  appearance: none;
+  -webkit-appearance: none;
+}
 
+.payrollTimeInput:focus{
+  outline: none;
+  background: rgba(30,64,175,.06);
+  border-radius: 6px;
+  box-shadow: inset 0 0 0 1px rgba(30,64,175,.18);
+}
 .payrollSheet tfoot td{
   background:#f8fafc;
   font-weight: 900;
@@ -1299,6 +2491,225 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet tbody tr:hover td.net{
   background: rgba(250,204,21,.30);
 }
+/* Responsive payroll sizing */
+.payrollEmpCell{
+  min-width: 135px;
+  max-width: 135px;
+}
+
+/* Wide desktop */
+@media (max-width: 1700px) and (min-width: 980px){
+  .payrollSheet{
+    min-width: 2050px;
+  }
+
+  .payrollEmpCell{
+    min-width: 120px;
+    max-width: 120px;
+  }
+
+  .payrollSheet th{
+    padding: 6px 6px;
+    font-size: 12px;
+  }
+
+  .payrollSheet td{
+    padding: 6px 6px;
+    font-size: 13px;
+  }
+
+  .payrollSheet input.payrollTimeInput{
+    width: 44px !important;
+    font-size: 10px !important;
+  }
+
+  .payCellBtn{
+    min-height: 30px;
+    padding: 4px 6px;
+    font-size: 11px;
+  }
+
+  .payCellBtn .payLabel{
+    font-size: 10px;
+  }
+}
+
+/* Smaller laptop desktop */
+@media (max-width: 1450px) and (min-width: 980px){
+  .payrollSheet{
+    min-width: 1880px;
+  }
+
+  .payrollEmpCell{
+    min-width: 108px;
+    max-width: 108px;
+  }
+
+  .payrollSheet th{
+    padding: 5px 4px;
+    font-size: 11px;
+  }
+
+  .payrollSheet td{
+    padding: 5px 4px;
+    font-size: 12px;
+  }
+
+  .payrollSheet input.payrollTimeInput{
+    width: 38px !important;
+    font-size: 9px !important;
+  }
+
+  .payCellBtn{
+    min-height: 28px;
+    padding: 3px 5px;
+    font-size: 10px;
+  }
+
+  .payCellBtn .payLabel{
+    font-size: 9px;
+  }
+
+  .payrollSheet tbody td:nth-child(2),
+  .payrollSheet tbody td:nth-child(3),
+  .payrollSheet tbody td:nth-child(5),
+  .payrollSheet tbody td:nth-child(6),
+  .payrollSheet tbody td:nth-child(8),
+  .payrollSheet tbody td:nth-child(9),
+  .payrollSheet tbody td:nth-child(11),
+  .payrollSheet tbody td:nth-child(12),
+  .payrollSheet tbody td:nth-child(14),
+  .payrollSheet tbody td:nth-child(15),
+  .payrollSheet tbody td:nth-child(17),
+  .payrollSheet tbody td:nth-child(18),
+  .payrollSheet tbody td:nth-child(20),
+  .payrollSheet tbody td:nth-child(21){
+    width: 42px;
+    min-width: 42px;
+    max-width: 42px;
+  }
+
+  .payrollSheet tbody td:nth-child(4),
+  .payrollSheet tbody td:nth-child(7),
+  .payrollSheet tbody td:nth-child(10),
+  .payrollSheet tbody td:nth-child(13),
+  .payrollSheet tbody td:nth-child(16),
+  .payrollSheet tbody td:nth-child(19),
+  .payrollSheet tbody td:nth-child(22){
+    width: 34px;
+    min-width: 34px;
+    max-width: 34px;
+  }
+}
+/* Tighten the last 4 payroll columns */
+.payrollSheet thead tr.group th:nth-last-child(4){
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+}
+
+.payrollSheet thead tr.group th:nth-last-child(3){
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+}
+
+.payrollSheet thead tr.group th:nth-last-child(2){
+  width: 82px;
+  min-width: 82px;
+  max-width: 82px;
+}
+
+.payrollSheet thead tr.group th:nth-last-child(1){
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+
+.payrollSheet tbody td:nth-child(23){
+  width: 72px;
+  min-width: 72px;
+  max-width: 72px;
+}
+
+.payrollSheet tbody td:nth-child(24){
+  width: 92px;
+  min-width: 92px;
+  max-width: 92px;
+}
+
+.payrollSheet tbody td:nth-child(25){
+  width: 82px;
+  min-width: 82px;
+  max-width: 82px;
+}
+
+.payrollSheet tbody td:nth-child(26){
+  width: 120px;
+  min-width: 120px;
+  max-width: 120px;
+}
+
+/* Smaller pay button inside Net / Pay */
+.payCellBtn{
+  min-height: 28px;
+  padding: 4px 6px;
+  font-size: 11px;
+}
+
+.payCellBtn .payLabel{
+  font-size: 10px;
+}
+/* Net cell as payment action */
+.payCellForm{
+  margin: 0;
+}
+
+.payCellBtn{
+  width: 100%;
+  min-height: 34px;
+  border: none;
+  border-radius: 10px;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  background: rgba(250,204,21,.22);
+  color: rgba(2,6,23,.92);
+  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
+}
+
+.payCellBtn:hover{
+  filter: brightness(0.98);
+  box-shadow: inset 0 0 0 1px rgba(146,64,14,.18);
+}
+
+.payCellBtn:active{
+  transform: scale(.99);
+}
+
+.payCellBtn .payLabel{
+  display:block;
+  font-size: 11px;
+  font-weight: 800;
+  color: rgba(146,64,14,.95);
+  margin-top: 2px;
+}
+
+.payrollSheet td.net.paidNetCell{
+  background: rgba(22,163,74,.18) !important;
+  color: rgba(21,128,61,.98) !important;
+  font-weight: 900;
+  text-align: center;
+}
+
+.payrollSheet td.net.zeroNetCell{
+  background: rgba(250,204,21,.16) !important;
+  color: rgba(2,6,23,.92) !important;
+  font-weight: 800;
+  text-align: right;
+}
+
 /* Print tidy */
 @media print{
   .sidebar, .bottomNav, button, input, select, .weekRow { display:none !important; }
@@ -1306,14 +2717,100 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
   .card{ box-shadow:none !important; }
 }
-/* Payroll/admin: hide sidebar to give table full width */
+/* Dashboard page menu card:
+   keep on mobile, hide on desktop because sidebar already exists */
+.dashboardMainMenu{
+  display:block;
+}
+
+@media (min-width: 980px){
+  .dashboardMainMenu{
+    display:none;
+  }
+}
+/* Payroll page docked sidebar */
 @media (min-width: 980px){
   .payrollShell{
     grid-template-columns: 1fr !important;
+    position: relative;
   }
+
   .payrollShell .sidebar{
+    display: flex !important;
+    position: fixed;
+    left: 18px;
+    top: 18px;
+    bottom: 18px;
+    width: 280px;
+    z-index: 140;
+    transform: translateX(-115%);
+    opacity: 0;
+    pointer-events: none;
+    transition: transform .22s ease, opacity .22s ease;
+  }
+
+  .payrollShell.payrollMenuOpen .sidebar{
+    transform: translateX(0);
+    opacity: 1;
+    pointer-events: auto;
+  }
+
+  .payrollShell .main{
+    width: 100%;
+    min-width: 0;
+    transition: margin-left .22s ease, width .22s ease;
+  }
+
+  .payrollShell.payrollMenuOpen .main{
+    margin-left: 298px;
+    width: calc(100% - 298px);
+  }
+
+  /* no dark overlay for docked mode */
+  .payrollMenuBackdrop{
     display: none !important;
   }
+
+  .payrollMenuToggle{
+  position: fixed;
+  left: 5px;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 160;
+  width: 20px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(220,38,38,.22);
+  border-radius: 0 12px 12px 0;
+  background: linear-gradient(180deg, rgba(254,242,242,.98), rgba(252,231,243,.96));
+  color: transparent;
+  font-size: 0;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(220,38,38,.14);
+  transition: left .22s ease, box-shadow .18s ease, background .18s ease;
+}
+
+.payrollMenuToggle::before{
+  content: "❯";
+  color: rgba(220,38,38,.95);
+  font-size: 15px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.payrollShell.payrollMenuOpen .payrollMenuToggle{
+  left: 308px;
+}
+
+.payrollShell.payrollMenuOpen .payrollMenuToggle::before{
+  content: "❮";
+}
+
+.payrollMenuToggle:hover{
+  box-shadow: 0 14px 26px rgba(220,38,38,.18);
+  background: linear-gradient(180deg, rgba(254,226,226,.98), rgba(252,231,243,.98));
 }
 </style>
 """
@@ -2564,7 +4061,7 @@ def sidebar_html(active: str, role: str) -> str:
     links = []
     for key, href, label, icon in items:
         links.append(f"""
-          <a class="sideItem {'active' if active==key else ''}" href="{href}">
+          <a class="sideItem nav-{key} {'active' if active==key else ''}" href="{href}">
             <div class="sideLeft">
               <div class="sideIcon">{icon}</div>
               <div class="sideText">{escape(label)}</div>
@@ -2844,9 +4341,10 @@ def home():
         yy, ww, _ = d2.isocalendar()
         return yy, ww
 
-    week_keys = [week_key_for_n(i) for i in range(4, -1, -1)]
+    dashboard_weeks = 8
+    week_keys = [week_key_for_n(i) for i in range(dashboard_weeks - 1, -1, -1)]
     week_labels = [str(k[1]) for k in week_keys]
-    weekly_gross = [0.0] * 5
+    weekly_gross = [0.0] * dashboard_weeks
 
     for r in rows[1:]:
         if len(r) <= COL_PAY:
@@ -2896,7 +4394,142 @@ def home():
           <div class="chev">›</div>
         </a>
         """
+    recent_rows = []
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+        if len(r) <= COL_USER:
+            continue
 
+        row_user = (r[COL_USER] or "").strip()
+
+        if role != "admin" and row_user != username:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            if not user_in_same_workplace(row_user):
+                continue
+
+        recent_rows.append({
+            "date": (r[COL_DATE] if len(r) > COL_DATE else "") or "",
+            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
+            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
+            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
+            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
+        })
+
+    recent_rows = sorted(recent_rows, key=lambda x: x["date"], reverse=True)[:5]
+
+    if recent_rows:
+        activity_html = """
+          <div class="activityRow activityHead">
+            <div>Date</div><div>In</div><div>Out</div><div>Hours</div><div>Pay</div>
+          </div>
+        """
+        for rr in recent_rows:
+            activity_html += f"""
+              <div class="activityRow">
+                <div>{escape(rr['date'])}</div>
+                <div>{escape((rr['cin'] or '')[:5])}</div>
+                <div>{escape((rr['cout'] or '')[:5])}</div>
+                <div>{escape(rr['hours'])}</div>
+                <div>{escape(currency)}{escape(rr['pay'])}</div>
+              </div>
+            """
+    else:
+        activity_html = "<div class='activityEmpty'>No recent activity yet.</div>"
+    today_hours = 0.0
+    today_pay = 0.0
+    week_hours = 0.0
+    week_days = set()
+
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+        if len(r) <= COL_USER:
+            continue
+
+        row_user = (r[COL_USER] or "").strip()
+
+        if role != "admin" and row_user != username:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            if not user_in_same_workplace(row_user):
+                continue
+
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "") or ""
+        h_val = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        p_val = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
+
+        if d_str == today.strftime("%Y-%m-%d"):
+            today_hours += h_val
+            today_pay += p_val
+
+        try:
+            d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
+            if d_obj >= monday:
+                week_hours += h_val
+                if h_val > 0:
+                    week_days.add(d_str)
+        except Exception:
+            pass
+
+    is_clocked_in = bool(find_open_shift(rows, username))
+    status_text = "Clocked In" if is_clocked_in else "Clocked Out"
+    status_class = "ok" if is_clocked_in else "warn"
+    employee_count = 0
+    clocked_in_count = 0
+    active_locations_count = 0
+    onboarding_pending_count = 0
+
+    try:
+        emp_vals = employees_sheet.get_all_values()
+        if emp_vals:
+            emp_headers = emp_vals[0]
+            i_user = emp_headers.index("Username") if "Username" in emp_headers else None
+            i_wp = emp_headers.index("Workplace_ID") if "Workplace_ID" in emp_headers else None
+            i_onb = emp_headers.index("OnboardingCompleted") if "OnboardingCompleted" in emp_headers else None
+
+            for r in emp_vals[1:]:
+                if i_user is None or i_user >= len(r):
+                    continue
+                u = (r[i_user] or "").strip()
+                if not u:
+                    continue
+
+                if i_wp is not None:
+                    row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                    if row_wp != current_wp:
+                        continue
+
+                employee_count += 1
+
+                if i_onb is not None:
+                    done_flag = (r[i_onb] if i_onb < len(r) else "").strip().lower()
+                    if done_flag not in ("true", "1", "yes"):
+                        onboarding_pending_count += 1
+    except Exception:
+        pass
+
+    try:
+        for s in _get_open_shifts():
+            clocked_in_count += 1
+    except Exception:
+        pass
+
+    try:
+        active_locations_count = len(_get_active_locations())
+    except Exception:
+        active_locations_count = 0
     content = f"""
       <div class="headerTop">
         <div>
@@ -2928,16 +4561,150 @@ def home():
   </div>
 </div>
 
-      <div class="card graphCard">
+                  <div class="card graphCard">
         <div class="graphTop">
-          <div class="graphTitle">Weekly Gross</div>
+          <div>
+            <div class="graphTitle">Weekly Gross</div>
+            <div class="sub">Last 5 weeks performance</div>
+          </div>
           <div class="graphRange">Weeks {escape(week_labels[0])} – {escape(week_labels[-1])}</div>
         </div>
-        <div class="bars">{bars_html}</div>
-        <div class="barLabels">{labels_html}</div>
+
+        <div class="graphShell">
+          <div class="bars">
+            {''.join([
+              f"""
+              <div class="barCol">
+                <div class="barValue">{escape(currency)}{money(g)}</div>
+                <div class="barTrack">
+                  <div class="bar" style="height:{int((g/max_g)*165)}px;"></div>
+                </div>
+              </div>
+              """
+              for g in weekly_gross
+            ])}
+          </div>
+
+          <div class="barLabels">
+            {''.join([f"<div>{escape(x)}</div>" for x in week_labels])}
+          </div>
+
+          <div class="graphMeta">
+            <div class="graphStat">
+              <div class="k">Previous 4 Weeks</div>
+              <div class="v">{escape(currency)}{money(prev_gross)}</div>
+            </div>
+            <div class="graphStat">
+              <div class="k">Current Week</div>
+              <div class="v">{escape(currency)}{money(curr_gross)}</div>
+            </div>
+            <div class="graphStat">
+              <div class="k">Best Week</div>
+              <div class="v">{escape(currency)}{money(max(weekly_gross) if weekly_gross else 0)}</div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div class="card menu">
+      <div class="dashboardLower">
+                <div class="card quickCard">
+          <div class="quickGrid">
+            <div class="quickMini">
+              <div class="left">
+                <div class="miniIcon">{_svg_clock()}</div>
+                <div class="miniText">Status</div>
+              </div>
+              <div class="chip {status_class}">{status_text}</div>
+            </div>
+
+            <div class="quickMini">
+              <div class="left">
+                <div class="miniIcon">{_svg_clipboard()}</div>
+                <div class="miniText">Today Hours</div>
+              </div>
+              <div class="miniText">{round(today_hours, 2)}</div>
+            </div>
+
+            <div class="quickMini">
+              <div class="left">
+                <div class="miniIcon">{_svg_chart()}</div>
+                <div class="miniText">Today Gross</div>
+              </div>
+              <div class="miniText">{escape(currency)}{money(today_pay)}</div>
+            </div>
+
+            <div class="quickMini">
+              <div class="left">
+                <div class="miniIcon">{_svg_grid()}</div>
+                <div class="miniText">Week Hours</div>
+              </div>
+              <div class="miniText">{round(week_hours, 2)}</div>
+            </div>
+
+            <div class="quickMini">
+              <div class="left">
+                <div class="miniIcon">{_svg_doc()}</div>
+                <div class="miniText">Days Logged</div>
+              </div>
+              <div class="miniText">{len(week_days)}</div>
+            </div>
+          </div>
+
+                <div class="dashboardBottom">
+                    <div class="card activityCard">
+            <div class="sectionHead">
+              <div class="sectionHeadLeft">
+                <div class="sectionIcon">{_svg_clipboard()}</div>
+                <div>
+                  <h2 style="margin:0;">Recent Activity</h2>
+                  <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
+                </div>
+              </div>
+              <div class="sectionBadge">Last 5 rows</div>
+            </div>
+
+            <div class="activityList">
+              {activity_html}
+            </div>
+          </div>
+
+          <div class="card sideInfoCard">
+            <div class="sectionHead">
+              <div class="sectionHeadLeft">
+                <div class="sectionIcon">{_svg_grid()}</div>
+                <div>
+                  <h2 style="margin:0;">Business Snapshot</h2>
+                  <p class="sub" style="margin:4px 0 0 0;">Current workplace overview.</p>
+                </div>
+              </div>
+              <div class="sectionBadge">Live</div>
+            </div>
+
+            <div class="sideInfoList">
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Employees</div>
+                <div class="sideInfoValue">{employee_count}</div>
+              </div>
+
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Clocked In Now</div>
+                <div class="sideInfoValue">{clocked_in_count}</div>
+              </div>
+
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Active Locations</div>
+                <div class="sideInfoValue">{active_locations_count}</div>
+              </div>
+
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Onboarding Pending</div>
+                <div class="sideInfoValue">{onboarding_pending_count}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      <div class="card menu dashboardMainMenu">
         <a class="menuItem active" href="/clock">
           <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
           <div class="chev">›</div>
@@ -2963,8 +4730,6 @@ def home():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content))
 
-
-# ---------- CLOCK PAGE ----------
 
 # ---------- CLOCK PAGE ----------
 @app.route("/clock", methods=["GET", "POST"])
@@ -4159,6 +5924,50 @@ def admin():
     currency_js = currency.replace("\\", "\\\\").replace('"', '\\"')
 
     open_shifts = _get_open_shifts()
+    employees_total = 0
+    onboarding_total = 0
+    locations_total = len(_get_active_locations())
+    open_total = len(open_shifts)
+
+    try:
+        vals_emp = employees_sheet.get_all_values()
+        headers_emp = vals_emp[0] if vals_emp else []
+        ucol = headers_emp.index("Username") if "Username" in headers_emp else None
+        wp_col = headers_emp.index("Workplace_ID") if "Workplace_ID" in headers_emp else None
+        current_wp = _session_workplace_id()
+
+        if ucol is not None:
+            for r in vals_emp[1:]:
+                u = (r[ucol] if ucol < len(r) else "").strip()
+                if not u:
+                    continue
+                if wp_col is not None:
+                    row_wp = (r[wp_col] if wp_col < len(r) else "").strip() or "default"
+                    if row_wp != current_wp:
+                        continue
+                employees_total += 1
+    except Exception:
+        employees_total = 0
+
+    try:
+        vals_onb = onboarding_sheet.get_all_values()
+        headers_onb = vals_onb[0] if vals_onb else []
+        ucol_onb = headers_onb.index("Username") if "Username" in headers_onb else None
+        wp_col_onb = headers_onb.index("Workplace_ID") if "Workplace_ID" in headers_onb else None
+        current_wp = _session_workplace_id()
+
+        if ucol_onb is not None:
+            for r in vals_onb[1:]:
+                u = (r[ucol_onb] if ucol_onb < len(r) else "").strip()
+                if not u:
+                    continue
+                if wp_col_onb is not None:
+                    row_wp = (r[wp_col_onb] if wp_col_onb < len(r) else "").strip() or "default"
+                    if row_wp != current_wp:
+                        continue
+                onboarding_total += 1
+    except Exception:
+        onboarding_total = 0
     if open_shifts:
         rows = []
         for s in open_shifts:
@@ -4166,8 +5975,7 @@ def admin():
             rows.append(f"""
               <tr>
                 <td>
-                  <div style="display:flex; align-items:center; gap:10px;">
-                    <div class="avatar">{escape(initials(s['name']))}</div>
+                  <div>
                     <div>
                       <div style="font-weight:600;">{escape(s['name'])}</div>
                       <div class="sub" style="margin:2px 0 0 0;">{escape(s['user'])}</div>
@@ -4191,9 +5999,17 @@ def admin():
             """)
 
         open_html = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In</h2>
-            <p class="sub">Employees currently clocked in. Live time updates every second.</p>
+                    <div class="card adminSectionCard" style="margin-top:12px;">
+            <div class="adminSectionHead">
+              <div class="adminSectionHeadLeft">
+                <div class="adminSectionIcon live">{_svg_user()}</div>
+                <div>
+                  <h2 class="adminSectionTitle">Live Clocked-In</h2>
+                  <p class="adminSectionSub">Employees currently clocked in. Live time updates every second.</p>
+                </div>
+              </div>
+              <div class="adminHintChip">{len(open_shifts)} active</div>
+            </div>
             <div class="tablewrap" style="margin-top:12px;">
               <table style="min-width:1100px;">
                 <thead><tr>
@@ -4253,9 +6069,18 @@ def admin():
         """
     else:
         open_html = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Live Clocked-In</h2>
-            <p class="sub">No one is currently clocked in.</p>
+          <div class="card adminSectionCard" style="margin-top:12px;">
+            <div class="adminSectionHead">
+              <div class="adminSectionHeadLeft">
+                <div class="adminSectionIcon live">{_svg_user()}</div>
+                <div>
+                  <h2 class="adminSectionTitle">Live Clocked-In</h2>
+                  <p class="adminSectionSub">See who is currently active on site in real time.</p>
+                </div>
+              </div>
+              <div class="adminHintChip">Live</div>
+            </div>
+            <p class="sub" style="margin:0;">No one is currently clocked in.</p>
           </div>
         """
     employee_options = ""
@@ -4289,61 +6114,135 @@ def admin():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-
-      <div class="card menu">
-        <a class="menuItem active" href="/admin/payroll">
-          <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Payroll Report</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/admin/company">
-          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Company Settings</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/admin/onboarding">
-          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Onboarding</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/admin/locations">
-          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Locations</div></div>
-          <div class="chev">›</div>
-          </a>
-        <a class="menuItem" href="/admin/employee-sites">
-          <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Employee Sites</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/admin/employees">
-          <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Employees</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/connect-drive">
-          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Connect Drive</div></div>
-          <div class="chev">›</div>
-        </a>
+      
+                  <div class="kpiStrip adminStats" style="margin-bottom:12px;">
+        <div class="kpiMini adminStatCard employees">
+          <div class="k">Employees</div>
+          <div class="v">{employees_total}</div>
+        </div>
+        <div class="kpiMini adminStatCard clocked">
+          <div class="k">Clocked In</div>
+          <div class="v">{open_total}</div>
+        </div>
+        <div class="kpiMini adminStatCard locations">
+          <div class="k">Active Locations</div>
+          <div class="v">{locations_total}</div>
+        </div>
+        <div class="kpiMini adminStatCard onboarding">
+          <div class="k">Onboarding Records</div>
+          <div class="v">{onboarding_total}</div>
+        </div>
       </div>
-      <div class="card" style="padding:12px; margin-top:12px;">
-  <h2>Force Clock-In</h2>
-  <p class="sub">Use if someone forgot to clock in (creates/updates today's row).</p>
-  <form method="POST" action="/admin/force-clockin" style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-    <input type="hidden" name="csrf" value="{escape(csrf)}">
-    
-    <input class="input" type="date" name="date" value="{escape(datetime.now(TZ).strftime('%Y-%m-%d'))}" style="margin-top:0; max-width:190px;" required>
-    <select class="input" name="user" style="max-width:260px; margin-top:0;">
-      {employee_options}
-    </select>
 
-    <input class="input" type="time" step="1" name="in_time" style="margin-top:0; max-width:170px;" required>
+            <div class="card menu" style="padding:14px;">
+        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
+          <div>
+            <h2>Admin tools</h2>
+            <p class="sub">Manage payroll, people, sites, onboarding and drive access.</p>
+          </div>
+          <div class="badge admin">Control Centre</div>
+        </div>
 
-    <button class="btnTiny" type="submit">Force Clock-In</button>
-  </form>
-</div>
+        <div class="adminGrid" style="margin-top:12px;">
+          <a class="adminToolCard payroll" href="/admin/payroll">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{_svg_chart()}</div>
+              <div class="chev">›</div>
+            </div>
+            <div class="adminToolTitle">Payroll Report</div>
+            <div class="adminToolSub">Weekly payroll, tax, net pay and paid status.</div>
+          </a>
+
+          <a class="adminToolCard company" href="/admin/company">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{_svg_doc()}</div>
+              <div class="chev">›</div>
+            </div>
+            <div class="adminToolTitle">Company Settings</div>
+            <div class="adminToolSub">Change workplace name and company-level settings.</div>
+          </a>
+
+          <a class="adminToolCard onboarding" href="/admin/onboarding">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{_svg_doc()}</div>
+              <div class="chev">›</div>
+            </div>
+            <div class="adminToolTitle">Onboarding</div>
+            <div class="adminToolSub">Review starter forms, documents and contract details.</div>
+          </a>
+
+          <a class="adminToolCard locations" href="/admin/locations">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{_svg_grid()}</div>
+              <div class="chev">›</div>
+            </div>
+            <div class="adminToolTitle">Locations</div>
+            <div class="adminToolSub">Manage geo-fence sites and allowed clock-in zones.</div>
+          </a>
+
+          <a class="adminToolCard sites" href="/admin/employee-sites">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{_svg_user()}</div>
+              <div class="chev">›</div>
+            </div>
+            <div class="adminToolTitle">Employee Sites</div>
+            <div class="adminToolSub">Assign employees to site locations for clock-in access.</div>
+          </a>
+
+          <a class="adminToolCard employees" href="/admin/employees">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{_svg_user()}</div>
+              <div class="chev">›</div>
+            </div>
+            <div class="adminToolTitle">Employees</div>
+            <div class="adminToolSub">Create employees, update rates and manage access.</div>
+          </a>
+
+          <a class="adminToolCard drive" href="/connect-drive">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{_svg_grid()}</div>
+              <div class="chev">›</div>
+            </div>
+            <div class="adminToolTitle">Connect Drive</div>
+            <div class="adminToolSub">Reconnect Google Drive for onboarding uploads.</div>
+          </a>
+        </div>
+      </div>
+            <div class="card adminSectionCard" style="margin-top:12px;">
+        <div class="adminSectionHead">
+          <div class="adminSectionHeadLeft">
+            <div class="adminSectionIcon clockin">{_svg_clock()}</div>
+            <div>
+              <h2 class="adminSectionTitle">Force Clock-In</h2>
+              <p class="adminSectionSub">Use this if someone forgot to clock in. It creates or updates today’s row.</p>
+            </div>
+          </div>
+          <div class="adminHintChip">Admin action</div>
+        </div>
+
+                <form method="POST" action="/admin/force-clockin" class="adminFormRow">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+          <div class="adminActionBar">
+            <input class="input" type="date" name="date" value="{escape(datetime.now(TZ).strftime('%Y-%m-%d'))}" style="max-width:190px;" required>
+
+            <select class="input" name="user" style="max-width:260px;">
+              {employee_options}
+            </select>
+
+            <input class="input" type="time" step="1" name="in_time" style="max-width:170px;" required>
+
+            <button class="adminPrimaryBtn" type="submit">Force Clock-In</button>
+          </div>
+        </form>
+      </div>
       {open_html}
     """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell(
             active="admin",
             role="admin",
-            content_html=content,
-            shell_class="payrollShell"
+            content_html=content
         )
     )
 @app.route("/admin/company", methods=["GET", "POST"])
@@ -4424,7 +6323,7 @@ def admin_company():
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
-      <div class="card" style="padding:12px; margin-top:12px;">
+      <div class="card payrollEmployeeCard" style="padding:12px; margin-top:12px;">
         <form method="POST">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <label class="sub">Company name</label>
@@ -4468,6 +6367,11 @@ def admin_save_shift():
         if computed is not None:
             hours_val = computed
             pay_val = round(computed * rate, 2)
+
+    # Manual hours edit: if Hours is entered but Pay is blank,
+    # automatically refresh Pay from the employee rate.
+    if hours_in != "" and pay_in == "":
+        pay_val = round(safe_float(hours_in, 0.0) * rate, 2)
 
     hours_cell = "" if hours_val is None else str(hours_val)
     pay_cell = "" if pay_val is None else str(pay_val)
@@ -4791,18 +6695,99 @@ def admin_payroll():
 
     if q:
         all_users = [u for u in all_users if q in u.lower() or q in (get_employee_display_name(u) or "").lower()]
-
-    # Week pills
-    pills = []
-    for i in range(0, 13):
-        d0 = this_monday - timedelta(days=7*i)
-        active = "active" if i == wk_offset else ""
-        pills.append(
-            f"<a class='weekPill {active}' href='/admin/payroll?wk={i}&q={escape(q)}&from={escape(date_from)}&to={escape(date_to)}'>"
-            f"{escape(week_label(d0))}</a>"
+    employee_options = ["<option value=''>All employees</option>"]
+    for u in sorted(all_users, key=lambda s: get_employee_display_name(s).lower()):
+        display = get_employee_display_name(u)
+        selected = "selected" if q == u.lower() else ""
+        employee_options.append(
+            f"<option value='{escape(u)}' {selected}>{escape(display)}</option>"
         )
-    week_nav_html = "<div class='weekRow'>" + "".join(pills) + "</div>"
 
+    # Week dropdown
+    week_options = []
+    for i in range(0, 52):
+        d0 = this_monday - timedelta(days=7*i)
+        selected = "selected" if i == wk_offset else ""
+        week_options.append(
+            f"<option value='{i}' {selected}>{escape(week_label(d0))}</option>"
+        )
+
+    week_nav_html = f"""
+      <form method="GET" style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+        <input type="hidden" name="q" value="{escape(q)}">
+        <input type="hidden" name="from" value="{escape(date_from)}">
+        <input type="hidden" name="to" value="{escape(date_to)}">
+
+        <label class="sub" style="margin:0; font-weight:700;">Week</label>
+        <select class="input" name="wk" style="max-width:320px; margin-top:0;" onchange="this.form.submit()">
+          {''.join(week_options)}
+        </select>
+      </form>
+    """
+    # Payroll donut chart data (gross by employee for current filtered view)
+    chart_palette = [
+        "#2563eb", "#7c3aed", "#16a34a", "#f59e0b", "#ef4444",
+        "#06b6d4", "#84cc16", "#ec4899", "#14b8a6", "#8b5cf6"
+    ]
+
+    chart_rows = []
+    for u, vals_u in by_user.items():
+        gross_u = round(vals_u.get("gross", 0.0), 2)
+        if gross_u <= 0:
+            continue
+        chart_rows.append({
+            "user": u,
+            "name": get_employee_display_name(u),
+            "gross": gross_u,
+        })
+
+    chart_rows = sorted(chart_rows, key=lambda x: x["gross"], reverse=True)
+    chart_top = chart_rows[:15]
+    other_total = round(sum(x["gross"] for x in chart_rows[6:]), 2)
+
+    chart_segments = []
+    for i, item in enumerate(chart_top):
+        chart_segments.append({
+            "label": item["name"],
+            "value": item["gross"],
+            "color": chart_palette[i % len(chart_palette)],
+        })
+
+    if other_total > 0:
+        chart_segments.append({
+            "label": "Other",
+            "value": other_total,
+            "color": "#94a3b8",
+        })
+
+    total_chart_value = round(sum(x["value"] for x in chart_segments), 2)
+
+    donut_css = "#e5e7eb"
+    legend_html = "<div class='activityEmpty'>No payroll data for current filters.</div>"
+
+    if total_chart_value > 0:
+        angle_acc = 0.0
+        stops = []
+        for seg in chart_segments:
+            pct = (seg["value"] / total_chart_value) * 100.0
+            start = angle_acc
+            end = angle_acc + pct
+            stops.append(f"{seg['color']} {start:.2f}% {end:.2f}%")
+            angle_acc = end
+        donut_css = f"conic-gradient({', '.join(stops)})"
+
+        legend_parts = []
+        for seg in chart_segments:
+            legend_parts.append(f"""
+              <div class="payrollLegendRow">
+                <div class="payrollLegendLeft">
+                  <span class="payrollLegendDot" style="background:{seg['color']};"></span>
+                  <span class="payrollLegendName">{escape(seg['label'])}</span>
+                </div>
+                <div class="payrollLegendVal">{escape(currency)}{money(seg['value'])}</div>
+              </div>
+            """)
+        legend_html = "".join(legend_parts)
     # KPI strip (PRO)
     kpi_strip = f"""
       <div class="kpiStrip">
@@ -4850,8 +6835,7 @@ def admin_payroll():
         row_class = "rowHasValue" if gross > 0 else ""
 
         name_cell = f"""
-          <div style="display:flex; align-items:center; gap:10px;">
-            <div class="avatar">{escape(initials(display))}</div>
+          <div>
             <div>
               <div style="font-weight:600;">{escape(display)}</div>
               <div class="sub" style="margin:2px 0 0 0;">{escape(u)}</div>
@@ -4877,7 +6861,8 @@ def admin_payroll():
 
             # Employee cell
             cells.append(f"""
-                <td>
+                
+                 <td class="payrollEmpCell">
                     <span class="emp">{escape(display)}</span>
                     <span class="empSub">ID: {escape(u)}</span>
                 </td>
@@ -4900,15 +6885,44 @@ def admin_payroll():
                 total_hours += hrs
                 gross += pay
 
-                # step="1" allows HH:MM:SS like 08:00:00
-                cells.append(
-                    f"<td style='text-align:center; font-weight:800; font-size:12px;'>{escape((cin or '')[:5])}</td>")
-                cells.append(
-                    f"<td style='text-align:center; font-weight:800; font-size:12px;'>{escape((cout or '')[:5])}</td>")
-                cin_hm = (cin or "")[:5]
-                cout_hm = (cout or "")[:5]
-                ot_badge = " <span class='overtimeChip'>OT</span>" if (cin_hm == "08:00" and cout_hm > "17:00") else ""
-                cells.append(f"<td class='num' style='color: var(--navy); font-weight:900;'>{hrs:.2f}{ot_badge}</td>")
+                form_id = f"payroll_{re.sub(r'[^a-zA-Z0-9]+', '_', u)}_{d_str.replace('-', '_')}"
+
+                cells.append(f"""
+                  <td style='text-align:center;'>
+                    <input
+                      class="payrollTimeInput"
+                      type="time"
+                      step="60"
+                      name="cin"
+                      value="{escape((cin or '')[:5])}"
+                      form="{form_id}"
+                      onchange="document.getElementById('{form_id}').submit()">
+                  </td>
+                """)
+
+                cells.append(f"""
+                  <td style='text-align:center;'>
+                    <input
+                      class="payrollTimeInput"
+                      type="time"
+                      step="60"
+                      name="cout"
+                      value="{escape((cout or '')[:5])}"
+                      form="{form_id}"
+                      onchange="document.getElementById('{form_id}').submit()">
+                  </td>
+                """)
+
+                cells.append(f"""
+                  <td class='num' style='color: var(--navy); font-weight:900;'>
+                    {hrs:.2f}
+                    <form id="{form_id}" method="POST" action="/admin/save-shift" style="display:none;">
+                      <input type="hidden" name="csrf" value="{escape(csrf)}">
+                      <input type="hidden" name="user" value="{escape(u)}">
+                      <input type="hidden" name="date" value="{escape(d_str)}">
+                    </form>
+                  </td>
+                """)
 
             gross = round(gross, 2)
             tax = round(gross * tax_rate, 2)
@@ -4937,8 +6951,30 @@ def admin_payroll():
             cells.append(f"<td class='num'>{total_hours:.2f}</td>")
             cells.append(f"<td class='num'>{escape(currency)}{money(gross)}</td>")
             cells.append(f"<td class='num'>{escape(currency)}{money(tax)}</td>")
-            cells.append(f"<td class='num net'>{escape(currency)}{money(net)}</td>")
-            cells.append(f"<td>{mark_paid_btn}</td>")
+
+            if paid:
+                cells.append(f"<td class='num net paidNetCell'>{escape(currency)}{money(net)}<br>Paid</td>")
+            elif gross > 0:
+                cells.append(f"""
+                  <td class='num net'>
+                    <form method="POST" action="/admin/mark-paid" class="payCellForm">
+                      <input type="hidden" name="csrf" value="{escape(csrf)}">
+                      <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                      <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                      <input type="hidden" name="user" value="{escape(u)}">
+                      <input type="hidden" name="gross" value="{gross}">
+                      <input type="hidden" name="tax" value="{tax}">
+                      <input type="hidden" name="net" value="{net}">
+                      <button class="payCellBtn" type="submit">
+                        {escape(currency)}{money(net)}
+                        <span class="payLabel">Pay</span>
+                      </button>
+                    </form>
+                  </td>
+                """)
+            else:
+                cells.append(f"<td class='num net zeroNetCell'>{escape(currency)}{money(net)}</td>")
+
 
             sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
 
@@ -4987,23 +7023,16 @@ def admin_payroll():
         wk_net = round(wk_gross - wk_tax, 2)
 
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
-        header_chip = "<span class='chip ok'>Paid</span>" if paid else "<span class='chip warn'>Not paid</span>"
-        header_sub = f"<span class='sub' style='margin-left:10px;'>Paid at: {escape(paid_at)}</span>" if paid and paid_at else ""
 
-        pay_btn = ""
-        if (not paid) and wk_gross > 0:
-            pay_btn = f"""
-              <form method="POST" action="/admin/mark-paid" style="margin:0;">
-                <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                <input type="hidden" name="user" value="{escape(u)}">
-                <input type="hidden" name="gross" value="{wk_gross}">
-                <input type="hidden" name="tax" value="{wk_tax}">
-                <input type="hidden" name="net" value="{wk_net}">
-                <button class="btnTiny dark" type="submit">Paid</button>
-              </form>
-            """
+        summary_line = (
+            f"Week totals: <b>{wk_hours:.2f}</b> hours &nbsp;•&nbsp; "
+            f"Gross <b>{escape(currency)}{money(wk_gross)}</b> &nbsp;•&nbsp; "
+            f"Tax <b>{escape(currency)}{money(wk_tax)}</b> &nbsp;•&nbsp; "
+            f"Net <b>{escape(currency)}{money(wk_net)}</b>"
+        )
+
+        if paid and paid_at:
+            summary_line += f" &nbsp;•&nbsp; Paid at <b>{escape(paid_at)}</b>"
 
         overtime_note = ""
         if wk_overtime_days > 0:
@@ -5037,73 +7066,71 @@ def admin_payroll():
             if overtime_row_class:
                 ot_badge = "<span class='overtimeChip'>Overtime</span>"
 
+            has_row = bool(
+                rec and (
+                    str(cin).strip() or
+                    str(cout).strip() or
+                    str(hrs).strip() or
+                    str(pay).strip()
+                )
+            )
+
+            cin_txt = ""
+            if has_row and str(cin).strip() not in ("", "--:--", "--:--:--"):
+                cin_txt = str(cin).strip()[:5]
+
+            cout_txt = ""
+            if has_row and str(cout).strip() not in ("", "--:--", "--:--:--"):
+                cout_txt = str(cout).strip()[:5]
+
+            hrs_txt = ""
+            if has_row:
+                hrs_txt = f"{safe_float(hrs, 0.0):.2f}".rstrip("0").rstrip(".")
+
+            pay_txt = ""
+            if has_row:
+                pay_txt = money(safe_float(pay, 0.0))
+
             rows_html.append(f"""
               <tr class="{overtime_row_class}">
                 <td><b>{day_names[di]}</b></td>
                 <td>{escape(d_str)}</td>
-                <td>
-                  <form method="POST" action="/admin/save-shift" style="margin:0;">
-                    <input type="hidden" name="csrf" value="{escape(csrf)}">
-                    <input type="hidden" name="user" value="{escape(u)}">
-                    <input type="hidden" name="date" value="{escape(d_str)}">
-                    <input class="input" type="time" step="1" name="cin" value="{escape(cin)}" style="margin-top:0; max-width:150px;" disabled>
-<input type="hidden" name="cin" value="{escape(cin)}">
-                </td>
-                <td>
-                    <input class="input" type="time" step="1" name="cout" value="{escape(cout)}" style="margin-top:0; max-width:150px;" disabled>
-<input type="hidden" name="cout" value="{escape(cout)}">
-                </td>
-                <td class="num">
-  <input class="input" value="{escape(str(hrs))}" placeholder="" style="margin-top:0; width:100%;" disabled>
-<input type="hidden" name="hours" value="{escape(str(hrs))}">
-</td>
-
-<td class="num">
-<input class="input" value="{escape(str(pay))}" placeholder="" style="margin-top:0; width:100%;" disabled>
-<input type="hidden" name="pay" value="{escape(str(pay))}">
-</td>
-
-                <td style="min-width:260px;">
-                    <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
-                      <input type="checkbox" name="recalc" value="yes" disabled>
-                      Recalculate (break deducted)
-                    </label>
-                    <div style="display:flex; gap:8px; align-items:center; margin-top:8px; flex-wrap:wrap;">
-                      <button class="btnTiny" type="submit" disabled title="Locked. Use Admin force clock-in/out tools.">Save</button>
-                      {status_html}
-                      {ot_badge}
-                    </div>
-                  </form>
-                </td>
+                <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
+                <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
+                <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
+<td class="num" style="font-weight:700;">{escape(pay_txt)}</td>
+<td class="num" style="font-weight:800; color:rgba(15,23,42,.92);">{escape(money(round(safe_float(pay, 0.0) * (1 - tax_rate), 2))) if has_row else ""}</td>
               </tr>
             """)
 
         blocks.append(f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-              <div style="display:flex; align-items:center; gap:10px;">
-                <div class="avatar">{escape(initials(display))}</div>
-                <div>
-                  <div style="font-weight:600; font-size:16px;">{escape(display)} <span class="sub">({escape(u)})</span></div>
-                  <div class="sub" style="margin:4px 0 0 0;">
-                    {header_chip}{header_sub}
-                    <span class="sub" style="margin-left:10px;">Week totals: Hours {wk_hours:.2f} • Gross £{money(wk_gross)} • Tax £{money(wk_tax)}</span>
-                  </div>
-                </div>
-              </div>
-
-              <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <span class="netBadge">Weekly Net: £{money(wk_net)}</span>
-                {overtime_note}
-                {pay_btn}
+          <div class="card payrollEmployeeCard" style="padding:12px; margin-top:12px;">
+            <div style="margin-bottom:12px;">
+              <div style="font-size:30px; font-weight:800; line-height:1.1; color:rgba(15,23,42,.96);">
+                {escape(display)}
               </div>
             </div>
 
             <div class="tablewrap" style="margin-top:12px;">
-              <table style="min-width:1100px;">
+              <table class="weeklyEditTable">
+                <colgroup>
+                  <col style="width:70px;">
+                  <col style="width:130px;">
+                  <col style="width:140px;">
+                  <col style="width:140px;">
+                  <col style="width:140px;">
+                  <col style="width:150px;">
+                  <col style="width:150px;">
+                </colgroup>
                 <thead>
                   <tr>
-                    <th>Day</th><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num">Hours</th><th class="num">Pay</th><th>Actions</th>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th class="num">Hours</th>
+                    <th class="num">Gross</th>
+                    <th class="num">Net</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -5111,59 +7138,122 @@ def admin_payroll():
                 </tbody>
               </table>
             </div>
-            <p class="sub" style="margin-top:10px;">
-              Rule: if shift is ≥ {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}h then {UNPAID_BREAK_HOURS}h break is deducted. Overtime highlight: > {OVERTIME_HOURS}h/day.
-            </p>
+
+            <div class="payrollSummaryBar">
+  <div class="payrollSummaryItem">
+    <div class="k">Hours</div>
+    <div class="v">{wk_hours:.2f}</div>
+  </div>
+
+  <div class="payrollSummaryItem">
+    <div class="k">Gross</div>
+    <div class="v">{escape(currency)}{money(wk_gross)}</div>
+  </div>
+
+  <div class="payrollSummaryItem">
+    <div class="k">Tax</div>
+    <div class="v">{escape(currency)}{money(wk_tax)}</div>
+  </div>
+
+  <div class="payrollSummaryItem net">
+    <div class="k">Net</div>
+    <div class="v">{escape(currency)}{money(wk_net)}</div>
+  </div>
+
+  <div class="payrollSummaryItem paidat">
+    <div class="k">Paid at</div>
+    <div class="v">{escape(paid_at) if paid and paid_at else "—"}</div>
+  </div>
+</div>
           </div>
         """)
-
+            
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
     csv_url = "/admin/payroll-report.csv"
     if request.query_string:
         csv_url += "?" + request.query_string.decode("utf-8", "ignore")
 
     content = f"""
+      <div class="payrollMenuBackdrop" id="payrollMenuBackdrop"></div>
+
       <div class="headerTop">
         <div>
-          <h1>Payroll Report</h1>
-          <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
+          <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <button type="button" class="payrollMenuToggle" id="payrollMenuToggle">☰ Menu</button>
+            <div>
+              <h1>Payroll Report</h1>
+              <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
+            </div>
+          </div>
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
 
-      <div class="card" style="padding:12px;">
-        <form method="GET">
-          <div class="row2">
+            <div class="payrollTopGrid">
+        <div class="card payrollFiltersCard">
+          <form method="GET">
             <div>
-              <label class="sub">Username contains</label>
-              <input class="input" name="q" value="{escape(q)}" placeholder="e.g. john">
+              <label class="sub">Employee</label>
+              <select class="input" name="q">
+                {''.join(employee_options)}
+              </select>
             </div>
-            <div>
+
+            <div style="margin-top:10px;">
               <label class="sub">Date range (summary table only)</label>
               <div class="row2">
                 <input class="input" type="date" name="from" value="{escape(date_from)}">
                 <input class="input" type="date" name="to" value="{escape(date_to)}">
               </div>
             </div>
-          </div>
-          <input type="hidden" name="wk" value="{wk_offset}">
-          <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
-        </form>
 
-        {week_nav_html}
-        <div style="margin-top:10px;">
-  <a href="{csv_url}">
-    <button class="btnTiny csvDownload" type="button">
-      Download CSV
-    </button>
-  </a>
-</div>
+            <input type="hidden" name="wk" value="{wk_offset}">
+            <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
+          </form>
+
+          {kpi_strip}
+
+          <div style="margin-top:10px;">
+            <a href="{csv_url}">
+              <button class="btnTiny csvDownload" type="button">Download CSV</button>
+            </a>
+          </div>
+        </div>
+
+        <div class="card payrollChartCard">
+          <div class="sectionHead">
+            <div class="sectionHeadLeft">
+              <div class="sectionIcon">{_svg_chart()}</div>
+              <div>
+                <h2 style="margin:0;">Payroll Split</h2>
+                <p class="sub" style="margin:4px 0 0 0;">Gross by employee for current filters.</p>
+              </div>
+            </div>
+            <div class="sectionBadge">{len(chart_segments)} segments</div>
+          </div>
+
+          <div class="payrollDonutWrap">
+            <div class="payrollDonut" style="background:{donut_css};">
+              <div class="payrollDonutCenter">
+                <div class="k">Total Gross</div>
+                <div class="v">{escape(currency)}{money(total_chart_value)}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="payrollLegend">
+            {legend_html}
+          </div>
+        </div>
+      </div>
+
+      {week_nav_html}
 
         <div class="payrollWrap" style="margin-top:12px;">
 <table class="payrollSheet">
   <thead>
     <tr class="group">
-      <th rowspan="2" style="width:240px;">Employee</th>
+      <th rowspan="2" style="width:110px;">Employee</th>
       <th colspan="3">Monday</th>
       <th colspan="3">Tuesday</th>
       <th colspan="3">Wednesday</th>
@@ -5174,8 +7264,7 @@ def admin_payroll():
       <th rowspan="2">Total</th>
       <th rowspan="2">Gross</th>
       <th rowspan="2">Tax</th>
-      <th rowspan="2">Net</th>
-      <th rowspan="2">Payment</th>
+      <th rowspan="2">Net / Pay</th>
     </tr>
     <tr class="cols">
       <th>In</th><th>Out</th><th>Hrs</th>
@@ -5234,13 +7323,30 @@ def admin_payroll():
   }});
 }})();
 </script>
+    {''.join(blocks)}
+            <script>
+        (function(){{
+          const shell = document.querySelector(".shell.payrollShell");
+          const btn = document.getElementById("payrollMenuToggle");
+          const backdrop = document.getElementById("payrollMenuBackdrop");
 
-<div class="card" style="padding:12px; margin-top:12px;">
-  <h2>Weekly History (Editable)</h2>
-  <p class="sub">Week: <b>{escape(week_start_str)}</b> to <b>{escape(week_end_str)}</b>. Edit and save per day.</p>
-</div>
+          if (!shell || !btn || !backdrop) return;
 
-      {''.join(blocks)}
+          function closeMenu(){{
+            shell.classList.remove("payrollMenuOpen");
+          }}
+
+          btn.addEventListener("click", function(){{
+            shell.classList.toggle("payrollMenuOpen");
+          }});
+
+          backdrop.addEventListener("click", closeMenu);
+
+          document.addEventListener("keydown", function(e){{
+            if (e.key === "Escape") closeMenu();
+          }});
+        }})();
+      </script>
     """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
