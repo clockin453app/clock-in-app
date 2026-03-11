@@ -1158,7 +1158,48 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   flex:1 1 0;
   text-align:center;
 }
+@media (max-width: 700px){
+  .graphCard{
+    padding: 12px;
+  }
 
+  .graphShell{
+    padding: 12px 10px 8px 10px;
+  }
+
+  .bars{
+    height: 200px;
+    gap: 8px;
+    padding: 4px 2px 0 2px;
+  }
+
+  .barTrack{
+    height: 150px;
+  }
+
+  .bar{
+    width: 82%;
+    min-width: 16px;
+  }
+
+  .barValue{
+    display: none;
+  }
+
+  .barLabels{
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .graphTop{
+    gap: 8px;
+  }
+
+  .graphRange{
+    font-size: 11px;
+    text-align: right;
+  }
+}
 .graphMeta{
   margin-top: 14px;
   display:grid;
@@ -1442,6 +1483,82 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border-color: rgba(30,64,175,.20);
 }
 
+.menuItem.nav-home .icoBox{
+  background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
+  border-color: rgba(37,99,235,.16);
+  color: #1d4ed8;
+}
+
+.menuItem.nav-clock .icoBox{
+  background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
+  border-color: rgba(22,163,74,.18);
+  color: #15803d;
+}
+
+.menuItem.nav-times .icoBox{
+  background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
+  border-color: rgba(217,119,6,.18);
+  color: #b45309;
+}
+
+.menuItem.nav-reports .icoBox{
+  background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
+  border-color: rgba(79,70,229,.18);
+  color: #4338ca;
+}
+
+.menuItem.nav-agreements .icoBox{
+  background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
+  border-color: rgba(8,145,178,.18);
+  color: #0e7490;
+}
+
+.menuItem.nav-profile .icoBox{
+  background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
+  border-color: rgba(219,39,119,.16);
+  color: #be185d;
+}
+
+.menuItem.nav-admin .icoBox{
+  background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
+  border-color: rgba(51,65,85,.18);
+  color: #0f172a;
+}
+
+.menuItem.nav-home.active{
+  background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
+  border-color: rgba(37,99,235,.24);
+}
+
+.menuItem.nav-clock.active{
+  background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
+  border-color: rgba(22,163,74,.24);
+}
+
+.menuItem.nav-times.active{
+  background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
+  border-color: rgba(245,158,11,.24);
+}
+
+.menuItem.nav-reports.active{
+  background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
+  border-color: rgba(79,70,229,.24);
+}
+
+.menuItem.nav-agreements.active{
+  background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
+  border-color: rgba(8,145,178,.24);
+}
+
+.menuItem.nav-profile.active{
+  background: linear-gradient(180deg, rgba(219,39,119,.14), rgba(244,114,182,.08));
+  border-color: rgba(219,39,119,.22);
+}
+
+.menuItem.nav-admin.active{
+  background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
+  border-color: rgba(51,65,85,.24);
+}
 .menuLeft{ display:flex; align-items:center; gap:12px; }
 .icoBox{
   width: 44px; height: 44px;
@@ -1691,7 +1808,132 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   background: rgba(30,64,175,.14);
   border-color: rgba(30,64,175,.35);
 }
+.workplacesTable{
+  min-width: 860px;
+}
 
+@media (max-width: 700px){
+  .workplacesTable{
+    min-width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  .workplacesTable thead{
+    display: none;
+  }
+
+  .workplacesTable,
+  .workplacesTable tbody,
+  .workplacesTable tr,
+  .workplacesTable td{
+    display: block;
+    width: 100%;
+  }
+
+  .workplacesTable tr{
+    padding: 12px;
+    border-bottom: 1px solid rgba(11,18,32,.08);
+    background: #fff;
+  }
+
+  .workplacesTable td{
+    border: none;
+    padding: 8px 0;
+    text-align: left !important;
+  }
+
+  .workplacesTable td:last-child{
+    padding-top: 10px;
+  }
+}
+
+.adminLiveTable{
+  min-width: 1100px;
+}
+
+@media (max-width: 700px){
+  .adminLiveTable{
+    min-width: 100% !important;
+    table-layout: auto !important;
+  }
+
+  .adminLiveTable thead{
+    display: none;
+  }
+
+  .adminLiveTable,
+  .adminLiveTable tbody,
+  .adminLiveTable tr,
+  .adminLiveTable td{
+    display: block;
+    width: 100%;
+  }
+
+  .adminLiveTable tr{
+    padding: 12px;
+    border-bottom: 1px solid rgba(11,18,32,.08);
+    background: #fff;
+  }
+
+  .adminLiveTable td{
+    border: none;
+    padding: 8px 0;
+    text-align: left !important;
+  }
+
+  .adminLiveTable td:last-child{
+    padding-top: 10px;
+  }
+
+  .adminLiveTable form{
+    width: 100%;
+  }
+
+  .adminLiveTable input.input{
+    max-width: 100% !important;
+    width: 100%;
+  }
+}
+
+@media (max-width: 700px){
+  .row2{
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .row2 .input,
+  .row2 button,
+  .row2 a{
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  .headerTop{
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .badge{
+    max-width: 100%;
+  }
+
+  .adminGrid{
+    grid-template-columns: 1fr !important;
+  }
+
+  .adminToolCard{
+    min-height: auto;
+  }
+
+  .menuItem{
+    align-items: center;
+  }
+
+  .tablewrap{
+    border-radius: 14px;
+  }
+}
 /* Status chips */
 .chip{
   display:inline-flex;
@@ -2036,10 +2278,58 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   color: var(--navy);
   transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
 }
-.navIcon.active{ background: rgba(30,64,175,.10); }
+.navIcon.active{ background: transparent; }
 .navIcon svg{ width: 22px; height: 22px; }
 .safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
 
+@media (max-width: 700px){
+  .navInner{
+    gap: 4px;
+    justify-content: space-between;
+  }
+
+  .navIcon{
+    width: 42px;
+    height: 42px;
+    border-radius: 14px;
+    flex: 0 0 auto;
+  }
+
+  .navIcon svg{
+    width: 20px;
+    height: 20px;
+  }
+}
+
+.navIcon.nav-home{ color:#1d4ed8; }
+.navIcon.nav-clock{ color:#15803d; }
+.navIcon.nav-times{ color:#b45309; }
+.navIcon.nav-reports{ color:#4338ca; }
+.navIcon.nav-admin{ color:#0f172a; }
+.navIcon.nav-workplaces{ color:#0e7490; }
+.navIcon.nav-logout{ color:rgba(220,38,38,.92); }
+
+.navIcon.nav-home.active{
+  background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
+}
+.navIcon.nav-clock.active{
+  background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
+}
+.navIcon.nav-times.active{
+  background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
+}
+.navIcon.nav-reports.active{
+  background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
+}
+.navIcon.nav-admin.active{
+  background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
+}
+.navIcon.nav-workplaces.active{
+  background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
+}
+.navIcon.nav-logout.active{
+  background: linear-gradient(180deg, rgba(220,38,38,.12), rgba(248,113,113,.08));
+}
 /* Desktop wide layout */
 @media (min-width: 980px){
   body{ padding: 18px 18px 22px 18px; }
@@ -2957,7 +3247,10 @@ def _svg_logout():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path>
       <path d="M21 3v18"></path></svg>"""
-
+def _svg_shield():
+    return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"></path>
+    </svg>"""
 
 # ================= CONTRACT TEXT =================
 CONTRACT_TEXT = """Contract
@@ -4160,14 +4453,29 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
 
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
+    extra_admin = ""
+    extra_workplaces = ""
+
+    if role in ("admin", "master_admin"):
+        extra_admin = f"""
+        <a class="navIcon nav-admin {'active' if active=='admin' else ''}" href="/admin" title="Admin">{_svg_shield()}</a>
+        """
+
+    if role == "master_admin":
+        extra_workplaces = f"""
+        <a class="navIcon nav-workplaces {'active' if active=='workplaces' else ''}" href="/admin/workplaces" title="Workplaces">{_svg_doc()}</a>
+        """
+
     return f"""
     <div class="bottomNav">
       <div class="navInner">
-        <a class="navIcon {'active' if active=='home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
-        <a class="navIcon {'active' if active=='clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
-        <a class="navIcon {'active' if active=='times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
-        <a class="navIcon {'active' if active=='reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
-        <a class="navIcon" href="/logout" title="Logout" style="color: rgba(220,38,38,.92);">{_svg_logout()}</a>
+        <a class="navIcon nav-home {'active' if active=='home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
+        <a class="navIcon nav-clock {'active' if active=='clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
+        <a class="navIcon nav-times {'active' if active=='times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
+        <a class="navIcon nav-reports {'active' if active=='reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
+        {extra_admin}
+        {extra_workplaces}
+        <a class="navIcon nav-logout" href="/logout" title="Logout">{_svg_logout()}</a>
       </div>
     </div>
     """
@@ -4245,7 +4553,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
           <div class="safeBottom"></div>
         </div>
       </div>
-      {bottom_nav(active if active in ('home','clock','times','reports','profile') else 'home', role)}
+      {bottom_nav(active if active in ('home','clock','times','reports','profile','admin','workplaces') else 'home', role)}
     """
 
 
@@ -4494,7 +4802,7 @@ def home():
         row_user = (r[COL_USER] or "").strip()
 
         # Employees should see ONLY their own totals (Admin can see whole workplace)
-        if role != "admin" and row_user != username:
+        if role not in ("admin", "master_admin") and row_user != username:
             continue
 
         # Workplace filter (prefer WorkHours row Workplace_ID)
@@ -4524,10 +4832,19 @@ def home():
     curr_gross = round(weekly_gross[-1], 2)
 
     admin_item = ""
-    if role == "admin":
+    if role in ("admin", "master_admin"):
         admin_item = f"""
-        <a class="menuItem" href="/admin">
+        <a class="menuItem nav-admin" href="/admin">
           <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Admin</div></div>
+          <div class="chev">›</div>
+        </a>
+        """
+
+    workplaces_item = ""
+    if role == "master_admin":
+        workplaces_item = f"""
+        <a class="menuItem nav-home" href="/admin/workplaces">
+          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Workplaces</div></div>
           <div class="chev">›</div>
         </a>
         """
@@ -4540,7 +4857,7 @@ def home():
 
         row_user = (r[COL_USER] or "").strip()
 
-        if role != "admin" and row_user != username:
+        if role not in ("admin", "master_admin") and row_user != username:
             continue
 
         if wp_idx is not None:
@@ -4592,7 +4909,7 @@ def home():
 
         row_user = (r[COL_USER] or "").strip()
 
-        if role != "admin" and row_user != username:
+        if role not in ("admin", "master_admin") and row_user != username:
             continue
 
         if wp_idx is not None:
@@ -4667,6 +4984,46 @@ def home():
         active_locations_count = len(_get_active_locations())
     except Exception:
         active_locations_count = 0
+
+    snapshot_html = ""
+    if role in ("admin", "master_admin"):
+        snapshot_html = f"""
+          <div class="card sideInfoCard">
+            <div class="sectionHead">
+              <div class="sectionHeadLeft">
+                <div class="sectionIcon">{_svg_grid()}</div>
+                <div>
+                  <h2 style="margin:0;">Business Snapshot</h2>
+                  <p class="sub" style="margin:4px 0 0 0;">Current workplace overview.</p>
+                </div>
+              </div>
+              <div class="sectionBadge">Live</div>
+            </div>
+
+            <div class="sideInfoList">
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Employees</div>
+                <div class="sideInfoValue">{employee_count}</div>
+              </div>
+
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Clocked In Now</div>
+                <div class="sideInfoValue">{clocked_in_count}</div>
+              </div>
+
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Active Locations</div>
+                <div class="sideInfoValue">{active_locations_count}</div>
+              </div>
+
+              <div class="sideInfoRow">
+                <div class="sideInfoLabel">Onboarding Pending</div>
+                <div class="sideInfoValue">{onboarding_pending_count}</div>
+              </div>
+            </div>
+          </div>
+        """
+
     content = f"""
       <div class="headerTop">
         <div>
@@ -4726,23 +5083,6 @@ def home():
             {''.join([f"<div>{escape(x)}</div>" for x in week_labels])}
           </div>
 
-          <div class="graphMeta">
-            <div class="graphStat">
-              <div class="k">Previous 4 Weeks</div>
-              <div class="v">{escape(currency)}{money(prev_gross)}</div>
-            </div>
-            <div class="graphStat">
-              <div class="k">Current Week</div>
-              <div class="v">{escape(currency)}{money(curr_gross)}</div>
-            </div>
-            <div class="graphStat">
-              <div class="k">Best Week</div>
-              <div class="v">{escape(currency)}{money(max(weekly_gross) if weekly_gross else 0)}</div>
-            </div>
-          </div>
-        </div>
-      </div>
-
             <div class="dashboardLower">
         <div class="card quickCard">
           <div class="quickGrid">
@@ -4790,50 +5130,25 @@ def home():
       </div>
 
       <div class="dashboardBottom">
-        <div class="card activityCard">
-          <div class="sectionHead">
-            <div class="sectionHeadLeft">
-              <div class="sectionIcon">{_svg_clipboard()}</div>
-              <div>
-                <h2 style="margin:0;">Recent Activity</h2>
-                <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
-              </div>
-            </div>
-            <div class="sectionBadge">Last 5 rows</div>
-          </div>
-
-          <div class="activityList">
-            {activity_html}
-          </div>
+  <div class="card activityCard">
+    <div class="sectionHead">
+      <div class="sectionHeadLeft">
+        <div class="sectionIcon">{_svg_clipboard()}</div>
+        <div>
+          <h2 style="margin:0;">Recent Activity</h2>
+          <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
         </div>
+      </div>
+      <div class="sectionBadge">Last 5 rows</div>
+    </div>
 
-        <div class="card sideInfoCard">
-          <div class="sectionHead">
-            <div class="sectionHeadLeft">
-              <div class="sectionIcon">{_svg_grid()}</div>
-              <div>
-                <h2 style="margin:0;">Business Snapshot</h2>
-                <p class="sub" style="margin:4px 0 0 0;">Current workplace overview.</p>
-              </div>
-            </div>
-            <div class="sectionBadge">Live</div>
-          </div>
+    <div class="activityList">
+      {activity_html}
+    </div>
+  </div>
 
-          <div class="sideInfoList">
-            <div class="sideInfoRow">
-              <div class="sideInfoLabel">Employees</div>
-              <div class="sideInfoValue">{employee_count}</div>
-            </div>
-
-            <div class="sideInfoRow">
-              <div class="sideInfoLabel">Clocked In Now</div>
-              <div class="sideInfoValue">{clocked_in_count}</div>
-            </div>
-
-            <div class="sideInfoRow">
-              <div class="sideInfoLabel">Active Locations</div>
-              <div class="sideInfoValue">{active_locations_count}</div>
-            </div>
+  {snapshot_html}
+</div>
 
             <div class="sideInfoRow">
               <div class="sideInfoLabel">Onboarding Pending</div>
@@ -4844,28 +5159,29 @@ def home():
       </div>
 
       <div class="card menu dashboardMainMenu">
-        <a class="menuItem active" href="/clock">
-          <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/my-times">
-          <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Time logs</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/my-reports">
-          <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
-          <div class="chev">›</div>
-        </a>
-        <a class="menuItem" href="/onboarding">
-          <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
-          <div class="chev">›</div>
-        </a>
-        {admin_item}
-        <a class="menuItem" href="/password">
-          <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Profile</div></div>
-          <div class="chev">›</div>
-        </a>
-      </div>
+  <a class="menuItem nav-clock active" href="/clock">
+    <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
+    <div class="chev">›</div>
+  </a>
+  <a class="menuItem nav-times" href="/my-times">
+    <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Time logs</div></div>
+    <div class="chev">›</div>
+  </a>
+  <a class="menuItem nav-reports" href="/my-reports">
+    <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
+    <div class="chev">›</div>
+  </a>
+  <a class="menuItem nav-agreements" href="/onboarding">
+    <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
+    <div class="chev">›</div>
+  </a>
+  {admin_item}
+  {workplaces_item}
+  <a class="menuItem nav-profile" href="/password">
+    <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Profile</div></div>
+    <div class="chev">›</div>
+  </a>
+</div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content))
 
@@ -6146,8 +6462,8 @@ def admin():
               </div>
               <div class="adminHintChip">{len(open_shifts)} active</div>
             </div>
-            <div class="tablewrap" style="margin-top:12px;">
-              <table style="min-width:1100px;">
+            <div class="tablewrap adminLiveTableWrap" style="margin-top:12px;">
+              <table class="adminLiveTable">
                 <thead><tr>
                   <th>Employee</th>
                   <th>Started</th>
@@ -8906,22 +9222,22 @@ def admin_workplaces():
       {created_card}
 
       <div class="card" style="padding:12px; margin-top:12px;">
-        <h2>Existing workplaces</h2>
-        <div class="tablewrap" style="margin-top:12px;">
-          <table style="min-width:860px; table-layout:fixed;">
-            <thead>
-              <tr>
-                <th style="width:36%; text-align:left;">Company</th>
-                <th class="num" style="width:12%; text-align:right;">Tax</th>
-                <th style="width:12%; text-align:center;">Currency</th>
-                <th style="width:16%; text-align:left;">Status</th>
-                <th style="width:14%; text-align:center;">Open</th>
-              </tr>
-            </thead>
-            <tbody>{table_html}</tbody>
-          </table>
-        </div>
-      </div>
+  <h2>Existing workplaces</h2>
+  <div class="tablewrap workplacesTableWrap" style="margin-top:12px;">
+    <table class="workplacesTable" style="table-layout:fixed;">
+      <thead>
+        <tr>
+          <th style="width:36%; text-align:left;">Company</th>
+          <th class="num" style="width:12%; text-align:right;">Tax</th>
+          <th style="width:12%; text-align:center;">Currency</th>
+          <th style="width:16%; text-align:left;">Status</th>
+          <th style="width:14%; text-align:center;">Open</th>
+        </tr>
+      </thead>
+      <tbody>{table_html}</tbody>
+    </table>
+  </div>
+</div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("workplaces", "master_admin", content))
 if __name__ == "__main__":
