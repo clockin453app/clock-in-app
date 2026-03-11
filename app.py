@@ -5483,6 +5483,7 @@ def onboarding():
 
             req(signature_name, "signature_name", "Signature name")
 
+
             if not passport_file or not passport_file.filename:
                 missing.append("Passport/Birth Certificate file")
                 missing_fields.add("passport_file")
