@@ -1847,6 +1847,91 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 }
 
+.employeesTable{
+  width:100% !important;
+  min-width:980px !important;
+  table-layout:fixed !important;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+.employeesTable th,
+.employeesTable td{
+  padding:14px 16px !important;
+  vertical-align:middle !important;
+}
+
+.employeesTable th{
+  font-weight:800 !important;
+}
+
+.employeesTable th:nth-child(1),
+.employeesTable td:nth-child(1){
+  width:30% !important;
+  text-align:left !important;
+}
+
+.employeesTable th:nth-child(2),
+.employeesTable td:nth-child(2){
+  width:20% !important;
+  text-align:left !important;
+}
+
+.employeesTable th:nth-child(3),
+.employeesTable td:nth-child(3){
+  width:20% !important;
+  text-align:left !important;
+}
+
+.employeesTable th:nth-child(4),
+.employeesTable td:nth-child(4){
+  width:15% !important;
+  text-align:center !important;
+}
+
+.employeesTable th:nth-child(5),
+.employeesTable td:nth-child(5){
+  width:15% !important;
+  text-align:right !important;
+}
+
+.employeesTable td:nth-child(2),
+.employeesTable td:nth-child(3),
+.employeesTable td:nth-child(4),
+.employeesTable td:nth-child(5){
+  white-space:nowrap;
+}
+
+@media (max-width: 700px){
+  .employeesTable{
+    min-width:100% !important;
+    table-layout:auto !important;
+  }
+
+  .employeesTable thead{
+    display:none;
+  }
+
+  .employeesTable,
+  .employeesTable tbody,
+  .employeesTable tr,
+  .employeesTable td{
+    display:block;
+    width:100%;
+  }
+
+  .employeesTable tr{
+    padding:12px;
+    border-bottom:1px solid rgba(11,18,32,.08);
+    background:#fff;
+  }
+
+  .employeesTable td{
+    border:none;
+    padding:8px 0 !important;
+    text-align:left !important;
+  }
+}
 .adminLiveTable{
   min-width: 1100px;
 }
@@ -8599,6 +8684,7 @@ def admin_employees():
             edit_username = (request.form.get("edit_username") or "").strip()
             edit_role = (request.form.get("edit_role") or "").strip()
             edit_rate_raw = (request.form.get("edit_rate") or "").strip()
+            edit_early_access = (request.form.get("edit_early_access") or "").strip()
 
             if not edit_username:
                 ok = False
@@ -8633,6 +8719,10 @@ def admin_employees():
                         if new_rate_str is not None and "Rate" in headers:
                             row[headers.index("Rate")] = new_rate_str
                             changed.append(f"rate={new_rate_str}")
+
+                        if edit_early_access in ("TRUE", "FALSE") and "EarlyAccess" in headers:
+                            row[headers.index("EarlyAccess")] = edit_early_access
+                            changed.append(f"early_access={edit_early_access}")
 
                         if not changed:
                             ok = False
@@ -8750,11 +8840,13 @@ def admin_employees():
         vals = employees_sheet.get_all_values()
         headers = vals[0] if vals else []
         def idx(n): return headers.index(n) if headers and n in headers else None
+
         i_u = idx("Username")
         i_fn = idx("FirstName")
         i_ln = idx("LastName")
         i_role = idx("Role")
         i_rate = idx("Rate")
+        i_early = idx("EarlyAccess")
         i_wp = idx("Workplace_ID")
 
         for r in (vals[1:] if len(vals) > 1 else []):
@@ -8769,10 +8861,12 @@ def admin_employees():
             ln = (r[i_ln] if i_ln is not None and i_ln < len(r) else "").strip()
             rr = (r[i_role] if i_role is not None and i_role < len(r) else "").strip()
             rate = (r[i_rate] if i_rate is not None and i_rate < len(r) else "").strip()
+            early = (r[i_early] if i_early is not None and i_early < len(r) else "").strip()
+            early_label = "Yes" if early.lower() in ("true", "1", "yes") else "No"
             disp = (fn + " " + ln).strip() or u
 
             rows_html.append(
-                f"<tr><td>{escape(disp)}</td><td>{escape(u)}</td><td>{escape(rr)}</td><td class='num'>{escape(rate)}</td></tr>"
+                f"<tr><td>{escape(disp)}</td><td>{escape(u)}</td><td>{escape(rr)}</td><td>{escape(early_label)}</td><td class='num'>{escape(rate)}</td></tr>"
             )
     except Exception:
         rows_html = []
@@ -8929,25 +9023,42 @@ def admin_employees():
     </select>   
 
     <div class="row2" style="margin-top:10px;">
-      <div>
-        <label class="sub">New role (optional)</label>
-        <input class="input" name="edit_role" list="role_list" placeholder="Leave blank to keep existing">
-      </div>
-      <div>
-        <label class="sub">New hourly rate (optional)</label>
-        <input class="input" name="edit_rate" placeholder="Leave blank to keep existing">
-      </div>
-    </div>
+  <div>
+    <label class="sub">New role (optional)</label>
+    <input class="input" name="edit_role" list="role_list" placeholder="Leave blank to keep existing">
+  </div>
+  <div>
+    <label class="sub">New hourly rate (optional)</label>
+    <input class="input" name="edit_rate" placeholder="Leave blank to keep existing">
+  </div>
+</div>
+
+<div style="margin-top:10px;">
+  <label class="sub">Early Access</label>
+  <select class="input" name="edit_early_access">
+    <option value="">Keep current</option>
+    <option value="TRUE">Enabled</option>
+    <option value="FALSE">Disabled</option>
+  </select>
+</div>
   </form>
 </div>
       <div class="card" style="padding:12px; margin-top:12px;">
         <h2>Employees (this workplace)</h2>
         <div class="tablewrap" style="margin-top:12px;">
-          <table style="min-width:760px;">
-            <thead><tr><th>Name</th><th>Username</th><th>Role</th><th class="num">Rate</th></tr></thead>
-            <tbody>{table}</tbody>
-          </table>
-        </div>
+  <table class="employeesTable">
+    <thead>
+      <tr>
+        <th>Name</th>
+        <th>Username</th>
+        <th>Role</th>
+        <th>Early Access</th>
+        <th class="num">Rate</th>
+      </tr>
+    </thead>
+    <tbody>{table}</tbody>
+  </table>
+</div>
       </div>
     """
     return render_template_string(
