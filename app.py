@@ -342,19 +342,23 @@ def get_user_drive_service():
     return build("drive", "v3", credentials=creds_user, cache_discovery=False)
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
-    # First try service account Drive
-    drive_service = get_service_account_drive_service()
+    # First try OAuth user Drive (connected via /connect-drive by master admin)
+    drive_service = get_user_drive_service()
 
-    # Fallback to OAuth user token if needed
+    # Fallback to service account only if no user token exists
     if not drive_service:
-        drive_service = get_user_drive_service()
+        drive_service = get_service_account_drive_service()
 
     if not drive_service:
         raise RuntimeError("Drive upload is not available.")
 
     if UPLOAD_FOLDER_ID:
         try:
-            drive_service.files().get(fileId=UPLOAD_FOLDER_ID, fields="id,name").execute()
+            drive_service.files().get(
+                fileId=UPLOAD_FOLDER_ID,
+                fields="id,name",
+                supportsAllDrives=True
+            ).execute()
         except Exception as e:
             raise RuntimeError("Upload folder not found or not shared with app account.") from e
 
@@ -378,6 +382,7 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
         body=metadata,
         media_body=media,
         fields="id, webViewLink",
+        supportsAllDrives=True,
     ).execute()
 
     file_id = created["id"]
@@ -2280,29 +2285,55 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 /* END PASTE */
 .payrollSheet th{
-  border:1px solid rgba(15,23,42,.10);
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid rgba(15,23,42,.22);
   padding: 7px 8px;
   font-size: 13px;
   line-height: 1.2;
   vertical-align: middle;
-  background:#fff;               /* header stays white */
+  background:#fff;
   color: rgba(11,18,32,.88);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
 }
 
 .payrollSheet td{
-  border:1px solid rgba(15,23,42,.10);
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  border-bottom: 1px solid rgba(15,23,42,.28);
   padding: 7px 8px;
   font-size: 15px;
   line-height: 1.35;
   vertical-align: middle;
-  background: transparent;       /* allow zebra to show */
-  color: rgba(11,18,32,.88);
+  background: transparent;
+  color: rgba(2,6,23,.92);
   font-variant-numeric: tabular-nums;
   font-feature-settings: "tnum" 1;
   font-weight: 750;
-  color: rgba(2,6,23,.92);
+}
+/* Day separators only: before In and after Hrs */
+.payrollSheet thead tr.group th:nth-child(n+2):nth-child(-n+8){
+  border-left: 1px solid rgba(15,23,42,.10);
+  border-right: 1px solid rgba(15,23,42,.10);
+}
+
+.payrollSheet thead tr.cols th:nth-child(3n+1):nth-child(-n+19){
+  border-left: 1px solid rgba(15,23,42,.10);
+}
+
+.payrollSheet thead tr.cols th:nth-child(3n):nth-child(-n+21){
+  border-right: 1px solid rgba(15,23,42,.10);
+}
+
+.payrollSheet tbody td:nth-child(3n+2):nth-child(-n+20){
+  border-left: 1px solid rgba(15,23,42,.10);
+}
+
+.payrollSheet tbody td:nth-child(3n+4):nth-child(-n+22){
+  border-right: 1px solid rgba(15,23,42,.10);
 }
 /* Net column: yellow CELL, normal text */
 .payrollSheet td.net{
@@ -2418,8 +2449,21 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   text-align: center !important;
   color: rgba(15,23,42,.92) !important;
   outline: none !important;
-  appearance: none;
-  -webkit-appearance: none;
+  appearance: none !important;
+  -webkit-appearance: none !important;
+}
+
+.payrollSheet input.payrollTimeInput::-webkit-calendar-picker-indicator{
+  display: none !important;
+  -webkit-appearance: none !important;
+  opacity: 0 !important;
+}
+
+.payrollSheet input.payrollTimeInput::-webkit-clear-button,
+.payrollSheet input.payrollTimeInput::-webkit-inner-spin-button,
+.payrollSheet input.payrollTimeInput::-webkit-outer-spin-button{
+  display: none !important;
+  -webkit-appearance: none !important;
 }
 
 /* Hide the browser's empty time placeholder like --:-- or dots */
@@ -4217,7 +4261,7 @@ def connect_drive():
     gate = require_login()
     if gate:
         return gate
-    if session.get("role") not in ("admin", "master_admin"):
+    if session.get("role") != "master_admin":
         return redirect(url_for("home"))
 
     flow = _make_oauth_flow()
@@ -4234,7 +4278,7 @@ def oauth2callback():
     gate = require_login()
     if gate:
         return gate
-    if session.get("role") not in ("admin", "master_admin"):
+    if session.get("role") != "master_admin":
         return redirect(url_for("home"))
 
     returned_state = request.args.get("state")
