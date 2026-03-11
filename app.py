@@ -4270,6 +4270,7 @@ def connect_drive():
         include_granted_scopes="true",
         prompt="consent",
     )
+    session["oauth_code_verifier"] = getattr(flow, "code_verifier", None)
     session["oauth_state"] = state
     return redirect(auth_url)
 
@@ -4288,7 +4289,9 @@ def oauth2callback():
     session.pop("oauth_state", None)
 
     flow = _make_oauth_flow()
+    flow.code_verifier = session.get("oauth_code_verifier")
     flow.fetch_token(authorization_response=request.url)
+    session.pop("oauth_code_verifier", None)
     creds_user = flow.credentials
 
     token_dict = {
