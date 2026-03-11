@@ -3493,7 +3493,15 @@ def money(x: float) -> str:
         return f"{float(x):.2f}"
     except Exception:
         return "0.00"
-
+def role_label(role: str) -> str:
+    r = (role or "").strip().lower()
+    if r == "master_admin":
+        return "MASTER ADMIN"
+    if r == "admin":
+        return "ADMIN"
+    if r == "manager":
+        return "MANAGER"
+    return r.upper() if r else ""
 def require_login():
     if "username" not in session:
         return redirect(url_for("login"))
@@ -3503,7 +3511,16 @@ def require_admin():
     gate = require_login()
     if gate:
         return gate
-    if session.get("role") != "admin":
+    if session.get("role") not in ("admin", "master_admin"):
+        return redirect(url_for("home"))
+    return None
+
+
+def require_master_admin():
+    gate = require_login()
+    if gate:
+        return gate
+    if session.get("role") != "master_admin":
         return redirect(url_for("home"))
     return None
 
@@ -4114,8 +4131,11 @@ def sidebar_html(active: str, role: str) -> str:
         ("agreements", "/onboarding", "Starter Form", _svg_doc()),
         ("profile", "/password", "Profile", _svg_user()),
     ]
-    if role == "admin":
+    if role in ("admin", "master_admin"):
         items.insert(5, ("admin", "/admin", "Admin", _svg_grid()))
+
+    if role == "master_admin":
+        items.insert(6, ("workplaces", "/admin/workplaces", "Workplaces", _svg_grid()))
 
     links = []
     for key, href, label, icon in items:
@@ -4288,21 +4308,29 @@ def login():
                     break
 
             if ok_user and is_password_valid(ok_user.get("Password", ""), password):
-                _login_rate_limit_clear(ip)
+                active_raw = str(ok_user.get("Active", "") or "").strip().lower()
+                is_active = active_raw not in ("false", "0", "no", "n", "off")
 
-                migrate_password_if_plain(username, ok_user.get("Password", ""), password)
-                session.clear()
-                session["csrf"] = csrf
-                session["username"] = username
-                session["workplace_id"] = workplace_id
-                session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
-                session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
-                session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
-                return redirect(url_for("home"))
+                if not is_active:
+                    _login_rate_limit_hit(ip)
+                    log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="", details="Inactive account login attempt")
+                    msg = "Account is inactive. Ask admin to reactivate it."
+                else:
+                    _login_rate_limit_clear(ip)
 
-            _login_rate_limit_hit(ip)
-            log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="", details="Invalid username or password")
-            msg = "Invalid login"
+                    migrate_password_if_plain(username, ok_user.get("Password", ""), password)
+                    session.clear()
+                    session["csrf"] = csrf
+                    session["username"] = username
+                    session["workplace_id"] = workplace_id
+                    session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
+                    session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
+                    session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
+                    return redirect(url_for("home"))
+            else:
+                _login_rate_limit_hit(ip)
+                log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="", details="Invalid username or password")
+                msg = "Invalid login"
 
     html = f"""
     <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
@@ -4592,7 +4620,7 @@ def home():
           <h1>Dashboard</h1>
           <p class="sub">Welcome, {escape(display_name)}</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
       </div>
 <div class="kpiRow">
   <div class="card kpi kpiFancy">
@@ -6170,7 +6198,7 @@ def admin():
           <h1>Admin</h1>
           <p class="sub">Payroll + onboarding</p>
         </div>
-        <div class="badge admin">ADMIN</div>
+        <div class="badge admin">{escape(role_label(session.get('role', 'admin')))}</div>
       </div>
       
                   <div class="kpiStrip adminStats" style="margin-bottom:12px;">
@@ -6299,7 +6327,7 @@ def admin():
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell(
             active="admin",
-            role="admin",
+            role=session.get("role", "admin"),
             content_html=content
         )
     )
@@ -8556,8 +8584,335 @@ def admin_employees():
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
 
 
-
 # ================= LOCAL RUN =================
+
+@app.get("/admin/master-test")
+def admin_master_test():
+    gate = require_master_admin()
+    if gate:
+        return gate
+
+    return (
+        f"MASTER TEST OK | "
+        f"username={session.get('username')} | "
+        f"role={session.get('role')} | "
+        f"workplace={session.get('workplace_id')}"
+    )
+
+
+@app.get("/debug-role")
+def debug_role():
+    gate = require_login()
+    if gate:
+        return gate
+
+    return (
+        f"username={session.get('username')} | "
+        f"role={session.get('role')} | "
+        f"workplace={session.get('workplace_id')}"
+    )
+
+@app.route("/admin/workplaces", methods=["GET", "POST"])
+def admin_workplaces():
+    gate = require_master_admin()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    msg = ""
+    ok = False
+    created_info = None
+
+    if request.method == "POST":
+        require_csrf()
+        action = (request.form.get("action") or "").strip().lower()
+
+        if action == "switch":
+            target_wp = (request.form.get("target_workplace") or "").strip()
+
+            found = False
+            try:
+                vals = settings_sheet.get_all_values() if settings_sheet else []
+                headers = vals[0] if vals else []
+                i_wp = headers.index("Workplace_ID") if headers and "Workplace_ID" in headers else None
+
+                if i_wp is not None:
+                    for r in (vals[1:] if len(vals) > 1 else []):
+                        row_wp = (r[i_wp] if i_wp < len(r) else "").strip()
+                        if row_wp == target_wp:
+                            found = True
+                            break
+            except Exception:
+                found = False
+
+            if not target_wp:
+                msg = "No workplace selected."
+            elif not found:
+                msg = "Workplace not found."
+            else:
+                session["workplace_id"] = target_wp
+                ok = True
+                msg = f"Opened workplace: {target_wp}"
+
+        elif action == "create":
+            workplace_id_raw = (request.form.get("workplace_id") or "").strip()
+            company_name = (request.form.get("company_name") or "").strip()
+            tax_rate = (request.form.get("tax_rate") or "20").strip()
+            currency_symbol = (request.form.get("currency_symbol") or "£").strip() or "£"
+
+            admin_first = (request.form.get("admin_first") or "").strip()
+            admin_last = (request.form.get("admin_last") or "").strip()
+            admin_username = (request.form.get("admin_username") or "").strip()
+            admin_password = (request.form.get("admin_password") or "").strip()
+
+            workplace_id = re.sub(r"[^a-zA-Z0-9_-]", "", workplace_id_raw).strip().lower()
+
+            if not workplace_id:
+                msg = "Workplace ID is required."
+            elif not company_name:
+                msg = "Company name is required."
+            elif not admin_first:
+                msg = "Admin first name is required."
+            elif not admin_last:
+                msg = "Admin last name is required."
+            elif not admin_username:
+                msg = "Admin username is required."
+            elif len(admin_password) < 8:
+                msg = "Admin password must be at least 8 characters."
+            else:
+                exists = False
+                try:
+                    vals = settings_sheet.get_all_values() if settings_sheet else []
+                    headers = vals[0] if vals else []
+
+                    if not vals:
+                        settings_sheet.append_row(["Workplace_ID", "Tax_Rate", "Currency_Symbol", "Company_Name"])
+                        vals = settings_sheet.get_all_values()
+                        headers = vals[0] if vals else []
+
+                    i_wp = headers.index("Workplace_ID") if headers and "Workplace_ID" in headers else None
+
+                    if i_wp is not None:
+                        for r in (vals[1:] if len(vals) > 1 else []):
+                            row_wp = (r[i_wp] if i_wp < len(r) else "").strip().lower()
+                            if row_wp == workplace_id:
+                                exists = True
+                                break
+
+                    if exists:
+                        msg = "That workplace already exists."
+                    else:
+                        existing_users = _employees_usernames_for_workplace(workplace_id)
+                        if admin_username.lower() in existing_users:
+                            msg = "That admin username already exists in this workplace."
+                        else:
+                            settings_row = [""] * len(headers)
+
+                            if "Workplace_ID" in headers:
+                                settings_row[headers.index("Workplace_ID")] = workplace_id
+                            if "Tax_Rate" in headers:
+                                settings_row[headers.index("Tax_Rate")] = tax_rate
+                            if "Currency_Symbol" in headers:
+                                settings_row[headers.index("Currency_Symbol")] = currency_symbol
+                            if "Company_Name" in headers:
+                                settings_row[headers.index("Company_Name")] = company_name
+
+                            settings_sheet.append_row(settings_row)
+
+                            _ensure_employees_columns()
+                            emp_headers = get_sheet_headers(employees_sheet)
+                            emp_row = [""] * len(emp_headers)
+
+                            def set_emp(col_name, value):
+                                if col_name in emp_headers:
+                                    emp_row[emp_headers.index(col_name)] = value
+
+                            set_emp("Username", admin_username)
+                            set_emp("Password", generate_password_hash(admin_password))
+                            set_emp("Role", "admin")
+                            set_emp("Rate", "0")
+                            set_emp("EarlyAccess", "TRUE")
+                            set_emp("OnboardingCompleted", "")
+                            set_emp("FirstName", admin_first)
+                            set_emp("LastName", admin_last)
+                            set_emp("Site", "")
+                            set_emp("Workplace_ID", workplace_id)
+                            if "Active" in emp_headers:
+                                set_emp("Active", "TRUE")
+
+                            employees_sheet.append_row(emp_row)
+
+                            session["workplace_id"] = workplace_id
+                            ok = True
+                            msg = f"Created workplace: {workplace_id}"
+                            created_info = {
+                                "workplace_id": workplace_id,
+                                "company_name": company_name,
+                                "admin_username": admin_username,
+                                "admin_password": admin_password,
+                            }
+                except Exception:
+                    msg = "Could not create workplace."
+
+    rows_html = []
+
+    try:
+        vals = settings_sheet.get_all_values() if settings_sheet else []
+        headers = vals[0] if vals else []
+
+        def idx(name):
+            return headers.index(name) if headers and name in headers else None
+
+        i_wp = idx("Workplace_ID")
+        i_tax = idx("Tax_Rate")
+        i_cur = idx("Currency_Symbol")
+        i_name = idx("Company_Name")
+
+        current_wp = _session_workplace_id()
+
+        for r in (vals[1:] if len(vals) > 1 else []):
+            wp = (r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip()
+            if not wp:
+                continue
+
+            tax = (r[i_tax] if i_tax is not None and i_tax < len(r) else "").strip()
+            cur = (r[i_cur] if i_cur is not None and i_cur < len(r) else "").strip()
+            name = (r[i_name] if i_name is not None and i_name < len(r) else "").strip() or wp
+            status_text = "Current" if wp == current_wp else ""
+
+            if wp == current_wp:
+                open_btn = "<span style='font-weight:600; color: rgba(15,23,42,.55);'>Opened</span>"
+            else:
+                open_btn = f"""
+                  <form method="POST" style="margin:0;">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="action" value="switch">
+                    <input type="hidden" name="target_workplace" value="{escape(wp)}">
+                    <button class="btnTiny" type="submit">Open</button>
+                  </form>
+                """
+
+            rows_html.append(f"""
+              <tr>
+                <td style="width:36%;">
+                  <div style="font-weight:700;">{escape(name)}</div>
+                  <div class="sub" style="margin:2px 0 0 0;">{escape(wp)}</div>
+                </td>
+                <td class="num" style="width:12%; text-align:right;">{escape(tax)}</td>
+                <td style="width:12%; text-align:center;">{escape(cur)}</td>
+                <td style="width:16%; text-align:left; font-weight:600; color: rgba(15,23,42,.72);">{escape(status_text)}</td>
+                <td style="width:14%; text-align:center;">{open_btn}</td>
+              </tr>
+            """)
+    except Exception:
+        rows_html = []
+
+    table_html = "".join(rows_html) if rows_html else "<tr><td colspan='5'>No workplaces found.</td></tr>"
+
+    created_card = ""
+    if created_info:
+        created_card = f"""
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <h2>First admin created</h2>
+            <div class="sub">Save these details now.</div>
+            <div class="card" style="padding:12px; margin-top:10px; background:rgba(56,189,248,.18); border:1px solid rgba(56,189,248,.35); color:rgba(2,6,23,.95);">
+              <div><b>Company:</b> {escape(created_info["company_name"])}</div>
+              <div><b>Workplace ID:</b> {escape(created_info["workplace_id"])}</div>
+              <div><b>Admin username:</b> {escape(created_info["admin_username"])}</div>
+              <div><b>Admin password:</b> {escape(created_info["admin_password"])}</div>
+            </div>
+          </div>
+        """
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Workplaces</h1>
+          <p class="sub">Master admin only.</p>
+        </div>
+        <div class="badge admin">{escape(role_label(session.get('role', 'master_admin')))}</div>
+      </div>
+
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+
+      <div class="card" style="padding:12px;">
+        <h2>Create workplace</h2>
+        <form method="POST">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <input type="hidden" name="action" value="create">
+
+          <div class="row2">
+            <div>
+              <label class="sub">Workplace ID</label>
+              <input class="input" name="workplace_id" placeholder="e.g. nw01" required>
+            </div>
+            <div>
+              <label class="sub">Company name</label>
+              <input class="input" name="company_name" placeholder="e.g. Newera North" required>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label class="sub">Tax rate</label>
+              <input class="input" name="tax_rate" value="20" required>
+            </div>
+            <div>
+              <label class="sub">Currency symbol</label>
+              <input class="input" name="currency_symbol" value="£" required>
+            </div>
+          </div>
+
+          <h2 style="margin-top:14px;">First admin</h2>
+
+          <div class="row2">
+            <div>
+              <label class="sub">First name</label>
+              <input class="input" name="admin_first" required>
+            </div>
+            <div>
+              <label class="sub">Last name</label>
+              <input class="input" name="admin_last" required>
+            </div>
+          </div>
+
+          <div class="row2">
+            <div>
+              <label class="sub">Username</label>
+              <input class="input" name="admin_username" required>
+            </div>
+            <div>
+              <label class="sub">Password</label>
+              <input class="input" name="admin_password" required>
+            </div>
+          </div>
+
+          <button class="btnSoft" type="submit" style="margin-top:12px;">Create workplace</button>
+        </form>
+      </div>
+
+      {created_card}
+
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <h2>Existing workplaces</h2>
+        <div class="tablewrap" style="margin-top:12px;">
+          <table style="min-width:860px; table-layout:fixed;">
+            <thead>
+              <tr>
+                <th style="width:36%; text-align:left;">Company</th>
+                <th class="num" style="width:12%; text-align:right;">Tax</th>
+                <th style="width:12%; text-align:center;">Currency</th>
+                <th style="width:16%; text-align:left;">Status</th>
+                <th style="width:14%; text-align:center;">Open</th>
+              </tr>
+            </thead>
+            <tbody>{table_html}</tbody>
+          </table>
+        </div>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("workplaces", "master_admin", content))
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
