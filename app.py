@@ -2319,10 +2319,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet thead tr.group th{
   background: #eef2ff;
   color: rgba(30,64,175,1);
-  font-weight: 900;
+  font-weight: 1000;
   text-transform: uppercase;
-  letter-spacing: .6px;
-  font-size: 11px;
+  letter-spacing: .7px;
+  font-size: 13px;
 }
 
 .payrollSheet thead tr.cols th{
@@ -2387,14 +2387,14 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   outline: none;
 }
 .payrollSheet input.payrollTimeInput{
-  width: 48px !important;
-  height: 18px !important;
+  width: 52px !important;
+  height: 20px !important;
   padding: 0 !important;
   border: none !important;
   border-radius: 0 !important;
   background: transparent !important;
   box-shadow: none !important;
-  font-size: 10px !important;
+  font-size: 12px !important;
   font-weight: 800 !important;
   text-align: center !important;
   color: rgba(15,23,42,.92) !important;
@@ -2496,7 +2496,19 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   min-width: 135px;
   max-width: 135px;
 }
+@media (max-width: 979px){
+  .payrollEmpCell{
+    width: 82px !important;
+    min-width: 82px !important;
+    max-width: 82px !important;
+  }
 
+  .payrollSheet thead tr.group th:first-child{
+    width: 82px !important;
+    min-width: 82px !important;
+    max-width: 82px !important;
+  }
+}
 /* Wide desktop */
 @media (max-width: 1700px) and (min-width: 980px){
   .payrollSheet{
@@ -2518,9 +2530,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     font-size: 13px;
   }
 
-  .payrollSheet input.payrollTimeInput{
-    width: 44px !important;
-    font-size: 10px !important;
+    .payrollSheet input.payrollTimeInput{
+    width: 50px !important;
+    font-size: 11px !important;
   }
 
   .payCellBtn{
@@ -2556,9 +2568,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .payrollSheet input.payrollTimeInput{
-    width: 38px !important;
-    font-size: 9px !important;
-  }
+    width: 46px !important;
+    font-size: 11px !important;
+  }  
 
   .payCellBtn{
     min-height: 28px;
@@ -4380,10 +4392,7 @@ def home():
     max_g = max(weekly_gross) if weekly_gross else 0.0
     max_g = max(max_g, 1.0)
 
-    bars_html = "".join([f"<div class='bar' style='height:{int((g/max_g)*165)}px;'></div>" for g in weekly_gross])
-    labels_html = "".join([f"<div style='width:16%;text-align:center;'>{escape(x)}</div>" for x in week_labels])
-
-    prev_gross = round(sum(weekly_gross[:-1]), 2)
+    prev_gross = round(weekly_gross[-2], 2) if len(weekly_gross) >= 2 else 0.0
     curr_gross = round(weekly_gross[-1], 2)
 
     admin_item = ""
@@ -4545,7 +4554,7 @@ def home():
       <span class="chip">Week total</span>
     </div>
     <p class="value">{escape(currency)}{money(prev_gross)}</p>
-    <p class="sub">Sum of prior 4 weeks</p>
+    <p class="sub">Previous week</p>
   </div>
 
   <div class="card kpi kpiFancy kpiPrimary">
@@ -4565,7 +4574,7 @@ def home():
         <div class="graphTop">
           <div>
             <div class="graphTitle">Weekly Gross</div>
-            <div class="sub">Last 5 weeks performance</div>
+            <div class="sub">Last 8 weeks performance</div>
           </div>
           <div class="graphRange">Weeks {escape(week_labels[0])} – {escape(week_labels[-1])}</div>
         </div>
@@ -4606,8 +4615,8 @@ def home():
         </div>
       </div>
 
-      <div class="dashboardLower">
-                <div class="card quickCard">
+            <div class="dashboardLower">
+        <div class="card quickCard">
           <div class="quickGrid">
             <div class="quickMini">
               <div class="left">
@@ -4649,60 +4658,62 @@ def home():
               <div class="miniText">{len(week_days)}</div>
             </div>
           </div>
+        </div>
+      </div>
 
-                <div class="dashboardBottom">
-                    <div class="card activityCard">
-            <div class="sectionHead">
-              <div class="sectionHeadLeft">
-                <div class="sectionIcon">{_svg_clipboard()}</div>
-                <div>
-                  <h2 style="margin:0;">Recent Activity</h2>
-                  <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
-                </div>
+      <div class="dashboardBottom">
+        <div class="card activityCard">
+          <div class="sectionHead">
+            <div class="sectionHeadLeft">
+              <div class="sectionIcon">{_svg_clipboard()}</div>
+              <div>
+                <h2 style="margin:0;">Recent Activity</h2>
+                <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
               </div>
-              <div class="sectionBadge">Last 5 rows</div>
             </div>
-
-            <div class="activityList">
-              {activity_html}
-            </div>
+            <div class="sectionBadge">Last 5 rows</div>
           </div>
 
-          <div class="card sideInfoCard">
-            <div class="sectionHead">
-              <div class="sectionHeadLeft">
-                <div class="sectionIcon">{_svg_grid()}</div>
-                <div>
-                  <h2 style="margin:0;">Business Snapshot</h2>
-                  <p class="sub" style="margin:4px 0 0 0;">Current workplace overview.</p>
-                </div>
+          <div class="activityList">
+            {activity_html}
+          </div>
+        </div>
+
+        <div class="card sideInfoCard">
+          <div class="sectionHead">
+            <div class="sectionHeadLeft">
+              <div class="sectionIcon">{_svg_grid()}</div>
+              <div>
+                <h2 style="margin:0;">Business Snapshot</h2>
+                <p class="sub" style="margin:4px 0 0 0;">Current workplace overview.</p>
               </div>
-              <div class="sectionBadge">Live</div>
+            </div>
+            <div class="sectionBadge">Live</div>
+          </div>
+
+          <div class="sideInfoList">
+            <div class="sideInfoRow">
+              <div class="sideInfoLabel">Employees</div>
+              <div class="sideInfoValue">{employee_count}</div>
             </div>
 
-            <div class="sideInfoList">
-              <div class="sideInfoRow">
-                <div class="sideInfoLabel">Employees</div>
-                <div class="sideInfoValue">{employee_count}</div>
-              </div>
+            <div class="sideInfoRow">
+              <div class="sideInfoLabel">Clocked In Now</div>
+              <div class="sideInfoValue">{clocked_in_count}</div>
+            </div>
 
-              <div class="sideInfoRow">
-                <div class="sideInfoLabel">Clocked In Now</div>
-                <div class="sideInfoValue">{clocked_in_count}</div>
-              </div>
+            <div class="sideInfoRow">
+              <div class="sideInfoLabel">Active Locations</div>
+              <div class="sideInfoValue">{active_locations_count}</div>
+            </div>
 
-              <div class="sideInfoRow">
-                <div class="sideInfoLabel">Active Locations</div>
-                <div class="sideInfoValue">{active_locations_count}</div>
-              </div>
-
-              <div class="sideInfoRow">
-                <div class="sideInfoLabel">Onboarding Pending</div>
-                <div class="sideInfoValue">{onboarding_pending_count}</div>
-              </div>
+            <div class="sideInfoRow">
+              <div class="sideInfoLabel">Onboarding Pending</div>
+              <div class="sideInfoValue">{onboarding_pending_count}</div>
             </div>
           </div>
         </div>
+      </div>
 
       <div class="card menu dashboardMainMenu">
         <a class="menuItem active" href="/clock">
@@ -4743,7 +4754,7 @@ def clock_page():
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
 
-    rate = safe_float(session.get("rate", 0), 0.0)
+    rate = _get_user_rate(username)
     early_access = bool(session.get("early_access", False))
 
     now = datetime.now(TZ)
@@ -6495,10 +6506,6 @@ def admin_force_clockout():
 
     pay = round(computed_hours * rate, 2)
 
-    sheet_row = idx + 1  # idx already is row index in sheet values? find_open_shift returns i as index in rows list
-    # In this codebase: find_open_shift returns i, date, in_time where i is index in rows list.
-    sheet_row = idx + 1
-
     sheet_row = idx + 1
 
     try:
@@ -6743,7 +6750,7 @@ def admin_payroll():
 
     chart_rows = sorted(chart_rows, key=lambda x: x["gross"], reverse=True)
     chart_top = chart_rows[:15]
-    other_total = round(sum(x["gross"] for x in chart_rows[6:]), 2)
+    other_total = round(sum(x["gross"] for x in chart_rows[15:]), 2)
 
     chart_segments = []
     for i, item in enumerate(chart_top):
@@ -6857,6 +6864,13 @@ def admin_payroll():
             tax = 0.0
             net = 0.0
 
+            def show_num(v):
+                try:
+                    vv = float(v)
+                    return "" if abs(vv) < 0.005 else f"{vv:.2f}"
+                except Exception:
+                    return ""
+
             cells = []
 
             # Employee cell
@@ -6915,7 +6929,7 @@ def admin_payroll():
 
                 cells.append(f"""
                   <td class='num' style='color: var(--navy); font-weight:900;'>
-                    {hrs:.2f}
+                    {show_num(hrs)}
                     <form id="{form_id}" method="POST" action="/admin/save-shift" style="display:none;">
                       <input type="hidden" name="csrf" value="{escape(csrf)}">
                       <input type="hidden" name="user" value="{escape(u)}">
@@ -6948,9 +6962,9 @@ def admin_payroll():
             else:
                 mark_paid_btn = ""
 
-            cells.append(f"<td class='num'>{total_hours:.2f}</td>")
-            cells.append(f"<td class='num'>{escape(currency)}{money(gross)}</td>")
-            cells.append(f"<td class='num'>{escape(currency)}{money(tax)}</td>")
+            cells.append(f"<td class='num'>{show_num(total_hours)}</td>")
+            cells.append(f"<td class='num'>{(escape(currency) + show_num(gross)) if gross > 0 else ''}</td>")
+            cells.append(f"<td class='num'>{(escape(currency) + show_num(tax)) if tax > 0 else ''}</td>")
 
             if paid:
                 cells.append(f"<td class='num net paidNetCell'>{escape(currency)}{money(net)}<br>Paid</td>")
@@ -6973,7 +6987,8 @@ def admin_payroll():
                   </td>
                 """)
             else:
-                cells.append(f"<td class='num net zeroNetCell'>{escape(currency)}{money(net)}</td>")
+                cells.append(
+                    f"<td class='num net zeroNetCell'>{(escape(currency) + show_num(net)) if net > 0 else ''}</td>")
 
 
             sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
@@ -6991,8 +7006,8 @@ def admin_payroll():
         has_any = False
         for rec in user_days.values():
             if isinstance(rec, dict) and (
-                    rec.get("clock_in") or
-                    rec.get("clock_out") or
+                    rec.get("cin") or
+                    rec.get("cout") or
                     safe_float(rec.get("hours", "0"), 0.0) > 0 or
                     safe_float(rec.get("pay", "0"), 0.0) > 0
             ):
@@ -7023,20 +7038,6 @@ def admin_payroll():
         wk_net = round(wk_gross - wk_tax, 2)
 
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
-
-        summary_line = (
-            f"Week totals: <b>{wk_hours:.2f}</b> hours &nbsp;•&nbsp; "
-            f"Gross <b>{escape(currency)}{money(wk_gross)}</b> &nbsp;•&nbsp; "
-            f"Tax <b>{escape(currency)}{money(wk_tax)}</b> &nbsp;•&nbsp; "
-            f"Net <b>{escape(currency)}{money(wk_net)}</b>"
-        )
-
-        if paid and paid_at:
-            summary_line += f" &nbsp;•&nbsp; Paid at <b>{escape(paid_at)}</b>"
-
-        overtime_note = ""
-        if wk_overtime_days > 0:
-            overtime_note = f"<span class='overtimeChip'>Overtime days: {wk_overtime_days}</span>"
 
         rows_html = []
         for di in range(7):
@@ -7357,7 +7358,7 @@ def _get_week_range(wk_offset: int):
     Returns (week_start_str, week_end_str) for a Monday->Sunday week,
     offset by wk_offset weeks (0=this week, 1=previous week, etc).
     """
-    today = date.today()
+    today = datetime.now(TZ).date()
     monday = today - timedelta(days=today.weekday())  # Monday
     week_start = monday - timedelta(days=7 * int(wk_offset))
     week_end = week_start + timedelta(days=6)  # Sunday
@@ -7369,20 +7370,25 @@ def admin_payroll_report_csv():
     if gate:
         return gate
 
-    # Same filters as payroll report page
     username_q = (request.args.get("q") or "").strip().lower()
     date_from = (request.args.get("from") or "").strip()
     date_to = (request.args.get("to") or "").strip()
-    wk_offset = int(request.args.get("wk") or "0")
+
+    try:
+        wk_offset = int((request.args.get("wk") or "0").strip())
+    except Exception:
+        wk_offset = 0
+
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
+    try:
+        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
+    except Exception:
+        tax_rate = 0.20
 
     wp = _session_workplace_id()
-    wp = ((wp or "default").strip() or "default")
+    week_start, week_end = _get_week_range(wk_offset)
 
-    # Build the same weekly window you use in the Payroll Report page
-    # (Assumes you already compute week_start/week_end similarly in the page)
-    week_start, week_end = _get_week_range(wk_offset)  # <-- this helper should already exist in your code
-    week_start = str(week_start)
-    week_end = str(week_end)
     use_range = False
     range_start = range_end = None
 
@@ -7391,267 +7397,94 @@ def admin_payroll_report_csv():
             range_start = date.fromisoformat(date_from)
             range_end = date.fromisoformat(date_to)
             use_range = True
-            # also make filename/CSV columns show the selected range
-            week_start = date_from
-            week_end = date_to
+            week_start, week_end = date_from, date_to
         except ValueError:
             use_range = False
-    debug_lines = [
-        f"# DEBUG week_start={week_start} week_end={week_end} wk={wk_offset} wp={wp}",
-    ]
-    try:
-        payroll_reports_sheet = spreadsheet.worksheet("PayrollReports")
-        pv = payroll_reports_sheet.get_all_values()
-        ph = pv[0] if pv else []
-        debug_lines.append(f"# DEBUG payroll_headers={ph}")
-        for rr in (pv[1:4] if len(pv) > 1 else []):
-            debug_lines.append(f"# DEBUG row_weekstart={rr[0] if len(rr)>0 else ''} row_weekend={rr[1] if len(rr)>1 else ''} row_user={rr[2] if len(rr)>2 else ''}")
-    except Exception as e:
-        debug_lines.append(f"# DEBUG payroll_read_error={e}")
-    # Summarise from PayrollReports (preferred) or WorkHours if your page does so.
-    # We'll reuse your existing helper if present:
-    # Build rows directly from PayrollReports sheet
-        rows = []
-        totals = {}
 
-        def _f(x):
-            try:
-                return float((x or "").strip() or 0)
-            except Exception:
-                return 0.0
+    rows = work_sheet.get_all_values()
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
 
-        try:
-            payroll_reports_sheet = spreadsheet.worksheet("PayrollReports")
-            vals = payroll_reports_sheet.get_all_values()
-            hdr = vals[0] if vals else []
+    totals_by_user = {}
 
-            def hidx(name):
-                if not hdr:
-                    return None
-                target = (name or "").strip().lower()
-                for i, h in enumerate(hdr):
-                    if (h or "").strip().lower() == target:
-                        return i
-                return None
+    for r in rows[1:]:
+        if len(r) <= COL_PAY or len(r) <= COL_USER or len(r) <= COL_DATE:
+            continue
 
-            i_ws = hidx("WeekStart")
-            i_we = hidx("WeekEnd")
-            i_user = hidx("Username")
-            i_g = hidx("Gross")
-            i_t = hidx("Tax")
-            i_n = hidx("Net")
-            i_paid = hidx("Paid")
-            i_wp = hidx("Workplace_ID")
+        user = (r[COL_USER] or "").strip()
+        d_str = (r[COL_DATE] or "").strip()
 
-            for r in (vals[1:] if len(vals) > 1 else []):
-                ws = (r[i_ws] if i_ws is not None and len(r) > i_ws else "").strip()
-                we = (r[i_we] if i_we is not None and len(r) > i_we else "").strip()
-                u = (r[i_user] if i_user is not None and len(r) > i_user else "").strip()
+        if not user or not d_str:
+            continue
 
-                if use_range:
-                    try:
-                        ws_d = date.fromisoformat(ws)
-                        we_d = date.fromisoformat(we)
-                    except ValueError:
-                        continue
-                    if we_d < range_start or ws_d > range_end:
-                        continue
-                else:
-                    if ws != week_start or we != week_end:
-                        continue
-
-                if i_wp is not None:
-                    rwp = ((r[i_wp] if len(r) > i_wp else "").strip() or "default")
-                    if rwp != wp:
-                        continue
-
-                if username_q and username_q not in u.lower():
-                    continue
-
-                if use_range:
-                    t = totals.setdefault(u, {"Gross": 0.0, "Tax": 0.0, "Net": 0.0})
-                    t["Gross"] += _f(r[i_g] if i_g is not None and len(r) > i_g else "")
-                    t["Tax"] += _f(r[i_t] if i_t is not None and len(r) > i_t else "")
-                    t["Net"] += _f(r[i_n] if i_n is not None and len(r) > i_n else "")
-                else:
-                    rows.append({
-                        "Employee": get_employee_display_name(u),
-                        "Username": u,
-                        "Hours": (r[i_h] if i_h is not None and len(r) > i_h else "").strip(),
-                        "Gross": (r[i_g] if i_g is not None and len(r) > i_g else "").strip(),
-                        "Tax": (r[i_t] if i_t is not None and len(r) > i_t else "").strip(),
-                        "Net": (r[i_n] if i_n is not None and len(r) > i_n else "").strip(),
-                        "Paid": (r[i_paid] if i_paid is not None and len(r) > i_paid else "").strip(),
-                    })
-
-            if use_range:
-                rows = []
-                for u, t in totals.items():
-                    rows.append({
-                        "Employee": get_employee_display_name(u),
-                        "Username": u,
-                        "Hours": "",
-                        "Gross": f'{t["Gross"]:.2f}',
-                        "Tax": f'{t["Tax"]:.2f}',
-                        "Net": f'{t["Net"]:.2f}',
-                        "Paid": "",
-                    })
-
-        except Exception as e:
-            rows = []
-            vals = []
-            hdr = [f"BUILD_ERROR: {e}"]
-            i_ws = i_we = i_user = i_wp = i_g = i_t = i_n = i_paid = None
-
-        def _f(x):
-            try:
-                return float((x or "").strip() or 0)
-            except Exception:
-                return 0.0
-    # rows should be list of dicts:
-    # [{"Employee":..., "Username":..., "Hours":..., "Gross":..., "Tax":..., "Net":..., "Paid":...}, ...]
-
-    # --- BUILD ROWS FOR CSV EXPORT (guaranteed in function scope) ---
-    rows = []
-    totals = {}
-    vals = []
-    hdr = []
-
-    def _f(x):
-        try:
-            return float((x or "").strip() or 0)
-        except Exception:
-            return 0.0
-
-    try:
-        payroll_reports_sheet = spreadsheet.worksheet("PayrollReports")
-        vals = payroll_reports_sheet.get_all_values()
-        hdr = vals[0] if vals else []
-
-        def hidx(name):
-            target = (name or "").strip().lower()
-            for i, h in enumerate(hdr):
-                if (h or "").strip().lower() == target:
-                    return i
-            return None
-
-        i_ws = hidx("WeekStart")
-        i_we = hidx("WeekEnd")
-        i_user = hidx("Username")
-        i_h = hidx("Hours") or hidx("Hrs")
-        i_g = hidx("Gross")
-        i_t = hidx("Tax")
-        i_n = hidx("Net")
-        i_paid = hidx("Paid")
-        i_wp = hidx("Workplace_ID")
-
-        if i_ws is None or i_we is None or i_user is None:
-            raise RuntimeError(f"Missing headers: WeekStart/WeekEnd/Username in {hdr}")
-
-        for r in (vals[1:] if len(vals) > 1 else []):
-            ws = ((r[i_ws] if len(r) > i_ws else "") or "").strip()[:10]
-            we = ((r[i_we] if len(r) > i_we else "") or "").strip()[:10]
-            u = ((r[i_user] if len(r) > i_user else "") or "").strip()
-
-            if use_range:
-                try:
-                    ws_d = date.fromisoformat(ws)
-                    we_d = date.fromisoformat(we)
-                except ValueError:
-                    continue
-                if we_d < range_start or ws_d > range_end:
-                    continue
-            else:
-                if ws != str(week_start)[:10] or we != str(week_end)[:10]:
-                    continue
-
-            if i_wp is not None:
-                rwp = (((r[i_wp] if len(r) > i_wp else "") or "").strip() or "default")
-                if rwp != wp:
-                    continue
-
-            if username_q and username_q not in u.lower():
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != wp:
+                continue
+        else:
+            if not user_in_same_workplace(user):
                 continue
 
-            if use_range:
-                t = totals.setdefault(u, {"Gross": 0.0, "Tax": 0.0, "Net": 0.0})
-                t["Gross"] += _f(r[i_g] if i_g is not None and len(r) > i_g else "")
-                t["Tax"] += _f(r[i_t] if i_t is not None and len(r) > i_t else "")
-                t["Net"] += _f(r[i_n] if i_n is not None and len(r) > i_n else "")
-            else:
-                rows.append({
-                    "Employee": get_employee_display_name(u),
-                    "Username": u,
-                    "Hours": "",
-                    "Gross": (r[i_g] if i_g is not None and len(r) > i_g else "").strip(),
-                    "Tax": (r[i_t] if i_t is not None and len(r) > i_t else "").strip(),
-                    "Net": (r[i_n] if i_n is not None and len(r) > i_n else "").strip(),
-                    "Paid": (r[i_paid] if i_paid is not None and len(r) > i_paid else "").strip(),
-                })
+        if username_q and username_q not in user.lower() and username_q not in get_employee_display_name(user).lower():
+            continue
+
+        try:
+            d_obj = date.fromisoformat(d_str)
+        except Exception:
+            continue
 
         if use_range:
-            rows = []
-            for u, t in totals.items():
-                rows.append({
-                    "Employee": get_employee_display_name(u),
-                    "Username": u,
-                    "Hours": "",
-                    "Gross": f'{t["Gross"]:.2f}',
-                    "Tax": f'{t["Tax"]:.2f}',
-                    "Net": f'{t["Net"]:.2f}',
-                    "Paid": "",
-                })
+            if d_obj < range_start or d_obj > range_end:
+                continue
+        else:
+            if d_str < str(week_start)[:10] or d_str > str(week_end)[:10]:
+                continue
 
-    except Exception as e:
-        # keep debug visible
-        hdr = [f"BUILD_ERROR: {e}"]
-        rows = []
-        totals = {}
-    # --- END BUILD ---
-        msg = []
-        msg.append(f"wp={wp!r}")
-        msg.append(f"wk_offset={wk_offset} week_start={week_start!r} week_end={week_end!r}")
-        msg.append(f"use_range={use_range} from={date_from!r} to={date_to!r} q={username_q!r}")
-        try:
-            hdr_ = locals().get("hdr", None)
-            vals_ = locals().get("vals", None)
-            rows_ = locals().get("rows", None)
-            totals_ = locals().get("totals", None)
+        hrs = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        gross = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
 
-            msg.append(f"hdr={hdr_!r}")
-            msg.append(f"vals_exists={vals_ is not None} rows_exists={rows_ is not None} totals_exists={totals_ is not None}")
+        totals_by_user.setdefault(user, {"hours": 0.0, "gross": 0.0})
+        totals_by_user[user]["hours"] += hrs
+        totals_by_user[user]["gross"] += gross
 
-            if vals_:
-                msg.append(f"total_rows={len(vals_) - 1}")
-                msg.append(f"sample_rows={vals_[1:6]!r}")
-            if rows_ is not None:
-                msg.append(f"built_rows={len(rows_)}")
-            if totals_ is not None:
-                msg.append(f"totals_count={len(totals_)}")
-        except Exception as e:
-            msg.append(f"debug_error={e}")
-        return make_response("\n".join(msg), 200, {"Content-Type": "text/plain"})
+    export_rows = []
+    for user, vals in totals_by_user.items():
+        gross = round(vals["gross"], 2)
+        tax = round(gross * tax_rate, 2)
+        net = round(gross - tax, 2)
+        hours = round(vals["hours"], 2)
+
+        export_rows.append({
+            "Employee": get_employee_display_name(user),
+            "Username": user,
+            "Hours": f"{hours:.2f}",
+            "Gross": f"{gross:.2f}",
+            "Tax": f"{tax:.2f}",
+            "Net": f"{net:.2f}",
+        })
+
+    export_rows.sort(key=lambda x: (x.get("Employee") or "").lower())
+
     import csv
     from io import StringIO
+
     output = StringIO()
-    output.write("sep=,\r\n")  # Excel: force comma delimiter
-    if use_range:
-        output.write("# Note: totals include any payroll weeks that overlap the selected date range.\r\n")
+    output.write("sep=,\r\n")
     w = csv.writer(output)
-    w.writerow(["WeekStart", "WeekEnd", "Employee", "Gross", "Tax", "Net"])
-    rows = locals().get("rows", [])
-    for r in rows:
+    w.writerow(["WeekStart", "WeekEnd", "Employee", "Hours", "Gross", "Tax", "Net"])
+
+    for r in export_rows:
         w.writerow([
             str(week_start),
             str(week_end),
-            r.get("Employee", ""),
-            r.get("Gross", ""),
-            r.get("Tax", ""),
-            r.get("Net", ""),
+            r["Employee"],
+            r["Hours"],
+            r["Gross"],
+            r["Tax"],
+            r["Net"],
         ])
 
-    csv_text = output.getvalue()
-    buf = io.BytesIO(csv_text.encode("utf-8-sig"))  # Excel-friendly
+    buf = io.BytesIO(output.getvalue().encode("utf-8-sig"))
     buf.seek(0)
 
     filename = f"payroll_{week_start}_to_{week_end}.csv"
@@ -7663,6 +7496,7 @@ def admin_payroll_report_csv():
         download_name=filename,
         max_age=0
     )
+
 # ---------- ADMIN ONBOARDING LIST / DETAIL ----------
 @app.get("/admin/onboarding")
 def admin_onboarding_list():
