@@ -2258,10 +2258,6 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet select:disabled{
   background: transparent;
 }
-.payrollSheet input:disabled,
-.payrollSheet select:disabled{
-  background: transparent;
-}
 
 /* PASTE THIS RIGHT HERE */
 .payrollSheet input[type="time"]{
@@ -4211,7 +4207,7 @@ def connect_drive():
     gate = require_login()
     if gate:
         return gate
-    if session.get("role") != "admin":
+    if session.get("role") not in ("admin", "master_admin"):
         return redirect(url_for("home"))
 
     flow = _make_oauth_flow()
@@ -4228,7 +4224,7 @@ def oauth2callback():
     gate = require_login()
     if gate:
         return gate
-    if session.get("role") != "admin":
+    if session.get("role") not in ("admin", "master_admin"):
         return redirect(url_for("home"))
 
     returned_state = request.args.get("state")
@@ -5603,9 +5599,8 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
         return "selected" if val(input_name, existing_key) == value else ""
 
     drive_hint = ""
-    if role == "admin":
+    if role in ("admin", "master_admin") and (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
         drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive' style='color:var(--navy);font-weight:600;'>Connect Drive</a> once.</p>"
-
     return f"""
       <div class="headerTop">
         <div>
@@ -6284,14 +6279,20 @@ def admin():
             <div class="adminToolSub">Create employees, update rates and manage access.</div>
           </a>
 
-          <a class="adminToolCard drive" href="/connect-drive">
-            <div class="adminToolTop">
-              <div class="adminToolIcon">{_svg_grid()}</div>
-              <div class="chev">›</div>
-            </div>
-            <div class="adminToolTitle">Connect Drive</div>
-            <div class="adminToolSub">Reconnect Google Drive for onboarding uploads.</div>
-          </a>
+                    {
+            f'''
+              <a class="adminToolCard drive" href="/connect-drive">
+                <div class="adminToolTop">
+                  <div class="adminToolIcon">{_svg_grid()}</div>
+                  <div class="chev">›</div>
+                </div>
+                <div class="adminToolTitle">Connect Drive</div>
+                <div class="adminToolSub">Reconnect Google Drive for onboarding uploads.</div>
+              </a>
+            '''
+            if (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
+            else ""
+          }
         </div>
       </div>
             <div class="card adminSectionCard" style="margin-top:12px;">
@@ -6418,7 +6419,10 @@ def admin_company():
         </form>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", role, content))
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
+    )
 
 @app.post("/admin/save-shift")
 def admin_save_shift():
@@ -7426,7 +7430,12 @@ def admin_payroll():
     """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
-        layout_shell(active="admin", role="admin", content_html=content, shell_class="payrollShell")
+        layout_shell(
+            active="admin",
+            role=session.get("role", "admin"),
+            content_html=content,
+            shell_class="payrollShell"
+        )
     )
 def _get_week_range(wk_offset: int):
     """
@@ -7648,7 +7657,10 @@ def admin_onboarding_list():
         </div>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
+    )
 
 @app.get("/admin/onboarding/<username>")
 def admin_onboarding_detail(username):
@@ -7710,7 +7722,10 @@ def admin_onboarding_detail(username):
         </div>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
+    )
 
 
 
@@ -7884,7 +7899,10 @@ def admin_locations():
         </p>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
+    )
 
 
 
@@ -8124,7 +8142,10 @@ def admin_employee_sites():
         </div>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
+    )
 
 
 @app.post("/admin/employee-sites/save")
@@ -8330,49 +8351,6 @@ def admin_employees():
         else:
             ok = False
             msg = "Unknown action."
-
-            try:
-                rate_val = float(rate_raw) if rate_raw != "" else 0.0
-            except Exception:
-                rate_val = 0.0
-
-            wp = _session_workplace_id()
-
-            _ensure_employees_columns()
-            headers = get_sheet_headers(employees_sheet)
-
-            # Generate credentials
-            new_username = _generate_unique_username(first, last, wp)
-            temp_pw = _generate_temp_password(10)
-            hashed = generate_password_hash(temp_pw)
-
-            # Build row aligned to header length
-            row = [""] * (len(headers) if headers else 0)
-
-            def set_col(col_name: str, value: str):
-                if headers and col_name in headers:
-                    row[headers.index(col_name)] = value
-
-            set_col("Username", new_username)
-            set_col("Password", hashed)
-            set_col("Role", role_new)
-            set_col("Rate", str(rate_val))
-            set_col("EarlyAccess", "TRUE")
-            set_col("OnboardingCompleted", "")
-            set_col("FirstName", first)
-            set_col("LastName", last)
-            set_col("Workplace_ID", wp)
-
-            try:
-                employees_sheet.append_row(row)
-                actor = session.get("username", "admin")
-                log_audit("EMPLOYEE_CREATE", actor=actor, username=new_username, date_str="", details=f"role={role_new} rate={rate_val}")
-                ok = True
-                msg = "Employee created."
-                created = {"u": new_username, "p": temp_pw, "wp": wp}
-            except Exception:
-                ok = False
-                msg = "Could not create employee (sheet write failed)."
 
     # List employees in this workplace
     wp = _session_workplace_id()
@@ -8581,7 +8559,10 @@ def admin_employees():
         </div>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", "admin", content))
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
+    )
 
 
 # ================= LOCAL RUN =================
@@ -8611,7 +8592,13 @@ def debug_role():
         f"role={session.get('role')} | "
         f"workplace={session.get('workplace_id')}"
     )
-
+@app.get("/debug-drive-token")
+def debug_drive_token():
+    tok = _load_drive_token()
+    return (
+        f"TOKEN_PRESENT={'YES' if tok else 'NO'} | "
+        f"TOKEN_STORE_PATH={DRIVE_TOKEN_STORE_PATH}"
+    )
 @app.route("/admin/workplaces", methods=["GET", "POST"])
 def admin_workplaces():
     gate = require_master_admin()
