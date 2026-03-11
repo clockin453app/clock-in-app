@@ -321,7 +321,11 @@ def _load_drive_token() -> dict | None:
         except Exception:
             return None
     return None
-
+def get_service_account_drive_service():
+    try:
+        return build("drive", "v3", credentials=creds, cache_discovery=False)
+    except Exception:
+        return None
 def get_user_drive_service():
     token_data = _load_drive_token()
     if not token_data:
@@ -338,15 +342,21 @@ def get_user_drive_service():
     return build("drive", "v3", credentials=creds_user, cache_discovery=False)
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
-    drive_service = get_user_drive_service()
+    # First try service account Drive
+    drive_service = get_service_account_drive_service()
+
+    # Fallback to OAuth user token if needed
     if not drive_service:
-        raise RuntimeError("Drive not connected. Admin must visit /connect-drive once.")
+        drive_service = get_user_drive_service()
+
+    if not drive_service:
+        raise RuntimeError("Drive upload is not available.")
 
     if UPLOAD_FOLDER_ID:
         try:
             drive_service.files().get(fileId=UPLOAD_FOLDER_ID, fields="id,name").execute()
         except Exception as e:
-            raise RuntimeError("Upload folder not found. Fix ONBOARDING_DRIVE_FOLDER_ID (use a FOLDER id).") from e
+            raise RuntimeError("Upload folder not found or not shared with app account.") from e
 
     file_bytes = file_storage.read()
     file_storage.stream.seek(0)
@@ -5472,9 +5482,6 @@ def onboarding():
                 missing_fields.add("contract_accept")
 
             req(signature_name, "signature_name", "Signature name")
-
-            if not _load_drive_token():
-                missing.append("Upload system not connected (admin must click Connect Drive)")
 
             if not passport_file or not passport_file.filename:
                 missing.append("Passport/Birth Certificate file")
