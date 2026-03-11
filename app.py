@@ -2365,10 +2365,23 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   padding-left: 4px;
   padding-right: 4px;
 }
-.payrollSheet .num{ text-align:right; white-space:nowrap; }
-.payrollSheet .emp{ font-weight:900; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.payrollSheet .emp{
+  display:block;
+  width:100%;
+  min-width:0;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
 .payrollSheet .empSub{
   display:block;
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
   font-weight:600;
   color: rgba(15,23,42,.55);
   margin-top: 2px;
@@ -2491,11 +2504,36 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet tbody tr:hover td.net{
   background: rgba(250,204,21,.30);
 }
+
 /* Responsive payroll sizing */
 .payrollEmpCell{
   min-width: 135px;
   max-width: 135px;
 }
+
+.payrollSheet .emp{
+  display:block;
+  width:100%;
+  min-width:0;
+  font-weight:900;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.payrollSheet .empSub{
+  display:block;
+  width:100%;
+  min-width:0;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-weight:600;
+  color: rgba(15,23,42,.55);
+  margin-top: 2px;
+  font-size: 12px;
+}
+
 @media (max-width: 979px){
   .payrollEmpCell{
     width: 82px !important;
@@ -2508,7 +2546,16 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     min-width: 82px !important;
     max-width: 82px !important;
   }
+
+  .payrollSheet .emp{
+    font-size: 12px;
+  }
+
+  .payrollSheet .empSub{
+    font-size: 10px;
+  }
 }
+
 /* Wide desktop */
 @media (max-width: 1700px) and (min-width: 980px){
   .payrollSheet{
