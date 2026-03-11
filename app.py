@@ -2844,6 +2844,16 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet tbody tr:hover td.net{
   background: rgba(250,204,21,.30);
 }
+.payrollSheet td.payrollOT{
+  background: rgba(245,158,11,.16) !important;
+  color: rgba(146,64,14,.98) !important;
+  font-weight: 900 !important;
+  box-shadow: inset 0 0 0 1px rgba(245,158,11,.22);
+}
+
+.payrollSheet tbody tr:hover td.payrollOT{
+  background: rgba(245,158,11,.24) !important;
+}
 
 /* Responsive payroll sizing */
 .payrollEmpCell{
@@ -3210,6 +3220,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollMenuToggle:hover{
   box-shadow: 0 14px 26px rgba(220,38,38,.18);
   background: linear-gradient(180deg, rgba(254,226,226,.98), rgba(252,231,243,.98));
+}
 }
 </style>
 """
@@ -3836,6 +3847,20 @@ def money(x: float) -> str:
         return f"{float(x):.2f}"
     except Exception:
         return "0.00"
+
+def fmt_hours(x) -> str:
+    try:
+        return f"{float(x):.2f}".rstrip("0").rstrip(".")
+    except Exception:
+        return "0"
+
+def fmt_hours(x) -> str:
+    try:
+        n = round(float(x or 0), 1)
+        return f"{n:.1f}".rstrip("0").rstrip(".")
+    except Exception:
+        return ""
+
 def role_label(role: str) -> str:
     r = (role or "").strip().lower()
     if r == "master_admin":
@@ -4890,7 +4915,7 @@ def home():
                 <div>{escape(rr['date'])}</div>
                 <div>{escape((rr['cin'] or '')[:5])}</div>
                 <div>{escape((rr['cout'] or '')[:5])}</div>
-                <div>{escape(rr['hours'])}</div>
+                <div>{escape(fmt_hours(rr['hours']))}</div>
                 <div>{escape(currency)}{escape(rr['pay'])}</div>
               </div>
             """
@@ -5055,7 +5080,7 @@ def home():
   </div>
 </div>
 
-                  <div class="card graphCard">
+          <div class="card graphCard">
         <div class="graphTop">
           <div>
             <div class="graphTitle">Weekly Gross</div>
@@ -5082,8 +5107,10 @@ def home():
           <div class="barLabels">
             {''.join([f"<div>{escape(x)}</div>" for x in week_labels])}
           </div>
+        </div>
+      </div>
 
-            <div class="dashboardLower">
+      <div class="dashboardLower">
         <div class="card quickCard">
           <div class="quickGrid">
             <div class="quickMini">
@@ -5099,7 +5126,7 @@ def home():
                 <div class="miniIcon">{_svg_clipboard()}</div>
                 <div class="miniText">Today Hours</div>
               </div>
-              <div class="miniText">{round(today_hours, 2)}</div>
+              <div class="miniText">{fmt_hours(today_hours)}</div>
             </div>
 
             <div class="quickMini">
@@ -5115,7 +5142,7 @@ def home():
                 <div class="miniIcon">{_svg_grid()}</div>
                 <div class="miniText">Week Hours</div>
               </div>
-              <div class="miniText">{round(week_hours, 2)}</div>
+              <div class="miniText">{fmt_hours(week_hours)}</div>
             </div>
 
             <div class="quickMini">
@@ -5130,36 +5157,28 @@ def home():
       </div>
 
       <div class="dashboardBottom">
-  <div class="card activityCard">
-    <div class="sectionHead">
-      <div class="sectionHeadLeft">
-        <div class="sectionIcon">{_svg_clipboard()}</div>
-        <div>
-          <h2 style="margin:0;">Recent Activity</h2>
-          <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
-        </div>
-      </div>
-      <div class="sectionBadge">Last 5 rows</div>
-    </div>
-
-    <div class="activityList">
-      {activity_html}
-    </div>
-  </div>
-
-  {snapshot_html}
-</div>
-
-            <div class="sideInfoRow">
-              <div class="sideInfoLabel">Onboarding Pending</div>
-              <div class="sideInfoValue">{onboarding_pending_count}</div>
+        <div class="card activityCard">
+          <div class="sectionHead">
+            <div class="sectionHeadLeft">
+              <div class="sectionIcon">{_svg_clipboard()}</div>
+              <div>
+                <h2 style="margin:0;">Recent Activity</h2>
+                <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
+              </div>
             </div>
+            <div class="sectionBadge">Last 5 rows</div>
+          </div>
+
+          <div class="activityList">
+            {activity_html}
           </div>
         </div>
+
+        {snapshot_html}
       </div>
 
       <div class="card menu dashboardMainMenu">
-  <a class="menuItem nav-clock active" href="/clock">
+  <a class="menuItem nav-clock" href="/clock">
     <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
     <div class="chev">›</div>
   </a>
@@ -7317,7 +7336,7 @@ def admin_payroll():
             def show_num(v):
                 try:
                     vv = float(v)
-                    return "" if abs(vv) < 0.005 else f"{vv:.2f}"
+                    return "" if abs(vv) < 0.005 else fmt_hours(vv)
                 except Exception:
                     return ""
 
@@ -7344,6 +7363,7 @@ def admin_payroll():
                 cin = (rec.get("cin", "") if isinstance(rec, dict) else "") or ""
                 cout = (rec.get("cout", "") if isinstance(rec, dict) else "") or ""
                 hrs = safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0)
+                hrs_class = " payrollOT" if hrs > OVERTIME_HOURS else ""
                 pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), default=0.0)
 
                 total_hours += hrs
@@ -7378,7 +7398,7 @@ def admin_payroll():
                 """)
 
                 cells.append(f"""
-                  <td class='num' style='color: var(--navy); font-weight:900;'>
+                  <td class='num{hrs_class}' style='font-weight:900;'>
                     {show_num(hrs)}
                     <form id="{form_id}" method="POST" action="/admin/save-shift" style="display:none;">
                       <input type="hidden" name="csrf" value="{escape(csrf)}">
