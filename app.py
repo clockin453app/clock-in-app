@@ -5460,7 +5460,7 @@ def onboarding():
 
     if request.method == "POST":
         require_csrf()
-        typed = dict(request.form)
+        typed = request.form.to_dict(flat=True)
         submit_type = request.form.get("submit_type", "draft")
         is_final = (submit_type == "final")
 
@@ -5654,8 +5654,8 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
         return "selected" if val(input_name, existing_key) == value else ""
 
     drive_hint = ""
-    if role in ("admin", "master_admin") and (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
-        drive_hint = "<p class='sub'>Admin: if uploads fail, click <a href='/connect-drive' style='color:var(--navy);font-weight:600;'>Connect Drive</a> once.</p>"
+    if role == "master_admin" and (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
+        drive_hint = "<p class='sub'>Master admin: if uploads fail, click <a href='/connect-drive' style='color:var(--navy);font-weight:600;'>Connect Drive</a> once.</p>"
     return f"""
       <div class="headerTop">
         <div>
@@ -6345,7 +6345,7 @@ def admin():
                 <div class="adminToolSub">Reconnect Google Drive for onboarding uploads.</div>
               </a>
             '''
-            if (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
+            if (session.get("role") == "master_admin" and OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
             else ""
           }
         </div>
@@ -8622,38 +8622,7 @@ def admin_employees():
 
 # ================= LOCAL RUN =================
 
-@app.get("/admin/master-test")
-def admin_master_test():
-    gate = require_master_admin()
-    if gate:
-        return gate
 
-    return (
-        f"MASTER TEST OK | "
-        f"username={session.get('username')} | "
-        f"role={session.get('role')} | "
-        f"workplace={session.get('workplace_id')}"
-    )
-
-
-@app.get("/debug-role")
-def debug_role():
-    gate = require_login()
-    if gate:
-        return gate
-
-    return (
-        f"username={session.get('username')} | "
-        f"role={session.get('role')} | "
-        f"workplace={session.get('workplace_id')}"
-    )
-@app.get("/debug-drive-token")
-def debug_drive_token():
-    tok = _load_drive_token()
-    return (
-        f"TOKEN_PRESENT={'YES' if tok else 'NO'} | "
-        f"TOKEN_STORE_PATH={DRIVE_TOKEN_STORE_PATH}"
-    )
 @app.route("/admin/workplaces", methods=["GET", "POST"])
 def admin_workplaces():
     gate = require_master_admin()
