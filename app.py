@@ -2541,7 +2541,6 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     max-width: 82px !important;
   }
 
-
   .payrollSheet thead tr.group th:first-child{
     width: 82px !important;
     min-width: 82px !important;
