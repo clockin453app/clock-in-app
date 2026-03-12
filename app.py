@@ -2888,15 +2888,15 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* widths for day columns */
 .payrollSheet thead tr.cols th:nth-child(3n+1),
 .payrollSheet thead tr.cols th:nth-child(3n+2){
-  width:34px;
-  min-width:34px;
-  max-width:34px;
+  width:32px;
+  min-width:32px;
+  max-width:32px;
 }
 
 .payrollSheet thead tr.cols th:nth-child(3n+3){
-  width:26px;
-  min-width:26px;
-  max-width:26px;
+  width:24px;
+  min-width:24px;
+  max-width:24px;
 }
 
 .payrollSheet tbody td:nth-child(2),
@@ -2913,9 +2913,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet tbody td:nth-child(18),
 .payrollSheet tbody td:nth-child(20),
 .payrollSheet tbody td:nth-child(21){
-  width:34px;
-  min-width:34px;
-  max-width:34px;
+  width:32px;
+  min-width:32px;
+  max-width:32px;
   text-align:center;
   padding-left:1px;
   padding-right:1px;
@@ -2928,9 +2928,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet tbody td:nth-child(16),
 .payrollSheet tbody td:nth-child(19),
 .payrollSheet tbody td:nth-child(22){
-  width:26px;
-  min-width:26px;
-  max-width:26px;
+  width:24px;
+  min-width:24px;
+  max-width:24px;
   text-align:center;
   padding-left:1px;
   padding-right:1px;
