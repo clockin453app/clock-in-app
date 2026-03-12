@@ -2595,19 +2595,19 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
 }
 
-/* ================= PAYROLL SHEET (Spreadsheet style) ================= */
+/* ================= PAYROLL SHEET (clean version) ================= */
 .payrollWrap{
   margin-top:14px;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;                 /* IMPORTANT */
+  width:100%;
+  max-width:100%;
+  min-width:0;
   background:#fff;
   border:1px solid rgba(15,23,42,.12);
-  border-radius: 14px;
-  overflow-x: auto;             /* horizontal scroll */
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  box-shadow: var(--shadow);
+  border-radius:14px;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  box-shadow:var(--shadow);
 }
 
 .payrollTitleRow{
@@ -2615,593 +2615,386 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:flex-end;
   justify-content:space-between;
   gap:12px;
-  padding: 14px 14px 10px 14px;
+  padding:14px 14px 10px 14px;
   border-bottom:1px solid rgba(15,23,42,.08);
 }
 .payrollTitleRow .title{
-  font-weight:800;
-  font-size: 18px;
   margin:0;
+  font-size:18px;
+  font-weight:800;
 }
 .payrollTitleRow .sub{
   margin:4px 0 0 0;
-  color: rgba(15,23,42,.62);
-  font-size: 13px;
+  font-size:13px;
+  color:rgba(15,23,42,.62);
 }
 
 .payrollSheet{
-  width: max-content;
-  border-collapse: collapse;
-  table-layout: fixed;
-  min-width: 2200px;
+  width:100%;
+  min-width:1320px;
+  table-layout:fixed;
+  border-collapse:collapse;
   background:#fff;
 }
 
-.payrollSheet tbody tr:hover td{
-  background: rgba(30,64,175,.14);
-}
-.payrollSheet tbody tr:hover td:first-child{
-  box-shadow: inset 3px 0 0 rgba(30,64,175,.45);
-}
-/* Let zebra show through disabled inputs in the weekly grid */
-.payrollSheet input:disabled,
-.payrollSheet select:disabled{
-  background: transparent;
-}
-
-/* PASTE THIS RIGHT HERE */
-.payrollSheet input[type="time"]{
-  font-weight: 800;
-  color: rgba(2,6,23,.98);
-}
-.payrollSheet input[type="time"]:disabled{
-  opacity: 1;
-  -webkit-text-fill-color: rgba(2,6,23,.98);
-}
-/* END PASTE */
-.payrollSheet th{
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  border-bottom: 1px solid rgba(15,23,42,.22);
-  padding: 7px 8px;
-  font-size: 13px;
-  line-height: 1.2;
-  vertical-align: middle;
-  background:#fff;
-  color: rgba(11,18,32,.88);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
-
+.payrollSheet th,
 .payrollSheet td{
-  border-top: none;
-  border-left: none;
-  border-right: none;
-  border-bottom: 1px solid rgba(15,23,42,.28);
-  padding: 7px 8px;
-  font-size: 15px;
-  line-height: 1.35;
-  vertical-align: middle;
-  background: transparent;
-  color: rgba(2,6,23,.92);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  font-weight: 750;
-}
-/* Day separators only: before In and after Hrs */
-.payrollSheet thead tr.group th:nth-child(n+2):nth-child(-n+8){
-  border-left: 1px solid rgba(15,23,42,.10);
-  border-right: 1px solid rgba(15,23,42,.10);
+  border-top:none;
+  border-left:none;
+  border-right:none;
+  border-bottom:1px solid rgba(15,23,42,.18);
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
 }
 
-.payrollSheet thead tr.cols th:nth-child(3n+1):nth-child(-n+19){
-  border-left: 1px solid rgba(15,23,42,.10);
-}
-
-.payrollSheet thead tr.cols th:nth-child(3n):nth-child(-n+21){
-  border-right: 1px solid rgba(15,23,42,.10);
-}
-
-.payrollSheet tbody td:nth-child(3n+2):nth-child(-n+20){
-  border-left: 1px solid rgba(15,23,42,.10);
-}
-
-.payrollSheet tbody td:nth-child(3n+4):nth-child(-n+22){
-  border-right: 1px solid rgba(15,23,42,.10);
-}
-/* Net column: yellow CELL, normal text */
-.payrollSheet td.net{
-  background: rgba(250,204,21,.22);   /* soft yellow */
-  color: rgba(2,6,23,.92);            /* normal/dark text */
-  font-weight: 800;
-}
 .payrollSheet thead th{
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  background: #f8fafc;
-  font-weight: 1100;
-  color: rgba(15,23,42,.86);
-    font-size: 13px;
-  letter-spacing: .3px;
-  text-transform: none;
+  position:sticky;
+  top:0;
+  z-index:5;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .payrollSheet thead tr.group th{
-  background: #eef2ff;
-  color: rgba(30,64,175,1);
-  font-weight: 1000;
-  text-transform: uppercase;
-  letter-spacing: .7px;
-  font-size: 13px;
+  background:#eef2ff;
+  color:rgba(30,64,175,1);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.2px;
+  text-transform:uppercase;
+  padding:5px 2px;
 }
 
 .payrollSheet thead tr.cols th{
-  background: #f8fafc;
-  font-weight: 800;
-  font-size: 12px;
-}
-/* Make the big payroll day columns tighter */
-.payrollSheet thead tr.cols th{
-  padding: 6px 4px;
-}
-
-.payrollSheet thead tr.cols th:nth-child(3n+1),
-.payrollSheet thead tr.cols th:nth-child(3n+2){
-  width: 52px;
-  min-width: 52px;
-  max-width: 52px;
+  background:#f8fafc;
+  color:rgba(15,23,42,.86);
+  font-size:9px;
+  font-weight:800;
+  padding:3px 1px;
+  text-transform:none;
+  letter-spacing:0;
 }
 
-.payrollSheet thead tr.cols th:nth-child(3n+3){
-  width: 42px;
-  min-width: 42px;
-  max-width: 42px;
+.payrollSheet tbody td{
+  height:34px;
+  padding:3px 2px;
+  font-size:11px;
+  line-height:1;
+  vertical-align:middle;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  background:transparent;
+  color:rgba(2,6,23,.92);
+  font-weight:750;
 }
 
-/* Body cells for the 7 day columns only (cols 2 to 22 in each row) */
-.payrollSheet tbody td:nth-child(3n+2):nth-child(-n+22),
-.payrollSheet tbody td:nth-child(3n+3):nth-child(-n+22){
-  width: 52px;
-  min-width: 52px;
-  max-width: 52px;
-  padding-left: 4px;
-  padding-right: 4px;
+.payrollSheet tbody tr{
+  height:34px;
 }
 
-.payrollSheet tbody td:nth-child(3n+4):nth-child(-n+22){
-  width: 42px;
-  min-width: 42px;
-  max-width: 42px;
-  padding-left: 4px;
-  padding-right: 4px;
+.payrollSheet tbody tr:hover td{
+  background:rgba(30,64,175,.08);
 }
+.payrollSheet tbody tr:hover td:first-child{
+  box-shadow:inset 3px 0 0 rgba(30,64,175,.35);
+}
+
+/* employee column */
+.payrollEmpCell,
+.payrollSheet thead tr.group th:first-child,
+.payrollSheet tbody td:first-child{
+  width:112px;
+  min-width:112px;
+  max-width:112px;
+}
+
 .payrollSheet .emp{
   display:block;
   width:100%;
   min-width:0;
+  font-size:11px;
   font-weight:900;
+  line-height:1.05;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 
 .payrollSheet .empSub{
-  display:block;
-  width:100%;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-weight:600;
-  color: rgba(15,23,42,.55);
-  margin-top: 2px;
-  font-size: 12px;
+  display:none;
 }
 
-.payrollSheet input,
-.payrollSheet select{
-  width: 100%;
-  height: 30px;
-  padding: 4px 8px;
-  border-radius: 8px;
-  border: 1px solid rgba(15,23,42,.14);
-  background: #fff;
-  font-size: 13px;
-  outline: none;
-}
-.payrollSheet input.payrollTimeInput{
-  width: 52px !important;
-  height: 20px !important;
-  padding: 0 !important;
-  border: none !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-  font-size: 12px !important;
-  font-weight: 800 !important;
-  text-align: center !important;
-  color: rgba(15,23,42,.92) !important;
-  outline: none !important;
-  appearance: none !important;
-  -webkit-appearance: none !important;
+/* day group separators */
+.payrollSheet thead tr.group th:nth-child(n+2):nth-child(-n+8){
+  border-left:1px solid rgba(15,23,42,.10);
+  border-right:1px solid rgba(15,23,42,.10);
 }
 
-.payrollSheet input.payrollTimeInput::-webkit-calendar-picker-indicator{
-  display: none !important;
-  -webkit-appearance: none !important;
-  opacity: 0 !important;
+.payrollSheet thead tr.cols th:nth-child(3n+1):nth-child(-n+19){
+  border-left:1px solid rgba(15,23,42,.08);
 }
 
+.payrollSheet thead tr.cols th:nth-child(3n):nth-child(-n+21){
+  border-right:1px solid rgba(15,23,42,.08);
+}
+
+.payrollSheet tbody td:nth-child(3n+2):nth-child(-n+20){
+  border-left:1px solid rgba(15,23,42,.08);
+}
+
+.payrollSheet tbody td:nth-child(3n+4):nth-child(-n+22){
+  border-right:1px solid rgba(15,23,42,.08);
+}
+
+/* time inputs */
+.payrollSheet input:disabled,
+.payrollSheet select:disabled{
+  background:transparent;
+}
+
+.payrollSheet input[type="time"]{
+  font-weight:800;
+  color:rgba(2,6,23,.98);
+}
+.payrollSheet input[type="time"]:disabled{
+  opacity:1;
+  -webkit-text-fill-color:rgba(2,6,23,.98);
+}
+
+.payrollSheet input.payrollTimeInput,
+.payrollTimeInput{
+  width:34px;
+  min-width:34px;
+  max-width:34px;
+  height:16px;
+  line-height:16px;
+  padding:0;
+  border:none;
+  border-radius:0;
+  background:transparent;
+  box-shadow:none;
+  font-size:9px;
+  font-weight:800;
+  text-align:center;
+  color:rgba(15,23,42,.92);
+  outline:none;
+  appearance:none;
+  -webkit-appearance:none;
+}
+
+.payrollSheet input.payrollTimeInput::-webkit-calendar-picker-indicator,
 .payrollSheet input.payrollTimeInput::-webkit-clear-button,
 .payrollSheet input.payrollTimeInput::-webkit-inner-spin-button,
 .payrollSheet input.payrollTimeInput::-webkit-outer-spin-button{
-  display: none !important;
-  -webkit-appearance: none !important;
+  display:none !important;
+  -webkit-appearance:none !important;
+  opacity:0 !important;
 }
 
-/* Hide the browser's empty time placeholder like --:-- or dots */
 .payrollSheet input.payrollTimeInput[value=""]{
-  color: transparent !important;
+  color:transparent !important;
 }
-
-.payrollSheet input.payrollTimeInput[value=""]::-webkit-datetime-edit{
-  color: transparent !important;
-}
-
+.payrollSheet input.payrollTimeInput[value=""]::-webkit-datetime-edit,
 .payrollSheet input.payrollTimeInput[value=""]::-webkit-date-and-time-value{
-  color: transparent !important;
+  color:transparent !important;
 }
 
 .payrollSheet input.payrollTimeInput:focus{
-  color: rgba(15,23,42,.92) !important;
-  background: rgba(30,64,175,.06) !important;
-  border-radius: 6px !important;
-  box-shadow: inset 0 0 0 1px rgba(30,64,175,.18) !important;
+  color:rgba(15,23,42,.92) !important;
+  background:rgba(30,64,175,.06) !important;
+  border-radius:6px;
+  box-shadow:inset 0 0 0 1px rgba(30,64,175,.18) !important;
 }
 
 .payrollSheet input.payrollTimeInput:focus::-webkit-datetime-edit,
 .payrollSheet input.payrollTimeInput:focus::-webkit-date-and-time-value{
-  color: rgba(15,23,42,.92) !important;
-}
-.payrollSheet input:focus,
-.payrollSheet select:focus{
-  border-color: rgba(30,64,175,.45);
-  box-shadow: 0 0 0 3px rgba(30,64,175,.10);
-}
-.payrollTimeInput{
-  width: 72px;
-  height: 22px;
-  padding: 0;
-  border: none;
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
-  font-size: 12px;
-  font-weight: 800;
-  text-align: center;
-  color: rgba(15,23,42,.92);
-  appearance: none;
-  -webkit-appearance: none;
+  color:rgba(15,23,42,.92) !important;
 }
 
-.payrollTimeInput:focus{
-  outline: none;
-  background: rgba(30,64,175,.06);
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 1px rgba(30,64,175,.18);
-}
-.payrollSheet tfoot td{
-  background:#f8fafc;
-  font-weight: 900;
+/* widths for day columns */
+.payrollSheet thead tr.cols th:nth-child(3n+1),
+.payrollSheet thead tr.cols th:nth-child(3n+2){
+  width:34px;
+  min-width:34px;
+  max-width:34px;
 }
 
-.payrollSheet .net{
-  background: rgba(34,197,94,.08);
-  font-weight: 900;
+.payrollSheet thead tr.cols th:nth-child(3n+3){
+  width:26px;
+  min-width:26px;
+  max-width:26px;
 }
 
-/* Mark Paid button inside payroll sheet */
-.payrollWrap button,
-.payrollWrap a{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(15,23,42,.14);
-  background: rgba(30,64,175,.08);
-  color: rgba(30,64,175,1);
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-  transition: all .15s ease;
-  white-space: nowrap;
-}
-.payrollWrap button:hover,
-.payrollWrap a:hover{
-  background: rgba(30,64,175,.14);
-  border-color: rgba(30,64,175,.35);
-}
-/* Keep Net cell yellow even on row hover */
-.payrollSheet tbody tr:hover td.net{
-  background: rgba(250,204,21,.30);
-}
-.payrollSheet td.payrollOT{
-  background: rgba(245,158,11,.16) !important;
-  color: rgba(146,64,14,.98) !important;
-  font-weight: 900 !important;
-  box-shadow: inset 0 0 0 1px rgba(245,158,11,.22);
+.payrollSheet tbody td:nth-child(2),
+.payrollSheet tbody td:nth-child(3),
+.payrollSheet tbody td:nth-child(5),
+.payrollSheet tbody td:nth-child(6),
+.payrollSheet tbody td:nth-child(8),
+.payrollSheet tbody td:nth-child(9),
+.payrollSheet tbody td:nth-child(11),
+.payrollSheet tbody td:nth-child(12),
+.payrollSheet tbody td:nth-child(14),
+.payrollSheet tbody td:nth-child(15),
+.payrollSheet tbody td:nth-child(17),
+.payrollSheet tbody td:nth-child(18),
+.payrollSheet tbody td:nth-child(20),
+.payrollSheet tbody td:nth-child(21){
+  width:34px;
+  min-width:34px;
+  max-width:34px;
+  text-align:center;
+  padding-left:1px;
+  padding-right:1px;
 }
 
-.payrollSheet tbody tr:hover td.payrollOT{
-  background: rgba(245,158,11,.24) !important;
+.payrollSheet tbody td:nth-child(4),
+.payrollSheet tbody td:nth-child(7),
+.payrollSheet tbody td:nth-child(10),
+.payrollSheet tbody td:nth-child(13),
+.payrollSheet tbody td:nth-child(16),
+.payrollSheet tbody td:nth-child(19),
+.payrollSheet tbody td:nth-child(22){
+  width:26px;
+  min-width:26px;
+  max-width:26px;
+  text-align:center;
+  padding-left:1px;
+  padding-right:1px;
 }
 
-/* Responsive payroll sizing */
-.payrollEmpCell{
-  min-width: 135px;
-  max-width: 135px;
-}
-
-.payrollSheet .emp{
-  display:block;
-  width:100%;
-  min-width:0;
-  font-weight:900;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.payrollSheet .empSub{
-  display:block;
-  width:100%;
-  min-width:0;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  white-space:nowrap;
-  font-weight:600;
-  color: rgba(15,23,42,.55);
-  margin-top: 2px;
-  font-size: 12px;
-}
-
-@media (max-width: 979px){
-  .payrollEmpCell{
-    width: 82px !important;
-    min-width: 82px !important;
-    max-width: 82px !important;
-  }
-
-  .payrollSheet thead tr.group th:first-child{
-    width: 82px !important;
-    min-width: 82px !important;
-    max-width: 82px !important;
-  }
-
-  .payrollSheet .emp{
-    font-size: 12px;
-  }
-
-  .payrollSheet .empSub{
-    font-size: 10px;
-  }
-}
-
-/* Wide desktop */
-@media (max-width: 1700px) and (min-width: 980px){
-  .payrollSheet{
-    min-width: 2050px;
-  }
-
-  .payrollEmpCell{
-    min-width: 120px;
-    max-width: 120px;
-  }
-
-  .payrollSheet th{
-    padding: 6px 6px;
-    font-size: 12px;
-  }
-
-  .payrollSheet td{
-    padding: 6px 6px;
-    font-size: 13px;
-  }
-
-    .payrollSheet input.payrollTimeInput{
-    width: 50px !important;
-    font-size: 11px !important;
-  }
-
-  .payCellBtn{
-    min-height: 30px;
-    padding: 4px 6px;
-    font-size: 11px;
-  }
-
-  .payCellBtn .payLabel{
-    font-size: 10px;
-  }
-}
-
-/* Smaller laptop desktop */
-@media (max-width: 1450px) and (min-width: 980px){
-  .payrollSheet{
-    min-width: 1880px;
-  }
-
-  .payrollEmpCell{
-    min-width: 108px;
-    max-width: 108px;
-  }
-
-  .payrollSheet th{
-    padding: 5px 4px;
-    font-size: 11px;
-  }
-
-  .payrollSheet td{
-    padding: 5px 4px;
-    font-size: 12px;
-  }
-
-  .payrollSheet input.payrollTimeInput{
-    width: 46px !important;
-    font-size: 11px !important;
-  }  
-
-  .payCellBtn{
-    min-height: 28px;
-    padding: 3px 5px;
-    font-size: 10px;
-  }
-
-  .payCellBtn .payLabel{
-    font-size: 9px;
-  }
-
-  .payrollSheet tbody td:nth-child(2),
-  .payrollSheet tbody td:nth-child(3),
-  .payrollSheet tbody td:nth-child(5),
-  .payrollSheet tbody td:nth-child(6),
-  .payrollSheet tbody td:nth-child(8),
-  .payrollSheet tbody td:nth-child(9),
-  .payrollSheet tbody td:nth-child(11),
-  .payrollSheet tbody td:nth-child(12),
-  .payrollSheet tbody td:nth-child(14),
-  .payrollSheet tbody td:nth-child(15),
-  .payrollSheet tbody td:nth-child(17),
-  .payrollSheet tbody td:nth-child(18),
-  .payrollSheet tbody td:nth-child(20),
-  .payrollSheet tbody td:nth-child(21){
-    width: 42px;
-    min-width: 42px;
-    max-width: 42px;
-  }
-
-  .payrollSheet tbody td:nth-child(4),
-  .payrollSheet tbody td:nth-child(7),
-  .payrollSheet tbody td:nth-child(10),
-  .payrollSheet tbody td:nth-child(13),
-  .payrollSheet tbody td:nth-child(16),
-  .payrollSheet tbody td:nth-child(19),
-  .payrollSheet tbody td:nth-child(22){
-    width: 34px;
-    min-width: 34px;
-    max-width: 34px;
-  }
-}
-/* Tighten the last 4 payroll columns */
-.payrollSheet thead tr.group th:nth-last-child(4){
-  width: 72px;
-  min-width: 72px;
-  max-width: 72px;
-}
-
-.payrollSheet thead tr.group th:nth-last-child(3){
-  width: 92px;
-  min-width: 92px;
-  max-width: 92px;
-}
-
-.payrollSheet thead tr.group th:nth-last-child(2){
-  width: 82px;
-  min-width: 82px;
-  max-width: 82px;
-}
-
-.payrollSheet thead tr.group th:nth-last-child(1){
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
-}
-
+/* summary columns */
+.payrollSheet thead tr.group th:nth-last-child(4),
 .payrollSheet tbody td:nth-child(23){
-  width: 72px;
-  min-width: 72px;
-  max-width: 72px;
+  width:46px;
+  min-width:46px;
+  max-width:46px;
 }
 
+.payrollSheet thead tr.group th:nth-last-child(3),
 .payrollSheet tbody td:nth-child(24){
-  width: 92px;
-  min-width: 92px;
-  max-width: 92px;
+  width:64px;
+  min-width:64px;
+  max-width:64px;
 }
 
+.payrollSheet thead tr.group th:nth-last-child(2),
 .payrollSheet tbody td:nth-child(25){
-  width: 82px;
-  min-width: 82px;
-  max-width: 82px;
+  width:54px;
+  min-width:54px;
+  max-width:54px;
 }
 
+.payrollSheet thead tr.group th:nth-last-child(1),
 .payrollSheet tbody td:nth-child(26){
-  width: 120px;
-  min-width: 120px;
-  max-width: 120px;
+  width:96px;
+  min-width:96px;
+  max-width:96px;
 }
 
-/* Smaller pay button inside Net / Pay */
-.payCellBtn{
-  min-height: 28px;
-  padding: 4px 6px;
-  font-size: 11px;
+/* states */
+.payrollSheet td.net{
+  background:rgba(250,204,21,.22);
+  color:rgba(2,6,23,.92);
+  font-weight:800;
+}
+.payrollSheet tbody tr:hover td.net{
+  background:rgba(250,204,21,.28);
 }
 
-.payCellBtn .payLabel{
-  font-size: 10px;
+.payrollSheet td.payrollOT{
+  background:rgba(245,158,11,.16) !important;
+  color:rgba(146,64,14,.98) !important;
+  font-weight:900 !important;
+  box-shadow:inset 0 0 0 1px rgba(245,158,11,.22);
 }
-/* Net cell as payment action */
-.payCellForm{
-  margin: 0;
-}
-
-.payCellBtn{
-  width: 100%;
-  min-height: 34px;
-  border: none;
-  border-radius: 10px;
-  padding: 6px 8px;
-  font-size: 12px;
-  font-weight: 900;
-  cursor: pointer;
-  background: rgba(250,204,21,.22);
-  color: rgba(2,6,23,.92);
-  transition: transform .12s ease, filter .12s ease, box-shadow .12s ease;
-}
-
-.payCellBtn:hover{
-  filter: brightness(0.98);
-  box-shadow: inset 0 0 0 1px rgba(146,64,14,.18);
-}
-
-.payCellBtn:active{
-  transform: scale(.99);
-}
-
-.payCellBtn .payLabel{
-  display:block;
-  font-size: 11px;
-  font-weight: 800;
-  color: rgba(146,64,14,.95);
-  margin-top: 2px;
+.payrollSheet tbody tr:hover td.payrollOT{
+  background:rgba(245,158,11,.22) !important;
 }
 
 .payrollSheet td.net.paidNetCell{
-  background: rgba(22,163,74,.18) !important;
-  color: rgba(21,128,61,.98) !important;
-  font-weight: 900;
-  text-align: center;
+  background:rgba(22,163,74,.18) !important;
+  color:rgba(21,128,61,.98) !important;
+  font-weight:900;
+  text-align:center;
 }
 
 .payrollSheet td.net.zeroNetCell{
-  background: rgba(250,204,21,.16) !important;
-  color: rgba(2,6,23,.92) !important;
-  font-weight: 800;
-  text-align: right;
+  background:rgba(250,204,21,.16) !important;
+  color:rgba(2,6,23,.92) !important;
+  font-weight:800;
+  text-align:right;
+}
+
+/* pay button */
+.payCellForm{
+  margin:0;
+}
+
+.payCellBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:4px;
+  width:100%;
+  height:24px;
+  min-height:24px;
+  padding:2px 4px;
+  border:none;
+  border-radius:10px;
+  background:rgba(250,204,21,.22);
+  color:rgba(2,6,23,.92);
+  font-size:10px;
+  font-weight:900;
+  line-height:1;
+  white-space:nowrap;
+  cursor:pointer;
+  transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;
+}
+
+.payCellBtn:hover{
+  filter:brightness(.98);
+  box-shadow:inset 0 0 0 1px rgba(146,64,14,.18);
+}
+
+.payCellBtn:active{
+  transform:scale(.99);
+}
+
+.payCellBtn .payLabel{
+  display:inline;
+  margin:0;
+  font-size:9px;
+  font-weight:800;
+  color:rgba(146,64,14,.95);
+}
+
+/* one small mobile adjustment only */
+@media (max-width: 979px){
+  .payrollSheet{
+    min-width:1080px;
+  }
+
+  .payrollEmpCell,
+  .payrollSheet thead tr.group th:first-child,
+  .payrollSheet tbody td:first-child{
+    width:88px;
+    min-width:88px;
+    max-width:88px;
+  }
+
+  .payrollSheet .emp{
+    font-size:10px;
+  }
+
+  .payrollSheet thead tr.group th{
+    font-size:9px;
+  }
+
+  .payrollSheet thead tr.cols th{
+    font-size:8px;
+  }
 }
 
 /* Print tidy */
@@ -3307,6 +3100,117 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   background: linear-gradient(180deg, rgba(254,226,226,.98), rgba(252,231,243,.98));
 }
 }
+/* Admin payroll weekly employee cards - mobile compact table */
+.payrollEmployeeCard .weeklyEditTable{
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+}
+
+.payrollEmployeeCard .weeklyEditTable thead th,
+.payrollEmployeeCard .weeklyEditTable tbody td{
+  padding: 8px 4px;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.payrollEmployeeCard .weeklyEditTable thead th{
+  letter-spacing: 0;
+  font-size: 11px;
+}
+
+.payrollEmployeeCard .weeklyEditTable th:nth-child(1),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(1){
+  width: 38px;
+}
+
+.payrollEmployeeCard .weeklyEditTable th:nth-child(2),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(2){
+  width: 78px;
+}
+
+.payrollEmployeeCard .weeklyEditTable th:nth-child(3),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(3),
+.payrollEmployeeCard .weeklyEditTable th:nth-child(4),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(4){
+  width: 56px;
+  text-align: center;
+}
+
+.payrollEmployeeCard .weeklyEditTable th:nth-child(5),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(5){
+  width: 46px;
+}
+
+.payrollEmployeeCard .weeklyEditTable th:nth-child(6),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(6),
+.payrollEmployeeCard .weeklyEditTable th:nth-child(7),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(7){
+  width: 64px;
+}
+
+@media (max-width: 780px){
+  .payrollEmployeeCard{
+    padding: 10px !important;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable thead th,
+  .payrollEmployeeCard .weeklyEditTable tbody td{
+    padding: 7px 3px;
+    font-size: 11px;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(1),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(1){
+    width: 34px;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(2),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(2){
+    width: 74px;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(3),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(3),
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(4),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(4){
+    width: 52px;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(5),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(5){
+    width: 42px;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(6),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(6),
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(7),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(7){
+    width: 58px;
+  }
+
+  .payrollEmployeeCard .payrollSummaryBar{
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .payrollEmployeeCard .payrollSummaryItem{
+    padding: 8px 10px;
+    border-radius: 14px;
+  }
+
+  .payrollEmployeeCard .payrollSummaryItem .k{
+    font-size: 11px;
+  }
+
+  .payrollEmployeeCard .payrollSummaryItem .v{
+    font-size: 16px;
+  }
+}
+
+
 </style>
 """
 
@@ -5814,9 +5718,11 @@ def my_reports():
     for i in range(7):
         d = selected_week_start + timedelta(days=i)
         d_str = d.strftime("%Y-%m-%d")
+        d_display = d.strftime("%y-%m-%d")
         week_map[d_str] = {
             "day": day_labels[i],
             "date": d_str,
+            "display_date": d_display,
             "first_in": "",
             "last_out": "",
             "hours": 0.0,
@@ -5920,7 +5826,7 @@ def my_reports():
         rows_html.append(f"""
           <tr class="{row_class}">
             <td><b>{escape(item['day'])}</b></td>
-            <td>{escape(item['date'])}</td>
+            <td>{escape(item['display_date'])}</td>
             <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
             <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
             <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
@@ -5963,14 +5869,16 @@ def my_reports():
       }
 
       .myReportsWeekTable .weeklyEditTable thead th,
-      .myReportsWeekTable .weeklyEditTable tbody td{
-        padding: 10px 6px;
-        font-size: 13px;
-      }
+.myReportsWeekTable .weeklyEditTable tbody td{
+  padding: 8px 4px;
+  font-size: 12px;
+}
 
       .myReportsWeekTable .weeklyEditTable thead th{
-        white-space: nowrap;
-      }
+  white-space: nowrap;
+  letter-spacing: 0;
+  font-size: 11px;
+}
 
       .myReportsWeekTable .weeklyEditTable tbody td{
         white-space: nowrap;
@@ -5984,9 +5892,10 @@ def my_reports():
       }
 
       .myReportsWeekTable .weeklyEditTable th:nth-child(2),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(2){
-        width: 92px;
-      }
+.myReportsWeekTable .weeklyEditTable td:nth-child(2){
+  width: 92px;
+  text-align: center;
+}
 
       .myReportsWeekTable .weeklyEditTable th:nth-child(3),
       .myReportsWeekTable .weeklyEditTable td:nth-child(3),
@@ -6009,61 +5918,73 @@ def my_reports():
       }
 
       @media (max-width: 780px){
-        .myReportsTopGrid{
-          grid-template-columns: 1fr;
-        }
+  .myReportsTopGrid{
+    grid-template-columns: 1fr;
+  }
 
-        .myReportsWeekTable{
-          padding:8px;
-        }
+  .myReportsWeekTable{
+    padding:6px;
+  }
 
-        .myReportsWeekTable .weeklyEditTable thead th,
-        .myReportsWeekTable .weeklyEditTable tbody td{
-          padding: 8px 4px;
-          font-size: 12px;
-        }
+  .myReportsWeekTable .tablewrap{
+    margin-top:8px;
+    border-radius:14px;
+  }
 
-        .myReportsWeekTable .weeklyEditTable th:nth-child(1),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(1){
-          width: 40px;
-        }
+  .myReportsWeekTable .weeklyEditTable thead th,
+  .myReportsWeekTable .weeklyEditTable tbody td{
+    padding: 7px 3px;
+    font-size: 11px;
+  }
 
-        .myReportsWeekTable .weeklyEditTable th:nth-child(2),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(2){
-          width: 82px;
-        }
+  .myReportsWeekTable .weeklyEditTable th:nth-child(1),
+  .myReportsWeekTable .weeklyEditTable td:nth-child(1){
+    width: 34px;
+  }
 
-        .myReportsWeekTable .weeklyEditTable th:nth-child(3),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(3),
-        .myReportsWeekTable .weeklyEditTable th:nth-child(4),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(4){
-          width: 60px;
-        }
+  .myReportsWeekTable .weeklyEditTable th:nth-child(2),
+.myReportsWeekTable .weeklyEditTable td:nth-child(2){
+  width: 74px;
+  text-align: center;
+}
 
-        .myReportsWeekTable .weeklyEditTable th:nth-child(5),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(5){
-          width: 50px;
-        }
+  .myReportsWeekTable .weeklyEditTable th:nth-child(3),
+  .myReportsWeekTable .weeklyEditTable td:nth-child(3),
+  .myReportsWeekTable .weeklyEditTable th:nth-child(4),
+  .myReportsWeekTable .weeklyEditTable td:nth-child(4){
+    width: 52px;
+  }
 
-        .myReportsWeekTable .weeklyEditTable th:nth-child(6),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(6),
-        .myReportsWeekTable .weeklyEditTable th:nth-child(7),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(7){
-          width: 68px;
-        }
+  .myReportsWeekTable .weeklyEditTable th:nth-child(5),
+  .myReportsWeekTable .weeklyEditTable td:nth-child(5){
+    width: 42px;
+  }
 
-        .payrollSummaryBar{
-          grid-template-columns: 1fr 1fr;
-        }
+  .myReportsWeekTable .weeklyEditTable th:nth-child(6),
+  .myReportsWeekTable .weeklyEditTable td:nth-child(6),
+  .myReportsWeekTable .weeklyEditTable th:nth-child(7),
+  .myReportsWeekTable .weeklyEditTable td:nth-child(7){
+    width: 58px;
+  }
 
-        .payrollSummaryItem{
-          padding:10px 12px;
-        }
+  .payrollSummaryBar{
+    grid-template-columns: 1fr 1fr;
+    gap:8px;
+  }
 
-        .payrollSummaryItem .v{
-          font-size:18px;
-        }
-      }
+  .payrollSummaryItem{
+    padding:8px 10px;
+    border-radius:14px;
+  }
+
+  .payrollSummaryItem .k{
+    font-size:11px;
+  }
+
+  .payrollSummaryItem .v{
+    font-size:16px;
+  }
+}
     </style>
     """
 
@@ -7741,11 +7662,9 @@ def admin_payroll():
 
             # Employee cell
             cells.append(f"""
-                
-                 <td class="payrollEmpCell">
-                    <span class="emp">{escape(display)}</span>
-                    <span class="empSub">ID: {escape(u)}</span>
-                </td>
+              <td class="payrollEmpCell">
+                <span class="emp">{escape(display)}</span>
+              </td>
             """)
 
             # 7 days
@@ -7834,7 +7753,7 @@ def admin_payroll():
             cells.append(f"<td class='num'>{(escape(currency) + show_num(tax)) if tax > 0 else ''}</td>")
 
             if paid:
-                cells.append(f"<td class='num net paidNetCell'>{escape(currency)}{money(net)}<br>Paid</td>")
+                cells.append(f"<td class='num net paidNetCell'>{escape(currency)}{money(net)} · Paid</td>")
             elif gross > 0:
                 cells.append(f"""
                   <td class='num net'>
@@ -7847,8 +7766,7 @@ def admin_payroll():
                       <input type="hidden" name="tax" value="{tax}">
                       <input type="hidden" name="net" value="{net}">
                       <button class="payCellBtn" type="submit">
-                        {escape(currency)}{money(net)}
-                        <span class="payLabel">Pay</span>
+                        {escape(currency)}{money(net)} <span class="payLabel">Pay</span>
                       </button>
                     </form>
                   </td>
@@ -7910,6 +7828,7 @@ def admin_payroll():
         for di in range(7):
             d_dt = week_start + timedelta(days=di)
             d_str = d_dt.strftime("%Y-%m-%d")
+            d_display = d_dt.strftime("%y-%m-%d")
             rec = user_days.get(d_str)
 
             cin = rec["cin"] if rec else ""
@@ -7962,7 +7881,7 @@ def admin_payroll():
             rows_html.append(f"""
               <tr class="{overtime_row_class}">
                 <td><b>{day_names[di]}</b></td>
-                <td>{escape(d_str)}</td>
+                <td style="text-align:center;">{escape(d_display)}</td>
                 <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
                 <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
                 <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
@@ -7982,14 +7901,14 @@ def admin_payroll():
             <div class="tablewrap" style="margin-top:12px;">
               <table class="weeklyEditTable">
                 <colgroup>
-                  <col style="width:70px;">
-                  <col style="width:130px;">
-                  <col style="width:140px;">
-                  <col style="width:140px;">
-                  <col style="width:140px;">
-                  <col style="width:150px;">
-                  <col style="width:150px;">
-                </colgroup>
+  <col style="width:38px;">
+  <col style="width:78px;">
+  <col style="width:56px;">
+  <col style="width:56px;">
+  <col style="width:46px;">
+  <col style="width:64px;">
+  <col style="width:64px;">
+</colgroup>
                 <thead>
                   <tr>
                     <th>Day</th>
