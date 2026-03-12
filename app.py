@@ -2936,7 +2936,21 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   font-weight:800;
   text-align:right !important;
 }
-
+.paidNetBadge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:3px;
+  height:28px;
+  padding:0 10px;
+  border-radius:10px;
+  background:rgba(22,163,74,.14);
+  color:rgba(21,128,61,.98);
+  font-size:11px;
+  font-weight:900;
+  line-height:1;
+  white-space:nowrap;
+}
 /* pay button */
 .payCellForm{
   margin:0;
@@ -7832,7 +7846,7 @@ def admin_payroll():
 
         if paid:
             cells.append(
-                f"<td class='num payrollSummaryMoney net paidNetCell'>{escape(currency)}{money(net)} · Paid</td>")
+                f"<td class='num payrollSummaryMoney net paidNetCell'><span class='paidNetBadge'>{escape(currency)}{money(net)} · Paid</span></td>")
         elif gross > 0:
             cells.append(f"""
                  <td class='num payrollSummaryMoney net'>
