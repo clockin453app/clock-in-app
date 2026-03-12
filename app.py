@@ -5870,14 +5870,14 @@ def my_reports():
 
       .myReportsWeekTable .weeklyEditTable thead th,
 .myReportsWeekTable .weeklyEditTable tbody td{
-  padding: 8px 4px;
+  padding: 7px 3px;
   font-size: 12px;
 }
 
       .myReportsWeekTable .weeklyEditTable thead th{
   white-space: nowrap;
   letter-spacing: 0;
-  font-size: 11px;
+  font-size: 10px;
 }
 
       .myReportsWeekTable .weeklyEditTable tbody td{
@@ -5887,35 +5887,35 @@ def my_reports():
       }
 
       .myReportsWeekTable .weeklyEditTable th:nth-child(1),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(1){
-        width: 44px;
-      }
+.myReportsWeekTable .weeklyEditTable td:nth-child(1){
+  width: 38px;
+}
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(2),
+.myReportsWeekTable .weeklyEditTable th:nth-child(2),
 .myReportsWeekTable .weeklyEditTable td:nth-child(2){
-  width: 92px;
+  width: 78px;
   text-align: center;
 }
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(3),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(3),
-      .myReportsWeekTable .weeklyEditTable th:nth-child(4),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(4){
-        width: 68px;
-        text-align: center;
-      }
+.myReportsWeekTable .weeklyEditTable th:nth-child(3),
+.myReportsWeekTable .weeklyEditTable td:nth-child(3),
+.myReportsWeekTable .weeklyEditTable th:nth-child(4),
+.myReportsWeekTable .weeklyEditTable td:nth-child(4){
+  width: 56px;
+  text-align: center;
+}
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(5),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(5){
-        width: 58px;
-      }
+.myReportsWeekTable .weeklyEditTable th:nth-child(5),
+.myReportsWeekTable .weeklyEditTable td:nth-child(5){
+  width: 46px;
+}
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(6),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(6),
-      .myReportsWeekTable .weeklyEditTable th:nth-child(7),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(7){
-        width: 78px;
-      }
+.myReportsWeekTable .weeklyEditTable th:nth-child(6),
+.myReportsWeekTable .weeklyEditTable td:nth-child(6),
+.myReportsWeekTable .weeklyEditTable th:nth-child(7),
+.myReportsWeekTable .weeklyEditTable td:nth-child(7){
+  width: 64px;
+}
 
       @media (max-width: 780px){
   .myReportsTopGrid{
@@ -5938,34 +5938,34 @@ def my_reports():
   }
 
   .myReportsWeekTable .weeklyEditTable th:nth-child(1),
-  .myReportsWeekTable .weeklyEditTable td:nth-child(1){
-    width: 34px;
-  }
+.myReportsWeekTable .weeklyEditTable td:nth-child(1){
+  width: 32px;
+}
 
-  .myReportsWeekTable .weeklyEditTable th:nth-child(2),
+.myReportsWeekTable .weeklyEditTable th:nth-child(2),
 .myReportsWeekTable .weeklyEditTable td:nth-child(2){
-  width: 74px;
+  width: 68px;
   text-align: center;
 }
 
-  .myReportsWeekTable .weeklyEditTable th:nth-child(3),
-  .myReportsWeekTable .weeklyEditTable td:nth-child(3),
-  .myReportsWeekTable .weeklyEditTable th:nth-child(4),
-  .myReportsWeekTable .weeklyEditTable td:nth-child(4){
-    width: 52px;
-  }
+.myReportsWeekTable .weeklyEditTable th:nth-child(3),
+.myReportsWeekTable .weeklyEditTable td:nth-child(3),
+.myReportsWeekTable .weeklyEditTable th:nth-child(4),
+.myReportsWeekTable .weeklyEditTable td:nth-child(4){
+  width: 48px;
+}
 
-  .myReportsWeekTable .weeklyEditTable th:nth-child(5),
-  .myReportsWeekTable .weeklyEditTable td:nth-child(5){
-    width: 42px;
-  }
+.myReportsWeekTable .weeklyEditTable th:nth-child(5),
+.myReportsWeekTable .weeklyEditTable td:nth-child(5){
+  width: 38px;
+}
 
-  .myReportsWeekTable .weeklyEditTable th:nth-child(6),
-  .myReportsWeekTable .weeklyEditTable td:nth-child(6),
-  .myReportsWeekTable .weeklyEditTable th:nth-child(7),
-  .myReportsWeekTable .weeklyEditTable td:nth-child(7){
-    width: 58px;
-  }
+.myReportsWeekTable .weeklyEditTable th:nth-child(6),
+.myReportsWeekTable .weeklyEditTable td:nth-child(6),
+.myReportsWeekTable .weeklyEditTable th:nth-child(7),
+.myReportsWeekTable .weeklyEditTable td:nth-child(7){
+  width: 54px;
+}
 
   .payrollSummaryBar{
     grid-template-columns: 1fr 1fr;
