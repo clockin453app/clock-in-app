@@ -935,6 +935,78 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSummaryItem.paidat .v{
   font-size:16px;
 }
+
+.payrollEmployeeCard .payrollSummaryBar{
+  margin-top: 10px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.payrollEmployeeCard .payrollSummaryItem{
+  padding: 4px 6px;
+  border-radius: 10px;
+}
+
+.payrollEmployeeCard .payrollSummaryItem .k{
+  font-size: 9px;
+}
+
+.payrollEmployeeCard .payrollSummaryItem .v{
+  font-size: 12px;
+  line-height: 1.05;
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1){
+  background: rgba(59,130,246,.10);
+  border-color: rgba(59,130,246,.22);
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v{
+  color: #1d4ed8;
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2){
+  background: rgba(34,197,94,.10);
+  border-color: rgba(34,197,94,.22);
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v{
+  color: #15803d;
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3){
+  background: rgba(245,158,11,.10);
+  border-color: rgba(245,158,11,.22);
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v{
+  color: #b45309;
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4){
+  background: rgba(168,85,247,.10);
+  border-color: rgba(168,85,247,.22);
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v{
+  color: #7e22ce;
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5){
+  background: rgba(148,163,184,.12);
+  border-color: rgba(148,163,184,.24);
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
+  color: #475569;
+}
+
+
 .weeklyEditTable thead th{
   background: linear-gradient(180deg, #dc2626, #b91c1c);
   color: white;
@@ -2705,9 +2777,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollEmpCell,
 .payrollSheet thead tr.group th:first-child,
 .payrollSheet tbody td:first-child{
-  width:112px;
-  min-width:112px;
-  max-width:112px;
+  width:100px;
+  min-width:100px;
+  max-width:100px;
 }
 
 .payrollSheet .emp{
@@ -3197,17 +3269,17 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .payrollEmployeeCard .payrollSummaryItem{
-    padding: 8px 10px;
-    border-radius: 14px;
-  }
+  padding: 5px 6px;
+  border-radius: 10px;
+}
 
-  .payrollEmployeeCard .payrollSummaryItem .k{
-    font-size: 11px;
-  }
+.payrollEmployeeCard .payrollSummaryItem .k{
+  font-size: 9px;
+}
 
-  .payrollEmployeeCard .payrollSummaryItem .v{
-    font-size: 16px;
-  }
+.payrollEmployeeCard .payrollSummaryItem .v{
+  font-size: 12px;
+}
 }
 
 
