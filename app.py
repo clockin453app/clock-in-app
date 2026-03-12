@@ -5774,61 +5774,304 @@ def my_reports():
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
 
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
+
+    try:
+        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
+    except Exception:
+        tax_rate = 0.20
+
     now = datetime.now(TZ)
     today = now.date()
-    week_start = today - timedelta(days=today.weekday())
+
+    # week selector: 0=this week, 1=last week, etc.
+    try:
+        wk_offset = max(0, int((request.args.get("wk", "0") or "0").strip()))
+    except Exception:
+        wk_offset = 0
+
+    this_monday = today - timedelta(days=today.weekday())
+    selected_week_start = this_monday - timedelta(days=7 * wk_offset)
+    selected_week_end = selected_week_start + timedelta(days=6)
 
     rows = work_sheet.get_all_values()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
-    daily_hours = daily_pay = 0.0
-    weekly_hours = weekly_pay = 0.0
-    monthly_hours = monthly_pay = 0.0
+
+    daily_hours = 0.0
+    daily_pay = 0.0
+    month_hours = 0.0
+    month_pay = 0.0
+    selected_week_hours = 0.0
+    selected_week_pay = 0.0
+
+    # build selected week map
+    week_map = {}
+    day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    for i in range(7):
+        d = selected_week_start + timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        week_map[d_str] = {
+            "day": day_labels[i],
+            "date": d_str,
+            "first_in": "",
+            "last_out": "",
+            "hours": 0.0,
+            "gross": 0.0,
+        }
 
     for r in rows[1:]:
         if len(r) <= COL_PAY:
             continue
-        if (r[COL_USER] or "").strip() != username:
+
+        row_user = (r[COL_USER] or "").strip()
+        if row_user != username:
             continue
-        # Workplace filter (only if WorkHours has Workplace_ID column)
+
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
             if row_wp != current_wp:
                 continue
-        if not r[COL_HOURS]:
+
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        if not d_str:
             continue
+
         try:
-            d = datetime.strptime(r[COL_DATE], "%Y-%m-%d").date()
+            d = datetime.strptime(d_str, "%Y-%m-%d").date()
         except Exception:
             continue
 
-        hrs = safe_float(r[COL_HOURS], 0.0)
-        pay = safe_float(r[COL_PAY], 0.0)
+        cin = ((r[COL_IN] if len(r) > COL_IN else "") or "").strip()
+        cout = ((r[COL_OUT] if len(r) > COL_OUT else "") or "").strip()
+        hrs = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        pay = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
 
         if d == today:
             daily_hours += hrs
             daily_pay += pay
-        if d >= week_start:
-            weekly_hours += hrs
-            weekly_pay += pay
+
         if d.year == today.year and d.month == today.month:
-            monthly_hours += hrs
-            monthly_pay += pay
+            month_hours += hrs
+            month_pay += pay
+
+        if selected_week_start <= d <= selected_week_end:
+            selected_week_hours += hrs
+            selected_week_pay += pay
+
+            item = week_map.get(d_str)
+            if item is not None:
+                item["hours"] += hrs
+                item["gross"] += pay
+
+                cin_short = cin[:5] if cin else ""
+                cout_short = cout[:5] if cout else ""
+
+                if cin_short:
+                    if not item["first_in"] or cin_short < item["first_in"]:
+                        item["first_in"] = cin_short
+
+                if cout_short:
+                    if not item["last_out"] or cout_short > item["last_out"]:
+                        item["last_out"] = cout_short
 
     def gross_tax_net(gross):
-        settings = get_company_settings()
-        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
+        gross = round(gross, 2)
         tax = round(gross * tax_rate, 2)
         net = round(gross - tax, 2)
-        return round(gross, 2), tax, net
+        return gross, tax, net
 
     d_g, d_t, d_n = gross_tax_net(daily_pay)
-    w_g, w_t, w_n = gross_tax_net(weekly_pay)
-    m_g, m_t, m_n = gross_tax_net(monthly_pay)
-    settings = get_company_settings()
-    currency = str(settings.get("Currency_Symbol", "£") or "£")
+    w_g, w_t, w_n = gross_tax_net(selected_week_pay)
+    m_g, m_t, m_n = gross_tax_net(month_pay)
+
+    # week dropdown
+    week_options = []
+    for i in range(0, 52):
+        d0 = this_monday - timedelta(days=7 * i)
+        d1 = d0 + timedelta(days=6)
+        iso = d0.isocalendar()
+        label = f"Week {iso[1]} ({d0.strftime('%d %b')} – {d1.strftime('%d %b %Y')})"
+        selected = "selected" if i == wk_offset else ""
+        week_options.append(f"<option value='{i}' {selected}>{escape(label)}</option>")
+
+    # weekly rows
+    rows_html = []
+    for i in range(7):
+        d = selected_week_start + timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        item = week_map[d_str]
+
+        hours_val = round(item["hours"], 2)
+        gross_val = round(item["gross"], 2)
+        net_val = round(gross_val - (gross_val * tax_rate), 2)
+
+        row_class = "overtimeRow" if hours_val > OVERTIME_HOURS else ""
+
+        cin_txt = item["first_in"] if item["first_in"] else ""
+        cout_txt = item["last_out"] if item["last_out"] else ""
+        hrs_txt = fmt_hours(hours_val) if hours_val > 0 else ""
+        gross_txt = money(gross_val) if gross_val > 0 else ""
+        net_txt = money(net_val) if net_val > 0 else ""
+
+        rows_html.append(f"""
+          <tr class="{row_class}">
+            <td><b>{escape(item['day'])}</b></td>
+            <td>{escape(item['date'])}</td>
+            <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
+            <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
+            <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
+            <td class="num" style="font-weight:700;">{escape(gross_txt)}</td>
+            <td class="num" style="font-weight:800; color:rgba(15,23,42,.92);">{escape(net_txt)}</td>
+          </tr>
+        """)
+
+    page_css = """
+    <style>
+      .myReportsTopGrid{
+        margin-top:12px;
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap:12px;
+      }
+
+      .myReportsMonthCard{
+        margin-top:12px;
+      }
+
+      .myReportsWeekPicker{
+        margin-top:12px;
+        padding:12px;
+      }
+
+      .myReportsWeekTable{
+        margin-top:12px;
+        padding:10px;
+      }
+
+      .myReportsWeekTable .tablewrap{
+        margin-top:10px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable{
+        table-layout: fixed;
+        width: 100%;
+        min-width: 0;
+      }
+
+      .myReportsWeekTable .weeklyEditTable thead th,
+      .myReportsWeekTable .weeklyEditTable tbody td{
+        padding: 10px 6px;
+        font-size: 13px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable thead th{
+        white-space: nowrap;
+      }
+
+      .myReportsWeekTable .weeklyEditTable tbody td{
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(1),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(1){
+        width: 44px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(2),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(2){
+        width: 92px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(3),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(3),
+      .myReportsWeekTable .weeklyEditTable th:nth-child(4),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(4){
+        width: 68px;
+        text-align: center;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(5),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(5){
+        width: 58px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(6),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(6),
+      .myReportsWeekTable .weeklyEditTable th:nth-child(7),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(7){
+        width: 78px;
+      }
+
+      @media (max-width: 780px){
+        .myReportsTopGrid{
+          grid-template-columns: 1fr;
+        }
+
+        .myReportsWeekTable{
+          padding:8px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable thead th,
+        .myReportsWeekTable .weeklyEditTable tbody td{
+          padding: 8px 4px;
+          font-size: 12px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(1),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(1){
+          width: 40px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(2),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(2){
+          width: 82px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(3),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(3),
+        .myReportsWeekTable .weeklyEditTable th:nth-child(4),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(4){
+          width: 60px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(5),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(5){
+          width: 50px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(6),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(6),
+        .myReportsWeekTable .weeklyEditTable th:nth-child(7),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(7){
+          width: 68px;
+        }
+
+        .payrollSummaryBar{
+          grid-template-columns: 1fr 1fr;
+        }
+
+        .payrollSummaryItem{
+          padding:10px 12px;
+        }
+
+        .payrollSummaryItem .v{
+          font-size:18px;
+        }
+      }
+    </style>
+    """
+
+    week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
+
     content = f"""
+      {page_css}
+
       <div class="headerTop">
         <div>
           <h1>Timesheets</h1>
@@ -5837,27 +6080,96 @@ def my_reports():
         <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
       </div>
 
-      <div class="kpiRow">
+      <div class="myReportsTopGrid">
         <div class="card kpi">
           <p class="label">Today Gross</p>
           <p class="value">{escape(currency)}{money(d_g)}</p>
-          <p class="sub">Hours: {round(daily_hours,2)} • Tax: {escape(currency)}{money(d_t)} • Net: {escape(currency)}{money(d_n)}</p>
+          <p class="sub">Hours: {escape(fmt_hours(daily_hours))} • Tax: {escape(currency)}{money(d_t)} • Net: {escape(currency)}{money(d_n)}</p>
         </div>
+
         <div class="card kpi">
-          <p class="label">This Week Gross</p>
+          <p class="label">Selected Week Gross</p>
           <p class="value">{escape(currency)}{money(w_g)}</p>
-          <p class="sub">Hours: {round(weekly_hours,2)} • Tax: {escape(currency)}{money(w_t)} • Net: {escape(currency)}{money(w_n)}</p>
+          <p class="sub">Hours: {escape(fmt_hours(selected_week_hours))} • Tax: {escape(currency)}{money(w_t)} • Net: {escape(currency)}{money(w_n)}</p>
         </div>
       </div>
 
-      <div class="card kpi" style="margin-top:12px;">
+      <div class="card kpi myReportsMonthCard">
         <p class="label">This Month Gross</p>
         <p class="value">{escape(currency)}{money(m_g)}</p>
-<p class="sub">Hours: {round(monthly_hours,2)} • Tax: {escape(currency)}{money(m_t)} • Net: {escape(currency)}{money(m_n)}</p>
+        <p class="sub">Hours: {escape(fmt_hours(month_hours))} • Tax: {escape(currency)}{money(m_t)} • Net: {escape(currency)}{money(m_n)}</p>
+      </div>
+
+      <div class="card myReportsWeekPicker">
+        <form method="GET">
+          <label class="sub" style="display:block; margin-bottom:6px;">Choose week</label>
+          <select class="input" name="wk" onchange="this.form.submit()">
+            {''.join(week_options)}
+          </select>
+        </form>
+      </div>
+
+      <div class="card myReportsWeekTable">
+        <div style="margin-bottom:12px;">
+          <div style="font-size:30px; font-weight:800; line-height:1.1; color:rgba(15,23,42,.96);">
+            {escape(display_name)}
+          </div>
+          <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
+        </div>
+
+        <div class="tablewrap">
+          <table class="weeklyEditTable">
+            <colgroup>
+  <col style="width:38px;">
+  <col style="width:78px;">
+  <col style="width:56px;">
+  <col style="width:56px;">
+  <col style="width:46px;">
+  <col style="width:64px;">
+  <col style="width:64px;">
+</colgroup>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Date</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th class="num">Hours</th>
+                <th class="num">Gross</th>
+                <th class="num">Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              {''.join(rows_html)}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="payrollSummaryBar">
+          <div class="payrollSummaryItem">
+            <div class="k">Hours</div>
+            <div class="v">{escape(fmt_hours(selected_week_hours))}</div>
+          </div>
+
+          <div class="payrollSummaryItem">
+            <div class="k">Gross</div>
+            <div class="v">{escape(currency)}{money(w_g)}</div>
+          </div>
+
+          <div class="payrollSummaryItem">
+            <div class="k">Tax</div>
+            <div class="v">{escape(currency)}{money(w_t)}</div>
+          </div>
+
+          <div class="payrollSummaryItem net">
+            <div class="k">Net</div>
+            <div class="v">{escape(currency)}{money(w_n)}</div>
+          </div>
+        </div>
       </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
 # ---------- STARTER FORM / ONBOARDING ----------
 @app.route("/onboarding", methods=["GET", "POST"])
