@@ -5861,7 +5861,66 @@ def my_reports():
       .myReportsWeekTable .tablewrap{
         margin-top:10px;
       }
+      
+      .myReportsWeekTable .payrollSummaryBar{
+  margin-top: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 6px;
+}
 
+.myReportsWeekTable .payrollSummaryItem{
+  padding: 6px 8px;
+  border-radius: 12px;
+}
+
+.myReportsWeekTable .payrollSummaryItem .k{
+  font-size: 10px;
+}
+
+.myReportsWeekTable .payrollSummaryItem .v{
+  font-size: 14px;
+  line-height: 1.1;
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(1){
+  background: rgba(59,130,246,.10);
+  border-color: rgba(59,130,246,.22);
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(1) .k,
+.myReportsWeekTable .payrollSummaryItem:nth-child(1) .v{
+  color: #1d4ed8;
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(2){
+  background: rgba(34,197,94,.10);
+  border-color: rgba(34,197,94,.22);
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(2) .k,
+.myReportsWeekTable .payrollSummaryItem:nth-child(2) .v{
+  color: #15803d;
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(3){
+  background: rgba(245,158,11,.10);
+  border-color: rgba(245,158,11,.22);
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(3) .k,
+.myReportsWeekTable .payrollSummaryItem:nth-child(3) .v{
+  color: #b45309;
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(4){
+  background: rgba(168,85,247,.10);
+  border-color: rgba(168,85,247,.22);
+}
+
+.myReportsWeekTable .payrollSummaryItem:nth-child(4) .k,
+.myReportsWeekTable .payrollSummaryItem:nth-child(4) .v{
+  color: #7e22ce;
+}
       .myReportsWeekTable .weeklyEditTable{
         table-layout: fixed;
         width: 100%;
