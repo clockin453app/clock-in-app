@@ -2667,54 +2667,36 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
 }
 
-/* ================= PAYROLL SHEET (clean version) ================= */
+/* ================= PAYROLL SHEET (condensed week design) ================= */
 .payrollWrap{
   margin-top:14px;
   width:100%;
   max-width:100%;
   min-width:0;
   background:#fff;
-  border:1px solid rgba(15,23,42,.12);
-  border-radius:14px;
+  border:1px solid rgba(15,23,42,.10);
+  border-radius:18px;
   overflow-x:auto;
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
   box-shadow:var(--shadow);
-}
-
-.payrollTitleRow{
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap:12px;
-  padding:14px 14px 10px 14px;
-  border-bottom:1px solid rgba(15,23,42,.08);
-}
-.payrollTitleRow .title{
-  margin:0;
-  font-size:18px;
-  font-weight:800;
-}
-.payrollTitleRow .sub{
-  margin:4px 0 0 0;
-  font-size:13px;
-  color:rgba(15,23,42,.62);
+  padding-right:18px;
+  box-sizing:border-box;
 }
 
 .payrollSheet{
   width:100%;
-  min-width:1320px;
+  min-width:0;
   table-layout:fixed;
-  border-collapse:collapse;
+  border-collapse:separate;
+  border-spacing:0;
   background:#fff;
 }
 
 .payrollSheet th,
 .payrollSheet td{
-  border-top:none;
-  border-left:none;
-  border-right:none;
-  border-bottom:1px solid rgba(15,23,42,.18);
+  border:none;
+  border-bottom:1px solid rgba(15,23,42,.10);
   font-variant-numeric:tabular-nums;
   font-feature-settings:"tnum" 1;
 }
@@ -2723,101 +2705,123 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   position:sticky;
   top:0;
   z-index:5;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.payrollSheet thead tr.group th{
-  background:#eef2ff;
-  color:rgba(30,64,175,1);
-  font-size:10px;
+  background:#fff;
+  color:rgba(15,23,42,.84);
+  font-size:14px;
   font-weight:900;
-  letter-spacing:.2px;
-  text-transform:uppercase;
-  padding:5px 2px;
+  padding:14px 12px;
+  white-space:nowrap;
+  border-bottom:1px solid rgba(15,23,42,.12);
+  text-align:left;
 }
 
-.payrollSheet thead tr.cols th{
-  background:#f8fafc;
-  color:rgba(15,23,42,.86);
-  font-size:9px;
-  font-weight:800;
-  padding:3px 1px;
-  text-transform:none;
-  letter-spacing:0;
+.payrollSheet thead th:not(:first-child){
+  text-align:center;
 }
 
 .payrollSheet tbody td{
-  height:34px;
-  padding:3px 2px;
-  font-size:11px;
-  line-height:1;
-  vertical-align:middle;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-  background:transparent;
+  padding:14px 12px;
+  font-size:14px;
+  line-height:1.2;
+  vertical-align:top;
+  background:#fff;
   color:rgba(2,6,23,.92);
-  font-weight:750;
-}
-
-.payrollSheet tbody tr{
-  height:34px;
 }
 
 .payrollSheet tbody tr:hover td{
-  background:rgba(30,64,175,.08);
-}
-.payrollSheet tbody tr:hover td:first-child{
-  box-shadow:inset 3px 0 0 rgba(30,64,175,.35);
+  background:rgba(248,250,252,.92);
 }
 
-/* employee column */
+.payrollSheet tbody tr.is-selected td{
+  background:rgba(239,246,255,.94);
+}
+
+.payrollSheet tbody tr:hover td:first-child,
+.payrollSheet tbody tr.is-selected td:first-child{
+  box-shadow:inset 3px 0 0 rgba(30,64,175,.30);
+}
+
+/* employee */
 .payrollEmpCell,
-.payrollSheet thead tr.group th:first-child,
+.payrollSheet thead th:first-child,
 .payrollSheet tbody td:first-child{
-  width:100px;
-  min-width:100px;
-  max-width:100px;
+  width:170px;
+  min-width:170px;
+  max-width:170px;
 }
 
 .payrollSheet .emp{
   display:block;
   width:100%;
   min-width:0;
-  font-size:11px;
+  font-size:14px;
   font-weight:900;
-  line-height:1.05;
+  line-height:1.15;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 
 .payrollSheet .empSub{
-  display:none;
+  display:block;
+  margin-top:4px;
+  font-size:12px;
+  font-weight:600;
+  color:rgba(15,23,42,.54);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
-/* day group separators */
-.payrollSheet thead tr.group th:nth-child(n+2):nth-child(-n+8){
-  border-left:1px solid rgba(15,23,42,.10);
-  border-right:1px solid rgba(15,23,42,.10);
+/* condensed day cells */
+.payrollDayCell{
+  width:118px;
+  min-width:118px;
+  max-width:118px;
+  text-align:left;
+}
+.payrollDayStack{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  min-height:74px;
+  justify-content:flex-start;
 }
 
-.payrollSheet thead tr.cols th:nth-child(3n+1):nth-child(-n+19){
-  border-left:1px solid rgba(15,23,42,.08);
+.payrollDayLine{
+  min-height:20px;
+  display:flex;
+  align-items:center;
 }
 
-.payrollSheet thead tr.cols th:nth-child(3n):nth-child(-n+21){
-  border-right:1px solid rgba(15,23,42,.08);
+.payrollDayHours{
+  min-height:20px;
+  display:flex;
+  align-items:center;
+  font-size:13px;
+  font-weight:800;
+  color:rgba(15,23,42,.68);
 }
 
-.payrollSheet tbody td:nth-child(3n+2):nth-child(-n+20){
-  border-left:1px solid rgba(15,23,42,.08);
+.payrollDayEmpty{
+  min-height:74px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  font-weight:700;
+  color:rgba(15,23,42,.38);
 }
 
-.payrollSheet tbody td:nth-child(3n+4):nth-child(-n+22){
-  border-right:1px solid rgba(15,23,42,.08);
+.payrollDayCellOT{
+  background:rgba(245,158,11,.10) !important;
+  box-shadow:inset 0 0 0 1px rgba(245,158,11,.15);
+  border-radius:10px;
+}
+
+.payrollSheet tbody tr:hover td.payrollDayCellOT,
+.payrollSheet tbody tr.is-selected td.payrollDayCellOT{
+  background:rgba(245,158,11,.14) !important;
 }
 
 /* time inputs */
@@ -2830,6 +2834,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   font-weight:800;
   color:rgba(2,6,23,.98);
 }
+
 .payrollSheet input[type="time"]:disabled{
   opacity:1;
   -webkit-text-fill-color:rgba(2,6,23,.98);
@@ -2837,20 +2842,20 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .payrollSheet input.payrollTimeInput,
 .payrollTimeInput{
-  width:34px;
-  min-width:34px;
-  max-width:34px;
-  height:16px;
-  line-height:16px;
-  padding:0;
+  width:100%;
+  min-width:0;
+  max-width:none;
+  height:20px;
+  line-height:20px;
+  padding:0 4px 0 0;
   border:none;
-  border-radius:0;
+  border-radius:8px;
   background:transparent;
   box-shadow:none;
-  font-size:9px;
+  font-size:14px;
   font-weight:800;
-  text-align:center;
-  color:rgba(15,23,42,.92);
+  text-align:left;
+  color:rgba(15,23,42,.94);
   outline:none;
   appearance:none;
   -webkit-appearance:none;
@@ -2868,135 +2873,68 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollSheet input.payrollTimeInput[value=""]{
   color:transparent !important;
 }
+
 .payrollSheet input.payrollTimeInput[value=""]::-webkit-datetime-edit,
 .payrollSheet input.payrollTimeInput[value=""]::-webkit-date-and-time-value{
   color:transparent !important;
 }
 
 .payrollSheet input.payrollTimeInput:focus{
-  color:rgba(15,23,42,.92) !important;
+  color:rgba(15,23,42,.94) !important;
   background:rgba(30,64,175,.06) !important;
-  border-radius:6px;
   box-shadow:inset 0 0 0 1px rgba(30,64,175,.18) !important;
 }
 
 .payrollSheet input.payrollTimeInput:focus::-webkit-datetime-edit,
 .payrollSheet input.payrollTimeInput:focus::-webkit-date-and-time-value{
-  color:rgba(15,23,42,.92) !important;
-}
-
-/* widths for day columns */
-.payrollSheet thead tr.cols th:nth-child(3n+1),
-.payrollSheet thead tr.cols th:nth-child(3n+2){
-  width:32px;
-  min-width:32px;
-  max-width:32px;
-}
-
-.payrollSheet thead tr.cols th:nth-child(3n+3){
-  width:24px;
-  min-width:24px;
-  max-width:24px;
-}
-
-.payrollSheet tbody td:nth-child(2),
-.payrollSheet tbody td:nth-child(3),
-.payrollSheet tbody td:nth-child(5),
-.payrollSheet tbody td:nth-child(6),
-.payrollSheet tbody td:nth-child(8),
-.payrollSheet tbody td:nth-child(9),
-.payrollSheet tbody td:nth-child(11),
-.payrollSheet tbody td:nth-child(12),
-.payrollSheet tbody td:nth-child(14),
-.payrollSheet tbody td:nth-child(15),
-.payrollSheet tbody td:nth-child(17),
-.payrollSheet tbody td:nth-child(18),
-.payrollSheet tbody td:nth-child(20),
-.payrollSheet tbody td:nth-child(21){
-  width:32px;
-  min-width:32px;
-  max-width:32px;
-  text-align:center;
-  padding-left:1px;
-  padding-right:1px;
-}
-
-.payrollSheet tbody td:nth-child(4),
-.payrollSheet tbody td:nth-child(7),
-.payrollSheet tbody td:nth-child(10),
-.payrollSheet tbody td:nth-child(13),
-.payrollSheet tbody td:nth-child(16),
-.payrollSheet tbody td:nth-child(19),
-.payrollSheet tbody td:nth-child(22){
-  width:24px;
-  min-width:24px;
-  max-width:24px;
-  text-align:center;
-  padding-left:1px;
-  padding-right:1px;
+  color:rgba(15,23,42,.94) !important;
 }
 
 /* summary columns */
-.payrollSheet thead tr.group th:nth-last-child(4),
-.payrollSheet tbody td:nth-child(23){
-  width:46px;
-  min-width:46px;
-  max-width:46px;
+.payrollSummaryTotal{
+  width:72px;
+  min-width:72px;
+  max-width:72px;
+  text-align:center !important;
 }
 
-.payrollSheet thead tr.group th:nth-last-child(3),
-.payrollSheet tbody td:nth-child(24){
-  width:64px;
-  min-width:64px;
-  max-width:64px;
+.payrollSummaryMoney{
+  width:112px;
+  min-width:112px;
+  max-width:112px;
+  text-align:right !important;
 }
 
-.payrollSheet thead tr.group th:nth-last-child(2),
-.payrollSheet tbody td:nth-child(25){
-  width:54px;
-  min-width:54px;
-  max-width:54px;
-}
-
-.payrollSheet thead tr.group th:nth-last-child(1),
-.payrollSheet tbody td:nth-child(26){
-  width:96px;
-  min-width:96px;
-  max-width:96px;
+.payrollSheet td.payrollSummaryTotal,
+.payrollSheet td.payrollSummaryMoney{
+  vertical-align:middle;
+  font-weight:800;
 }
 
 /* states */
 .payrollSheet td.net{
-  background:rgba(250,204,21,.22);
+  background:transparent;
   color:rgba(2,6,23,.92);
   font-weight:800;
 }
-.payrollSheet tbody tr:hover td.net{
-  background:rgba(250,204,21,.28);
-}
 
-.payrollSheet td.payrollOT{
-  background:rgba(245,158,11,.16) !important;
-  color:rgba(146,64,14,.98) !important;
-  font-weight:900 !important;
-  box-shadow:inset 0 0 0 1px rgba(245,158,11,.22);
-}
-.payrollSheet tbody tr:hover td.payrollOT{
-  background:rgba(245,158,11,.22) !important;
+.payrollSheet tbody tr:hover td.net,
+.payrollSheet tbody tr.is-selected td.net{
+  background:transparent;
 }
 
 .payrollSheet td.net.paidNetCell{
-  background:rgba(22,163,74,.18) !important;
+  background:transparent !important;
   color:rgba(21,128,61,.98) !important;
   font-weight:900;
-  text-align:center;
+  text-align:center !important;
 }
 
 .payrollSheet td.net.zeroNetCell{
-  background:rgba(250,204,21,.16) !important;
-  color:rgba(2,6,23,.92) !important;
+  background:transparent !important;
+  color:rgba(2,6,23,.72) !important;
   font-weight:800;
-  text-align:right;
+  text-align:right !important;
 }
 
 /* pay button */
@@ -3008,16 +2946,15 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:4px;
+  gap:6px;
   width:100%;
-  height:24px;
-  min-height:24px;
-  padding:2px 4px;
+  min-height:36px;
+  padding:6px 10px;
   border:none;
-  border-radius:10px;
-  background:rgba(250,204,21,.22);
-  color:rgba(2,6,23,.92);
-  font-size:10px;
+  border-radius:12px;
+  background:rgba(250,204,21,.24);
+  color:rgba(2,6,23,.94);
+  font-size:12px;
   font-weight:900;
   line-height:1;
   white-space:nowrap;
@@ -3037,38 +2974,69 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payCellBtn .payLabel{
   display:inline;
   margin:0;
-  font-size:9px;
+  font-size:10px;
   font-weight:800;
   color:rgba(146,64,14,.95);
 }
 
-/* one small mobile adjustment only */
+/* mobile */
 @media (max-width: 979px){
   .payrollSheet{
-    min-width:1080px;
+    min-width:1120px;
   }
 
   .payrollEmpCell,
-  .payrollSheet thead tr.group th:first-child,
+  .payrollSheet thead th:first-child,
   .payrollSheet tbody td:first-child{
-    width:88px;
-    min-width:88px;
-    max-width:88px;
+    width:120px;
+    min-width:120px;
+    max-width:120px;
+  }
+
+  .payrollDayCell{
+    width:96px;
+    min-width:96px;
+    max-width:96px;
+  }
+
+  .payrollSummaryTotal{
+    width:64px;
+    min-width:64px;
+    max-width:64px;
+  }
+
+  .payrollSummaryMoney{
+    width:96px;
+    min-width:96px;
+    max-width:96px;
+  }
+
+  .payrollSheet thead th{
+    font-size:12px;
+    padding:12px 8px;
+  }
+
+  .payrollSheet tbody td{
+    padding:12px 8px;
   }
 
   .payrollSheet .emp{
+    font-size:12px;
+  }
+
+  .payrollSheet .empSub{
     font-size:10px;
   }
 
-  .payrollSheet thead tr.group th{
-    font-size:9px;
+  .payrollSheet input.payrollTimeInput,
+  .payrollTimeInput{
+    font-size:12px;
   }
 
-  .payrollSheet thead tr.cols th{
-    font-size:8px;
+  .payrollDayHours{
+    font-size:11px;
   }
 }
-
 /* Print tidy */
 @media print{
   .sidebar, .bottomNav, button, input, select, .weekRow { display:none !important; }
@@ -7772,145 +7740,122 @@ def admin_payroll():
 
         day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
-        sheet_rows = []
+    sheet_rows = []
 
-        for u in sorted(all_users, key=lambda s: s.lower()):
-            display = get_employee_display_name(u)
-            user_days = week_lookup.get(u, {})
+    for u in sorted(all_users, key=lambda s: get_employee_display_name(s).lower()):
+        display = get_employee_display_name(u)
+        user_days = week_lookup.get(u, {})
 
-            total_hours = 0.0
-            gross = 0.0
-            tax = 0.0
-            net = 0.0
+        total_hours = 0.0
+        gross = 0.0
 
-            def show_num(v):
-                try:
-                    vv = float(v)
-                    return "" if abs(vv) < 0.005 else fmt_hours(vv)
-                except Exception:
-                    return ""
+        def show_num(v):
+            try:
+                vv = float(v)
+                return "" if abs(vv) < 0.005 else fmt_hours(vv)
+            except Exception:
+                return ""
 
-            cells = []
+        cells = [f"""
+          <td class="payrollEmpCell">
+            <span class="emp">{escape(display)}</span>
+          </td>
+        """]
 
-            # Employee cell
+        for di in range(7):
+            d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
+            rec = user_days.get(d_str, {}) if isinstance(user_days, dict) else {}
+
+            cin = ((rec.get("cin", "") if isinstance(rec, dict) else "") or "").strip()
+            cout = ((rec.get("cout", "") if isinstance(rec, dict) else "") or "").strip()
+            hrs = safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0)
+            pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), default=0.0)
+
+            total_hours += hrs
+            gross += pay
+
+            form_id = f"payroll_{re.sub(r'[^a-zA-Z0-9]+', '_', u)}_{d_str.replace('-', '_')}"
+            has_day_value = bool(cin or cout or hrs > 0 or pay > 0)
+            day_cls = "payrollDayCellOT" if hrs > OVERTIME_HOURS else ""
+
+            if has_day_value:
+                hrs_txt = f"{show_num(hrs)}h" if hrs > 0 else "—"
+                day_inner = f"""
+                     <div class="payrollDayStack">
+                       <div class="payrollDayLine">
+                         <input
+                           class="payrollTimeInput"
+                           type="time"
+                           step="60"
+                           name="cin"
+                           value="{escape(cin[:5])}"
+                           form="{form_id}"
+                           onchange="document.getElementById('{form_id}').submit()">
+                       </div>
+                       <div class="payrollDayLine">
+                         <input
+                           class="payrollTimeInput"
+                           type="time"
+                           step="60"
+                           name="cout"
+                           value="{escape(cout[:5])}"
+                           form="{form_id}"
+                           onchange="document.getElementById('{form_id}').submit()">
+                       </div>
+                       <div class="payrollDayHours">{escape(hrs_txt)}</div>
+                     </div>
+                   """
+            else:
+                day_inner = '<div class="payrollDayEmpty">—</div>'
+
             cells.append(f"""
-              <td class="payrollEmpCell">
-                <span class="emp">{escape(display)}</span>
-              </td>
-            """)
+                 <td class="payrollDayCell {day_cls}">
+                   {day_inner}
+                   <form id="{form_id}" method="POST" action="/admin/save-shift" style="display:none;">
+                     <input type="hidden" name="csrf" value="{escape(csrf)}">
+                     <input type="hidden" name="user" value="{escape(u)}">
+                     <input type="hidden" name="date" value="{escape(d_str)}">
+                   </form>
+                 </td>
+               """)
 
-            # 7 days
-            # 7 days (week_lookup is keyed by YYYY-MM-DD, and uses cin/cout keys)
-            gross = 0.0
-            total_hours = 0.0
+        gross = round(gross, 2)
+        tax = round(gross * tax_rate, 2)
+        net = round(gross - tax, 2)
 
-            for di in range(7):
-                d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
-                rec = user_days.get(d_str, {}) if isinstance(user_days, dict) else {}
+        paid, _paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
-                cin = (rec.get("cin", "") if isinstance(rec, dict) else "") or ""
-                cout = (rec.get("cout", "") if isinstance(rec, dict) else "") or ""
-                hrs = safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0)
-                hrs_class = " payrollOT" if hrs > OVERTIME_HOURS else ""
-                pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), default=0.0)
+        cells.append(f"<td class='num payrollSummaryTotal'>{show_num(total_hours)}</td>")
+        cells.append(
+            f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(gross)) if gross > 0 else ''}</td>")
+        cells.append(f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(tax)) if tax > 0 else ''}</td>")
 
-                total_hours += hrs
-                gross += pay
+        if paid:
+            cells.append(
+                f"<td class='num payrollSummaryMoney net paidNetCell'>{escape(currency)}{money(net)} · Paid</td>")
+        elif gross > 0:
+            cells.append(f"""
+                 <td class='num payrollSummaryMoney net'>
+                   <form method="POST" action="/admin/mark-paid" class="payCellForm">
+                     <input type="hidden" name="csrf" value="{escape(csrf)}">
+                     <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                     <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                     <input type="hidden" name="user" value="{escape(u)}">
+                     <input type="hidden" name="gross" value="{gross}">
+                     <input type="hidden" name="tax" value="{tax}">
+                     <input type="hidden" name="net" value="{net}">
+                     <button class="payCellBtn" type="submit">
+                       {escape(currency)}{money(net)} <span class="payLabel">Pay</span>
+                     </button>
+                   </form>
+                 </td>
+               """)
+        else:
+            cells.append("<td class='num payrollSummaryMoney'></td>")
 
-                form_id = f"payroll_{re.sub(r'[^a-zA-Z0-9]+', '_', u)}_{d_str.replace('-', '_')}"
+        sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
 
-                cells.append(f"""
-                  <td style='text-align:center;'>
-                    <input
-                      class="payrollTimeInput"
-                      type="time"
-                      step="60"
-                      name="cin"
-                      value="{escape((cin or '')[:5])}"
-                      form="{form_id}"
-                      onchange="document.getElementById('{form_id}').submit()">
-                  </td>
-                """)
-
-                cells.append(f"""
-                  <td style='text-align:center;'>
-                    <input
-                      class="payrollTimeInput"
-                      type="time"
-                      step="60"
-                      name="cout"
-                      value="{escape((cout or '')[:5])}"
-                      form="{form_id}"
-                      onchange="document.getElementById('{form_id}').submit()">
-                  </td>
-                """)
-
-                cells.append(f"""
-                  <td class='num{hrs_class}' style='font-weight:900;'>
-                    {show_num(hrs)}
-                    <form id="{form_id}" method="POST" action="/admin/save-shift" style="display:none;">
-                      <input type="hidden" name="csrf" value="{escape(csrf)}">
-                      <input type="hidden" name="user" value="{escape(u)}">
-                      <input type="hidden" name="date" value="{escape(d_str)}">
-                    </form>
-                  </td>
-                """)
-
-            gross = round(gross, 2)
-            tax = round(gross * tax_rate, 2)
-            net = round(gross - tax, 2)
-
-            paid, _paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
-
-            if paid:
-                mark_paid_btn = "<button class='btnTiny paidDone' type='button' disabled>Paid</button>"
-            elif gross > 0:
-                mark_paid_btn = f"""
-                <form method="POST" action="/admin/mark-paid" style="margin:0;">
-                    <input type="hidden" name="csrf" value="{escape(csrf)}">
-                    <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                    <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                    <input type="hidden" name="user" value="{escape(u)}">
-                    <input type="hidden" name="gross" value="{gross}">
-                    <input type="hidden" name="tax" value="{tax}">
-                    <input type="hidden" name="net" value="{net}">
-                    <button class="btnTiny" type="submit">Paid</button>
-                </form>
-                """
-            else:
-                mark_paid_btn = ""
-
-            cells.append(f"<td class='num'>{show_num(total_hours)}</td>")
-            cells.append(f"<td class='num'>{(escape(currency) + show_num(gross)) if gross > 0 else ''}</td>")
-            cells.append(f"<td class='num'>{(escape(currency) + show_num(tax)) if tax > 0 else ''}</td>")
-
-            if paid:
-                cells.append(f"<td class='num net paidNetCell'>{escape(currency)}{money(net)} · Paid</td>")
-            elif gross > 0:
-                cells.append(f"""
-                  <td class='num net'>
-                    <form method="POST" action="/admin/mark-paid" class="payCellForm">
-                      <input type="hidden" name="csrf" value="{escape(csrf)}">
-                      <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                      <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                      <input type="hidden" name="user" value="{escape(u)}">
-                      <input type="hidden" name="gross" value="{gross}">
-                      <input type="hidden" name="tax" value="{tax}">
-                      <input type="hidden" name="net" value="{net}">
-                      <button class="payCellBtn" type="submit">
-                        {escape(currency)}{money(net)} <span class="payLabel">Pay</span>
-                      </button>
-                    </form>
-                  </td>
-                """)
-            else:
-                cells.append(
-                    f"<td class='num net zeroNetCell'>{(escape(currency) + show_num(net)) if net > 0 else ''}</td>")
-
-
-            sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
-
-        sheet_html = "".join(sheet_rows)
+    sheet_html = "".join(sheet_rows)
 
     # Per-user weekly editable tables
     day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
@@ -8168,104 +8113,86 @@ def admin_payroll():
 
       {week_nav_html}
 
-        <div class="payrollWrap" style="margin-top:12px;">
-<table class="payrollSheet">
-  <thead>
-    <tr class="group">
-      <th rowspan="2" style="width:110px;">Employee</th>
-      <th colspan="3">Monday</th>
-      <th colspan="3">Tuesday</th>
-      <th colspan="3">Wednesday</th>
-      <th colspan="3">Thursday</th>
-      <th colspan="3">Friday</th>
-      <th colspan="3">Saturday</th>
-      <th colspan="3">Sunday</th>
-      <th rowspan="2">Total</th>
-      <th rowspan="2">Gross</th>
-      <th rowspan="2">Tax</th>
-      <th rowspan="2">Net / Pay</th>
-    </tr>
-    <tr class="cols">
-      <th>In</th><th>Out</th><th>Hrs</th>
-      <th>In</th><th>Out</th><th>Hrs</th>
-      <th>In</th><th>Out</th><th>Hrs</th>
-      <th>In</th><th>Out</th><th>Hrs</th>
-      <th>In</th><th>Out</th><th>Hrs</th>
-      <th>In</th><th>Out</th><th>Hrs</th>
-      <th>In</th><th>Out</th><th>Hrs</th>
-    </tr>
-  </thead>
-  <tbody>
-    {sheet_html}
-  </tbody>
-</table>
-</div>
+              <div class="payrollWrap" style="margin-top:12px;">
+        <table class="payrollSheet">
+          <thead>
+            <tr class="cols">
+              <th>Employee</th>
+              <th>Mon</th>
+              <th>Tue</th>
+              <th>Wed</th>
+              <th>Thu</th>
+              <th>Fri</th>
+              <th>Sat</th>
+              <th>Sun</th>
+              <th class="payrollSummaryTotal">Total</th>
+              <th class="payrollSummaryMoney">Gross</th>
+              <th class="payrollSummaryMoney">Tax</th>
+              <th class="payrollSummaryMoney">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sheet_html}
+          </tbody>
+        </table>
+      </div>
+      
+      {''.join(blocks)}
 
 <script>
 (function(){{
-  const table = document.querySelector(".payrollWrap .payrollSheet");
-  if(!table) return;
-  const tbody = table.querySelector("tbody");
+  const tbody = document.querySelector(".payrollWrap .payrollSheet tbody");
   if(!tbody) return;
 
   let selected = null;
 
-  function clearRow(tr){{
-    if(!tr) return;
-    tr.querySelectorAll("td").forEach(td => {{
-      td.style.background = "";
-      td.style.boxShadow = "";
-    }});
-  }}
-
-  function applyRow(tr){{
-    tr.querySelectorAll("td").forEach((td, idx) => {{
-      td.style.background = "rgba(30,64,175,.14)";
-      if(idx === 0){{
-        td.style.boxShadow = "inset 3px 0 0 rgba(30,64,175,.45)";
-      }}
-    }});
-  }}
-
-  tbody.querySelectorAll("tr").forEach(tr => {{
+  tbody.querySelectorAll("tr").forEach((tr) => {{
     tr.style.cursor = "pointer";
-    tr.addEventListener("click", () => {{
-      if(selected === tr){{
-        clearRow(tr);
+
+    tr.addEventListener("click", (e) => {{
+      if (e.target.closest("input, button, form, a, select")) return;
+
+      if (selected === tr) {{
+        tr.classList.remove("is-selected");
         selected = null;
         return;
       }}
-      clearRow(selected);
+
+      if (selected) selected.classList.remove("is-selected");
+      tr.classList.add("is-selected");
       selected = tr;
-      applyRow(tr);
     }});
   }});
 }})();
 </script>
-    {''.join(blocks)}
-            <script>
-        (function(){{
-          const shell = document.querySelector(".shell.payrollShell");
-          const btn = document.getElementById("payrollMenuToggle");
-          const backdrop = document.getElementById("payrollMenuBackdrop");
 
-          if (!shell || !btn || !backdrop) return;
+<script>
+(function(){{
+  const shell = document.querySelector(".shell.payrollShell");
+  const btn = document.getElementById("payrollMenuToggle");
+  const backdrop = document.getElementById("payrollMenuBackdrop");
 
-          function closeMenu(){{
-            shell.classList.remove("payrollMenuOpen");
-          }}
+  if (!shell || !btn) return;
 
-          btn.addEventListener("click", function(){{
-            shell.classList.toggle("payrollMenuOpen");
-          }});
+  function closeMenu(){{
+    shell.classList.remove("payrollMenuOpen");
+  }}
 
-          backdrop.addEventListener("click", closeMenu);
+  btn.addEventListener("click", function(e){{
+    e.preventDefault();
+    e.stopPropagation();
+    shell.classList.toggle("payrollMenuOpen");
+  }});
 
-          document.addEventListener("keydown", function(e){{
-            if (e.key === "Escape") closeMenu();
-          }});
-        }})();
-      </script>
+  if (backdrop) {{
+    backdrop.addEventListener("click", closeMenu);
+  }}
+
+  document.addEventListener("keydown", function(e){{
+    if (e.key === "Escape") closeMenu();
+  }});
+}})();
+</script>
     """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
