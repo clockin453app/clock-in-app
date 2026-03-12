@@ -943,17 +943,17 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .payrollEmployeeCard .payrollSummaryItem{
-  padding: 4px 6px;
-  border-radius: 10px;
+  padding: 3px 5px;
+  border-radius: 8px;
 }
 
 .payrollEmployeeCard .payrollSummaryItem .k{
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .payrollEmployeeCard .payrollSummaryItem .v{
-  font-size: 12px;
-  line-height: 1.05;
+  font-size: 11px;
+  line-height: 1;
 }
 
 .payrollEmployeeCard .payrollSummaryItem:nth-child(1){
@@ -3229,39 +3229,39 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .payrollEmployeeCard .weeklyEditTable thead th,
-  .payrollEmployeeCard .weeklyEditTable tbody td{
-    padding: 7px 3px;
-    font-size: 11px;
-  }
+.payrollEmployeeCard .weeklyEditTable tbody td{
+  padding: 6px 2px;
+  font-size: 10px;
+}
 
-  .payrollEmployeeCard .weeklyEditTable th:nth-child(1),
-  .payrollEmployeeCard .weeklyEditTable td:nth-child(1){
-    width: 34px;
-  }
+.payrollEmployeeCard .weeklyEditTable th:nth-child(1),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(1){
+  width: 30px;
+}
 
-  .payrollEmployeeCard .weeklyEditTable th:nth-child(2),
-  .payrollEmployeeCard .weeklyEditTable td:nth-child(2){
-    width: 74px;
-  }
+.payrollEmployeeCard .weeklyEditTable th:nth-child(2),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(2){
+  width: 66px;
+}
 
-  .payrollEmployeeCard .weeklyEditTable th:nth-child(3),
-  .payrollEmployeeCard .weeklyEditTable td:nth-child(3),
-  .payrollEmployeeCard .weeklyEditTable th:nth-child(4),
-  .payrollEmployeeCard .weeklyEditTable td:nth-child(4){
-    width: 52px;
-  }
+.payrollEmployeeCard .weeklyEditTable th:nth-child(3),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(3),
+.payrollEmployeeCard .weeklyEditTable th:nth-child(4),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(4){
+  width: 46px;
+}
 
-  .payrollEmployeeCard .weeklyEditTable th:nth-child(5),
-  .payrollEmployeeCard .weeklyEditTable td:nth-child(5){
-    width: 42px;
-  }
+.payrollEmployeeCard .weeklyEditTable th:nth-child(5),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(5){
+  width: 38px;
+}
 
-  .payrollEmployeeCard .weeklyEditTable th:nth-child(6),
-  .payrollEmployeeCard .weeklyEditTable td:nth-child(6),
-  .payrollEmployeeCard .weeklyEditTable th:nth-child(7),
-  .payrollEmployeeCard .weeklyEditTable td:nth-child(7){
-    width: 58px;
-  }
+.payrollEmployeeCard .weeklyEditTable th:nth-child(6),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(6),
+.payrollEmployeeCard .weeklyEditTable th:nth-child(7),
+.payrollEmployeeCard .weeklyEditTable td:nth-child(7){
+  width: 52px;
+}
 
   .payrollEmployeeCard .payrollSummaryBar{
     grid-template-columns: 1fr 1fr;
@@ -3269,16 +3269,17 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .payrollEmployeeCard .payrollSummaryItem{
-  padding: 5px 6px;
-  border-radius: 10px;
+  padding: 3px 5px;
+  border-radius: 8px;
 }
 
 .payrollEmployeeCard .payrollSummaryItem .k{
-  font-size: 9px;
+  font-size: 8px;
 }
 
 .payrollEmployeeCard .payrollSummaryItem .v{
-  font-size: 12px;
+  font-size: 11px;
+  line-height: 1;
 }
 }
 
