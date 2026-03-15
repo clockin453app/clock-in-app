@@ -9729,6 +9729,53 @@ if DB_MIGRATION_MODE:
         user_email = db.Column(db.String(255))
         created_at = db.Column(db.DateTime)
 
+    class PayrollReport(db.Model):
+        __tablename__ = "payroll_reports"
+        id = db.Column(db.Integer, primary_key=True)
+        username = db.Column(db.String(255))
+        week_start = db.Column(db.Date)
+        week_end = db.Column(db.Date)
+        gross = db.Column(db.Numeric(10, 2))
+        tax = db.Column(db.Numeric(10, 2))
+        net = db.Column(db.Numeric(10, 2))
+        paid_at = db.Column(db.DateTime)
+        paid_by = db.Column(db.String(255))
+        paid = db.Column(db.String(50))
+        workplace_id = db.Column(db.String(255))
+
+    class OnboardingRecord(db.Model):
+        __tablename__ = "onboarding_records"
+        id = db.Column(db.Integer, primary_key=True)
+        username = db.Column(db.String(255), unique=True)
+        first_name = db.Column(db.String(255))
+        last_name = db.Column(db.String(255))
+        birth_date = db.Column(db.String(50))
+        phone = db.Column(db.String(100))
+        email = db.Column(db.String(255))
+        address = db.Column(db.Text)
+        emergency_contact_name = db.Column(db.String(255))
+        emergency_contact_phone = db.Column(db.String(100))
+        medical_condition = db.Column(db.Text)
+        position = db.Column(db.String(255))
+
+    class Location(db.Model):
+        __tablename__ = "locations"
+        id = db.Column(db.Integer, primary_key=True)
+        site_name = db.Column(db.String(255))
+        lat = db.Column(db.Numeric(12, 8))
+        lon = db.Column(db.Numeric(12, 8))
+        radius_meters = db.Column(db.Integer)
+        active = db.Column(db.String(50))
+        workplace_id = db.Column(db.String(255))
+
+    class WorkplaceSetting(db.Model):
+        __tablename__ = "workplace_settings"
+        id = db.Column(db.Integer, primary_key=True)
+        workplace_id = db.Column(db.String(255), unique=True)
+        tax_rate = db.Column(db.Numeric(10, 2))
+        currency_symbol = db.Column(db.String(20))
+        company_name = db.Column(db.String(255))
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
