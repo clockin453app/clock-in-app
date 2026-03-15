@@ -27,18 +27,77 @@ import re
 import time
 import random
 from urllib.parse import urlparse
-from google.oauth2.service_account import Credentials as SACredentials
-import gspread
+
+try:
+    from google.oauth2.service_account import Credentials as SACredentials
+except Exception:
+    SACredentials = None
+
+try:
+    import gspread
+except Exception:
+    gspread = None
+
 from flask import jsonify
 from flask import Flask, request, session, redirect, url_for, render_template_string, abort, make_response, send_file
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
 from datetime import date, timedelta
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
-from google_auth_oauthlib.flow import Flow
-from google.oauth2.credentials import Credentials as UserCredentials
-from google.auth.transport.requests import Request
+
+try:
+    from googleapiclient.discovery import build
+    from googleapiclient.http import MediaIoBaseUpload
+except Exception:
+    build = None
+    MediaIoBaseUpload = None
+
+try:
+    from google_auth_oauthlib.flow import Flow
+except Exception:
+    Flow = None
+
+try:
+    from google.oauth2.credentials import Credentials as UserCredentials
+except Exception:
+    UserCredentials = None
+
+try:
+    from google.auth.transport.requests import Request
+except Exception:
+    Request = None
+
+if gspread is None:
+    class _FallbackGspreadUtils:
+        @staticmethod
+        def rowcol_to_a1(row, col):
+            col_num = int(col)
+            letters = ""
+            while col_num > 0:
+                col_num, rem = divmod(col_num - 1, 26)
+                letters = chr(65 + rem) + letters
+            return f"{letters}{int(row)}"
+
+        @staticmethod
+        def a1_to_rowcol(a1):
+            a1 = str(a1 or "").strip().upper()
+            letters = ""
+            digits = ""
+            for ch in a1:
+                if ch.isalpha():
+                    letters += ch
+                elif ch.isdigit():
+                    digits += ch
+            col = 0
+            for ch in letters:
+                col = col * 26 + (ord(ch) - 64)
+            return int(digits or 1), int(col or 1)
+
+
+    class _FallbackGspread:
+        utils = _FallbackGspreadUtils()
+
+
+    gspread = _FallbackGspread()
 
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_sqlalchemy import SQLAlchemy
@@ -57,6 +116,7 @@ _SHEETS_CACHE_TTL = int(os.environ.get("SHEETS_CACHE_TTL_SECONDS", "15") or "15"
 _SHEETS_CACHE_MAX = int(os.environ.get("SHEETS_CACHE_MAX_ENTRIES", "256") or "256")
 _sheets_cache = _OrderedDict()  # key -> (expires_at, value)
 
+
 def _cache_get(key):
     now = _time.time()
     item = _sheets_cache.get(key)
@@ -70,6 +130,7 @@ def _cache_get(key):
     _sheets_cache.move_to_end(key, last=True)
     return value
 
+
 def _cache_set(key, value, ttl=_SHEETS_CACHE_TTL):
     now = _time.time()
     expires_at = now + max(0, int(ttl))
@@ -78,11 +139,13 @@ def _cache_set(key, value, ttl=_SHEETS_CACHE_TTL):
     while len(_sheets_cache) > _SHEETS_CACHE_MAX:
         _sheets_cache.popitem(last=False)
 
+
 def _cache_invalidate_prefix(prefix):
     # prefix: tuple prefix
     for k in list(_sheets_cache.keys()):
         if isinstance(k, tuple) and k[:len(prefix)] == prefix:
             _sheets_cache.pop(k, None)
+
 
 try:
     from gspread.worksheet import Worksheet as _Worksheet
@@ -90,11 +153,13 @@ try:
     _orig_get_all_values = _Worksheet.get_all_values
     _orig_get_all_records = _Worksheet.get_all_records
 
+
     def _ws_key(ws, op, args, kwargs):
         # Spreadsheet ID is stable; Worksheet.id is numeric sheet id
         sid = getattr(getattr(ws, "spreadsheet", None), "id", None)
         wid = getattr(ws, "id", None)
         return (sid, wid, op, args, tuple(sorted(kwargs.items())))
+
 
     def cached_get_all_values(self, *args, **kwargs):
         key = _ws_key(self, "get_all_values", args, kwargs)
@@ -105,6 +170,7 @@ try:
         _cache_set(key, val)
         return val
 
+
     def cached_get_all_records(self, *args, **kwargs):
         key = _ws_key(self, "get_all_records", args, kwargs)
         hit = _cache_get(key)
@@ -114,27 +180,35 @@ try:
         _cache_set(key, val)
         return val
 
+
     _Worksheet.get_all_values = cached_get_all_values
     _Worksheet.get_all_records = cached_get_all_records
+
 
     # Invalidate cache on common writes
     def _wrap_invalidate(method_name):
         orig = getattr(_Worksheet, method_name, None)
         if not orig:
             return
+
         def wrapped(self, *args, **kwargs):
             res = orig(self, *args, **kwargs)
             sid = getattr(getattr(self, "spreadsheet", None), "id", None)
             wid = getattr(self, "id", None)
             _cache_invalidate_prefix((sid, wid))
             return res
+
         setattr(_Worksheet, method_name, wrapped)
 
-    for _m in ("update", "update_cell", "update_cells", "append_row", "append_rows", "batch_update", "delete_rows", "insert_row", "insert_rows", "clear"):
+
+    for _m in ("update", "update_cell", "update_cells", "append_row", "append_rows", "batch_update", "delete_rows",
+               "insert_row", "insert_rows", "clear"):
         _wrap_invalidate(_m)
 except Exception:
     # If gspread internals change, app still runs without caching.
     pass
+
+
 # ============ GOOGLE SHEETS SAFE WRITE ============
 
 def _gs_write_with_retry(fn, *, tries: int = 3, base_sleep: float = 0.6):
@@ -172,8 +246,13 @@ app.config.update(
 )
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
-USE_DATABASE = os.environ.get("USE_DATABASE", "0") == "1"
-DB_MIGRATION_MODE = os.environ.get("DB_MIGRATION_MODE", "0") == "1"
+DATABASE_ENABLED = (
+        os.environ.get("DATABASE", "0") == "1"
+        or os.environ.get("USE_DATABASE", "0") == "1"
+        or os.environ.get("DB_MIGRATION_MODE", "0") == "1"
+)
+USE_DATABASE = DATABASE_ENABLED
+DB_MIGRATION_MODE = DATABASE_ENABLED
 
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
@@ -183,6 +262,8 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
+
+
 # ================= DATABASE VIEW / IMPORT ROUTES =================
 
 def _rows_to_dicts(model, limit=200):
@@ -198,6 +279,7 @@ def _rows_to_dicts(model, limit=200):
         out.append(item)
     return out
 
+
 # ================= DATABASE READ HELPERS =================
 
 def get_locations():
@@ -205,15 +287,18 @@ def get_locations():
         return Location.query.all()
     return locations_sheet.get_all_records()
 
+
 def get_settings():
     if USE_DATABASE:
         return WorkplaceSetting.query.all()
     return settings_sheet.get_all_records()
 
+
 def get_employees():
     if USE_DATABASE:
         return Employee.query.all()
     return employees_sheet.get_all_records()
+
 
 def get_employees_compat():
     out = []
@@ -276,6 +361,7 @@ def get_employees_compat():
         })
 
     return out
+
 
 # ================= FINAL DATABASE COMPAT HELPERS =================
 
@@ -524,6 +610,7 @@ def get_payroll_rows():
     out.extend(items)
     return out
 
+
 @app.route("/db-test")
 def db_test():
     try:
@@ -589,6 +676,7 @@ def db_view_settings():
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
+
 @app.route("/db/upgrade-employees-table")
 def db_upgrade_employees_table():
     gate = require_admin()
@@ -635,6 +723,7 @@ def db_upgrade_employees_table():
 
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
+
 
 @app.route("/db/upgrade-onboarding-table")
 def db_upgrade_onboarding_table():
@@ -699,6 +788,7 @@ def db_upgrade_onboarding_table():
         return {"status": "ok", "table": "onboarding_records", "columns": cols}
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
+
 
 @app.route("/import-employees")
 def import_employees():
@@ -847,6 +937,7 @@ def _to_datetime(v):
         return datetime.fromisoformat(s)
     except Exception:
         return None
+
 
 @app.route("/import-locations")
 def import_locations():
@@ -1013,7 +1104,9 @@ def import_onboarding():
             phone_cc = _to_str(_pick(rec, "PhoneCountryCode", "phone_country_code"))
             phone_num = _to_str(_pick(rec, "PhoneNumber", "Phone", "phone_number", "phone"))
             ec_cc = _to_str(_pick(rec, "EmergencyContactPhoneCountryCode", "emergency_contact_phone_country_code"))
-            ec_num = _to_str(_pick(rec, "EmergencyContactPhoneNumber", "EmergencyContactPhone", "Emergency_Contact_Phone", "emergency_contact_phone_number"))
+            ec_num = _to_str(
+                _pick(rec, "EmergencyContactPhoneNumber", "EmergencyContactPhone", "Emergency_Contact_Phone",
+                      "emergency_contact_phone_number"))
 
             street = _to_str(_pick(rec, "StreetAddress", "street_address"))
             city = _to_str(_pick(rec, "City", "city"))
@@ -1069,14 +1162,16 @@ def import_onboarding():
                 date_of_contract=_to_str(_pick(rec, "DateOfContract", "date_of_contract")),
                 site_address=_to_str(_pick(rec, "SiteAddress", "site_address")),
 
-                passport_or_birth_cert_link=_to_str(_pick(rec, "PassportOrBirthCertLink", "passport_or_birth_cert_link")),
+                passport_or_birth_cert_link=_to_str(
+                    _pick(rec, "PassportOrBirthCertLink", "passport_or_birth_cert_link")),
                 cscs_front_back_link=_to_str(_pick(rec, "CSCSFrontBackLink", "cscs_front_back_link")),
                 public_liability_link=_to_str(_pick(rec, "PublicLiabilityLink", "public_liability_link")),
                 share_code_link=_to_str(_pick(rec, "ShareCodeLink", "share_code_link")),
 
                 contract_accepted=_to_str(_pick(rec, "ContractAccepted", "contract_accepted")),
                 signature_name=_to_str(_pick(rec, "SignatureName", "signature_name")),
-                signature_date_time=_to_str(_pick(rec, "SignatureDateTime", "signature_date_time")),
+                signature_datetime=_to_str(
+                    _pick(rec, "SignatureDateTime", "signature_datetime", "signature_date_time")),
                 submitted_at=_to_str(_pick(rec, "SubmittedAt", "submitted_at")),
             )
             db.session.add(row)
@@ -1088,6 +1183,7 @@ def import_onboarding():
     except Exception as e:
         db.session.rollback()
         return {"status": "error", "message": str(e)}, 500
+
 
 @app.route("/import-workhours")
 def import_workhours():
@@ -1147,6 +1243,8 @@ def import_workhours():
     except Exception as e:
         db.session.rollback()
         return {"status": "error", "message": str(e)}, 500
+
+
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 
 SCOPES = [
@@ -1154,48 +1252,67 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
+SHEETS_RUNTIME_ENABLED = os.environ.get("ENABLE_SHEETS_RUNTIME", "1" if not DATABASE_ENABLED else "0") == "1"
+SHEETS_IMPORT_ENABLED = os.environ.get("ENABLE_SHEETS_IMPORT", "1" if not DATABASE_ENABLED else "0") == "1"
+ENABLE_GOOGLE_SHEETS = SHEETS_RUNTIME_ENABLED or SHEETS_IMPORT_ENABLED
+
 creds_json = os.environ.get("GOOGLE_CREDENTIALS", "").strip()
+client = None
+spreadsheet = None
+employees_sheet = None
+work_sheet = None
+payroll_sheet = None
+onboarding_sheet = None
+settings_sheet = None
+audit_sheet = None
+locations_sheet = None
 
-if creds_json:
-    # Running on Render (env variable set)
-    service_account_info = json.loads(creds_json)
-    creds = SACredentials.from_service_account_info(service_account_info, scopes=SCOPES)
-else:
-    # Running locally (use credentials.json file)
-    CREDENTIALS_FILE = "credentials.json"
-    if not os.path.exists(CREDENTIALS_FILE):
-        raise FileNotFoundError(
-            "credentials.json not found locally and GOOGLE_CREDENTIALS not set."
-        )
-    creds = SACredentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
+if ENABLE_GOOGLE_SHEETS:
+    try:
+        if creds_json:
+            service_account_info = json.loads(creds_json)
+            creds = SACredentials.from_service_account_info(service_account_info, scopes=SCOPES)
+        else:
+            CREDENTIALS_FILE = "credentials.json"
+            if not os.path.exists(CREDENTIALS_FILE):
+                raise FileNotFoundError("credentials.json not found locally and GOOGLE_CREDENTIALS not set.")
+            creds = SACredentials.from_service_account_file(CREDENTIALS_FILE, scopes=SCOPES)
 
-client = gspread.authorize(creds)
+        client = gspread.authorize(creds)
 
-SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
-if SPREADSHEET_ID:
-    spreadsheet = client.open_by_key(SPREADSHEET_ID)
-else:
-    spreadsheet = client.open("WorkHours")
+        SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "").strip()
+        if SPREADSHEET_ID:
+            spreadsheet = client.open_by_key(SPREADSHEET_ID)
+        else:
+            spreadsheet = client.open("WorkHours")
 
-employees_sheet = spreadsheet.worksheet("Employees")
-work_sheet = spreadsheet.worksheet("WorkHours")
-payroll_sheet = spreadsheet.worksheet("PayrollReports")
-onboarding_sheet = spreadsheet.worksheet("Onboarding")
-try:
-    settings_sheet = spreadsheet.worksheet("Settings")
-except Exception:
-    settings_sheet = None
-# Optional (recommended): Admin audit log
-try:
-    audit_sheet = spreadsheet.worksheet("AuditLog")
-except Exception:
-    audit_sheet = None
-
-# Optional: geofenced clocking locations (Admin-managed)
-try:
-    locations_sheet = spreadsheet.worksheet("Locations")
-except Exception:
-    locations_sheet = None
+        employees_sheet = spreadsheet.worksheet("Employees")
+        work_sheet = spreadsheet.worksheet("WorkHours")
+        payroll_sheet = spreadsheet.worksheet("PayrollReports")
+        onboarding_sheet = spreadsheet.worksheet("Onboarding")
+        try:
+            settings_sheet = spreadsheet.worksheet("Settings")
+        except Exception:
+            settings_sheet = None
+        try:
+            audit_sheet = spreadsheet.worksheet("AuditLog")
+        except Exception:
+            audit_sheet = None
+        try:
+            locations_sheet = spreadsheet.worksheet("Locations")
+        except Exception:
+            locations_sheet = None
+    except Exception as e:
+        app.logger.warning("Google Sheets disabled: %s", e)
+        client = None
+        spreadsheet = None
+        employees_sheet = None
+        work_sheet = None
+        payroll_sheet = None
+        onboarding_sheet = None
+        settings_sheet = None
+        audit_sheet = None
+        locations_sheet = None
 
 # ================= GOOGLE DRIVE UPLOAD (OAUTH USER) =================
 OAUTH_SCOPES = ["https://www.googleapis.com/auth/drive"]
@@ -1204,6 +1321,7 @@ UPLOAD_FOLDER_ID = os.environ.get("ONBOARDING_DRIVE_FOLDER_ID", "").strip()
 OAUTH_CLIENT_ID = os.environ.get("OAUTH_CLIENT_ID", "").strip()
 OAUTH_CLIENT_SECRET = os.environ.get("OAUTH_CLIENT_SECRET", "").strip()
 OAUTH_REDIRECT_URI = os.environ.get("OAUTH_REDIRECT_URI", "").strip()
+
 
 def _make_oauth_flow():
     # Only used by /connect-drive and /oauth2callback
@@ -1227,6 +1345,8 @@ def _make_oauth_flow():
         scopes=OAUTH_SCOPES,
         redirect_uri=OAUTH_REDIRECT_URI,
     )
+
+
 # ---- Drive OAuth token storage (SERVER-SIDE) ----
 # Avoid storing OAuth tokens in Flask sessions (client-side cookies by default).
 # We keep tokens server-side in an encrypted file (recommended) or plaintext file as fallback.
@@ -1248,10 +1368,12 @@ DRIVE_TOKEN_STORE_PATH = os.environ.get(
 DRIVE_TOKEN_ENV = os.environ.get("DRIVE_TOKEN_JSON", "").strip()
 DRIVE_TOKEN_ENCRYPTION_KEY = os.environ.get("DRIVE_TOKEN_ENCRYPTION_KEY", "").strip()
 
+
 def _ensure_instance_dir():
     d = os.path.dirname(DRIVE_TOKEN_STORE_PATH)
     if d and not os.path.exists(d):
         os.makedirs(d, exist_ok=True)
+
 
 def _fernet():
     if not DRIVE_TOKEN_ENCRYPTION_KEY or not Fernet:
@@ -1260,6 +1382,7 @@ def _fernet():
         return Fernet(DRIVE_TOKEN_ENCRYPTION_KEY.encode("utf-8"))
     except Exception:
         return None
+
 
 def _save_drive_token(token_dict: dict):
     _ensure_instance_dir()
@@ -1273,6 +1396,7 @@ def _save_drive_token(token_dict: dict):
     except Exception:
         # Don't crash app on token write failure; uploads will fail until fixed.
         pass
+
 
 def _load_drive_token() -> dict | None:
     # 1) Encrypted/plain file
@@ -1297,11 +1421,15 @@ def _load_drive_token() -> dict | None:
         except Exception:
             return None
     return None
+
+
 def get_service_account_drive_service():
     try:
         return build("drive", "v3", credentials=creds, cache_discovery=False)
     except Exception:
         return None
+
+
 def get_user_drive_service():
     token_data = _load_drive_token()
     if not token_data:
@@ -1316,6 +1444,7 @@ def get_user_drive_service():
         _save_drive_token(token_data)
 
     return build("drive", "v3", credentials=creds_user, cache_discovery=False)
+
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
     # First try OAuth user Drive (connected via /connect-drive by master admin)
@@ -1373,7 +1502,6 @@ COL_OUT = 3
 COL_HOURS = 4
 COL_PAY = 5
 
-
 # Extra columns (optional; appended after Pay). Used for geolocation.
 COL_IN_LAT = 6
 COL_IN_LON = 7
@@ -1387,7 +1515,7 @@ TAX_RATE = 0.20
 CLOCKIN_EARLIEST = dtime(8, 0, 0)
 
 # Break rules:
-UNPAID_BREAK_HOURS = 0.5     # deduct 30 minutes
+UNPAID_BREAK_HOURS = 0.5  # deduct 30 minutes
 BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS = 6.0  # safety threshold
 
 # Overtime highlight:
@@ -1409,6 +1537,7 @@ def manifest():
             {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
         ],
     }, 200, {"Content-Type": "application/manifest+json"}
+
 
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 PWA_TAGS = """
@@ -4597,43 +4726,51 @@ h2{
 """
 
 
-
 # ================= ICONS =================
 def _svg_clock():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l4 2"></path></svg>"""
+
 
 def _svg_clipboard():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <rect x="8" y="2" width="8" height="4" rx="1"></rect>
       <path d="M9 4H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-3"></path></svg>"""
 
+
 def _svg_chart():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M4 19V5"></path><path d="M4 19h16"></path>
       <path d="M8 17V9"></path><path d="M12 17V7"></path><path d="M16 17v-4"></path></svg>"""
 
+
 def _svg_doc():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path></svg>"""
 
+
 def _svg_user():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M20 21a8 8 0 1 0-16 0"></path><circle cx="12" cy="7" r="4"></circle></svg>"""
+
 
 def _svg_grid():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M4 4h7v7H4z"></path><path d="M13 4h7v7h-7z"></path>
       <path d="M4 13h7v7H4z"></path><path d="M13 13h7v7h-7z"></path></svg>"""
 
+
 def _svg_logout():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M10 17l5-5-5-5"></path><path d="M15 12H3"></path>
       <path d="M21 3v18"></path></svg>"""
+
+
 def _svg_shield():
     return """<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
       <path d="M12 3l7 3v6c0 5-3.5 8-7 9-3.5-1-7-4-7-9V6l7-3z"></path>
     </svg>"""
+
 
 # ================= CONTRACT TEXT =================
 CONTRACT_TEXT = """Contract
@@ -4817,11 +4954,15 @@ def _generate_unique_username(first: str, last: str, wp: str) -> str:
 def _generate_temp_password(length: int = 10) -> str:
     alphabet = string.ascii_letters + string.digits
     return "".join(secrets.choice(alphabet) for _ in range(max(8, int(length or 10))))
+
+
 # --- Break policy (unpaid break) ---------------------------------------------
 # Default: subtract 30 minutes from shifts >= 6 hours.
 UNPAID_BREAK_ENABLED = True
 UNPAID_BREAK_THRESHOLD_HOURS = 6.0
 UNPAID_BREAK_MINUTES = 30
+
+
 def _session_workplace_id():
     return (session.get("workplace_id") or "").strip() or "default"
 
@@ -4832,6 +4973,8 @@ def _row_workplace_id(row):
 
 def _same_workplace(row):
     return _row_workplace_id(row) == _session_workplace_id()
+
+
 def _apply_unpaid_break(raw_hours: float) -> float:
     """Return payable hours after applying unpaid break policy."""
     try:
@@ -4846,7 +4989,11 @@ def _apply_unpaid_break(raw_hours: float) -> float:
         h -= float(UNPAID_BREAK_MINUTES) / 60.0
 
     return max(0.0, h)
+
+
 from datetime import datetime, timedelta
+
+
 def user_in_same_workplace(username: str) -> bool:
     target = (username or "").strip()
     if not target:
@@ -4867,6 +5014,8 @@ def user_in_same_workplace(username: str) -> bool:
         return False
     except Exception:
         return False
+
+
 def get_company_settings() -> dict:
     """Return current workplace settings with safe defaults."""
     defaults = {
@@ -4888,8 +5037,11 @@ def get_company_settings() -> dict:
                     continue
 
                 tax_raw = str(rec.get("Tax_Rate") or rec.get("tax_rate") or "").strip()
-                cur = str(rec.get("Currency_Symbol") or rec.get("currency_symbol") or defaults["Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
-                name = str(rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]).strip() or defaults["Company_Name"]
+                cur = str(
+                    rec.get("Currency_Symbol") or rec.get("currency_symbol") or defaults["Currency_Symbol"]).strip() or \
+                      defaults["Currency_Symbol"]
+                name = str(rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]).strip() or \
+                       defaults["Company_Name"]
             else:
                 row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
                 if row_wp != current_wp:
@@ -4897,8 +5049,11 @@ def get_company_settings() -> dict:
 
                 tax_val = getattr(rec, "tax_rate", None)
                 tax_raw = "" if tax_val is None else str(tax_val).strip()
-                cur = str(getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults["Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
-                name = str(getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]).strip() or defaults["Company_Name"]
+                cur = str(getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults[
+                    "Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
+                name = str(
+                    getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]).strip() or \
+                       defaults["Company_Name"]
 
             try:
                 tax = float(tax_raw) if tax_raw != "" else defaults["Tax_Rate"]
@@ -4915,6 +5070,8 @@ def get_company_settings() -> dict:
         return defaults
     except Exception:
         return defaults
+
+
 def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
     """
     Compute payable hours between cin and cout on date_str.
@@ -4949,18 +5106,23 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
         return round(payable, 2)
     except Exception:
         return None
+
+
 def safe_float(x, default=0.0):
     try:
         return float(x)
     except Exception:
         return default
 
+
 def parse_bool(v) -> bool:
     s = str(v).strip().lower()
     return s in ("1", "true", "yes", "y", "on")
 
+
 def escape(s: str) -> str:
-    return (s or "").replace("&","&amp;").replace("<","&lt;").replace(">","&gt;").replace('"',"&quot;")
+    return (s or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace('"', "&quot;")
+
 
 def linkify(url: str) -> str:
     u = (url or "").strip()
@@ -4973,7 +5135,6 @@ def linkify(url: str) -> str:
     return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer' style='color:var(--navy);font-weight:600;'>Open</a>"
 
 
-
 # ================= GEOLOCATION (GEOFENCE) =================
 # Employees sheet: optional column "Site" that assigns an employee to a site name in Locations sheet.
 # Locations sheet headers (recommended):
@@ -4983,9 +5144,10 @@ def linkify(url: str) -> str:
 #   InLat, InLon, InAcc, InSite, InDistM, OutLat, OutLon, OutAcc, OutSite, OutDistM
 
 WORKHOURS_GEO_HEADERS = [
-    "InLat","InLon","InAcc","InSite","InDistM",
-    "OutLat","OutLon","OutAcc","OutSite","OutDistM",
+    "InLat", "InLon", "InAcc", "InSite", "InDistM",
+    "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM",
 ]
+
 
 def _ensure_workhours_geo_headers():
     try:
@@ -5003,9 +5165,10 @@ def _ensure_workhours_geo_headers():
         missing = [h for h in (["Workplace_ID"] + WORKHOURS_GEO_HEADERS) if h not in headers]
         if missing:
             headers = headers + missing
-            work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(headers)).replace('1','')}1", [headers])
+            work_sheet.update(f"A1:{gspread.utils.rowcol_to_a1(1, len(headers)).replace('1', '')}1", [headers])
     except Exception:
         return
+
 
 def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     # distance in meters
@@ -5014,9 +5177,10 @@ def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     phi1, phi2 = radians(lat1), radians(lat2)
     dphi = radians(lat2 - lat1)
     dl = radians(lon2 - lon1)
-    a = sin(dphi/2)**2 + cos(phi1)*cos(phi2)*sin(dl/2)**2
+    a = sin(dphi / 2) ** 2 + cos(phi1) * cos(phi2) * sin(dl / 2) ** 2
     c = 2 * asin(sqrt(a))
     return R * c
+
 
 def _get_employee_sites(username: str) -> list[str]:
     current_wp = _session_workplace_id()
@@ -5081,10 +5245,12 @@ def _get_employee_sites(username: str) -> list[str]:
 
     return []
 
+
 def _get_employee_site(username: str) -> str:
     """Backwards-compatible: return primary site (first) or empty."""
     sites = _get_employee_sites(username)
     return sites[0] if sites else ""
+
 
 def _get_active_locations() -> list[dict]:
     out = []
@@ -5123,7 +5289,9 @@ def _get_active_locations() -> list[dict]:
         if not vals:
             return out
         headers = vals[0]
-        def idx(n): return headers.index(n) if n in headers else None
+
+        def idx(n):
+            return headers.index(n) if n in headers else None
 
         i_name = idx("SiteName")
         i_lat = idx("Lat")
@@ -5158,6 +5326,8 @@ def _get_active_locations() -> list[dict]:
         return []
 
     return out
+
+
 def _get_site_config(site_name: str) -> dict | None:
     sites = _get_active_locations()
     if not sites:
@@ -5169,7 +5339,9 @@ def _get_site_config(site_name: str) -> dict | None:
     # fallback: first active site
     return sites[0] if sites else None
 
-def _validate_user_location(username: str, lat: float | None, lon: float | None, acc_m: float | None = None) -> tuple[bool, dict, float]:
+
+def _validate_user_location(username: str, lat: float | None, lon: float | None, acc_m: float | None = None) -> tuple[
+    bool, dict, float]:
     """Returns (ok, site_cfg, distance_m).
 
     Behavior:
@@ -5205,7 +5377,6 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None,
         buf = min(max(acc_buf, 0.0), 2000.0)
         return dist_m <= (float(radius_m) + buf)
 
-
     # If no active sites configured at all -> fail
     if not active_sites:
         pref = sites[0] if sites else "Unknown"
@@ -5240,6 +5411,7 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None,
 
     return bool(best_ok), best_cfg, float(best_dist)
 
+
 def initials(name: str) -> str:
     s = (name or "").strip()
     if not s:
@@ -5249,11 +5421,13 @@ def initials(name: str) -> str:
         return parts[0][:2].upper()
     return (parts[0][:1] + parts[-1][:1]).upper()
 
+
 def money(x: float) -> str:
     try:
         return f"{float(x):.2f}"
     except Exception:
         return "0.00"
+
 
 def fmt_hours(x) -> str:
     try:
@@ -5261,12 +5435,14 @@ def fmt_hours(x) -> str:
     except Exception:
         return "0"
 
+
 def fmt_hours(x) -> str:
     try:
         n = round(float(x or 0), 1)
         return f"{n:.1f}".rstrip("0").rstrip(".")
     except Exception:
         return ""
+
 
 def role_label(role: str) -> str:
     r = (role or "").strip().lower()
@@ -5277,10 +5453,13 @@ def role_label(role: str) -> str:
     if r == "manager":
         return "MANAGER"
     return r.upper() if r else ""
+
+
 def require_login():
     if "username" not in session:
         return redirect(url_for("login"))
     return None
+
 
 def require_admin():
     gate = require_login()
@@ -5299,10 +5478,12 @@ def require_master_admin():
         return redirect(url_for("home"))
     return None
 
+
 def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
     if (not early_access) and (now_dt.time() < CLOCKIN_EARLIEST):
         return CLOCKIN_EARLIEST.strftime("%H:%M:%S")
     return now_dt.strftime("%H:%M:%S")
+
 
 def has_any_row_today(rows, username: str, today_str: str) -> bool:
     u = (username or "").strip()
@@ -5332,6 +5513,7 @@ def has_any_row_today(rows, username: str, today_str: str) -> bool:
             return True
 
     return False
+
 
 def find_open_shift(rows, username: str):
     # Find the most recent row for this user where ClockOut is still blank.
@@ -5370,6 +5552,7 @@ def find_open_shift(rows, username: str):
 def get_sheet_headers(sheet):
     vals = sheet.get_all_values()
     return vals[0] if vals else []
+
 
 def _find_workhours_row_by_user_date(vals, username: str, date_str: str):
     """Return the 1-based row number in WorkHours matching (Username, Date)."""
@@ -5432,6 +5615,7 @@ def find_row_by_username(sheet, username: str):
 
     return None
 
+
 def get_employee_display_name(username: str) -> str:
     u = (username or "").strip()
     if not u:
@@ -5488,6 +5672,8 @@ def get_employee_display_name(username: str) -> str:
         return u
     except Exception:
         return u
+
+
 def set_employee_field(username: str, field: str, value: str):
     vals = employees_sheet.get_all_values()
     if not vals:
@@ -5549,6 +5735,8 @@ def set_employee_field(username: str, field: str, value: str):
             db.session.rollback()
 
     return True
+
+
 def set_employee_first_last(username: str, first: str, last: str):
     vals = employees_sheet.get_all_values()
     if not vals:
@@ -5659,6 +5847,8 @@ def migrate_password_if_plain(username: str, stored: str, provided: str):
     stored = stored or ""
     if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
         update_employee_password(username, provided)
+
+
 def update_or_append_onboarding(username: str, data: dict):
     _ensure_onboarding_workplace_header()
     headers = get_sheet_headers(onboarding_sheet)
@@ -5844,6 +6034,7 @@ def get_onboarding_record(username: str):
 
     return None
 
+
 def onboarding_details_block(username: str) -> str:
     rec = get_onboarding_record(username)
     if not rec:
@@ -5899,6 +6090,7 @@ def onboarding_details_block(username: str) -> str:
       </div>
     """
 
+
 def get_csrf() -> str:
     tok = session.get("csrf")
     if not tok:
@@ -5906,21 +6098,25 @@ def get_csrf() -> str:
         session["csrf"] = tok
     return tok
 
+
 def require_csrf():
     if request.method == "POST":
         if request.form.get("csrf") != session.get("csrf"):
             abort(400)
+
 
 # ================= LOGIN RATE LIMIT =================
 LOGIN_MAX_ATTEMPTS = 5
 LOGIN_WINDOW_SECONDS = 10 * 60
 _login_attempts = {}  # ip -> [timestamps]
 
+
 def _client_ip():
     xff = (request.headers.get("X-Forwarded-For") or "").strip()
     if xff:
         return xff.split(",")[0].strip() or "unknown"
     return (request.remote_addr or "").strip() or "unknown"
+
 
 def _login_rate_limit_check(ip):
     now = time.time()
@@ -5934,17 +6130,22 @@ def _login_rate_limit_check(ip):
         return False, retry_after
     return True, 0
 
+
 def _login_rate_limit_hit(ip):
     arr = _login_attempts.get(ip, [])
     arr.append(time.time())
     _login_attempts[ip] = arr
 
+
 def _login_rate_limit_clear(ip):
     _login_attempts.pop(ip, None)
 
+
 # ================= ADMIN / SHEET HELPERS =================
-AUDIT_HEADERS = ["Timestamp","Actor","Action","Username","Date","Details","Workplace_ID"]
-PAYROLL_HEADERS = ["WeekStart","WeekEnd","Username","Gross","Tax","Net","PaidAt","PaidBy","Paid","Workplace_ID"]
+AUDIT_HEADERS = ["Timestamp", "Actor", "Action", "Username", "Date", "Details", "Workplace_ID"]
+PAYROLL_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "PaidAt", "PaidBy", "Paid",
+                   "Workplace_ID"]
+
 
 def _ensure_audit_headers():
     if not audit_sheet:
@@ -5959,6 +6160,7 @@ def _ensure_audit_headers():
             audit_sheet.update(range_name="A1:G1", values=[AUDIT_HEADERS])
     except Exception:
         return
+
 
 def log_audit(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
     """Best-effort audit logging (never raises)."""
@@ -5986,6 +6188,7 @@ def log_audit(action: str, actor: str = "", username: str = "", date_str: str = 
         except Exception:
             db.session.rollback()
 
+
 def _ensure_locations_headers():
     """Ensure Locations sheet has required headers."""
     if not locations_sheet:
@@ -6004,10 +6207,11 @@ def _ensure_locations_headers():
         # ensure at least required columns in correct order (without deleting extras)
         if headers[:len(required)] != required:
             new_headers = required + [h for h in headers if h not in required]
-            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
             locations_sheet.update(f"A1:{end_col}1", [new_headers])
     except Exception:
         return
+
 
 def _ensure_payroll_headers():
     try:
@@ -6021,12 +6225,14 @@ def _ensure_payroll_headers():
             return
         if headers[:len(PAYROLL_HEADERS)] != PAYROLL_HEADERS:
             new_headers = PAYROLL_HEADERS + [h for h in headers if h not in PAYROLL_HEADERS]
-            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1","")
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
             payroll_sheet.update(f"A1:{end_col}1", [new_headers])
     except Exception:
         return
 
-def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float, paid_by: str):
+
+def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float,
+                             paid_by: str):
     """Append a paid record for the week/user if not already paid."""
     try:
         _ensure_payroll_headers()
@@ -6091,6 +6297,7 @@ def _append_paid_record_safe(week_start: str, week_end: str, username: str, gros
     except Exception:
         return
 
+
 def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
     """Return (is_paid, paid_at)."""
     try:
@@ -6099,6 +6306,7 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
         if not vals or len(vals) < 2:
             return (False, "")
         headers = vals[0]
+
         def idx(name):
             return headers.index(name) if name in headers else None
 
@@ -6124,11 +6332,6 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
         return (False, "")
 
 
-
-
-
-
-
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
     extra_admin = ""
@@ -6136,27 +6339,28 @@ def bottom_nav(active: str, role: str) -> str:
 
     if role in ("admin", "master_admin"):
         extra_admin = f"""
-        <a class="navIcon nav-admin {'active' if active=='admin' else ''}" href="/admin" title="Admin">{_svg_shield()}</a>
+        <a class="navIcon nav-admin {'active' if active == 'admin' else ''}" href="/admin" title="Admin">{_svg_shield()}</a>
         """
 
     if role == "master_admin":
         extra_workplaces = f"""
-        <a class="navIcon nav-workplaces {'active' if active=='workplaces' else ''}" href="/admin/workplaces" title="Workplaces">{_svg_doc()}</a>
+        <a class="navIcon nav-workplaces {'active' if active == 'workplaces' else ''}" href="/admin/workplaces" title="Workplaces">{_svg_doc()}</a>
         """
 
     return f"""
     <div class="bottomNav">
       <div class="navInner">
-        <a class="navIcon nav-home {'active' if active=='home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
-        <a class="navIcon nav-clock {'active' if active=='clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
-        <a class="navIcon nav-times {'active' if active=='times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
-        <a class="navIcon nav-reports {'active' if active=='reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
+        <a class="navIcon nav-home {'active' if active == 'home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
+        <a class="navIcon nav-clock {'active' if active == 'clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
+        <a class="navIcon nav-times {'active' if active == 'times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
+        <a class="navIcon nav-reports {'active' if active == 'reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
         {extra_admin}
         {extra_workplaces}
         <a class="navIcon nav-logout" href="/logout" title="Logout">{_svg_logout()}</a>
       </div>
     </div>
     """
+
 
 def sidebar_html(active: str, role: str) -> str:
     items = [
@@ -6176,7 +6380,7 @@ def sidebar_html(active: str, role: str) -> str:
     links = []
     for key, href, label, icon in items:
         links.append(f"""
-          <a class="sideItem nav-{key} {'active' if active==key else ''}" href="{href}">
+          <a class="sideItem nav-{key} {'active' if active == key else ''}" href="{href}">
             <div class="sideLeft">
               <div class="sideIcon">{icon}</div>
               <div class="sideText">{escape(label)}</div>
@@ -6206,6 +6410,7 @@ def sidebar_html(active: str, role: str) -> str:
       </div>
     """
 
+
 def layout_shell(active: str, role: str, content_html: str, shell_class: str = "") -> str:
     extra = f" {shell_class}" if shell_class else ""
 
@@ -6231,7 +6436,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
           <div class="safeBottom"></div>
         </div>
       </div>
-      {bottom_nav(active if active in ('home','clock','times','reports','profile','admin','workplaces') else 'home', role)}
+      {bottom_nav(active if active in ('home', 'clock', 'times', 'reports', 'profile', 'admin', 'workplaces') else 'home', role)}
     """
 
 
@@ -6259,6 +6464,7 @@ def connect_drive():
     session["oauth_code_verifier"] = getattr(flow, "code_verifier", None)
     session["oauth_state"] = state
     return redirect(auth_url)
+
 
 @app.get("/oauth2callback")
 def oauth2callback():
@@ -6348,7 +6554,8 @@ def login():
 
                 if not is_active:
                     _login_rate_limit_hit(ip)
-                    log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="", details="Inactive account login attempt")
+                    log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="",
+                              details="Inactive account login attempt")
                     msg = "Account is inactive. Ask admin to reactivate it."
                 else:
                     _login_rate_limit_clear(ip)
@@ -6364,7 +6571,8 @@ def login():
                     return redirect(url_for("home"))
             else:
                 _login_rate_limit_hit(ip)
-                log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="", details="Invalid username or password")
+                log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
+                          details="Invalid username or password")
                 msg = "Invalid login"
 
     html = f"""
@@ -6396,6 +6604,7 @@ def login():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{html}")
 
+
 @app.get("/logout")
 def logout_confirm():
     gate = require_login()
@@ -6411,7 +6620,7 @@ def logout_confirm():
           <h1>Logout</h1>
           <p class="sub">Are you sure you want to log out?</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="card" style="padding:14px;">
@@ -6459,7 +6668,7 @@ def home():
     monday = today - timedelta(days=today.weekday())
 
     def week_key_for_n(n: int):
-        d2 = monday - timedelta(days=7*n)
+        d2 = monday - timedelta(days=7 * n)
         yy, ww, _ = d2.isocalendar()
         return yy, ww
 
@@ -6472,7 +6681,7 @@ def home():
         if len(r) <= COL_PAY:
             continue
         if len(r) <= COL_USER:
-                continue
+            continue
         row_user = (r[COL_USER] or "").strip()
 
         # Employees should see ONLY their own totals (Admin can see whole workplace)
@@ -6741,16 +6950,16 @@ def home():
         <div class="graphShell">
           <div class="bars">
             {''.join([
-              f"""
+        f"""
               <div class="barCol">
                 <div class="barValue">{escape(currency)}{money(g)}</div>
                 <div class="barTrack">
-                  <div class="bar" style="height:{int((g/max_g)*165)}px;"></div>
+                  <div class="bar" style="height:{int((g / max_g) * 165)}px;"></div>
                 </div>
               </div>
               """
-              for g in weekly_gross
-            ])}
+        for g in weekly_gross
+    ])}
           </div>
 
           <div class="barLabels">
@@ -6944,6 +7153,7 @@ def clock_page():
                         rownum = _find_workhours_row_by_user_date(vals, username, today_str)
                         if rownum:
                             headers = vals[0] if vals else []
+
                             def _col(name):
                                 return headers.index(name) + 1 if name in headers else None
 
@@ -6993,7 +7203,7 @@ def clock_page():
                                     db.session.commit()
                                 except Exception:
                                     db.session.rollback()
-                    msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
+                    msg = "You have already clocked in today."
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                         msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
 
@@ -7022,6 +7232,7 @@ def clock_page():
                         # Store geo fields (clock-out) in the same batch update (if headers exist)
                         vals = work_sheet.get_all_values()
                         headers = vals[0] if vals else []
+
                         def _col(name):
                             return headers.index(name) + 1 if name in headers else None
 
@@ -7031,7 +7242,8 @@ def clock_page():
                         ]:
                             c = _col(k)
                             if c:
-                                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c), "values": [["" if v is None else str(v)]]})
+                                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c),
+                                                "values": [["" if v is None else str(v)]]})
 
                         import copy
                         if updates:
@@ -7067,7 +7279,7 @@ def clock_page():
                                 db.session.commit()
                             except Exception:
                                 db.session.rollback()
-                    msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
+                    msg = "You have already clocked out today."
 
                 else:
                     msg = "Invalid action."
@@ -7076,7 +7288,6 @@ def clock_page():
             app.logger.exception('Clock POST failed')
             msg = 'Internal error while saving. Please refresh and try again.'
             msg_class = 'message error'
-
 
     # Active shift timer
     rows2 = work_sheet.get_all_values()
@@ -7141,7 +7352,8 @@ def clock_page():
 
     # Map config for front-end (if site configured)
     if site_cfg:
-        site_json = json.dumps({"name": site_cfg["name"], "lat": site_cfg["lat"], "lon": site_cfg["lon"], "radius": site_cfg["radius"]})
+        site_json = json.dumps(
+            {"name": site_cfg["name"], "lat": site_cfg["lat"], "lon": site_cfg["lon"], "radius": site_cfg["radius"]})
     else:
         site_json = json.dumps(None)
 
@@ -7157,7 +7369,7 @@ def clock_page():
           <h1>Clock In & Out</h1>
           <p class="sub">{escape(display_name)} • Location required</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
@@ -7356,7 +7568,6 @@ def my_times():
             if not user_in_same_workplace(row_user):
                 continue
 
-
         body.append(
             f"<tr><td>{escape(r[COL_DATE])}</td><td>{escape(r[COL_IN])}</td>"
             f"<td>{escape(r[COL_OUT])}</td><td class='num'>{escape(r[COL_HOURS])}</td><td class='num'>{escape(currency)}{escape(r[COL_PAY])}</td></tr>"
@@ -7369,7 +7580,7 @@ def my_times():
           <h1>Time logs</h1>
           <p class="sub">{escape(display_name)} • Clock history</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="card payrollShell" style="padding:12px;">
@@ -7580,7 +7791,7 @@ def my_reports():
       .myReportsWeekTable .tablewrap{
         margin-top:10px;
       }
-      
+
       .myReportsWeekTable .payrollSummaryBar{
   margin-top: 10px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -7776,7 +7987,7 @@ def my_reports():
           <h1>Timesheets</h1>
           <p class="sub">{escape(display_name)} • Totals + tax + net</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       <div class="myReportsTopGrid">
@@ -7870,6 +8081,7 @@ def my_reports():
 
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
+
 # ---------- STARTER FORM / ONBOARDING ----------
 @app.route("/onboarding", methods=["GET", "POST"])
 def onboarding():
@@ -7895,20 +8107,38 @@ def onboarding():
         submit_type = request.form.get("submit_type", "draft")
         is_final = (submit_type == "final")
 
-        def g(name): return (request.form.get(name, "") or "").strip()
+        def g(name):
+            return (request.form.get(name, "") or "").strip()
 
-        first = g("first"); last = g("last"); birth = g("birth")
-        phone_cc = g("phone_cc") or "+44"; phone_num = g("phone_num")
-        street = g("street"); city = g("city"); postcode = g("postcode")
+        first = g("first");
+        last = g("last");
+        birth = g("birth")
+        phone_cc = g("phone_cc") or "+44";
+        phone_num = g("phone_num")
+        street = g("street");
+        city = g("city");
+        postcode = g("postcode")
         email = g("email")
-        ec_name = g("ec_name"); ec_cc = g("ec_cc") or "+44"; ec_phone = g("ec_phone")
-        medical = g("medical"); medical_details = g("medical_details")
-        position = g("position"); cscs_no = g("cscs_no"); cscs_exp = g("cscs_exp")
-        emp_type = g("emp_type"); rtw = g("rtw")
-        ni = g("ni"); utr = g("utr"); start_date = g("start_date")
-        acc_no = g("acc_no"); sort_code = g("sort_code"); acc_name = g("acc_name")
-        comp_trading = g("comp_trading"); comp_reg = g("comp_reg")
-        contract_date = g("contract_date"); site_address = g("site_address")
+        ec_name = g("ec_name");
+        ec_cc = g("ec_cc") or "+44";
+        ec_phone = g("ec_phone")
+        medical = g("medical");
+        medical_details = g("medical_details")
+        position = g("position");
+        cscs_no = g("cscs_no");
+        cscs_exp = g("cscs_exp")
+        emp_type = g("emp_type");
+        rtw = g("rtw")
+        ni = g("ni");
+        utr = g("utr");
+        start_date = g("start_date")
+        acc_no = g("acc_no");
+        sort_code = g("sort_code");
+        acc_name = g("acc_name")
+        comp_trading = g("comp_trading");
+        comp_reg = g("comp_reg")
+        contract_date = g("contract_date");
+        site_address = g("site_address")
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
 
@@ -7960,7 +8190,6 @@ def onboarding():
                 missing_fields.add("contract_accept")
 
             req(signature_name, "signature_name", "Signature name")
-
 
             if not passport_file or not passport_file.filename:
                 missing.append("Passport/Birth Certificate file")
@@ -8103,6 +8332,7 @@ def onboarding():
     content = _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields)
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, content))
 
+
 def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields):
     typed = typed or {}
 
@@ -8133,7 +8363,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <p class="sub">{escape(display_name)} • Save Draft anytime • Submit Final when complete</p>
           {drive_hint}
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
@@ -8147,147 +8377,147 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <div class="row2">
             <div>
               <label class="sub {bad_label('first')}">First Name</label>
-              <input class="input {bad('first')}" name="first" value="{escape(val('first','FirstName'))}">
+              <input class="input {bad('first')}" name="first" value="{escape(val('first', 'FirstName'))}">
             </div>
             <div>
               <label class="sub {bad_label('last')}">Last Name</label>
-              <input class="input {bad('last')}" name="last" value="{escape(val('last','LastName'))}">
+              <input class="input {bad('last')}" name="last" value="{escape(val('last', 'LastName'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('birth')}" style="margin-top:10px; display:block;">Birth Date</label>
-          <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth','BirthDate'))}">
+          <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth', 'BirthDate'))}">
 
           <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
           <div class="row2">
-            <input class="input" name="phone_cc" value="{escape(val('phone_cc','PhoneCountryCode') or '+44')}">
-            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num','PhoneNumber'))}">
+            <input class="input" name="phone_cc" value="{escape(val('phone_cc', 'PhoneCountryCode') or '+44')}">
+            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num', 'PhoneNumber'))}">
           </div>
 
           <h2 style="margin-top:14px;">Address</h2>
-          <input class="input" name="street" placeholder="Street Address" value="{escape(val('street','StreetAddress'))}">
+          <input class="input" name="street" placeholder="Street Address" value="{escape(val('street', 'StreetAddress'))}">
           <div class="row2">
-            <input class="input" name="city" placeholder="City" value="{escape(val('city','City'))}">
-            <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode','Postcode'))}">
+            <input class="input" name="city" placeholder="City" value="{escape(val('city', 'City'))}">
+            <input class="input" name="postcode" placeholder="Postcode" value="{escape(val('postcode', 'Postcode'))}">
           </div>
 
           <div class="row2">
             <div>
               <label class="sub {bad_label('email')}">Email</label>
-              <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email','Email'))}">
+              <input class="input {bad('email')}" name="email" type="email" value="{escape(val('email', 'Email'))}">
             </div>
             <div>
               <label class="sub {bad_label('ec_name')}">Emergency Contact Name</label>
-              <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name','EmergencyContactName'))}">
+              <input class="input {bad('ec_name')}" name="ec_name" value="{escape(val('ec_name', 'EmergencyContactName'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
           <div class="row2">
-            <input class="input" name="ec_cc" value="{escape(val('ec_cc','EmergencyContactPhoneCountryCode') or '+44')}">
-            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone','EmergencyContactPhoneNumber'))}">
+            <input class="input" name="ec_cc" value="{escape(val('ec_cc', 'EmergencyContactPhoneCountryCode') or '+44')}">
+            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone', 'EmergencyContactPhoneNumber'))}">
           </div>
 
           <h2 style="margin-top:14px;">Medical</h2>
           <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
           <div class="row2">
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="medical" value="no" {checked_radio('medical','MedicalCondition','no')}> No
+              <input type="radio" name="medical" value="no" {checked_radio('medical', 'MedicalCondition', 'no')}> No
             </label>
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="medical" value="yes" {checked_radio('medical','MedicalCondition','yes')}> Yes
+              <input type="radio" name="medical" value="yes" {checked_radio('medical', 'MedicalCondition', 'yes')}> Yes
             </label>
           </div>
           <label class="sub" style="margin-top:10px; display:block;">Details</label>
-          <input class="input" name="medical_details" value="{escape(val('medical_details','MedicalDetails'))}">
+          <input class="input" name="medical_details" value="{escape(val('medical_details', 'MedicalDetails'))}">
 
           <h2 style="margin-top:14px;">Position</h2>
           <div class="row2">
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Bricklayer" {"checked" if val('position','Position')=='Bricklayer' else ""}> Bricklayer
+              <input type="radio" name="position" value="Bricklayer" {"checked" if val('position', 'Position') == 'Bricklayer' else ""}> Bricklayer
             </label>
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Labourer" {"checked" if val('position','Position')=='Labourer' else ""}> Labourer
+              <input type="radio" name="position" value="Labourer" {"checked" if val('position', 'Position') == 'Labourer' else ""}> Labourer
             </label>
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Fixer" {"checked" if val('position','Position')=='Fixer' else ""}> Fixer
+              <input type="radio" name="position" value="Fixer" {"checked" if val('position', 'Position') == 'Fixer' else ""}> Fixer
             </label>
             <label class="sub {bad_label('position')}" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position','Position')=='Supervisor/Foreman' else ""}> Supervisor/Foreman
+              <input type="radio" name="position" value="Supervisor/Foreman" {"checked" if val('position', 'Position') == 'Supervisor/Foreman' else ""}> Supervisor/Foreman
             </label>
           </div>
 
           <div class="row2">
             <div>
               <label class="sub {bad_label('cscs_no')}">CSCS Number</label>
-              <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no','CSCSNumber'))}">
+              <input class="input {bad('cscs_no')}" name="cscs_no" value="{escape(val('cscs_no', 'CSCSNumber'))}">
             </div>
             <div>
               <label class="sub {bad_label('cscs_exp')}">CSCS Expiry</label>
-              <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp','CSCSExpiryDate'))}">
+              <input class="input {bad('cscs_exp')}" type="date" name="cscs_exp" value="{escape(val('cscs_exp', 'CSCSExpiryDate'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('emp_type')}" style="margin-top:10px; display:block;">Employment Type</label>
           <select class="input {bad('emp_type')}" name="emp_type">
             <option value="">Please Select</option>
-            <option value="Self-employed" {selected('emp_type','EmploymentType','Self-employed')}>Self-employed</option>
-            <option value="Ltd Company" {selected('emp_type','EmploymentType','Ltd Company')}>Ltd Company</option>
-            <option value="Agency" {selected('emp_type','EmploymentType','Agency')}>Agency</option>
-            <option value="PAYE" {selected('emp_type','EmploymentType','PAYE')}>PAYE</option>
+            <option value="Self-employed" {selected('emp_type', 'EmploymentType', 'Self-employed')}>Self-employed</option>
+            <option value="Ltd Company" {selected('emp_type', 'EmploymentType', 'Ltd Company')}>Ltd Company</option>
+            <option value="Agency" {selected('emp_type', 'EmploymentType', 'Agency')}>Agency</option>
+            <option value="PAYE" {selected('emp_type', 'EmploymentType', 'PAYE')}>PAYE</option>
           </select>
 
           <label class="sub {bad_label('rtw')}" style="margin-top:10px; display:block;">Right to work in UK?</label>
           <div class="row2">
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="rtw" value="yes" {checked_radio('rtw','RightToWorkUK','yes')}> Yes
+              <input type="radio" name="rtw" value="yes" {checked_radio('rtw', 'RightToWorkUK', 'yes')}> Yes
             </label>
             <label class="sub" style="display:flex; gap:10px; align-items:center;">
-              <input type="radio" name="rtw" value="no" {checked_radio('rtw','RightToWorkUK','no')}> No
+              <input type="radio" name="rtw" value="no" {checked_radio('rtw', 'RightToWorkUK', 'no')}> No
             </label>
           </div>
 
           <div class="row2">
             <div>
               <label class="sub {bad_label('ni')}">National Insurance</label>
-              <input class="input {bad('ni')}" name="ni" value="{escape(val('ni','NationalInsurance'))}">
+              <input class="input {bad('ni')}" name="ni" value="{escape(val('ni', 'NationalInsurance'))}">
             </div>
             <div>
               <label class="sub {bad_label('utr')}">UTR</label>
-              <input class="input {bad('utr')}" name="utr" value="{escape(val('utr','UTR'))}">
+              <input class="input {bad('utr')}" name="utr" value="{escape(val('utr', 'UTR'))}">
             </div>
           </div>
 
           <label class="sub {bad_label('start_date')}" style="margin-top:10px; display:block;">Start Date</label>
-          <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date','StartDate'))}">
+          <input class="input {bad('start_date')}" type="date" name="start_date" value="{escape(val('start_date', 'StartDate'))}">
 
           <h2 style="margin-top:14px;">Bank details</h2>
           <div class="row2">
             <div>
               <label class="sub {bad_label('acc_no')}">Account Number</label>
-              <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no','BankAccountNumber'))}">
+              <input class="input {bad('acc_no')}" name="acc_no" value="{escape(val('acc_no', 'BankAccountNumber'))}">
             </div>
             <div>
               <label class="sub {bad_label('sort_code')}">Sort Code</label>
-              <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code','SortCode'))}">
+              <input class="input {bad('sort_code')}" name="sort_code" value="{escape(val('sort_code', 'SortCode'))}">
             </div>
           </div>
           <label class="sub {bad_label('acc_name')}" style="margin-top:10px; display:block;">Account Holder Name</label>
-          <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name','AccountHolderName'))}">
+          <input class="input {bad('acc_name')}" name="acc_name" value="{escape(val('acc_name', 'AccountHolderName'))}">
 
           <h2 style="margin-top:14px;">Company details</h2>
-          <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading','CompanyTradingName'))}">
-          <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg','CompanyRegistrationNo'))}">
+          <input class="input" name="comp_trading" placeholder="Trading name" value="{escape(val('comp_trading', 'CompanyTradingName'))}">
+          <input class="input" name="comp_reg" placeholder="Company reg no." value="{escape(val('comp_reg', 'CompanyRegistrationNo'))}">
 
           <h2 style="margin-top:14px;">Contract & site</h2>
           <div class="row2">
             <div>
               <label class="sub {bad_label('contract_date')}">Date of Contract</label>
-              <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date','DateOfContract'))}">
+              <input class="input {bad('contract_date')}" type="date" name="contract_date" value="{escape(val('contract_date', 'DateOfContract'))}">
             </div>
             <div>
               <label class="sub {bad_label('site_address')}">Site address</label>
-              <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address','SiteAddress'))}">
+              <input class="input {bad('site_address')}" name="site_address" value="{escape(val('site_address', 'SiteAddress'))}">
             </div>
           </div>
 
@@ -8296,30 +8526,30 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
 
           <div class="uploadTitle {bad_label('passport_file')}">Passport or Birth Certificate</div>
           <input class="input {bad('passport_file')}" type="file" name="passport_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink',''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('PassportOrBirthCertLink', ''))}</p>
 
           <div class="uploadTitle {bad_label('cscs_file')}">CSCS Card (front & back)</div>
           <input class="input {bad('cscs_file')}" type="file" name="cscs_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink',''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('CSCSFrontBackLink', ''))}</p>
 
           <div class="uploadTitle {bad_label('pli_file')}">Public Liability Insurance</div>
           <input class="input {bad('pli_file')}" type="file" name="pli_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink',''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('PublicLiabilityLink', ''))}</p>
 
           <div class="uploadTitle {bad_label('share_file')}">Share Code / Confirmation</div>
           <input class="input {bad('share_file')}" type="file" name="share_file" accept="image/*,.pdf">
-          <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink',''))}</p>
+          <p class="sub">Saved: {linkify((existing or {}).get('ShareCodeLink', ''))}</p>
 
           <h2 style="margin-top:14px;">Contract</h2>
           <div class="contractBox">{escape(CONTRACT_TEXT)}</div>
 
           <label class="sub {bad_label('contract_accept')}" style="display:flex; gap:10px; align-items:center; margin-top:10px;">
-            <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept')=='yes' else ""}>
+            <input type="checkbox" name="contract_accept" value="yes" {"checked" if typed.get('contract_accept') == 'yes' else ""}>
             I have read and accept the contract terms (required for Final)
           </label>
 
           <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
-          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name','SignatureName'))}">
+          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name', 'SignatureName'))}">
 
           <div class="row2" style="margin-top:14px;">
             <button class="btnSoft" name="submit_type" value="draft" type="submit">Save Draft</button>
@@ -8379,7 +8609,7 @@ def change_password():
           <h1>Profile</h1>
           <p class="sub">{escape(display_name)}</p>
         </div>
-        <div class="badge {'admin' if role=='admin' else ''}">{escape(role.upper())}</div>
+        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
@@ -8409,8 +8639,6 @@ def change_password():
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("profile", role, content))
-
-
 
 
 def _get_user_rate(username: str) -> float:
@@ -8462,6 +8690,7 @@ def _get_user_rate(username: str) -> float:
     except Exception:
         return safe_float(session.get("rate", 0), 0.0)
 
+
 def _get_open_shifts() -> list[dict]:
     """Return currently open shifts (ClockOut empty) with display metadata for Admin dashboard."""
     out = []
@@ -8470,6 +8699,7 @@ def _get_open_shifts() -> list[dict]:
         if not rows or len(rows) < 2:
             return out
         headers = rows[0]
+
         # fall back to fixed indexes if headers are missing
         def hidx(name, default_idx):
             return headers.index(name) if (headers and name in headers) else default_idx
@@ -8526,6 +8756,7 @@ def _get_open_shifts() -> list[dict]:
     except Exception:
         return []
     return out
+
 
 # ---------- ADMIN ----------
 @app.get("/admin")
@@ -8727,7 +8958,7 @@ def admin():
         </div>
         <div class="badge admin">{escape(role_label(session.get('role', 'admin')))}</div>
       </div>
-      
+
                   <div class="kpiStrip adminStats" style="margin-bottom:12px;">
         <div class="kpiMini adminStatCard employees">
           <div class="k">Employees</div>
@@ -8812,7 +9043,7 @@ def admin():
           </a>
 
                     {
-            f'''
+    f'''
               <a class="adminToolCard drive" href="/connect-drive">
                 <div class="adminToolTop">
                   <div class="adminToolIcon">{_svg_grid()}</div>
@@ -8822,9 +9053,9 @@ def admin():
                 <div class="adminToolSub">Reconnect Google Drive for onboarding uploads.</div>
               </a>
             '''
-            if (session.get("role") == "master_admin" and OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
-            else ""
-          }
+    if (session.get("role") == "master_admin" and OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
+    else ""
+    }
         </div>
       </div>
             <div class="card adminSectionCard" style="margin-top:12px;">
@@ -8864,6 +9095,8 @@ def admin():
             content_html=content
         )
     )
+
+
 @app.route("/admin/company", methods=["GET", "POST"])
 def admin_company():
     gate = require_admin()
@@ -8895,7 +9128,9 @@ def admin_company():
                 vals = settings_sheet.get_all_values()
 
             hdr = vals[0] if vals else []
-            def idx(n): return hdr.index(n) if n in hdr else None
+
+            def idx(n):
+                return hdr.index(n) if n in hdr else None
 
             i_wp = idx("Workplace_ID")
             i_name = idx("Company_Name")
@@ -8983,6 +9218,7 @@ def admin_company():
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
         layout_shell("admin", session.get("role", "admin"), content)
     )
+
 
 @app.post("/admin/save-shift")
 def admin_save_shift():
@@ -9143,6 +9379,7 @@ def admin_force_clockin():
     log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
     return redirect(request.referrer or "/admin")
 
+
 @app.post("/admin/force-clockout")
 def admin_force_clockout():
     gate = require_admin()
@@ -9230,9 +9467,9 @@ def admin_force_clockout():
         except Exception:
             db.session.rollback()
 
-
     actor = session.get("username", "admin")
-    log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d, details=f"out={out_time} hours={computed_hours} pay={pay}")
+    log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
+              details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
 
 
@@ -9305,7 +9542,7 @@ def admin_payroll():
 
     def week_label(d0):
         iso = d0.isocalendar()
-        return f"Week {iso[1]} ({d0.strftime('%d %b')} – {(d0+timedelta(days=6)).strftime('%d %b %Y')})"
+        return f"Week {iso[1]} ({d0.strftime('%d %b')} – {(d0 + timedelta(days=6)).strftime('%d %b %Y')})"
 
     def in_range(d: str) -> bool:
         if not d:
@@ -9414,7 +9651,7 @@ def admin_payroll():
     # Week dropdown
     week_options = []
     for i in range(0, 52):
-        d0 = this_monday - timedelta(days=7*i)
+        d0 = this_monday - timedelta(days=7 * i)
         selected = "selected" if i == wk_offset else ""
         week_options.append(
             f"<option value='{i}' {selected}>{escape(week_label(d0))}</option>"
@@ -9499,7 +9736,7 @@ def admin_payroll():
     # KPI strip (PRO)
     kpi_strip = f"""
       <div class="kpiStrip">
-        <div class="kpiMini"><div class="k">Hours</div><div class="v">{round(overall_hours,2)}</div></div>
+        <div class="kpiMini"><div class="k">Hours</div><div class="v">{round(overall_hours, 2)}</div></div>
         <div class="kpiMini"><div class="k">Gross</div><div class="v">{escape(currency)}{money(overall_gross)}</div></div>
         <div class="kpiMini"><div class="k">Tax</div><div class="v">{escape(currency)}{money(overall_tax)}</div></div>
         <div class="kpiMini"><div class="k">Net</div><div class="v">{escape(currency)}{money(overall_net)}</div></div>
@@ -9672,7 +9909,7 @@ def admin_payroll():
     sheet_html = "".join(sheet_rows)
 
     # Per-user weekly editable tables
-    day_names = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"]
+    day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
     blocks = []
     for u in sorted(all_users, key=lambda s: s.lower()):
         display = get_employee_display_name(u)
@@ -9701,12 +9938,12 @@ def admin_payroll():
             d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
             rec = user_days.get(d_str)
             if rec and rec.get("hours"):
-                h = safe_float(rec.get("hours","0"), 0.0)
+                h = safe_float(rec.get("hours", "0"), 0.0)
                 wk_hours += h
                 if h > OVERTIME_HOURS:
                     wk_overtime_days += 1
             if rec and rec.get("pay"):
-                wk_gross += safe_float(rec.get("pay","0"), 0.0)
+                wk_gross += safe_float(rec.get("pay", "0"), 0.0)
 
         wk_hours = round(wk_hours, 2)
         wk_gross = round(wk_gross, 2)
@@ -9746,10 +9983,10 @@ def admin_payroll():
 
             has_row = bool(
                 rec and (
-                    str(cin).strip() or
-                    str(cout).strip() or
-                    str(hrs).strip() or
-                    str(pay).strip()
+                        str(cin).strip() or
+                        str(cout).strip() or
+                        str(hrs).strip() or
+                        str(pay).strip()
                 )
             )
 
@@ -9845,7 +10082,7 @@ def admin_payroll():
 </div>
           </div>
         """)
-            
+
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
     csv_url = "/admin/payroll-report.csv"
     if request.query_string:
@@ -9950,7 +10187,7 @@ def admin_payroll():
           </tbody>
         </table>
       </div>
-      
+
       {''.join(blocks)}
 
 <script>
@@ -10017,6 +10254,8 @@ def admin_payroll():
             shell_class="payrollShell"
         )
     )
+
+
 def _get_week_range(wk_offset: int):
     """
     Returns (week_start_str, week_end_str) for a Monday->Sunday week,
@@ -10027,6 +10266,7 @@ def _get_week_range(wk_offset: int):
     week_start = monday - timedelta(days=7 * int(wk_offset))
     week_end = week_start + timedelta(days=6)  # Sunday
     return week_start.strftime("%Y-%m-%d"), week_end.strftime("%Y-%m-%d")
+
 
 @app.get("/admin/payroll-report.csv")
 def admin_payroll_report_csv():
@@ -10161,6 +10401,7 @@ def admin_payroll_report_csv():
         max_age=0
     )
 
+
 # ---------- ADMIN ONBOARDING LIST / DETAIL ----------
 @app.get("/admin/onboarding")
 def admin_onboarding_list():
@@ -10259,6 +10500,7 @@ def admin_onboarding_list():
         layout_shell("admin", session.get("role", "admin"), content)
     )
 
+
 @app.get("/admin/onboarding/<username>")
 def admin_onboarding_detail(username):
     gate = require_admin()
@@ -10272,7 +10514,6 @@ def admin_onboarding_detail(username):
     if rec_wp != _session_workplace_id():
         abort(404)
 
-
     def row(label, key, link=False):
         v_ = rec.get(key, "")
         vv = linkify(v_) if link else escape(v_)
@@ -10280,18 +10521,18 @@ def admin_onboarding_detail(username):
 
     details = ""
     for label, key in [
-        ("Username","Username"),("First name","FirstName"),("Last name","LastName"),
-        ("Birth date","BirthDate"),("Phone CC","PhoneCountryCode"),("Phone","PhoneNumber"),
-        ("Email","Email"),("Street","StreetAddress"),("City","City"),("Postcode","Postcode"),
-        ("Emergency contact","EmergencyContactName"),("Emergency CC","EmergencyContactPhoneCountryCode"),
-        ("Emergency phone","EmergencyContactPhoneNumber"),
-        ("Medical","MedicalCondition"),("Medical details","MedicalDetails"),
-        ("Position","Position"),("CSCS number","CSCSNumber"),("CSCS expiry","CSCSExpiryDate"),
-        ("Employment type","EmploymentType"),("Right to work UK","RightToWorkUK"),
-        ("NI","NationalInsurance"),("UTR","UTR"),("Start date","StartDate"),
-        ("Bank account","BankAccountNumber"),("Sort code","SortCode"),("Account holder","AccountHolderName"),
-        ("Company trading","CompanyTradingName"),("Company reg","CompanyRegistrationNo"),
-        ("Date of contract","DateOfContract"),("Site address","SiteAddress"),
+        ("Username", "Username"), ("First name", "FirstName"), ("Last name", "LastName"),
+        ("Birth date", "BirthDate"), ("Phone CC", "PhoneCountryCode"), ("Phone", "PhoneNumber"),
+        ("Email", "Email"), ("Street", "StreetAddress"), ("City", "City"), ("Postcode", "Postcode"),
+        ("Emergency contact", "EmergencyContactName"), ("Emergency CC", "EmergencyContactPhoneCountryCode"),
+        ("Emergency phone", "EmergencyContactPhoneNumber"),
+        ("Medical", "MedicalCondition"), ("Medical details", "MedicalDetails"),
+        ("Position", "Position"), ("CSCS number", "CSCSNumber"), ("CSCS expiry", "CSCSExpiryDate"),
+        ("Employment type", "EmploymentType"), ("Right to work UK", "RightToWorkUK"),
+        ("NI", "NationalInsurance"), ("UTR", "UTR"), ("Start date", "StartDate"),
+        ("Bank account", "BankAccountNumber"), ("Sort code", "SortCode"), ("Account holder", "AccountHolderName"),
+        ("Company trading", "CompanyTradingName"), ("Company reg", "CompanyRegistrationNo"),
+        ("Date of contract", "DateOfContract"), ("Site address", "SiteAddress"),
     ]:
         details += row(label, key)
 
@@ -10323,7 +10564,6 @@ def admin_onboarding_detail(username):
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
         layout_shell("admin", session.get("role", "admin"), content)
     )
-
 
 
 # ---------- ADMIN LOCATIONS (Geofencing) ----------
@@ -10382,18 +10622,18 @@ def admin_locations():
         badge = "<span class='chip ok'>Active</span>" if act_on else "<span class='chip warn'>Inactive</span>"
         return f"""
           <tr>
-            <td><b>{escape(s.get('name',''))}</b><div class='sub' style='margin:2px 0 0 0;'>{badge}<div class='sub' style='margin:6px 0 0 0;'><a href='/admin/locations?site={escape(s.get('name',''))}' style='color:var(--navy);font-weight:600;'>View map</a></div></td>
-            <td class='num'>{escape(s.get('lat',''))}</td>
-            <td class='num'>{escape(s.get('lon',''))}</td>
-            <td class='num'>{escape(s.get('rad',''))}</td>
+            <td><b>{escape(s.get('name', ''))}</b><div class='sub' style='margin:2px 0 0 0;'>{badge}<div class='sub' style='margin:6px 0 0 0;'><a href='/admin/locations?site={escape(s.get('name', ''))}' style='color:var(--navy);font-weight:600;'>View map</a></div></td>
+            <td class='num'>{escape(s.get('lat', ''))}</td>
+            <td class='num'>{escape(s.get('lon', ''))}</td>
+            <td class='num'>{escape(s.get('rad', ''))}</td>
             <td style='min-width:340px;'>
               <form method="POST" action="/admin/locations/save" style="margin:0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                 <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="orig_name" value="{escape(s.get('name',''))}">
-                <input class="input" name="name" value="{escape(s.get('name',''))}" placeholder="Site name" style="margin-top:0; max-width:160px;">
-                <input class="input" name="lat" value="{escape(s.get('lat',''))}" placeholder="Lat" style="margin-top:0; max-width:120px;">
-                <input class="input" name="lon" value="{escape(s.get('lon',''))}" placeholder="Lon" style="margin-top:0; max-width:120px;">
-                <input class="input" name="rad" value="{escape(s.get('rad',''))}" placeholder="Radius m" style="margin-top:0; max-width:110px;">
+                <input type="hidden" name="orig_name" value="{escape(s.get('name', ''))}">
+                <input class="input" name="name" value="{escape(s.get('name', ''))}" placeholder="Site name" style="margin-top:0; max-width:160px;">
+                <input class="input" name="lat" value="{escape(s.get('lat', ''))}" placeholder="Lat" style="margin-top:0; max-width:120px;">
+                <input class="input" name="lon" value="{escape(s.get('lon', ''))}" placeholder="Lon" style="margin-top:0; max-width:120px;">
+                <input class="input" name="rad" value="{escape(s.get('rad', ''))}" placeholder="Radius m" style="margin-top:0; max-width:110px;">
                 <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
                   <input type="checkbox" name="active" value="yes" {"checked" if act_on else ""}>
                   Active
@@ -10402,16 +10642,15 @@ def admin_locations():
               </form>
               <form method="POST" action="/admin/locations/deactivate" style="margin-top:8px;">
                 <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="name" value="{escape(s.get('name',''))}">
+                <input type="hidden" name="name" value="{escape(s.get('name', ''))}">
                 <button class="btnTiny dark" type="submit">Deactivate</button>
               </form>
             </td>
           </tr>
         """
 
-    table_body = "".join([row_html(r) for r in all_rows]) if all_rows else "<tr><td colspan='5'>No locations yet.</td></tr>"
-
-
+    table_body = "".join(
+        [row_html(r) for r in all_rows]) if all_rows else "<tr><td colspan='5'>No locations yet.</td></tr>"
 
     # Map preview (no API key): OpenStreetMap embed for selected site
     selected = (request.args.get("site") or "").strip()
@@ -10438,7 +10677,7 @@ def admin_locations():
             map_card = f"""
               <div class="card" style="padding:12px; margin-top:12px;">
                 <h2>Map preview</h2>
-                <div class="sub" style="margin-top:6px;">{escape(chosen.get('name',''))} • {escape(chosen.get('lat',''))}, {escape(chosen.get('lon',''))}</div>
+                <div class="sub" style="margin-top:6px;">{escape(chosen.get('name', ''))} • {escape(chosen.get('lat', ''))}, {escape(chosen.get('lon', ''))}</div>
                 <div style="margin-top:12px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);">
                   <iframe title="map" src="{osm}" style="width:100%; height:320px; border:0;" loading="lazy"></iframe>
                 </div>
@@ -10513,7 +10752,6 @@ def admin_locations():
     )
 
 
-
 def _find_location_row_by_name(name: str):
     if not locations_sheet:
         return None
@@ -10568,7 +10806,9 @@ def admin_locations_save():
         return redirect("/admin/locations")
 
     try:
-        float(lat); float(lon); float(rad)
+        float(lat);
+        float(lon);
+        float(rad)
     except Exception:
         return redirect("/admin/locations")
 
@@ -10622,7 +10862,8 @@ def admin_locations_save():
             db.session.rollback()
 
     actor = session.get("username", "admin")
-    log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="", details=f"{name} {lat},{lon} r={rad} active={active}")
+    log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="",
+              details=f"{name} {lat},{lon} r={rad} active={active}")
     return redirect("/admin/locations")
 
 
@@ -10789,6 +11030,7 @@ def admin_employee_sites():
         layout_shell("admin", session.get("role", "admin"), content)
     )
 
+
 @app.post("/admin/employee-sites/save")
 def admin_employee_sites_save():
     gate = require_admin()
@@ -10841,6 +11083,7 @@ def admin_employee_sites_save():
         log_audit("EMPLOYEE_SITE_SET", actor=actor, username=u, date_str="", details=f"site={site_val}")
 
     return redirect("/admin/employee-sites")
+
 
 @app.route("/admin/employees", methods=["GET", "POST"])
 def admin_employees():
@@ -10909,7 +11152,8 @@ def admin_employees():
                             try:
                                 employees_sheet.update(f"A{rownum}:{end_col}{rownum}", [row])
                                 actor = session.get("username", "admin")
-                                log_audit("EMPLOYEE_UPDATE", actor=actor, username=edit_username, date_str="", details=" ".join(changed))
+                                log_audit("EMPLOYEE_UPDATE", actor=actor, username=edit_username, date_str="",
+                                          details=" ".join(changed))
 
                                 if DB_MIGRATION_MODE:
                                     try:
@@ -10928,7 +11172,8 @@ def admin_employees():
                                         password_db = _row_str("Password")
                                         early_access_db = _row_str("EarlyAccess")
                                         active_db = _row_str("Active", "TRUE") or "TRUE"
-                                        workplace_id_db = _row_str("Workplace_ID", _session_workplace_id()) or _session_workplace_id()
+                                        workplace_id_db = _row_str("Workplace_ID",
+                                                                   _session_workplace_id()) or _session_workplace_id()
                                         site_db = _row_str("Site")
 
                                         rate_db = None
@@ -11020,10 +11265,12 @@ def admin_employees():
                         employees_sheet.update(f"A{rownum}:{end_col}{rownum}", [row])
                         actor = session.get("username", "admin")
                         if action == "deactivate":
-                            log_audit("EMPLOYEE_DEACTIVATE", actor=actor, username=edit_username, date_str="", details="active=FALSE")
+                            log_audit("EMPLOYEE_DEACTIVATE", actor=actor, username=edit_username, date_str="",
+                                      details="active=FALSE")
                             msg = "Employee deactivated."
                         else:
-                            log_audit("EMPLOYEE_REACTIVATE", actor=actor, username=edit_username, date_str="", details="active=TRUE")
+                            log_audit("EMPLOYEE_REACTIVATE", actor=actor, username=edit_username, date_str="",
+                                      details="active=TRUE")
                             msg = "Employee reactivated."
 
                         if DB_MIGRATION_MODE:
@@ -11084,7 +11331,8 @@ def admin_employees():
             try:
                 employees_sheet.append_row(row)
                 actor = session.get("username", "admin")
-                log_audit("EMPLOYEE_CREATE", actor=actor, username=new_username, date_str="", details=f"role={role_new} rate={rate_val}")
+                log_audit("EMPLOYEE_CREATE", actor=actor, username=new_username, date_str="",
+                          details=f"role={role_new} rate={rate_val}")
 
                 if DB_MIGRATION_MODE:
                     try:
@@ -11574,9 +11822,11 @@ def admin_workplaces():
                                     db_setting.currency_symbol = currency_symbol
                                     db_setting.company_name = company_name
 
-                                    db_admin = Employee.query.filter_by(username=admin_username, workplace_id=workplace_id).first()
+                                    db_admin = Employee.query.filter_by(username=admin_username,
+                                                                        workplace_id=workplace_id).first()
                                     if not db_admin:
-                                        db_admin = Employee.query.filter_by(email=admin_username, workplace_id=workplace_id).first()
+                                        db_admin = Employee.query.filter_by(email=admin_username,
+                                                                            workplace_id=workplace_id).first()
 
                                     admin_hash = generate_password_hash(admin_password)
 
@@ -11629,9 +11879,11 @@ def admin_workplaces():
                                     db_setting.currency_symbol = currency_symbol
                                     db_setting.company_name = company_name
 
-                                    db_admin = Employee.query.filter_by(username=admin_username, workplace_id=workplace_id).first()
+                                    db_admin = Employee.query.filter_by(username=admin_username,
+                                                                        workplace_id=workplace_id).first()
                                     if not db_admin:
-                                        db_admin = Employee.query.filter_by(email=admin_username, workplace_id=workplace_id).first()
+                                        db_admin = Employee.query.filter_by(email=admin_username,
+                                                                            workplace_id=workplace_id).first()
 
                                     admin_hash = generate_password_hash(admin_password)
 
@@ -11845,150 +12097,917 @@ def admin_workplaces():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("workplaces", "master_admin", content))
 
+
 # ================= DATABASE TABLES =================
 
-if DB_MIGRATION_MODE:
-    class Employee(db.Model):
-        __tablename__ = "employees"
+class Employee(db.Model):
+    __tablename__ = "employees"
 
-        id = db.Column(db.Integer, primary_key=True)
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(255), nullable=False, index=True)
+    name = db.Column(db.String(255))
+    role = db.Column(db.String(50))
+    workplace = db.Column(db.String(255), index=True)
+    created_at = db.Column(db.DateTime)
 
-        # existing fields
-        email = db.Column(db.String(255), unique=True, nullable=False)
-        name = db.Column(db.String(255))
-        role = db.Column(db.String(50))
-        workplace = db.Column(db.String(255))
-        created_at = db.Column(db.DateTime)
+    username = db.Column(db.String(255), index=True)
+    first_name = db.Column(db.String(255))
+    last_name = db.Column(db.String(255))
+    password = db.Column(db.Text)
+    rate = db.Column(db.Numeric(10, 2))
+    early_access = db.Column(db.String(10))
+    active = db.Column(db.String(10))
+    workplace_id = db.Column(db.String(255), index=True)
+    site = db.Column(db.String(255))
+    site2 = db.Column(db.String(255))
+    onboarding_completed = db.Column(db.String(20))
 
-        # sheet-compatible fields needed by /admin/employees
-        username = db.Column(db.String(255), unique=True)
-        first_name = db.Column(db.String(255))
-        last_name = db.Column(db.String(255))
-        password = db.Column(db.Text)
-        rate = db.Column(db.Numeric(10, 2))
-        early_access = db.Column(db.String(10))
-        active = db.Column(db.String(10))
-        workplace_id = db.Column(db.String(255))
-        site = db.Column(db.String(255))
 
-        # sheet-compatible fields needed for employee/admin flows
-        username = db.Column(db.String(255), unique=True)
-        first_name = db.Column(db.String(255))
-        last_name = db.Column(db.String(255))
-        password = db.Column(db.Text)
-        rate = db.Column(db.Numeric(10, 2))
-        early_access = db.Column(db.String(10))
-        active = db.Column(db.String(10))
-        workplace_id = db.Column(db.String(255))
-        site = db.Column(db.String(255))
+class WorkHour(db.Model):
+    __tablename__ = "workhours"
+    id = db.Column(db.Integer, primary_key=True)
+    employee_email = db.Column(db.String(255), index=True)
+    date = db.Column(db.Date, index=True)
+    clock_in = db.Column(db.DateTime)
+    clock_out = db.Column(db.DateTime)
+    workplace = db.Column(db.String(255), index=True)
+    hours = db.Column(db.Numeric(10, 2))
+    pay = db.Column(db.Numeric(10, 2))
+    in_lat = db.Column(db.Numeric(12, 8))
+    in_lon = db.Column(db.Numeric(12, 8))
+    in_acc = db.Column(db.Numeric(10, 2))
+    in_site = db.Column(db.String(255))
+    in_dist_m = db.Column(db.Integer)
+    out_lat = db.Column(db.Numeric(12, 8))
+    out_lon = db.Column(db.Numeric(12, 8))
+    out_acc = db.Column(db.Numeric(10, 2))
+    out_site = db.Column(db.String(255))
+    out_dist_m = db.Column(db.Integer)
+    workplace_id = db.Column(db.String(255), index=True)
 
-    class WorkHour(db.Model):
-        __tablename__ = "workhours"
-        id = db.Column(db.Integer, primary_key=True)
-        employee_email = db.Column(db.String(255))
-        date = db.Column(db.Date)
-        clock_in = db.Column(db.DateTime)
-        clock_out = db.Column(db.DateTime)
-        workplace = db.Column(db.String(255))
 
-    class AuditLog(db.Model):
-        __tablename__ = "audit_logs"
-        id = db.Column(db.Integer, primary_key=True)
-        action = db.Column(db.String(255))
-        user_email = db.Column(db.String(255))
-        created_at = db.Column(db.DateTime)
+class AuditLog(db.Model):
+    __tablename__ = "audit_logs"
+    id = db.Column(db.Integer, primary_key=True)
+    action = db.Column(db.String(255))
+    user_email = db.Column(db.String(255))
+    actor = db.Column(db.String(255))
+    username = db.Column(db.String(255))
+    date_text = db.Column(db.String(50))
+    details = db.Column(db.Text)
+    workplace_id = db.Column(db.String(255), index=True)
+    created_at = db.Column(db.DateTime)
 
-    class PayrollReport(db.Model):
-        __tablename__ = "payroll_reports"
-        id = db.Column(db.Integer, primary_key=True)
-        username = db.Column(db.String(255))
-        week_start = db.Column(db.Date)
-        week_end = db.Column(db.Date)
-        gross = db.Column(db.Numeric(10, 2))
-        tax = db.Column(db.Numeric(10, 2))
-        net = db.Column(db.Numeric(10, 2))
-        paid_at = db.Column(db.DateTime)
-        paid_by = db.Column(db.String(255))
-        paid = db.Column(db.String(50))
-        workplace_id = db.Column(db.String(255))
 
-    class OnboardingRecord(db.Model):
-        __tablename__ = "onboarding_records"
+class PayrollReport(db.Model):
+    __tablename__ = "payroll_reports"
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), index=True)
+    week_start = db.Column(db.Date)
+    week_end = db.Column(db.Date)
+    gross = db.Column(db.Numeric(10, 2))
+    tax = db.Column(db.Numeric(10, 2))
+    net = db.Column(db.Numeric(10, 2))
+    paid_at = db.Column(db.DateTime)
+    paid_by = db.Column(db.String(255))
+    paid = db.Column(db.String(50))
+    workplace_id = db.Column(db.String(255), index=True)
 
-        id = db.Column(db.Integer, primary_key=True)
-        username = db.Column(db.String(255), unique=True)
 
-        workplace_id = db.Column(db.String(255))
+class OnboardingRecord(db.Model):
+    __tablename__ = "onboarding_records"
 
-        first_name = db.Column(db.String(255))
-        last_name = db.Column(db.String(255))
-        birth_date = db.Column(db.String(50))
+    id = db.Column(db.Integer, primary_key=True)
+    username = db.Column(db.String(255), index=True)
+    workplace_id = db.Column(db.String(255), index=True)
 
-        phone_country_code = db.Column(db.String(20))
-        phone_number = db.Column(db.String(100))
-        phone = db.Column(db.String(100))
+    first_name = db.Column(db.String(255))
+    last_name = db.Column(db.String(255))
+    birth_date = db.Column(db.String(50))
 
-        email = db.Column(db.String(255))
+    phone_country_code = db.Column(db.String(20))
+    phone_number = db.Column(db.String(100))
+    phone = db.Column(db.String(100))
 
-        street_address = db.Column(db.Text)
-        city = db.Column(db.String(255))
-        postcode = db.Column(db.String(50))
-        address = db.Column(db.Text)
+    email = db.Column(db.String(255))
 
-        emergency_contact_name = db.Column(db.String(255))
-        emergency_contact_phone_country_code = db.Column(db.String(20))
-        emergency_contact_phone_number = db.Column(db.String(100))
-        emergency_contact_phone = db.Column(db.String(100))
+    street_address = db.Column(db.Text)
+    city = db.Column(db.String(255))
+    postcode = db.Column(db.String(50))
+    address = db.Column(db.Text)
 
-        medical_condition = db.Column(db.Text)
-        medical_details = db.Column(db.Text)
+    emergency_contact_name = db.Column(db.String(255))
+    emergency_contact_phone_country_code = db.Column(db.String(20))
+    emergency_contact_phone_number = db.Column(db.String(100))
+    emergency_contact_phone = db.Column(db.String(100))
 
-        position = db.Column(db.String(255))
-        cscs_number = db.Column(db.String(255))
-        cscs_expiry_date = db.Column(db.String(50))
-        employment_type = db.Column(db.String(100))
-        right_to_work_uk = db.Column(db.String(20))
-        national_insurance = db.Column(db.String(100))
-        utr = db.Column(db.String(100))
-        start_date = db.Column(db.String(50))
+    medical_condition = db.Column(db.Text)
+    medical_details = db.Column(db.Text)
 
-        bank_account_number = db.Column(db.String(100))
-        sort_code = db.Column(db.String(100))
-        account_holder_name = db.Column(db.String(255))
+    position = db.Column(db.String(255))
+    cscs_number = db.Column(db.String(255))
+    cscs_expiry_date = db.Column(db.String(50))
+    employment_type = db.Column(db.String(100))
+    right_to_work_uk = db.Column(db.String(20))
+    national_insurance = db.Column(db.String(100))
+    utr = db.Column(db.String(100))
+    start_date = db.Column(db.String(50))
 
-        company_trading_name = db.Column(db.String(255))
-        company_registration_no = db.Column(db.String(255))
+    bank_account_number = db.Column(db.String(100))
+    sort_code = db.Column(db.String(100))
+    account_holder_name = db.Column(db.String(255))
 
-        date_of_contract = db.Column(db.String(50))
-        site_address = db.Column(db.Text)
+    company_trading_name = db.Column(db.String(255))
+    company_registration_no = db.Column(db.String(255))
 
-        passport_or_birth_cert_link = db.Column(db.Text)
-        cscs_front_back_link = db.Column(db.Text)
-        public_liability_link = db.Column(db.Text)
-        share_code_link = db.Column(db.Text)
+    date_of_contract = db.Column(db.String(50))
+    site_address = db.Column(db.Text)
 
-        contract_accepted = db.Column(db.String(20))
-        signature_name = db.Column(db.String(255))
-        signature_date_time = db.Column(db.String(100))
-        submitted_at = db.Column(db.String(100))
+    passport_or_birth_cert_link = db.Column(db.Text)
+    cscs_front_back_link = db.Column(db.Text)
+    public_liability_link = db.Column(db.Text)
+    share_code_link = db.Column(db.Text)
 
-    class Location(db.Model):
-        __tablename__ = "locations"
-        id = db.Column(db.Integer, primary_key=True)
-        site_name = db.Column(db.String(255))
-        lat = db.Column(db.Numeric(12, 8))
-        lon = db.Column(db.Numeric(12, 8))
-        radius_meters = db.Column(db.Integer)
-        active = db.Column(db.String(50))
-        workplace_id = db.Column(db.String(255))
+    contract_accepted = db.Column(db.String(20))
+    signature_name = db.Column(db.String(255))
+    signature_datetime = db.Column(db.String(100))
+    submitted_at = db.Column(db.String(100))
 
-    class WorkplaceSetting(db.Model):
-        __tablename__ = "workplace_settings"
-        id = db.Column(db.Integer, primary_key=True)
-        workplace_id = db.Column(db.String(255), unique=True)
-        tax_rate = db.Column(db.Numeric(10, 2))
-        currency_symbol = db.Column(db.String(20))
-        company_name = db.Column(db.String(255))
+
+class Location(db.Model):
+    __tablename__ = "locations"
+    id = db.Column(db.Integer, primary_key=True)
+    site_name = db.Column(db.String(255))
+    lat = db.Column(db.Numeric(12, 8))
+    lon = db.Column(db.Numeric(12, 8))
+    radius_meters = db.Column(db.Integer)
+    active = db.Column(db.String(50))
+    workplace_id = db.Column(db.String(255), index=True)
+
+
+class WorkplaceSetting(db.Model):
+    __tablename__ = "workplace_settings"
+    id = db.Column(db.Integer, primary_key=True)
+    workplace_id = db.Column(db.String(255), unique=True)
+    tax_rate = db.Column(db.Numeric(10, 2))
+    currency_symbol = db.Column(db.String(20))
+    company_name = db.Column(db.String(255))
+
+
+def _db_parse_date(value):
+    text = str(value or "").strip()
+    if not text:
+        return None
+    try:
+        return date.fromisoformat(text[:10])
+    except Exception:
+        return None
+
+
+def _db_parse_datetime(date_value, time_value):
+    d = _db_parse_date(date_value) if not isinstance(date_value, date) else date_value
+    t = str(time_value or "").strip()
+    if not d or not t:
+        return None
+    if len(t.split(":")) == 2:
+        t = t + ":00"
+    try:
+        return datetime.strptime(f"{d.isoformat()} {t}", "%Y-%m-%d %H:%M:%S")
+    except Exception:
+        return None
+
+
+def _db_format_decimal(val):
+    if val in (None, ""):
+        return ""
+    try:
+        return str(val)
+    except Exception:
+        return ""
+
+
+def _db_bool_text(v, default="TRUE"):
+    txt = str(v if v not in (None, "") else default).strip()
+    return txt or default
+
+
+def _db_workhour_metrics(rec):
+    hours_val = getattr(rec, "hours", None)
+    pay_val = getattr(rec, "pay", None)
+    hours_txt = "" if hours_val in (None, "") else str(hours_val)
+    pay_txt = "" if pay_val in (None, "") else str(pay_val)
+
+    if hours_txt == "" and rec.clock_in and rec.clock_out:
+        try:
+            raw_hours = max(0.0, (rec.clock_out - rec.clock_in).total_seconds() / 3600.0)
+            computed_hours = round(_apply_unpaid_break(raw_hours), 2)
+            hours_txt = str(computed_hours)
+            if pay_txt == "":
+                pay_txt = str(round(computed_hours * float(_get_user_rate(rec.employee_email or "")), 2))
+        except Exception:
+            pass
+    return hours_txt, pay_txt
+
+
+def _db_workhour_order_key(rec):
+    d = getattr(rec, "date", None) or date.min
+    cin = getattr(rec, "clock_in", None) or datetime.min
+    user = str(getattr(rec, "employee_email", "") or "")
+    return (str(getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"), d, user, cin,
+            getattr(rec, "id", 0))
+
+
+class _ProxySheetBase:
+    headers = []
+    model = None
+    _proxy_id_seed = 1000
+
+    def __init__(self, title):
+        self.title = title
+        self.id = self._proxy_id_seed
+        type(self)._proxy_id_seed += 1
+        self.spreadsheet = None
+
+    def get_all_values(self):
+        return [self.headers[:]] + [self._row_from_record(rec) for rec in self._records()]
+
+    def get_all_records(self):
+        out = []
+        for row in self.get_all_values()[1:]:
+            out.append({self.headers[i]: row[i] if i < len(row) else "" for i in range(len(self.headers))})
+        return out
+
+    def row_values(self, row):
+        vals = self.get_all_values()
+        if row <= 0 or row > len(vals):
+            return []
+        return vals[row - 1]
+
+    def append_rows(self, rows, value_input_option=None):
+        for row in rows:
+            self.append_row(row, value_input_option=value_input_option)
+
+    def insert_row(self, row, index=1):
+        if index == 1:
+            return
+        return self.append_row(row)
+
+    def clear(self):
+        return
+
+    def update(self, range_name=None, values=None, **kwargs):
+        if values is None:
+            values = kwargs.get("values")
+        if not range_name or values is None:
+            return
+        start, end = self._parse_range(range_name)
+        start_row, start_col = start
+        end_row, end_col = end
+        if start_row == 1 and end_row == 1:
+            return
+        for r_offset, row_vals in enumerate(values):
+            rownum = start_row + r_offset
+            for c_offset, value in enumerate(row_vals):
+                colnum = start_col + c_offset
+                self.update_cell(rownum, colnum, value)
+
+    def batch_update(self, updates):
+        for upd in updates or []:
+            rng = upd.get("range")
+            vals = upd.get("values")
+            if rng and vals is not None:
+                self.update(rng, vals)
+
+    def update_cell(self, row, col, value):
+        if row <= 1:
+            return
+        records = self._records()
+        idx = row - 2
+        if idx < 0 or idx >= len(records):
+            return
+        rec = records[idx]
+        if col <= 0 or col > len(self.headers):
+            return
+        self._set_field(rec, self.headers[col - 1], value)
+        db.session.commit()
+
+    def _parse_range(self, rng):
+        if ":" in rng:
+            a, b = rng.split(":", 1)
+        else:
+            a = b = rng
+        return gspread.utils.a1_to_rowcol(a), gspread.utils.a1_to_rowcol(b)
+
+    def _normalize_row(self, row):
+        row = list(row or [])
+        if len(row) < len(self.headers):
+            row += [""] * (len(self.headers) - len(row))
+        return row[:len(self.headers)]
+
+
+class _EmployeesProxy(_ProxySheetBase):
+    headers = ["Username", "Password", "Role", "Rate", "EarlyAccess", "OnboardingCompleted", "FirstName", "LastName",
+               "Site", "Active", "Workplace_ID", "Site2"]
+    model = Employee
+
+    def _records(self):
+        return sorted(Employee.query.all(), key=lambda r: (
+            str(getattr(r, "workplace_id", None) or getattr(r, "workplace", None) or "default"),
+            str(getattr(r, "username", None) or getattr(r, "email", None) or ""), getattr(r, "id", 0)))
+
+    def _row_from_record(self, rec):
+        return [
+            str(getattr(rec, "username", None) or getattr(rec, "email", None) or ""),
+            str(getattr(rec, "password", "") or ""),
+            str(getattr(rec, "role", "") or ""),
+            _db_format_decimal(getattr(rec, "rate", None)),
+            _db_bool_text(getattr(rec, "early_access", "TRUE")),
+            str(getattr(rec, "onboarding_completed", "") or ""),
+            str(getattr(rec, "first_name", "") or ""),
+            str(getattr(rec, "last_name", "") or ""),
+            str(getattr(rec, "site", "") or ""),
+            _db_bool_text(getattr(rec, "active", "TRUE")),
+            str(getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"),
+            str(getattr(rec, "site2", "") or ""),
+        ]
+
+    def append_row(self, row, value_input_option=None):
+        row = self._normalize_row(row)
+        data = {self.headers[i]: row[i] for i in range(len(self.headers))}
+        username = str(data.get("Username") or "").strip()
+        wp = str(data.get("Workplace_ID") or "default").strip() or "default"
+        if not username:
+            return
+        rec = Employee.query.filter_by(username=username, workplace_id=wp).first()
+        if not rec:
+            rec = Employee.query.filter_by(email=username, workplace_id=wp).first()
+        if not rec:
+            rec = Employee(username=username, email=username, workplace_id=wp, workplace=wp)
+            db.session.add(rec)
+        self._apply_data(rec, data)
+        db.session.commit()
+
+    def _apply_data(self, rec, data):
+        username = str(
+            data.get("Username") or getattr(rec, "username", None) or getattr(rec, "email", None) or "").strip()
+        wp = str(data.get("Workplace_ID") or getattr(rec, "workplace_id", None) or getattr(rec, "workplace",
+                                                                                           None) or "default").strip() or "default"
+        rec.username = username
+        rec.email = username
+        rec.workplace_id = wp
+        rec.workplace = wp
+        rec.password = str(data.get("Password") or getattr(rec, "password", "") or "")
+        rec.role = str(data.get("Role") or getattr(rec, "role", "") or "")
+        rate_txt = str(data.get("Rate") or "").strip()
+        rec.rate = Decimal(rate_txt) if rate_txt else None
+        rec.early_access = _db_bool_text(data.get("EarlyAccess"), getattr(rec, "early_access", "TRUE"))
+        rec.onboarding_completed = str(
+            data.get("OnboardingCompleted") or getattr(rec, "onboarding_completed", "") or "")
+        rec.first_name = str(data.get("FirstName") or getattr(rec, "first_name", "") or "")
+        rec.last_name = str(data.get("LastName") or getattr(rec, "last_name", "") or "")
+        rec.name = (" ".join([rec.first_name or "", rec.last_name or ""]).strip() or username)
+        rec.site = str(data.get("Site") or getattr(rec, "site", "") or "")
+        rec.site2 = str(data.get("Site2") or getattr(rec, "site2", "") or "")
+        rec.active = _db_bool_text(data.get("Active"), getattr(rec, "active", "TRUE"))
+
+    def _set_field(self, rec, column, value):
+        data = {self.headers[i]: self._row_from_record(rec)[i] for i in range(len(self.headers))}
+        data[column] = "" if value is None else str(value)
+        self._apply_data(rec, data)
+
+
+class _SettingsProxy(_ProxySheetBase):
+    headers = ["Workplace_ID", "Tax_Rate", "Currency_Symbol", "Company_Name"]
+    model = WorkplaceSetting
+
+    def _records(self):
+        return sorted(WorkplaceSetting.query.all(),
+                      key=lambda r: (str(getattr(r, "workplace_id", "") or ""), getattr(r, "id", 0)))
+
+    def _row_from_record(self, rec):
+        return [
+            str(getattr(rec, "workplace_id", "") or ""),
+            _db_format_decimal(getattr(rec, "tax_rate", None)),
+            str(getattr(rec, "currency_symbol", "") or ""),
+            str(getattr(rec, "company_name", "") or ""),
+        ]
+
+    def append_row(self, row, value_input_option=None):
+        row = self._normalize_row(row)
+        data = {self.headers[i]: row[i] for i in range(len(self.headers))}
+        wp = str(data.get("Workplace_ID") or "default").strip() or "default"
+        rec = WorkplaceSetting.query.filter_by(workplace_id=wp).first()
+        if not rec:
+            rec = WorkplaceSetting(workplace_id=wp)
+            db.session.add(rec)
+        self._apply_data(rec, data)
+        db.session.commit()
+
+    def _apply_data(self, rec, data):
+        rec.workplace_id = str(
+            data.get("Workplace_ID") or getattr(rec, "workplace_id", "default") or "default").strip() or "default"
+        tax_txt = str(data.get("Tax_Rate") or "").strip()
+        rec.tax_rate = Decimal(tax_txt) if tax_txt else Decimal("20")
+        rec.currency_symbol = str(data.get("Currency_Symbol") or getattr(rec, "currency_symbol", "£") or "£")
+        rec.company_name = str(data.get("Company_Name") or getattr(rec, "company_name", "Main") or "Main")
+
+    def _set_field(self, rec, column, value):
+        data = {self.headers[i]: self._row_from_record(rec)[i] for i in range(len(self.headers))}
+        data[column] = "" if value is None else str(value)
+        self._apply_data(rec, data)
+
+
+class _LocationsProxy(_ProxySheetBase):
+    headers = ["SiteName", "Lat", "Lon", "RadiusMeters", "Active", "Workplace_ID"]
+    model = Location
+
+    def _records(self):
+        return sorted(Location.query.all(), key=lambda r: (str(getattr(r, "workplace_id", None) or "default"),
+                                                           str(getattr(r, "site_name", "") or ""), getattr(r, "id", 0)))
+
+    def _row_from_record(self, rec):
+        return [
+            str(getattr(rec, "site_name", "") or ""),
+            _db_format_decimal(getattr(rec, "lat", None)),
+            _db_format_decimal(getattr(rec, "lon", None)),
+            "" if getattr(rec, "radius_meters", None) is None else str(getattr(rec, "radius_meters")),
+            _db_bool_text(getattr(rec, "active", "TRUE")),
+            str(getattr(rec, "workplace_id", None) or "default"),
+        ]
+
+    def append_row(self, row, value_input_option=None):
+        row = self._normalize_row(row)
+        data = {self.headers[i]: row[i] for i in range(len(self.headers))}
+        wp = str(data.get("Workplace_ID") or "default").strip() or "default"
+        name = str(data.get("SiteName") or "").strip()
+        if not name:
+            return
+        rec = Location.query.filter_by(workplace_id=wp, site_name=name).first()
+        if not rec:
+            rec = Location(workplace_id=wp, site_name=name)
+            db.session.add(rec)
+        self._apply_data(rec, data)
+        db.session.commit()
+
+    def _apply_data(self, rec, data):
+        rec.site_name = str(data.get("SiteName") or getattr(rec, "site_name", "") or "")
+        rec.lat = Decimal(str(data.get("Lat") or getattr(rec, "lat", "0") or "0"))
+        rec.lon = Decimal(str(data.get("Lon") or getattr(rec, "lon", "0") or "0"))
+        rec.radius_meters = int(float(str(data.get("RadiusMeters") or getattr(rec, "radius_meters", 0) or 0)))
+        rec.active = _db_bool_text(data.get("Active"), getattr(rec, "active", "TRUE"))
+        rec.workplace_id = str(
+            data.get("Workplace_ID") or getattr(rec, "workplace_id", "default") or "default").strip() or "default"
+
+    def _set_field(self, rec, column, value):
+        data = {self.headers[i]: self._row_from_record(rec)[i] for i in range(len(self.headers))}
+        data[column] = "" if value is None else str(value)
+        self._apply_data(rec, data)
+
+
+class _WorkHoursProxy(_ProxySheetBase):
+    headers = ["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay", "InLat", "InLon", "InAcc", "InSite",
+               "InDistM", "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM", "Workplace_ID"]
+    model = WorkHour
+
+    def _records(self):
+        return sorted(WorkHour.query.all(), key=_db_workhour_order_key)
+
+    def _row_from_record(self, rec):
+        hours_txt, pay_txt = _db_workhour_metrics(rec)
+        cin = rec.clock_in.strftime("%H:%M:%S") if getattr(rec, "clock_in", None) else ""
+        cout = rec.clock_out.strftime("%H:%M:%S") if getattr(rec, "clock_out", None) else ""
+        d = rec.date.isoformat() if getattr(rec, "date", None) else ""
+        return [
+            str(getattr(rec, "employee_email", "") or ""),
+            d,
+            cin,
+            cout,
+            hours_txt,
+            pay_txt,
+            _db_format_decimal(getattr(rec, "in_lat", None)),
+            _db_format_decimal(getattr(rec, "in_lon", None)),
+            _db_format_decimal(getattr(rec, "in_acc", None)),
+            str(getattr(rec, "in_site", "") or ""),
+            "" if getattr(rec, "in_dist_m", None) is None else str(getattr(rec, "in_dist_m")),
+            _db_format_decimal(getattr(rec, "out_lat", None)),
+            _db_format_decimal(getattr(rec, "out_lon", None)),
+            _db_format_decimal(getattr(rec, "out_acc", None)),
+            str(getattr(rec, "out_site", "") or ""),
+            "" if getattr(rec, "out_dist_m", None) is None else str(getattr(rec, "out_dist_m")),
+            str(getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"),
+        ]
+
+    def append_row(self, row, value_input_option=None):
+        row = self._normalize_row(row)
+        data = {self.headers[i]: row[i] for i in range(len(self.headers))}
+        username = str(data.get("Username") or "").strip()
+        shift_date = _db_parse_date(data.get("Date"))
+        wp = str(data.get("Workplace_ID") or _session_workplace_id() or "default").strip() or "default"
+        if not username or not shift_date:
+            return
+        rec = WorkHour.query.filter_by(employee_email=username, date=shift_date, workplace=wp).order_by(
+            WorkHour.id.desc()).first()
+        if not rec:
+            rec = WorkHour(employee_email=username, date=shift_date, workplace=wp, workplace_id=wp)
+            db.session.add(rec)
+        self._apply_data(rec, data)
+        db.session.commit()
+
+    def _apply_data(self, rec, data):
+        username = str(data.get("Username") or getattr(rec, "employee_email", "") or "").strip()
+        shift_date = _db_parse_date(data.get("Date")) or getattr(rec, "date", None)
+        wp = str(data.get("Workplace_ID") or getattr(rec, "workplace_id", None) or getattr(rec, "workplace",
+                                                                                           None) or _session_workplace_id() or "default").strip() or "default"
+        rec.employee_email = username
+        rec.date = shift_date
+        rec.workplace = wp
+        rec.workplace_id = wp
+        cin_txt = str(data.get("ClockIn") or "").strip()
+        cout_txt = str(data.get("ClockOut") or "").strip()
+        rec.clock_in = _db_parse_datetime(shift_date, cin_txt) if cin_txt else None
+        rec.clock_out = _db_parse_datetime(shift_date, cout_txt) if cout_txt else None
+        if rec.clock_in and rec.clock_out and rec.clock_out < rec.clock_in:
+            rec.clock_out = rec.clock_out + timedelta(days=1)
+        hours_txt = str(data.get("Hours") or "").strip()
+        pay_txt = str(data.get("Pay") or "").strip()
+        rec.hours = Decimal(hours_txt) if hours_txt else None
+        rec.pay = Decimal(pay_txt) if pay_txt else None
+        for col, attr in {
+            "InLat": "in_lat", "InLon": "in_lon", "InAcc": "in_acc", "InSite": "in_site", "InDistM": "in_dist_m",
+            "OutLat": "out_lat", "OutLon": "out_lon", "OutAcc": "out_acc", "OutSite": "out_site",
+            "OutDistM": "out_dist_m",
+        }.items():
+            raw = data.get(col)
+            if attr.endswith("_site"):
+                setattr(rec, attr, str(raw or ""))
+            elif attr.endswith("_dist_m"):
+                setattr(rec, attr, int(float(raw)) if str(raw or "").strip() else None)
+            else:
+                setattr(rec, attr, Decimal(str(raw)) if str(raw or "").strip() else None)
+
+    def _set_field(self, rec, column, value):
+        data = {self.headers[i]: self._row_from_record(rec)[i] for i in range(len(self.headers))}
+        data[column] = "" if value is None else str(value)
+        self._apply_data(rec, data)
+
+
+class _PayrollProxy(_ProxySheetBase):
+    headers = PAYROLL_HEADERS[:]
+    model = PayrollReport
+
+    def _records(self):
+        return sorted(PayrollReport.query.all(), key=lambda r: (str(getattr(r, "workplace_id", None) or "default"),
+                                                                getattr(r, "week_start", None) or date.min,
+                                                                str(getattr(r, "username", "") or ""),
+                                                                getattr(r, "id", 0)))
+
+    def _row_from_record(self, rec):
+        return [
+            rec.week_start.isoformat() if getattr(rec, "week_start", None) else "",
+            rec.week_end.isoformat() if getattr(rec, "week_end", None) else "",
+            str(getattr(rec, "username", "") or ""),
+            _db_format_decimal(getattr(rec, "gross", None)),
+            _db_format_decimal(getattr(rec, "tax", None)),
+            _db_format_decimal(getattr(rec, "net", None)),
+            getattr(rec, "paid_at", None).strftime("%Y-%m-%d %H:%M:%S") if getattr(rec, "paid_at", None) else "",
+            str(getattr(rec, "paid_by", "") or ""),
+            str(getattr(rec, "paid", "") or ""),
+            str(getattr(rec, "workplace_id", None) or "default"),
+        ]
+
+    def append_row(self, row, value_input_option=None):
+        row = self._normalize_row(row)
+        data = {self.headers[i]: row[i] for i in range(len(self.headers))}
+        rec = PayrollReport(
+            username=str(data.get("Username") or "").strip(),
+            week_start=_db_parse_date(data.get("WeekStart")),
+            week_end=_db_parse_date(data.get("WeekEnd")),
+            gross=Decimal(str(data.get("Gross") or "0")),
+            tax=Decimal(str(data.get("Tax") or "0")),
+            net=Decimal(str(data.get("Net") or "0")),
+            paid_at=_db_parse_datetime(data.get("WeekEnd") or date.today().isoformat(),
+                                       data.get("PaidAt").split(" ")[1] if " " in str(
+                                           data.get("PaidAt") or "") else "00:00:00") if str(
+                data.get("PaidAt") or "").strip() else None,
+            paid_by=str(data.get("PaidBy") or ""),
+            paid=str(data.get("Paid") or ""),
+            workplace_id=str(data.get("Workplace_ID") or _session_workplace_id() or "default"),
+        )
+        if str(data.get("PaidAt") or "").strip():
+            try:
+                rec.paid_at = datetime.strptime(str(data.get("PaidAt")).strip(), "%Y-%m-%d %H:%M:%S")
+            except Exception:
+                pass
+        db.session.add(rec)
+        db.session.commit()
+
+    def _set_field(self, rec, column, value):
+        val = "" if value is None else str(value)
+        if column == "Paid":
+            rec.paid = val
+        elif column == "PaidBy":
+            rec.paid_by = val
+        elif column == "PaidAt":
+            rec.paid_at = datetime.strptime(val, "%Y-%m-%d %H:%M:%S") if val else None
+        db.session.commit()
+
+
+class _AuditProxy(_ProxySheetBase):
+    headers = AUDIT_HEADERS[:]
+    model = AuditLog
+
+    def _records(self):
+        return sorted(AuditLog.query.all(),
+                      key=lambda r: (getattr(r, "created_at", None) or datetime.min, getattr(r, "id", 0)))
+
+    def _row_from_record(self, rec):
+        return [
+            getattr(rec, "created_at", None).strftime("%Y-%m-%d %H:%M:%S") if getattr(rec, "created_at", None) else "",
+            str(getattr(rec, "actor", "") or ""),
+            str(getattr(rec, "action", "") or ""),
+            str(getattr(rec, "username", None) or getattr(rec, "user_email", "") or ""),
+            str(getattr(rec, "date_text", "") or ""),
+            str(getattr(rec, "details", "") or ""),
+            str(getattr(rec, "workplace_id", None) or "default"),
+        ]
+
+    def append_row(self, row, value_input_option=None):
+        row = self._normalize_row(row)
+        ts = str(row[0] or datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")).strip()
+        rec = AuditLog(
+            created_at=datetime.strptime(ts, "%Y-%m-%d %H:%M:%S") if ts else datetime.now(TZ),
+            actor=str(row[1] or ""),
+            action=str(row[2] or ""),
+            username=str(row[3] or ""),
+            user_email=str(row[3] or ""),
+            date_text=str(row[4] or ""),
+            details=str(row[5] or ""),
+            workplace_id=str(row[6] or _session_workplace_id() or "default"),
+        )
+        db.session.add(rec)
+        db.session.commit()
+
+    def _set_field(self, rec, column, value):
+        return
+
+
+class _OnboardingProxy(_ProxySheetBase):
+    headers = [
+        "Username", "Workplace_ID", "FirstName", "LastName", "BirthDate", "PhoneCountryCode", "PhoneNumber", "Email",
+        "StreetAddress", "City", "Postcode", "EmergencyContactName", "EmergencyContactPhoneCountryCode",
+        "EmergencyContactPhoneNumber",
+        "MedicalCondition", "MedicalDetails", "Position", "CSCSNumber", "CSCSExpiryDate", "EmploymentType",
+        "RightToWorkUK",
+        "NationalInsurance", "UTR", "StartDate", "BankAccountNumber", "SortCode", "AccountHolderName",
+        "CompanyTradingName",
+        "CompanyRegistrationNo", "DateOfContract", "SiteAddress", "PassportOrBirthCertLink", "CSCSFrontBackLink",
+        "PublicLiabilityLink",
+        "ShareCodeLink", "ContractAccepted", "SignatureName", "SignatureDateTime", "SubmittedAt"
+    ]
+    model = OnboardingRecord
+
+    def _records(self):
+        return sorted(OnboardingRecord.query.all(), key=lambda r: (str(getattr(r, "workplace_id", None) or "default"),
+                                                                   str(getattr(r, "username", "") or ""),
+                                                                   getattr(r, "id", 0)))
+
+    def _row_from_record(self, rec):
+        return [
+            str(getattr(rec, "username", "") or ""),
+            str(getattr(rec, "workplace_id", None) or "default"),
+            str(getattr(rec, "first_name", "") or ""),
+            str(getattr(rec, "last_name", "") or ""),
+            str(getattr(rec, "birth_date", "") or ""),
+            str(getattr(rec, "phone_country_code", "") or ""),
+            str(getattr(rec, "phone_number", None) or getattr(rec, "phone", "") or ""),
+            str(getattr(rec, "email", "") or ""),
+            str(getattr(rec, "street_address", None) or getattr(rec, "address", "") or ""),
+            str(getattr(rec, "city", "") or ""),
+            str(getattr(rec, "postcode", "") or ""),
+            str(getattr(rec, "emergency_contact_name", "") or ""),
+            str(getattr(rec, "emergency_contact_phone_country_code", "") or ""),
+            str(getattr(rec, "emergency_contact_phone_number", None) or getattr(rec, "emergency_contact_phone",
+                                                                                "") or ""),
+            str(getattr(rec, "medical_condition", "") or ""),
+            str(getattr(rec, "medical_details", "") or ""),
+            str(getattr(rec, "position", "") or ""),
+            str(getattr(rec, "cscs_number", "") or ""),
+            str(getattr(rec, "cscs_expiry_date", "") or ""),
+            str(getattr(rec, "employment_type", "") or ""),
+            str(getattr(rec, "right_to_work_uk", "") or ""),
+            str(getattr(rec, "national_insurance", "") or ""),
+            str(getattr(rec, "utr", "") or ""),
+            str(getattr(rec, "start_date", "") or ""),
+            str(getattr(rec, "bank_account_number", "") or ""),
+            str(getattr(rec, "sort_code", "") or ""),
+            str(getattr(rec, "account_holder_name", "") or ""),
+            str(getattr(rec, "company_trading_name", "") or ""),
+            str(getattr(rec, "company_registration_no", "") or ""),
+            str(getattr(rec, "date_of_contract", "") or ""),
+            str(getattr(rec, "site_address", "") or ""),
+            str(getattr(rec, "passport_or_birth_cert_link", "") or ""),
+            str(getattr(rec, "cscs_front_back_link", "") or ""),
+            str(getattr(rec, "public_liability_link", "") or ""),
+            str(getattr(rec, "share_code_link", "") or ""),
+            str(getattr(rec, "contract_accepted", "") or ""),
+            str(getattr(rec, "signature_name", "") or ""),
+            str(getattr(rec, "signature_datetime", "") or ""),
+            str(getattr(rec, "submitted_at", "") or ""),
+        ]
+
+    def append_row(self, row, value_input_option=None):
+        row = self._normalize_row(row)
+        data = {self.headers[i]: row[i] for i in range(len(self.headers))}
+        username = str(data.get("Username") or "").strip()
+        wp = str(data.get("Workplace_ID") or _session_workplace_id() or "default").strip() or "default"
+        if not username:
+            return
+        rec = OnboardingRecord.query.filter_by(username=username, workplace_id=wp).first()
+        if not rec:
+            rec = OnboardingRecord(username=username, workplace_id=wp)
+            db.session.add(rec)
+        self._apply_data(rec, data)
+        db.session.commit()
+
+    def _apply_data(self, rec, data):
+        mapping = {
+            "FirstName": "first_name", "LastName": "last_name", "BirthDate": "birth_date",
+            "PhoneCountryCode": "phone_country_code",
+            "PhoneNumber": "phone_number", "Email": "email", "StreetAddress": "street_address", "City": "city",
+            "Postcode": "postcode",
+            "EmergencyContactName": "emergency_contact_name",
+            "EmergencyContactPhoneCountryCode": "emergency_contact_phone_country_code",
+            "EmergencyContactPhoneNumber": "emergency_contact_phone_number", "MedicalCondition": "medical_condition",
+            "MedicalDetails": "medical_details",
+            "Position": "position", "CSCSNumber": "cscs_number", "CSCSExpiryDate": "cscs_expiry_date",
+            "EmploymentType": "employment_type",
+            "RightToWorkUK": "right_to_work_uk", "NationalInsurance": "national_insurance", "UTR": "utr",
+            "StartDate": "start_date",
+            "BankAccountNumber": "bank_account_number", "SortCode": "sort_code",
+            "AccountHolderName": "account_holder_name",
+            "CompanyTradingName": "company_trading_name", "CompanyRegistrationNo": "company_registration_no",
+            "DateOfContract": "date_of_contract",
+            "SiteAddress": "site_address", "PassportOrBirthCertLink": "passport_or_birth_cert_link",
+            "CSCSFrontBackLink": "cscs_front_back_link",
+            "PublicLiabilityLink": "public_liability_link", "ShareCodeLink": "share_code_link",
+            "ContractAccepted": "contract_accepted",
+            "SignatureName": "signature_name", "SignatureDateTime": "signature_datetime", "SubmittedAt": "submitted_at",
+        }
+        rec.username = str(data.get("Username") or getattr(rec, "username", "") or "")
+        rec.workplace_id = str(
+            data.get("Workplace_ID") or getattr(rec, "workplace_id", None) or _session_workplace_id() or "default")
+        for col, attr in mapping.items():
+            setattr(rec, attr, str(data.get(col) or getattr(rec, attr, "") or ""))
+        rec.phone = rec.phone_number
+        rec.address = rec.street_address
+        rec.emergency_contact_phone = rec.emergency_contact_phone_number
+
+    def _set_field(self, rec, column, value):
+        data = {self.headers[i]: self._row_from_record(rec)[i] for i in range(len(self.headers))}
+        data[column] = "" if value is None else str(value)
+        self._apply_data(rec, data)
+
+
+def _ensure_database_schema():
+    if not DATABASE_ENABLED:
+        return
+    with app.app_context():
+        db.create_all()
+        statements = [
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS onboarding_completed VARCHAR(20)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS site2 VARCHAR(255)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS hours NUMERIC(10,2)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS pay NUMERIC(10,2)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS in_lat NUMERIC(12,8)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS in_lon NUMERIC(12,8)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS in_acc NUMERIC(10,2)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS in_site VARCHAR(255)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS in_dist_m INTEGER",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_lat NUMERIC(12,8)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_lon NUMERIC(12,8)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_acc NUMERIC(10,2)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_site VARCHAR(255)",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_dist_m INTEGER",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
+            "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor VARCHAR(255)",
+            "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS username VARCHAR(255)",
+            "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS date_text VARCHAR(50)",
+            "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT",
+            "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_datetime VARCHAR(100)",
+        ]
+        try:
+            with db.engine.begin() as conn:
+                for sql in statements:
+                    try:
+                        conn.exec_driver_sql(sql)
+                    except Exception:
+                        pass
+        except Exception:
+            pass
+
+
+def log_audit(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
+    ts = datetime.now(TZ)
+    if DATABASE_ENABLED:
+        try:
+            db.session.add(
+                AuditLog(
+                    action=action or "unknown",
+                    user_email=(username or actor or ""),
+                    actor=actor or "",
+                    username=username or "",
+                    date_text=date_str or "",
+                    details=details or "",
+                    workplace_id=_session_workplace_id(),
+                    created_at=ts,
+                )
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+        return
+
+    if audit_sheet:
+        try:
+            _ensure_audit_headers()
+            audit_sheet.append_row(
+                [ts.strftime("%Y-%m-%d %H:%M:%S"), actor or "", action or "", username or "", date_str or "",
+                 details or "", _session_workplace_id()])
+        except Exception:
+            pass
+
+
+def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float,
+                             paid_by: str):
+    try:
+        _ensure_payroll_headers()
+        paid, _ = _is_paid_for_week(week_start, week_end, username)
+        if paid:
+            return
+        paid_at = datetime.now(TZ)
+        if DATABASE_ENABLED:
+            db.session.add(
+                PayrollReport(
+                    username=username,
+                    week_start=datetime.strptime(week_start, "%Y-%m-%d").date(),
+                    week_end=datetime.strptime(week_end, "%Y-%m-%d").date(),
+                    gross=Decimal(str(round(gross, 2))),
+                    tax=Decimal(str(round(tax, 2))),
+                    net=Decimal(str(round(net, 2))),
+                    paid_at=paid_at,
+                    paid_by=paid_by,
+                    paid="",
+                    workplace_id=_session_workplace_id(),
+                )
+            )
+            db.session.commit()
+            return
+        payroll_sheet.append_row([week_start, week_end, username, money(gross), money(tax), money(net),
+                                  paid_at.strftime("%Y-%m-%d %H:%M:%S"), paid_by, "", _session_workplace_id()])
+    except Exception:
+        if DATABASE_ENABLED:
+            db.session.rollback()
+
+
+def _patch_admin_only_endpoints():
+    protected = [
+        "db_view_employees", "db_view_workhours", "db_view_audit", "db_view_payroll", "db_view_onboarding",
+        "db_view_locations", "db_view_settings",
+        "db_upgrade_employees_table", "db_upgrade_onboarding_table",
+        "import_employees", "import_locations", "import_settings", "import_audit", "import_payroll",
+        "import_onboarding", "import_workhours",
+    ]
+    import_endpoints = {"import_employees", "import_locations", "import_settings", "import_audit", "import_payroll",
+                        "import_onboarding", "import_workhours"}
+    for endpoint in protected:
+        original = app.view_functions.get(endpoint)
+        if not original:
+            continue
+
+        def wrapped(*args, _original=original, _endpoint=endpoint, **kwargs):
+            gate = require_admin()
+            if gate:
+                return gate
+            if _endpoint in import_endpoints and not ENABLE_GOOGLE_SHEETS:
+                return {"status": "error",
+                        "message": "Google Sheets import is disabled. Set ENABLE_SHEETS_IMPORT=1 for one-time import."}, 400
+            return _original(*args, **kwargs)
+
+        app.view_functions[endpoint] = wrapped
+
+
+_ensure_database_schema()
+_patch_admin_only_endpoints()
+
+if DATABASE_ENABLED:
+    employees_sheet = _EmployeesProxy("Employees")
+    work_sheet = _WorkHoursProxy("WorkHours")
+    payroll_sheet = _PayrollProxy("PayrollReports")
+    onboarding_sheet = _OnboardingProxy("Onboarding")
+    settings_sheet = _SettingsProxy("Settings")
+    audit_sheet = _AuditProxy("AuditLog")
+    locations_sheet = _LocationsProxy("Locations")
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
