@@ -4033,34 +4033,35 @@ def get_company_settings() -> dict:
         "Company_Name": "Main",
     }
 
-    if not settings_sheet:
-        return defaults
+    current_wp = _session_workplace_id()
 
     try:
-        vals = settings_sheet.get_all_values()
-        if not vals or len(vals) < 2:
-            return defaults
+        use_db_preview = False
+        try:
+            use_db_preview = request.args.get("source") == "db"
+        except Exception:
+            use_db_preview = False
 
-        headers = vals[0]
+        records = WorkplaceSetting.query.all() if use_db_preview else (get_settings() or [])
 
-        def idx(name):
-            return headers.index(name) if name in headers else None
+        for rec in records:
+            if isinstance(rec, dict):
+                row_wp = str(rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip() or "default"
+                if row_wp != current_wp:
+                    continue
 
-        i_wp = idx("Workplace_ID")
-        i_tax = idx("Tax_Rate")
-        i_cur = idx("Currency_Symbol")
-        i_name = idx("Company_Name")
+                tax_raw = str(rec.get("Tax_Rate") or rec.get("tax_rate") or "").strip()
+                cur = str(rec.get("Currency_Symbol") or rec.get("currency_symbol") or defaults["Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
+                name = str(rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]).strip() or defaults["Company_Name"]
+            else:
+                row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
+                if row_wp != current_wp:
+                    continue
 
-        current_wp = _session_workplace_id()
-
-        for row in vals[1:]:
-            row_wp = ((row[i_wp] if i_wp is not None and i_wp < len(row) else "").strip() or "default")
-            if row_wp != current_wp:
-                continue
-
-            tax_raw = (row[i_tax] if i_tax is not None and i_tax < len(row) else "").strip()
-            cur = (row[i_cur] if i_cur is not None and i_cur < len(row) else "").strip() or defaults["Currency_Symbol"]
-            name = (row[i_name] if i_name is not None and i_name < len(row) else "").strip() or defaults["Company_Name"]
+                tax_val = getattr(rec, "tax_rate", None)
+                tax_raw = "" if tax_val is None else str(tax_val).strip()
+                cur = str(getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults["Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
+                name = str(getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]).strip() or defaults["Company_Name"]
 
             try:
                 tax = float(tax_raw) if tax_raw != "" else defaults["Tax_Rate"]
