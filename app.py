@@ -302,296 +302,315 @@ def import_employees():
         db.session.rollback()
         return {"status": "error", "message": str(e)}, 500
 
-    # ================= REMAINING IMPORT ROUTES =================
 
-    from decimal import Decimal
+# ================= REMAINING IMPORT ROUTES =================
 
-    def _pick(rec, *keys, default=""):
-        for k in keys:
-            if k in rec and rec.get(k) not in (None, ""):
-                return rec.get(k)
+from decimal import Decimal
+
+
+def _pick(rec, *keys, default=""):
+    for k in keys:
+        if k in rec and rec.get(k) not in (None, ""):
+            return rec.get(k)
+    return default
+
+
+def _to_str(v):
+    return str(v).strip() if v is not None else ""
+
+
+def _to_decimal(v, default=None):
+    s = _to_str(v)
+    if not s:
+        return default
+    s = s.replace("£", "").replace(",", "").strip()
+    try:
+        return Decimal(s)
+    except Exception:
         return default
 
-    def _to_str(v):
-        return str(v).strip() if v is not None else ""
 
-    def _to_decimal(v, default=None):
-        s = _to_str(v)
-        if not s:
-            return default
-        s = s.replace("£", "").replace(",", "").strip()
+def _to_int(v, default=None):
+    s = _to_str(v)
+    if not s:
+        return default
+    try:
+        return int(float(s))
+    except Exception:
+        return default
+
+
+def _to_date(v):
+    s = _to_str(v)
+    if not s:
+        return None
+
+    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
         try:
-            return Decimal(s)
+            return datetime.strptime(s, fmt).date()
         except Exception:
-            return default
+            pass
 
-    def _to_int(v, default=None):
-        s = _to_str(v)
-        if not s:
-            return default
+    try:
+        return datetime.fromisoformat(s).date()
+    except Exception:
+        return None
+
+
+def _to_datetime(v):
+    s = _to_str(v)
+    if not s:
+        return None
+
+    candidates = [
+        "%Y-%m-%d %H:%M:%S",
+        "%Y-%m-%d %H:%M",
+        "%d/%m/%Y %H:%M:%S",
+        "%d/%m/%Y %H:%M",
+        "%d-%m-%Y %H:%M:%S",
+        "%d-%m-%Y %H:%M",
+        "%m/%d/%Y %H:%M:%S",
+        "%m/%d/%Y %H:%M",
+    ]
+    for fmt in candidates:
         try:
-            return int(float(s))
+            return datetime.strptime(s, fmt)
         except Exception:
-            return default
+            pass
 
-    def _to_date(v):
-        s = _to_str(v)
-        if not s:
-            return None
+    try:
+        return datetime.fromisoformat(s)
+    except Exception:
+        return None
 
-        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y", "%m/%d/%Y"):
-            try:
-                return datetime.strptime(s, fmt).date()
-            except Exception:
-                pass
 
-        try:
-            return datetime.fromisoformat(s).date()
-        except Exception:
-            return None
+@app.route("/import-locations")
+def import_locations():
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
 
-    def _to_datetime(v):
-        s = _to_str(v)
-        if not s:
-            return None
+    try:
+        Location.query.delete()
+        db.session.commit()
 
-        candidates = [
-            "%Y-%m-%d %H:%M:%S",
-            "%Y-%m-%d %H:%M",
-            "%d/%m/%Y %H:%M:%S",
-            "%d/%m/%Y %H:%M",
-            "%d-%m-%Y %H:%M:%S",
-            "%d-%m-%Y %H:%M",
-            "%m/%d/%Y %H:%M:%S",
-            "%m/%d/%Y %H:%M",
-        ]
-        for fmt in candidates:
-            try:
-                return datetime.strptime(s, fmt)
-            except Exception:
-                pass
+        records = locations_sheet.get_all_records()
+        count = 0
 
-        try:
-            return datetime.fromisoformat(s)
-        except Exception:
-            return None
+        for rec in records:
+            site_name = _to_str(_pick(rec, "Site", "SiteName", "site_name", "Name"))
+            if not site_name:
+                continue
 
-    @app.route("/import-locations")
-    def import_locations():
-        if not DB_MIGRATION_MODE:
-            return {"error": "migration mode disabled"}, 403
+            row = Location(
+                site_name=site_name,
+                lat=_to_decimal(_pick(rec, "Lat", "Latitude", "lat")),
+                lon=_to_decimal(_pick(rec, "Lon", "Lng", "Longitude", "lon")),
+                radius_meters=_to_int(_pick(rec, "Radius", "RadiusMeters", "radius_meters")),
+                active=_to_str(_pick(rec, "Active", "active", default="yes")),
+                workplace_id=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
+            )
+            db.session.add(row)
+            count += 1
 
-        try:
-            Location.query.delete()
-            db.session.commit()
+        db.session.commit()
+        return {"status": "ok", "imported": count}
 
-            records = locations_sheet.get_all_records()
-            count = 0
+    except Exception as e:
+        db.session.rollback()
+        return {"status": "error", "message": str(e)}, 500
 
-            for rec in records:
-                site_name = _to_str(_pick(rec, "Site", "SiteName", "site_name", "Name"))
-                if not site_name:
-                    continue
 
-                row = Location(
-                    site_name=site_name,
-                    lat=_to_decimal(_pick(rec, "Lat", "Latitude", "lat")),
-                    lon=_to_decimal(_pick(rec, "Lon", "Lng", "Longitude", "lon")),
-                    radius_meters=_to_int(_pick(rec, "Radius", "RadiusMeters", "radius_meters")),
-                    active=_to_str(_pick(rec, "Active", "active", default="yes")),
-                    workplace_id=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
-                )
-                db.session.add(row)
-                count += 1
+@app.route("/import-settings")
+def import_settings():
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
 
-            db.session.commit()
-            return {"status": "ok", "imported": count}
+    try:
+        WorkplaceSetting.query.delete()
+        db.session.commit()
 
-        except Exception as e:
-            db.session.rollback()
-            return {"status": "error", "message": str(e)}, 500
+        records = settings_sheet.get_all_records()
+        count = 0
 
-    @app.route("/import-settings")
-    def import_settings():
-        if not DB_MIGRATION_MODE:
-            return {"error": "migration mode disabled"}, 403
+        for rec in records:
+            workplace_id = _to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default"))
+            if not workplace_id:
+                workplace_id = "default"
 
-        try:
-            WorkplaceSetting.query.delete()
-            db.session.commit()
+            row = WorkplaceSetting(
+                workplace_id=workplace_id,
+                tax_rate=_to_decimal(_pick(rec, "Tax_Rate", "TaxRate", "tax_rate")),
+                currency_symbol=_to_str(_pick(rec, "Currency_Symbol", "Currency", "currency_symbol")),
+                company_name=_to_str(_pick(rec, "Company_Name", "Company", "company_name")),
+            )
+            db.session.add(row)
+            count += 1
 
-            records = settings_sheet.get_all_records()
-            count = 0
+        db.session.commit()
+        return {"status": "ok", "imported": count}
 
-            for rec in records:
-                workplace_id = _to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default"))
-                if not workplace_id:
-                    workplace_id = "default"
+    except Exception as e:
+        db.session.rollback()
+        return {"status": "error", "message": str(e)}, 500
 
-                row = WorkplaceSetting(
-                    workplace_id=workplace_id,
-                    tax_rate=_to_decimal(_pick(rec, "Tax_Rate", "TaxRate", "tax_rate")),
-                    currency_symbol=_to_str(_pick(rec, "Currency_Symbol", "Currency", "currency_symbol")),
-                    company_name=_to_str(_pick(rec, "Company_Name", "Company", "company_name")),
-                )
-                db.session.add(row)
-                count += 1
 
-            db.session.commit()
-            return {"status": "ok", "imported": count}
+@app.route("/import-audit")
+def import_audit():
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
 
-        except Exception as e:
-            db.session.rollback()
-            return {"status": "error", "message": str(e)}, 500
+    try:
+        AuditLog.query.delete()
+        db.session.commit()
 
-    @app.route("/import-audit")
-    def import_audit():
-        if not DB_MIGRATION_MODE:
-            return {"error": "migration mode disabled"}, 403
+        records = audit_sheet.get_all_records()
+        count = 0
 
-        try:
-            AuditLog.query.delete()
-            db.session.commit()
+        for rec in records:
+            action = _to_str(_pick(rec, "Action", "action"))
+            user_email = _to_str(_pick(rec, "Username", "User", "Actor", "user_email"))
 
-            records = audit_sheet.get_all_records()
-            count = 0
+            if not action and not user_email:
+                continue
 
-            for rec in records:
-                action = _to_str(_pick(rec, "Action", "action"))
-                user_email = _to_str(_pick(rec, "Username", "User", "Actor", "user_email"))
+            row = AuditLog(
+                action=action or "unknown",
+                user_email=user_email,
+                created_at=_to_datetime(_pick(rec, "Timestamp", "Created_At", "DateTime", "created_at")),
+            )
+            db.session.add(row)
+            count += 1
 
-                if not action and not user_email:
-                    continue
+        db.session.commit()
+        return {"status": "ok", "imported": count}
 
-                row = AuditLog(
-                    action=action or "unknown",
-                    user_email=user_email,
-                    created_at=_to_datetime(_pick(rec, "Timestamp", "Created_At", "DateTime", "created_at")),
-                )
-                db.session.add(row)
-                count += 1
+    except Exception as e:
+        db.session.rollback()
+        return {"status": "error", "message": str(e)}, 500
 
-            db.session.commit()
-            return {"status": "ok", "imported": count}
 
-        except Exception as e:
-            db.session.rollback()
-            return {"status": "error", "message": str(e)}, 500
+@app.route("/import-payroll")
+def import_payroll():
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
 
-    @app.route("/import-payroll")
-    def import_payroll():
-        if not DB_MIGRATION_MODE:
-            return {"error": "migration mode disabled"}, 403
+    try:
+        PayrollReport.query.delete()
+        db.session.commit()
 
-        try:
-            PayrollReport.query.delete()
-            db.session.commit()
+        records = payroll_sheet.get_all_records()
+        count = 0
 
-            records = payroll_sheet.get_all_records()
-            count = 0
+        for rec in records:
+            username = _to_str(_pick(rec, "Username", "username", "User"))
+            if not username:
+                continue
 
-            for rec in records:
-                username = _to_str(_pick(rec, "Username", "username", "User"))
-                if not username:
-                    continue
+            row = PayrollReport(
+                username=username,
+                week_start=_to_date(_pick(rec, "Week_Start", "WeekStart", "week_start")),
+                week_end=_to_date(_pick(rec, "Week_End", "WeekEnd", "week_end")),
+                gross=_to_decimal(_pick(rec, "Gross", "Gross_Pay", "gross")),
+                tax=_to_decimal(_pick(rec, "Tax", "Tax_Amount", "tax")),
+                net=_to_decimal(_pick(rec, "Net", "Net_Pay", "net")),
+                paid_at=_to_datetime(_pick(rec, "Paid_At", "PaidAt", "paid_at")),
+                paid_by=_to_str(_pick(rec, "Paid_By", "PaidBy", "paid_by")),
+                paid=_to_str(_pick(rec, "Paid", "paid")),
+                workplace_id=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
+            )
+            db.session.add(row)
+            count += 1
 
-                row = PayrollReport(
-                    username=username,
-                    week_start=_to_date(_pick(rec, "Week_Start", "WeekStart", "week_start")),
-                    week_end=_to_date(_pick(rec, "Week_End", "WeekEnd", "week_end")),
-                    gross=_to_decimal(_pick(rec, "Gross", "Gross_Pay", "gross")),
-                    tax=_to_decimal(_pick(rec, "Tax", "Tax_Amount", "tax")),
-                    net=_to_decimal(_pick(rec, "Net", "Net_Pay", "net")),
-                    paid_at=_to_datetime(_pick(rec, "Paid_At", "PaidAt", "paid_at")),
-                    paid_by=_to_str(_pick(rec, "Paid_By", "PaidBy", "paid_by")),
-                    paid=_to_str(_pick(rec, "Paid", "paid")),
-                    workplace_id=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
-                )
-                db.session.add(row)
-                count += 1
+        db.session.commit()
+        return {"status": "ok", "imported": count}
 
-            db.session.commit()
-            return {"status": "ok", "imported": count}
+    except Exception as e:
+        db.session.rollback()
+        return {"status": "error", "message": str(e)}, 500
 
-        except Exception as e:
-            db.session.rollback()
-            return {"status": "error", "message": str(e)}, 500
 
-    @app.route("/import-onboarding")
-    def import_onboarding():
-        if not DB_MIGRATION_MODE:
-            return {"error": "migration mode disabled"}, 403
+@app.route("/import-onboarding")
+def import_onboarding():
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
 
-        try:
-            OnboardingRecord.query.delete()
-            db.session.commit()
+    try:
+        OnboardingRecord.query.delete()
+        db.session.commit()
 
-            records = onboarding_sheet.get_all_records()
-            count = 0
+        records = onboarding_sheet.get_all_records()
+        count = 0
 
-            for rec in records:
-                username = _to_str(_pick(rec, "Username", "username"))
-                if not username:
-                    continue
+        for rec in records:
+            username = _to_str(_pick(rec, "Username", "username"))
+            if not username:
+                continue
 
-                row = OnboardingRecord(
-                    username=username,
-                    first_name=_to_str(_pick(rec, "FirstName", "First_Name", "first_name")),
-                    last_name=_to_str(_pick(rec, "LastName", "Last_Name", "last_name")),
-                    birth_date=_to_str(_pick(rec, "BirthDate", "Birth_Date", "birth_date")),
-                    phone=_to_str(_pick(rec, "Phone", "phone")),
-                    email=_to_str(_pick(rec, "Email", "email")),
-                    address=_to_str(_pick(rec, "Address", "address")),
-                    emergency_contact_name=_to_str(
-                        _pick(rec, "EmergencyContactName", "Emergency_Contact_Name", "EmergencyContact",
-                              "Emergency_Contact")),
-                    emergency_contact_phone=_to_str(_pick(rec, "EmergencyContactPhone", "Emergency_Contact_Phone")),
-                    medical_condition=_to_str(_pick(rec, "MedicalCondition", "Medical_Condition", "medical_condition")),
-                    position=_to_str(_pick(rec, "Position", "position")),
-                )
-                db.session.add(row)
-                count += 1
+            row = OnboardingRecord(
+                username=username,
+                first_name=_to_str(_pick(rec, "FirstName", "First_Name", "first_name")),
+                last_name=_to_str(_pick(rec, "LastName", "Last_Name", "last_name")),
+                birth_date=_to_str(_pick(rec, "BirthDate", "Birth_Date", "birth_date")),
+                phone=_to_str(_pick(rec, "Phone", "phone")),
+                email=_to_str(_pick(rec, "Email", "email")),
+                address=_to_str(_pick(rec, "Address", "address")),
+                emergency_contact_name=_to_str(
+                    _pick(
+                        rec,
+                        "EmergencyContactName",
+                        "Emergency_Contact_Name",
+                        "EmergencyContact",
+                        "Emergency_Contact",
+                    )
+                ),
+                emergency_contact_phone=_to_str(_pick(rec, "EmergencyContactPhone", "Emergency_Contact_Phone")),
+                medical_condition=_to_str(_pick(rec, "MedicalCondition", "Medical_Condition", "medical_condition")),
+                position=_to_str(_pick(rec, "Position", "position")),
+            )
+            db.session.add(row)
+            count += 1
 
-            db.session.commit()
-            return {"status": "ok", "imported": count}
+        db.session.commit()
+        return {"status": "ok", "imported": count}
 
-        except Exception as e:
-            db.session.rollback()
-            return {"status": "error", "message": str(e)}, 500
+    except Exception as e:
+        db.session.rollback()
+        return {"status": "error", "message": str(e)}, 500
 
-    @app.route("/import-workhours")
-    def import_workhours():
-        if not DB_MIGRATION_MODE:
-            return {"error": "migration mode disabled"}, 403
 
-        try:
-            WorkHour.query.delete()
-            db.session.commit()
+@app.route("/import-workhours")
+def import_workhours():
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
 
-            records = workhours_sheet.get_all_records()
-            count = 0
+    try:
+        WorkHour.query.delete()
+        db.session.commit()
 
-            for rec in records:
-                username = _to_str(_pick(rec, "Username", "username", "User"))
-                if not username:
-                    continue
+        records = work_sheet.get_all_records()
+        count = 0
 
-                row = WorkHour(
-                    employee_email=username,
-                    date=_to_date(_pick(rec, "Date", "date")),
-                    clock_in=_to_datetime(_pick(rec, "ClockIn", "Clock_In", "clock_in")),
-                    clock_out=_to_datetime(_pick(rec, "ClockOut", "Clock_Out", "clock_out")),
-                    workplace=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
-                )
-                db.session.add(row)
-                count += 1
+        for rec in records:
+            username = _to_str(_pick(rec, "Username", "username", "User"))
+            if not username:
+                continue
 
-            db.session.commit()
-            return {"status": "ok", "imported": count}
+            row = WorkHour(
+                employee_email=username,
+                date=_to_date(_pick(rec, "Date", "date")),
+                clock_in=_to_datetime(_pick(rec, "ClockIn", "Clock_In", "clock_in")),
+                clock_out=_to_datetime(_pick(rec, "ClockOut", "Clock_Out", "clock_out")),
+                workplace=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
+            )
+            db.session.add(row)
+            count += 1
 
-        except Exception as e:
-            db.session.rollback()
-            return {"status": "error", "message": str(e)}, 500
+        db.session.commit()
+        return {"status": "ok", "imported": count}
+
+    except Exception as e:
+        db.session.rollback()
+        return {"status": "error", "message": str(e)}, 500
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 
 SCOPES = [
