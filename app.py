@@ -389,6 +389,70 @@ def db_upgrade_employees_table():
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
+@app.route("/db/upgrade-onboarding-table")
+def db_upgrade_onboarding_table():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
+
+    try:
+        statements = [
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS phone_country_code VARCHAR(20)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS phone_number VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS street_address TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS city VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS postcode VARCHAR(50)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS emergency_contact_phone_country_code VARCHAR(20)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS emergency_contact_phone_number VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS medical_details TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS cscs_number VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS cscs_expiry_date VARCHAR(50)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS employment_type VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS right_to_work_uk VARCHAR(20)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS national_insurance VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS utr VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS start_date VARCHAR(50)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS bank_account_number VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS sort_code VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS account_holder_name VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS company_trading_name VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS company_registration_no VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS date_of_contract VARCHAR(50)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS site_address TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS passport_or_birth_cert_link TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS cscs_front_back_link TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS public_liability_link TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS share_code_link TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS contract_accepted VARCHAR(20)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_name VARCHAR(255)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_date_time VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS submitted_at VARCHAR(100)",
+        ]
+
+        with db.engine.begin() as conn:
+            for sql in statements:
+                conn.exec_driver_sql(sql)
+
+            cols = [
+                row[0]
+                for row in conn.exec_driver_sql(
+                    """
+                    SELECT column_name
+                    FROM information_schema.columns
+                    WHERE table_name = 'onboarding_records'
+                    ORDER BY ordinal_position
+                    """
+                ).fetchall()
+            ]
+
+        return {"status": "ok", "table": "onboarding_records", "columns": cols}
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
 @app.route("/import-employees")
 def import_employees():
     if not DB_MIGRATION_MODE:
@@ -699,26 +763,74 @@ def import_onboarding():
             if not username:
                 continue
 
+            phone_cc = _to_str(_pick(rec, "PhoneCountryCode", "phone_country_code"))
+            phone_num = _to_str(_pick(rec, "PhoneNumber", "Phone", "phone_number", "phone"))
+            ec_cc = _to_str(_pick(rec, "EmergencyContactPhoneCountryCode", "emergency_contact_phone_country_code"))
+            ec_num = _to_str(_pick(rec, "EmergencyContactPhoneNumber", "EmergencyContactPhone", "Emergency_Contact_Phone", "emergency_contact_phone_number"))
+
+            street = _to_str(_pick(rec, "StreetAddress", "street_address"))
+            city = _to_str(_pick(rec, "City", "city"))
+            postcode = _to_str(_pick(rec, "Postcode", "postcode"))
+
+            address_joined = ", ".join([x for x in [street, city, postcode] if x]).strip()
+            phone_joined = " ".join([x for x in [phone_cc, phone_num] if x]).strip()
+            ec_phone_joined = " ".join([x for x in [ec_cc, ec_num] if x]).strip()
+
             row = OnboardingRecord(
                 username=username,
+                workplace_id=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
+
                 first_name=_to_str(_pick(rec, "FirstName", "First_Name", "first_name")),
                 last_name=_to_str(_pick(rec, "LastName", "Last_Name", "last_name")),
                 birth_date=_to_str(_pick(rec, "BirthDate", "Birth_Date", "birth_date")),
-                phone=_to_str(_pick(rec, "Phone", "phone")),
+
+                phone_country_code=phone_cc,
+                phone_number=phone_num,
+                phone=phone_joined,
+
                 email=_to_str(_pick(rec, "Email", "email")),
-                address=_to_str(_pick(rec, "Address", "address")),
-                emergency_contact_name=_to_str(
-                    _pick(
-                        rec,
-                        "EmergencyContactName",
-                        "Emergency_Contact_Name",
-                        "EmergencyContact",
-                        "Emergency_Contact",
-                    )
-                ),
-                emergency_contact_phone=_to_str(_pick(rec, "EmergencyContactPhone", "Emergency_Contact_Phone")),
+
+                street_address=street,
+                city=city,
+                postcode=postcode,
+                address=address_joined,
+
+                emergency_contact_name=_to_str(_pick(rec, "EmergencyContactName", "Emergency_Contact_Name")),
+                emergency_contact_phone_country_code=ec_cc,
+                emergency_contact_phone_number=ec_num,
+                emergency_contact_phone=ec_phone_joined,
+
                 medical_condition=_to_str(_pick(rec, "MedicalCondition", "Medical_Condition", "medical_condition")),
+                medical_details=_to_str(_pick(rec, "MedicalDetails", "medical_details")),
+
                 position=_to_str(_pick(rec, "Position", "position")),
+                cscs_number=_to_str(_pick(rec, "CSCSNumber", "cscs_number")),
+                cscs_expiry_date=_to_str(_pick(rec, "CSCSExpiryDate", "cscs_expiry_date")),
+                employment_type=_to_str(_pick(rec, "EmploymentType", "employment_type")),
+                right_to_work_uk=_to_str(_pick(rec, "RightToWorkUK", "right_to_work_uk")),
+                national_insurance=_to_str(_pick(rec, "NationalInsurance", "national_insurance")),
+                utr=_to_str(_pick(rec, "UTR", "utr")),
+                start_date=_to_str(_pick(rec, "StartDate", "start_date")),
+
+                bank_account_number=_to_str(_pick(rec, "BankAccountNumber", "bank_account_number")),
+                sort_code=_to_str(_pick(rec, "SortCode", "sort_code")),
+                account_holder_name=_to_str(_pick(rec, "AccountHolderName", "account_holder_name")),
+
+                company_trading_name=_to_str(_pick(rec, "CompanyTradingName", "company_trading_name")),
+                company_registration_no=_to_str(_pick(rec, "CompanyRegistrationNo", "company_registration_no")),
+
+                date_of_contract=_to_str(_pick(rec, "DateOfContract", "date_of_contract")),
+                site_address=_to_str(_pick(rec, "SiteAddress", "site_address")),
+
+                passport_or_birth_cert_link=_to_str(_pick(rec, "PassportOrBirthCertLink", "passport_or_birth_cert_link")),
+                cscs_front_back_link=_to_str(_pick(rec, "CSCSFrontBackLink", "cscs_front_back_link")),
+                public_liability_link=_to_str(_pick(rec, "PublicLiabilityLink", "public_liability_link")),
+                share_code_link=_to_str(_pick(rec, "ShareCodeLink", "share_code_link")),
+
+                contract_accepted=_to_str(_pick(rec, "ContractAccepted", "contract_accepted")),
+                signature_name=_to_str(_pick(rec, "SignatureName", "signature_name")),
+                signature_date_time=_to_str(_pick(rec, "SignatureDateTime", "signature_date_time")),
+                submitted_at=_to_str(_pick(rec, "SubmittedAt", "submitted_at")),
             )
             db.session.add(row)
             count += 1
@@ -729,7 +841,6 @@ def import_onboarding():
     except Exception as e:
         db.session.rollback()
         return {"status": "error", "message": str(e)}, 500
-
 
 @app.route("/import-workhours")
 def import_workhours():
@@ -10850,18 +10961,63 @@ if DB_MIGRATION_MODE:
 
     class OnboardingRecord(db.Model):
         __tablename__ = "onboarding_records"
+
         id = db.Column(db.Integer, primary_key=True)
         username = db.Column(db.String(255), unique=True)
+
+        workplace_id = db.Column(db.String(255))
+
         first_name = db.Column(db.String(255))
         last_name = db.Column(db.String(255))
         birth_date = db.Column(db.String(50))
+
+        phone_country_code = db.Column(db.String(20))
+        phone_number = db.Column(db.String(100))
         phone = db.Column(db.String(100))
+
         email = db.Column(db.String(255))
+
+        street_address = db.Column(db.Text)
+        city = db.Column(db.String(255))
+        postcode = db.Column(db.String(50))
         address = db.Column(db.Text)
+
         emergency_contact_name = db.Column(db.String(255))
+        emergency_contact_phone_country_code = db.Column(db.String(20))
+        emergency_contact_phone_number = db.Column(db.String(100))
         emergency_contact_phone = db.Column(db.String(100))
+
         medical_condition = db.Column(db.Text)
+        medical_details = db.Column(db.Text)
+
         position = db.Column(db.String(255))
+        cscs_number = db.Column(db.String(255))
+        cscs_expiry_date = db.Column(db.String(50))
+        employment_type = db.Column(db.String(100))
+        right_to_work_uk = db.Column(db.String(20))
+        national_insurance = db.Column(db.String(100))
+        utr = db.Column(db.String(100))
+        start_date = db.Column(db.String(50))
+
+        bank_account_number = db.Column(db.String(100))
+        sort_code = db.Column(db.String(100))
+        account_holder_name = db.Column(db.String(255))
+
+        company_trading_name = db.Column(db.String(255))
+        company_registration_no = db.Column(db.String(255))
+
+        date_of_contract = db.Column(db.String(50))
+        site_address = db.Column(db.Text)
+
+        passport_or_birth_cert_link = db.Column(db.Text)
+        cscs_front_back_link = db.Column(db.Text)
+        public_liability_link = db.Column(db.Text)
+        share_code_link = db.Column(db.Text)
+
+        contract_accepted = db.Column(db.String(20))
+        signature_name = db.Column(db.String(255))
+        signature_date_time = db.Column(db.String(100))
+        submitted_at = db.Column(db.String(100))
 
     class Location(db.Model):
         __tablename__ = "locations"
