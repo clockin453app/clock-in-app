@@ -195,6 +195,43 @@ def db_test():
 
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
 
+@app.route("/import-employees")
+def import_employees():
+    if not DB_MIGRATION_MODE:
+        return {"error": "migration mode disabled"}, 403
+
+    try:
+        Employee.query.delete()
+        db.session.commit()
+
+        records = employees_sheet.get_all_records()
+        count = 0
+
+        for rec in records:
+            username = str(rec.get("Username", "")).strip()
+            if not username:
+                continue
+
+            employee = Employee(
+                email=username,
+                name=(" ".join([
+                    str(rec.get("FirstName", "")).strip(),
+                    str(rec.get("LastName", "")).strip()
+                ])).strip(),
+                role=str(rec.get("Role", "")).strip(),
+                workplace=str(rec.get("Workplace_ID", "")).strip(),
+                created_at=None
+            )
+            db.session.add(employee)
+            count += 1
+
+        db.session.commit()
+        return {"status": "ok", "imported": count}
+
+    except Exception as e:
+        db.session.rollback()
+        return {"status": "error", "message": str(e)}, 500
+
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 
 SCOPES = [
