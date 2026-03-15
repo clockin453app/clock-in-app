@@ -346,13 +346,38 @@ def import_employees():
 
             first_name = str(rec.get("FirstName", "")).strip()
             last_name = str(rec.get("LastName", "")).strip()
+            full_name = (" ".join([first_name, last_name])).strip()
+
+            role = str(rec.get("Role", "")).strip()
+            workplace_id = str(rec.get("Workplace_ID", "")).strip() or "default"
+            password = str(rec.get("Password", "")).strip()
+            early_access = str(rec.get("EarlyAccess", "")).strip()
+            active = str(rec.get("Active", "")).strip() or "TRUE"
+            site = str(rec.get("Site", "")).strip()
+
+            rate_raw = str(rec.get("Rate", "")).strip()
+            rate_val = None
+            if rate_raw != "":
+                try:
+                    rate_val = Decimal(rate_raw.replace("£", "").replace(",", "").strip())
+                except Exception:
+                    rate_val = None
 
             employee = Employee(
                 email=username,
-                name=(" ".join([first_name, last_name])).strip(),
-                role=str(rec.get("Role", "")).strip(),
-                workplace=str(rec.get("Workplace_ID", "")).strip(),
+                name=full_name,
+                role=role,
+                workplace=workplace_id,
                 created_at=None,
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                password=password,
+                rate=rate_val,
+                early_access=early_access,
+                active=active,
+                workplace_id=workplace_id,
+                site=site,
             )
             db.session.add(employee)
             count += 1
