@@ -5973,6 +5973,34 @@ def clock_page():
                             # ✅ IMPORTANT: batch_update must be OUTSIDE the loop
                             if updates:
                                 _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+                            if DB_MIGRATION_MODE:
+                                try:
+                                    shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
+                                    clock_in_dt = datetime.strptime(f"{today_str} {cin}", "%Y-%m-%d %H:%M:%S")
+
+                                    db_row = WorkHour.query.filter_by(
+                                        employee_email=username,
+                                        date=shift_date,
+                                        workplace=_session_workplace_id(),
+                                    ).order_by(WorkHour.id.desc()).first()
+
+                                    if db_row:
+                                        db_row.clock_in = clock_in_dt
+                                        db_row.clock_out = None
+                                    else:
+                                        db.session.add(
+                                            WorkHour(
+                                                employee_email=username,
+                                                date=shift_date,
+                                                clock_in=clock_in_dt,
+                                                clock_out=None,
+                                                workplace=_session_workplace_id(),
+                                            )
+                                        )
+
+                                    db.session.commit()
+                                except Exception:
+                                    db.session.rollback()
                     msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                         msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
@@ -6016,6 +6044,37 @@ def clock_page():
                         import copy
                         if updates:
                             _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+                        if DB_MIGRATION_MODE:
+                            try:
+                                shift_date = datetime.strptime(d, "%Y-%m-%d").date()
+                                clock_out_dt = datetime.strptime(f"{d} {cout}", "%Y-%m-%d %H:%M:%S")
+                                clock_in_dt_check = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+
+                                if clock_out_dt < clock_in_dt_check:
+                                    clock_out_dt = clock_out_dt + timedelta(days=1)
+
+                                db_row = WorkHour.query.filter_by(
+                                    employee_email=username,
+                                    date=shift_date,
+                                    workplace=_session_workplace_id(),
+                                ).order_by(WorkHour.id.desc()).first()
+
+                                if db_row:
+                                    db_row.clock_out = clock_out_dt
+                                else:
+                                    db.session.add(
+                                        WorkHour(
+                                            employee_email=username,
+                                            date=shift_date,
+                                            clock_in=None,
+                                            clock_out=clock_out_dt,
+                                            workplace=_session_workplace_id(),
+                                        )
+                                    )
+
+                                db.session.commit()
+                            except Exception:
+                                db.session.rollback()
                     msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
                 else:
@@ -8012,7 +8071,34 @@ def admin_force_clockin():
 
     except Exception:
         pass
+        if DB_MIGRATION_MODE:
+            try:
+                shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
 
+                db_row = WorkHour.query.filter_by(
+                    employee_email=username,
+                    date=shift_date,
+                    workplace=_session_workplace_id(),
+                ).order_by(WorkHour.id.desc()).first()
+
+                if db_row:
+                    db_row.clock_in = clock_in_dt
+                    db_row.clock_out = None
+                else:
+                    db.session.add(
+                        WorkHour(
+                            employee_email=username,
+                            date=shift_date,
+                            clock_in=clock_in_dt,
+                            clock_out=None,
+                            workplace=_session_workplace_id(),
+                        )
+                    )
+
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
     return redirect(request.referrer or "/admin")
@@ -8070,7 +8156,37 @@ def admin_force_clockout():
         _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
     except Exception:
         pass
+        if DB_MIGRATION_MODE:
+            try:
+                shift_date = datetime.strptime(d, "%Y-%m-%d").date()
+                clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
+                clock_in_dt_check = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S")
 
+                if clock_out_dt < clock_in_dt_check:
+                    clock_out_dt = clock_out_dt + timedelta(days=1)
+
+                db_row = WorkHour.query.filter_by(
+                    employee_email=username,
+                    date=shift_date,
+                    workplace=_session_workplace_id(),
+                ).order_by(WorkHour.id.desc()).first()
+
+                if db_row:
+                    db_row.clock_out = clock_out_dt
+                else:
+                    db.session.add(
+                        WorkHour(
+                            employee_email=username,
+                            date=shift_date,
+                            clock_in=None,
+                            clock_out=clock_out_dt,
+                            workplace=_session_workplace_id(),
+                        )
+                    )
+
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d, details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
