@@ -413,7 +413,7 @@ def import_locations():
         Location.query.delete()
         db.session.commit()
 
-        records = locations_sheet.get_all_records()
+        records = get_locations()
         count = 0
 
         for rec in records:
