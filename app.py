@@ -40,6 +40,7 @@ from google.oauth2.credentials import Credentials as UserCredentials
 from google.auth.transport.requests import Request
 
 from werkzeug.security import generate_password_hash, check_password_hash
+from flask_sqlalchemy import SQLAlchemy
 
 # ================= PERFORMANCE: gspread caching (TTL) =================
 # Google Sheets reads are slow + rate-limited. This monkeypatch caches common
@@ -168,6 +169,17 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.environ.get("SESSION_COOKIE_SECURE", "1") == "1"),
 )
+DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
+USE_DATABASE = os.environ.get("USE_DATABASE", "0") == "1"
+DB_MIGRATION_MODE = os.environ.get("DB_MIGRATION_MODE", "0") == "1"
+
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
+
+app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL if DATABASE_URL else "sqlite:///:memory:"
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+
+db = SQLAlchemy(app)
 
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
 
