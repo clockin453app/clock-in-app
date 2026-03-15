@@ -9006,28 +9006,38 @@ def admin_locations():
 
     all_rows = []
     try:
-        if locations_sheet:
-            vals = locations_sheet.get_all_values()
-            if vals:
-                headers = vals[0]
-                i_wp = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-                current_wp = _session_workplace_id()
-                rows = vals[1:] if "SiteName" in headers else vals
-                for r in rows:
-                    # Workplace filter (only if Locations has Workplace_ID column)
-                    if i_wp is not None:
-                        row_wp = (r[i_wp] if len(r) > i_wp else "").strip() or "default"
-                        if row_wp != current_wp:
-                            continue
-                    if len(r) < 4:
-                        continue
-                    name = (r[0] or "").strip()
-                    lat = (r[1] or "").strip() if len(r) > 1 else ""
-                    lon = (r[2] or "").strip() if len(r) > 2 else ""
-                    rad = (r[3] or "").strip() if len(r) > 3 else ""
-                    act = (r[4] or "").strip() if len(r) > 4 else "TRUE"
-                    if name:
-                        all_rows.append({"name": name, "lat": lat, "lon": lon, "rad": rad, "act": act})
+        current_wp = _session_workplace_id()
+
+        for rec in (get_locations() or []):
+            if isinstance(rec, dict):
+                row_wp = (rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip()
+                if row_wp != current_wp:
+                    continue
+
+                name = str(rec.get("SiteName") or rec.get("site_name") or rec.get("Site") or "").strip()
+                lat = str(rec.get("Lat") or rec.get("lat") or "").strip()
+                lon = str(rec.get("Lon") or rec.get("lon") or "").strip()
+                rad = str(rec.get("RadiusMeters") or rec.get("radius_meters") or rec.get("Radius") or "").strip()
+                act = str(rec.get("Active") or rec.get("active") or "TRUE").strip()
+            else:
+                row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip()
+                if row_wp != current_wp:
+                    continue
+
+                name = str(getattr(rec, "site_name", "") or "").strip()
+                lat = str(getattr(rec, "lat", "") or "").strip()
+                lon = str(getattr(rec, "lon", "") or "").strip()
+                rad = str(getattr(rec, "radius_meters", "") or "").strip()
+                act = str(getattr(rec, "active", "TRUE") or "TRUE").strip()
+
+            if name:
+                all_rows.append({
+                    "name": name,
+                    "lat": lat,
+                    "lon": lon,
+                    "rad": rad,
+                    "act": act
+                })
     except Exception:
         all_rows = []
 
