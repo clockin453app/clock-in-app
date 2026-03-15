@@ -5090,7 +5090,6 @@ def get_employee_display_name(username: str) -> str:
         return u
     except Exception:
         return u
-
 def set_employee_field(username: str, field: str, value: str):
     vals = employees_sheet.get_all_values()
     if not vals:
