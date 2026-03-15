@@ -6512,7 +6512,7 @@ def clock_page():
                     msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
                 msg_class = "message error"
             else:
-                rows = get_workhours_rows()
+                rows = work_sheet.get_all_values()
 
                 if action == "in":
                     if has_any_row_today(rows, username, today_str):
