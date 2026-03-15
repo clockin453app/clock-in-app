@@ -371,10 +371,15 @@ def _to_datetime(v):
         "%d-%m-%Y %H:%M",
         "%m/%d/%Y %H:%M:%S",
         "%m/%d/%Y %H:%M",
+        "%H:%M:%S",
+        "%H:%M",
     ]
     for fmt in candidates:
         try:
-            return datetime.strptime(s, fmt)
+            parsed = datetime.strptime(s, fmt)
+            if fmt in ("%H:%M:%S", "%H:%M"):
+                return parsed
+            return parsed
         except Exception:
             pass
 
@@ -382,7 +387,6 @@ def _to_datetime(v):
         return datetime.fromisoformat(s)
     except Exception:
         return None
-
 
 @app.route("/import-locations")
 def import_locations():
@@ -595,11 +599,36 @@ def import_workhours():
             if not username:
                 continue
 
+            shift_date = _to_date(_pick(rec, "Date", "date"))
+            clock_in_raw = _to_str(_pick(rec, "Clock In", "ClockIn", "Clock_In", "clock_in"))
+            clock_out_raw = _to_str(_pick(rec, "Clock Out", "ClockOut", "Clock_Out", "clock_out"))
+
+            clock_in_val = None
+            clock_out_val = None
+
+            if shift_date and clock_in_raw:
+                for fmt in ("%H:%M:%S", "%H:%M"):
+                    try:
+                        t = datetime.strptime(clock_in_raw, fmt).time()
+                        clock_in_val = datetime.combine(shift_date, t)
+                        break
+                    except Exception:
+                        pass
+
+            if shift_date and clock_out_raw:
+                for fmt in ("%H:%M:%S", "%H:%M"):
+                    try:
+                        t = datetime.strptime(clock_out_raw, fmt).time()
+                        clock_out_val = datetime.combine(shift_date, t)
+                        break
+                    except Exception:
+                        pass
+
             row = WorkHour(
                 employee_email=username,
-                date=_to_date(_pick(rec, "Date", "date")),
-                clock_in=_to_datetime(_pick(rec, "Clock In", "ClockIn", "Clock_In", "clock_in")),
-                clock_out=_to_datetime(_pick(rec, "Clock Out", "ClockOut", "Clock_Out", "clock_out")),
+                date=shift_date,
+                clock_in=clock_in_val,
+                clock_out=clock_out_val,
                 workplace=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
             )
             db.session.add(row)
