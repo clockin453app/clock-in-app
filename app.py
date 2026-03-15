@@ -198,6 +198,22 @@ def _rows_to_dicts(model, limit=200):
         out.append(item)
     return out
 
+# ================= DATABASE READ HELPERS =================
+
+def get_locations():
+    if USE_DATABASE:
+        return Location.query.all()
+    return locations_sheet.get_all_records()
+
+def get_settings():
+    if USE_DATABASE:
+        return WorkplaceSetting.query.all()
+    return settings_sheet.get_all_records()
+
+def get_employees():
+    if USE_DATABASE:
+        return Employee.query.all()
+    return employees_sheet.get_all_records()
 
 @app.route("/db-test")
 def db_test():
