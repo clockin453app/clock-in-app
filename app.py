@@ -169,6 +169,7 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=bool(os.environ.get("SESSION_COOKIE_SECURE", "1") == "1"),
 )
+
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 USE_DATABASE = os.environ.get("USE_DATABASE", "0") == "1"
 DB_MIGRATION_MODE = os.environ.get("DB_MIGRATION_MODE", "0") == "1"
