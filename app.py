@@ -4169,13 +4169,7 @@ def get_company_settings() -> dict:
     current_wp = _session_workplace_id()
 
     try:
-        use_db_preview = False
-        try:
-            use_db_preview = request.args.get("source") == "db"
-        except Exception:
-            use_db_preview = False
-
-        records = WorkplaceSetting.query.all() if use_db_preview else (get_settings() or [])
+        records = WorkplaceSetting.query.all() if DB_MIGRATION_MODE else (get_settings() or [])
 
         for rec in records:
             if isinstance(rec, dict):
@@ -9170,7 +9164,7 @@ def admin_locations():
     try:
         current_wp = _session_workplace_id()
 
-        records = Location.query.all() if request.args.get("source") == "db" else (get_locations() or [])
+        records = Location.query.all() if DB_MIGRATION_MODE else (get_locations() or [])
         for rec in records:
             if isinstance(rec, dict):
                 row_wp = (rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip()
@@ -9981,7 +9975,7 @@ def admin_employees():
     try:
         records = []
 
-        if request.args.get("source") == "db":
+        if DB_MIGRATION_MODE:
             for rec in Employee.query.all():
                 username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
                 first_name = str(getattr(rec, "first_name", "") or "").strip()
@@ -10096,7 +10090,7 @@ def admin_employees():
         wp_now = _session_workplace_id()
         records = []
 
-        if request.args.get("source") == "db":
+        if DB_MIGRATION_MODE:
             for rec in Employee.query.all():
                 username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
                 first_name = str(getattr(rec, "first_name", "") or "").strip()
