@@ -29,6 +29,7 @@ import random
 from urllib.parse import urlparse
 from google.oauth2.service_account import Credentials as SACredentials
 import gspread
+from flask import jsonify
 from flask import Flask, request, session, redirect, url_for, render_template_string, abort, make_response, send_file
 from datetime import datetime, timedelta, time as dtime
 from zoneinfo import ZoneInfo
@@ -181,8 +182,22 @@ app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL if DATABASE_URL else "sqlit
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
+TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
+# ================= DATABASE VIEW / IMPORT ROUTES =================
 
-# ================= DATABASE HEALTH CHECK =================
+def _rows_to_dicts(model, limit=200):
+    rows = model.query.limit(limit).all()
+    out = []
+    for row in rows:
+        item = {}
+        for col in row.__table__.columns:
+            val = getattr(row, col.name)
+            if hasattr(val, "isoformat"):
+                val = val.isoformat()
+            item[col.name] = val
+        out.append(item)
+    return out
+
 
 @app.route("/db-test")
 def db_test():
@@ -193,7 +208,62 @@ def db_test():
     except Exception as e:
         return {"database": "error", "message": str(e)}, 500
 
-TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
+
+@app.route("/db/employees")
+def db_view_employees():
+    try:
+        return jsonify(_rows_to_dicts(Employee))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
+
+@app.route("/db/workhours")
+def db_view_workhours():
+    try:
+        return jsonify(_rows_to_dicts(WorkHour))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
+
+@app.route("/db/audit")
+def db_view_audit():
+    try:
+        return jsonify(_rows_to_dicts(AuditLog))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
+
+@app.route("/db/payroll")
+def db_view_payroll():
+    try:
+        return jsonify(_rows_to_dicts(PayrollReport))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
+
+@app.route("/db/onboarding")
+def db_view_onboarding():
+    try:
+        return jsonify(_rows_to_dicts(OnboardingRecord))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
+
+@app.route("/db/locations")
+def db_view_locations():
+    try:
+        return jsonify(_rows_to_dicts(Location))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
+
+@app.route("/db/settings")
+def db_view_settings():
+    try:
+        return jsonify(_rows_to_dicts(WorkplaceSetting))
+    except Exception as e:
+        return {"status": "error", "message": str(e)}, 500
+
 
 @app.route("/import-employees")
 def import_employees():
@@ -212,15 +282,15 @@ def import_employees():
             if not username:
                 continue
 
+            first_name = str(rec.get("FirstName", "")).strip()
+            last_name = str(rec.get("LastName", "")).strip()
+
             employee = Employee(
                 email=username,
-                name=(" ".join([
-                    str(rec.get("FirstName", "")).strip(),
-                    str(rec.get("LastName", "")).strip()
-                ])).strip(),
+                name=(" ".join([first_name, last_name])).strip(),
                 role=str(rec.get("Role", "")).strip(),
                 workplace=str(rec.get("Workplace_ID", "")).strip(),
-                created_at=None
+                created_at=None,
             )
             db.session.add(employee)
             count += 1
@@ -231,7 +301,6 @@ def import_employees():
     except Exception as e:
         db.session.rollback()
         return {"status": "error", "message": str(e)}, 500
-
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
 
 SCOPES = [
