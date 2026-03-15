@@ -9008,7 +9008,8 @@ def admin_locations():
     try:
         current_wp = _session_workplace_id()
 
-        for rec in (get_locations() or []):
+        records = Location.query.all() if request.args.get("source") == "db" else (get_locations() or [])
+        for rec in records:
             if isinstance(rec, dict):
                 row_wp = (rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip()
                 if row_wp != current_wp:
