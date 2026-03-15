@@ -9688,6 +9688,36 @@ def admin_workplaces():
 </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("workplaces", "master_admin", content))
+
+# ================= DATABASE TABLES =================
+
+if DB_MIGRATION_MODE:
+
+    class Employee(db.Model):
+        __tablename__ = "employees"
+        id = db.Column(db.Integer, primary_key=True)
+        email = db.Column(db.String(255), unique=True, nullable=False)
+        name = db.Column(db.String(255))
+        role = db.Column(db.String(50))
+        workplace = db.Column(db.String(255))
+        created_at = db.Column(db.DateTime)
+
+    class WorkHour(db.Model):
+        __tablename__ = "workhours"
+        id = db.Column(db.Integer, primary_key=True)
+        employee_email = db.Column(db.String(255))
+        date = db.Column(db.Date)
+        clock_in = db.Column(db.DateTime)
+        clock_out = db.Column(db.DateTime)
+        workplace = db.Column(db.String(255))
+
+    class AuditLog(db.Model):
+        __tablename__ = "audit_logs"
+        id = db.Column(db.Integer, primary_key=True)
+        action = db.Column(db.String(255))
+        user_email = db.Column(db.String(255))
+        created_at = db.Column(db.DateTime)
+
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=True)
