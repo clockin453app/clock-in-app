@@ -9414,6 +9414,43 @@ def admin_locations_save():
     except Exception:
         pass
 
+    if DB_MIGRATION_MODE:
+        try:
+            wp = _session_workplace_id()
+
+            db_row = Location.query.filter_by(
+                workplace_id=wp,
+                site_name=(orig or name)
+            ).first()
+
+            if not db_row:
+                db_row = Location.query.filter_by(
+                    workplace_id=wp,
+                    site_name=name
+                ).first()
+
+            if db_row:
+                db_row.site_name = name
+                db_row.lat = float(lat)
+                db_row.lon = float(lon)
+                db_row.radius_meters = int(float(rad))
+                db_row.active = active
+            else:
+                db.session.add(
+                    Location(
+                        site_name=name,
+                        lat=float(lat),
+                        lon=float(lon),
+                        radius_meters=int(float(rad)),
+                        active=active,
+                        workplace_id=wp,
+                    )
+                )
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     actor = session.get("username", "admin")
     log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="", details=f"{name} {lat},{lon} r={rad} active={active}")
     return redirect("/admin/locations")
