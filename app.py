@@ -182,6 +182,17 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 
+# ================= DATABASE HEALTH CHECK =================
+
+@app.route("/db-test")
+def db_test():
+    try:
+        with app.app_context():
+            tables = db.inspect(db.engine).get_table_names()
+        return {"database": "connected", "tables": tables}
+    except Exception as e:
+        return {"database": "error", "message": str(e)}, 500
+
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
 
 # ================= GOOGLE SHEETS (SERVICE ACCOUNT) =================
