@@ -10222,18 +10222,28 @@ def admin_workplaces():
 # ================= DATABASE TABLES =================
 
 if DB_MIGRATION_MODE:
-
     class Employee(db.Model):
         __tablename__ = "employees"
 
         id = db.Column(db.Integer, primary_key=True)
 
-        # legacy fields already in use
+        # existing fields
         email = db.Column(db.String(255), unique=True, nullable=False)
         name = db.Column(db.String(255))
         role = db.Column(db.String(50))
         workplace = db.Column(db.String(255))
         created_at = db.Column(db.DateTime)
+
+        # sheet-compatible fields needed by /admin/employees
+        username = db.Column(db.String(255), unique=True)
+        first_name = db.Column(db.String(255))
+        last_name = db.Column(db.String(255))
+        password = db.Column(db.Text)
+        rate = db.Column(db.Numeric(10, 2))
+        early_access = db.Column(db.String(10))
+        active = db.Column(db.String(10))
+        workplace_id = db.Column(db.String(255))
+        site = db.Column(db.String(255))
 
         # sheet-compatible fields needed for employee/admin flows
         username = db.Column(db.String(255), unique=True)
