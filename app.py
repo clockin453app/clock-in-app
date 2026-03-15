@@ -5030,15 +5030,29 @@ def _ensure_audit_headers():
 
 def log_audit(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
     """Best-effort audit logging (never raises)."""
-    if not audit_sheet:
-        return
-    try:
-        _ensure_audit_headers()
-        ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
-        audit_sheet.append_row(
-            [ts, actor or "", action or "", username or "", date_str or "", details or "", _session_workplace_id()])
-    except Exception:
-        return
+    ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
+
+    if audit_sheet:
+        try:
+            _ensure_audit_headers()
+            audit_sheet.append_row(
+                [ts, actor or "", action or "", username or "", date_str or "", details or "", _session_workplace_id()]
+            )
+        except Exception:
+            pass
+
+    if DB_MIGRATION_MODE:
+        try:
+            db.session.add(
+                AuditLog(
+                    action=action or "unknown",
+                    user_email=(username or actor or ""),
+                    created_at=datetime.strptime(ts, "%Y-%m-%d %H:%M:%S"),
+                )
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 def _ensure_locations_headers():
     """Ensure Locations sheet has required headers."""
@@ -5087,11 +5101,61 @@ def _append_paid_record_safe(week_start: str, week_end: str, username: str, gros
         paid, _ = _is_paid_for_week(week_start, week_end, username)
         if paid:
             return
+
         paid_at = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
         payroll_sheet.append_row(
             [week_start, week_end, username, money(gross), money(tax), money(net), paid_at, paid_by, "",
-             _session_workplace_id()])
-        log_audit("MARK_PAID", actor=paid_by, username=username, date_str=f"{week_start}..{week_end}", details=f"gross={gross} tax={tax} net={net}")
+             _session_workplace_id()]
+        )
+
+        if DB_MIGRATION_MODE:
+            try:
+                wp = _session_workplace_id()
+                ws_date = datetime.strptime(week_start, "%Y-%m-%d").date()
+                we_date = datetime.strptime(week_end, "%Y-%m-%d").date()
+                paid_at_dt = datetime.strptime(paid_at, "%Y-%m-%d %H:%M:%S")
+
+                db_row = PayrollReport.query.filter_by(
+                    username=username,
+                    week_start=ws_date,
+                    week_end=we_date,
+                    workplace_id=wp,
+                ).first()
+
+                if db_row:
+                    db_row.gross = Decimal(str(gross))
+                    db_row.tax = Decimal(str(tax))
+                    db_row.net = Decimal(str(net))
+                    db_row.paid_at = paid_at_dt
+                    db_row.paid_by = paid_by
+                    db_row.paid = "TRUE"
+                else:
+                    db.session.add(
+                        PayrollReport(
+                            username=username,
+                            week_start=ws_date,
+                            week_end=we_date,
+                            gross=Decimal(str(gross)),
+                            tax=Decimal(str(tax)),
+                            net=Decimal(str(net)),
+                            paid_at=paid_at_dt,
+                            paid_by=paid_by,
+                            paid="TRUE",
+                            workplace_id=wp,
+                        )
+                    )
+
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        log_audit(
+            "MARK_PAID",
+            actor=paid_by,
+            username=username,
+            date_str=f"{week_start}..{week_end}",
+            details=f"gross={gross} tax={tax} net={net}",
+        )
     except Exception:
         return
 
@@ -7058,6 +7122,45 @@ def onboarding():
             }
 
             update_or_append_onboarding(username, data)
+            if DB_MIGRATION_MODE:
+                try:
+                    phone_full = " ".join([x for x in [phone_cc, phone_num] if x]).strip()
+                    emergency_phone_full = " ".join([x for x in [ec_cc, ec_phone] if x]).strip()
+                    address_full = ", ".join([x for x in [street, city, postcode] if x]).strip()
+
+                    db_row = OnboardingRecord.query.filter_by(username=username).first()
+
+                    if db_row:
+                        db_row.first_name = first
+                        db_row.last_name = last
+                        db_row.birth_date = birth
+                        db_row.phone = phone_full
+                        db_row.email = email
+                        db_row.address = address_full
+                        db_row.emergency_contact_name = ec_name
+                        db_row.emergency_contact_phone = emergency_phone_full
+                        db_row.medical_condition = medical
+                        db_row.position = position
+                    else:
+                        db.session.add(
+                            OnboardingRecord(
+                                username=username,
+                                first_name=first,
+                                last_name=last,
+                                birth_date=birth,
+                                phone=phone_full,
+                                email=email,
+                                address=address_full,
+                                emergency_contact_name=ec_name,
+                                emergency_contact_phone=emergency_phone_full,
+                                medical_condition=medical,
+                                position=position,
+                            )
+                        )
+
+                    db.session.commit()
+                except Exception:
+                    db.session.rollback()
             set_employee_first_last(username, first, last)
             if is_final:
                 set_employee_field(username, "OnboardingCompleted", "TRUE")
