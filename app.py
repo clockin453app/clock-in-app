@@ -598,8 +598,8 @@ def import_workhours():
             row = WorkHour(
                 employee_email=username,
                 date=_to_date(_pick(rec, "Date", "date")),
-                clock_in=_to_datetime(_pick(rec, "ClockIn", "Clock_In", "clock_in")),
-                clock_out=_to_datetime(_pick(rec, "ClockOut", "Clock_Out", "clock_out")),
+                clock_in=_to_datetime(_pick(rec, "Clock In", "ClockIn", "Clock_In", "clock_in")),
+                clock_out=_to_datetime(_pick(rec, "Clock Out", "ClockOut", "Clock_Out", "clock_out")),
                 workplace=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
             )
             db.session.add(row)
