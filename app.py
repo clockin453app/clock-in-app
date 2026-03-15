@@ -9771,31 +9771,73 @@ def admin_employees():
     wp = _session_workplace_id()
     rows_html = []
     try:
-        vals = employees_sheet.get_all_values()
-        headers = vals[0] if vals else []
-        def idx(n): return headers.index(n) if headers and n in headers else None
+        records = []
 
-        i_u = idx("Username")
-        i_fn = idx("FirstName")
-        i_ln = idx("LastName")
-        i_role = idx("Role")
-        i_rate = idx("Rate")
-        i_early = idx("EarlyAccess")
-        i_wp = idx("Workplace_ID")
+        if request.args.get("source") == "db":
+            for rec in Employee.query.all():
+                username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
+                first_name = str(getattr(rec, "first_name", "") or "").strip()
+                last_name = str(getattr(rec, "last_name", "") or "").strip()
+                full_name = str(getattr(rec, "name", "") or "").strip()
+                role = str(getattr(rec, "role", "") or "").strip()
 
-        for r in (vals[1:] if len(vals) > 1 else []):
-            u = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
+                rate_val = getattr(rec, "rate", None)
+                rate = "" if rate_val is None else str(rate_val).strip()
+
+                early_access = str(getattr(rec, "early_access", "") or "").strip()
+                workplace_id = str(
+                    getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
+                ).strip() or "default"
+
+                if (not first_name and not last_name) and full_name:
+                    parts = [p for p in full_name.split() if p]
+                    if parts:
+                        first_name = parts[0]
+                        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+                if not username:
+                    continue
+
+                records.append({
+                    "Username": username,
+                    "FirstName": first_name,
+                    "LastName": last_name,
+                    "Role": role,
+                    "Rate": rate,
+                    "EarlyAccess": early_access,
+                    "Workplace_ID": workplace_id,
+                })
+        else:
+            records = get_employees_compat()
+
+        headers = ["Username", "FirstName", "LastName", "Role", "Rate", "EarlyAccess", "Workplace_ID"]
+        vals = [headers] + [
+            [
+                rec.get("Username", ""),
+                rec.get("FirstName", ""),
+                rec.get("LastName", ""),
+                rec.get("Role", ""),
+                rec.get("Rate", ""),
+                rec.get("EarlyAccess", ""),
+                rec.get("Workplace_ID", ""),
+            ]
+            for rec in records
+        ]
+
+        for rec in records:
+            u = (rec.get("Username") or "").strip()
             if not u:
                 continue
-            if i_wp is not None:
-                row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
-                if row_wp != wp:
-                    continue
-            fn = (r[i_fn] if i_fn is not None and i_fn < len(r) else "").strip()
-            ln = (r[i_ln] if i_ln is not None and i_ln < len(r) else "").strip()
-            rr = (r[i_role] if i_role is not None and i_role < len(r) else "").strip()
-            rate = (r[i_rate] if i_rate is not None and i_rate < len(r) else "").strip()
-            early = (r[i_early] if i_early is not None and i_early < len(r) else "").strip()
+
+            row_wp = (rec.get("Workplace_ID") or "default").strip() or "default"
+            if row_wp != wp:
+                continue
+
+            fn = (rec.get("FirstName") or "").strip()
+            ln = (rec.get("LastName") or "").strip()
+            rr = (rec.get("Role") or "").strip()
+            rate = str(rec.get("Rate") or "").strip()
+            early = str(rec.get("EarlyAccess") or "").strip()
             early_label = "Yes" if early.lower() in ("true", "1", "yes") else "No"
             disp = (fn + " " + ln).strip() or u
 
