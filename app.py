@@ -4239,7 +4239,359 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   line-height: 1;
 }
 }
+/* ===== SKIN-ONLY PREMIUM PASS (keeps original layout) ===== */
 
+:root{
+  --bg:#f4f7fb;
+  --card:rgba(255,255,255,.94);
+  --text:#0f172a;
+  --muted:#667892;
+  --border:rgba(15,23,42,.08);
+  --shadow: 0 10px 30px rgba(15,23,42,.05);
+  --shadow2: 0 18px 50px rgba(15,23,42,.09);
+  --radius: 20px;
+
+  --navy:#1f4ed8;
+  --navy2:#163ea9;
+  --navySoft:rgba(31,78,216,.08);
+
+  --green:#16a34a;
+  --red:#dc2626;
+  --amber:#f59e0b;
+}
+
+body{
+  background:
+    radial-gradient(1200px 680px at 20% 0%, rgba(59,130,246,.08) 0%, rgba(59,130,246,0) 58%),
+    linear-gradient(180deg, #f8fbff 0%, #f4f7fb 52%, #eff4fa 100%);
+  color:var(--text);
+}
+
+h1{
+  font-weight:800;
+  letter-spacing:-.03em;
+}
+
+h2{
+  font-weight:700;
+  letter-spacing:-.02em;
+}
+
+.sub{
+  color:var(--muted);
+}
+
+.card{
+  background:var(--card);
+  border:1px solid var(--border);
+  box-shadow:var(--shadow);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+.card:hover{
+  box-shadow:var(--shadow2);
+}
+
+.badge{
+  background:rgba(255,255,255,.78);
+  color:var(--navy);
+  border:1px solid rgba(31,78,216,.14);
+  box-shadow:0 6px 18px rgba(15,23,42,.06);
+}
+
+.badge.admin{
+  background:rgba(255,255,255,.78);
+  color:var(--navy);
+  border:1px solid rgba(31,78,216,.16);
+}
+
+.kpi,
+.graphCard,
+.quickCard,
+.activityCard,
+.sideInfoCard,
+.clockCard,
+.menu,
+.adminSectionCard,
+.adminToolCard,
+.payrollFiltersCard,
+.payrollChartCard,
+.contractBox,
+.payrollWrap,
+.tablewrap,
+.weeklyEditTable,
+.payrollSummaryItem,
+.kpiMini{
+  background:rgba(255,255,255,.86);
+  border-color:rgba(15,23,42,.08);
+  box-shadow:var(--shadow);
+}
+
+.kpi{
+  border-radius:22px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,251,255,.92));
+}
+
+.kpi .label{
+  color:#7a8ca8;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  font-size:11px;
+}
+
+.kpi .value{
+  letter-spacing:-.03em;
+  color:#0f172a;
+}
+
+.graphCard{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.95), rgba(248,251,255,.92));
+  border:1px solid rgba(31,78,216,.08);
+}
+
+.graphTitle{
+  color:#0f172a;
+  letter-spacing:-.02em;
+}
+
+.graphRange{
+  color:#6f84a3;
+}
+
+.graphShell{
+  background:
+    linear-gradient(180deg, rgba(250,252,255,.98), rgba(244,248,253,.94)),
+    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 48%);
+  border:1px solid rgba(31,78,216,.08);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.78);
+}
+
+.barTrack{
+  background:linear-gradient(180deg, rgba(31,78,216,.04), rgba(31,78,216,0));
+}
+
+.bar{
+  background:linear-gradient(180deg, #1f4ed8 0%, #60a5fa 100%);
+  box-shadow:0 16px 34px rgba(37,99,235,.20);
+}
+
+.barValue{
+  color:#1f4ed8;
+}
+
+.graphStat{
+  background:rgba(255,255,255,.88);
+  border-color:rgba(15,23,42,.07);
+}
+
+.quickCard{
+  background:
+    linear-gradient(180deg, rgba(250,252,255,.96), rgba(255,255,255,.94));
+  border-color:rgba(31,78,216,.10);
+}
+
+.activityCard{
+  background:
+    linear-gradient(180deg, rgba(251,250,255,.96), rgba(255,255,255,.94));
+  border-color:rgba(139,92,246,.10);
+}
+
+.sideInfoCard{
+  background:
+    linear-gradient(180deg, rgba(248,255,251,.96), rgba(255,255,255,.94));
+  border-color:rgba(34,197,94,.10);
+}
+
+.quickMini,
+.activityRow,
+.sideInfoRow{
+  background:rgba(255,255,255,.84);
+  border-color:rgba(15,23,42,.07);
+  box-shadow:0 4px 14px rgba(15,23,42,.03);
+}
+
+.quickMini .miniIcon,
+.sectionIcon,
+.avatar,
+.icoBox,
+.sideIcon,
+.adminToolIcon,
+.adminSectionIcon{
+  background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(241,247,255,.92));
+  border-color:rgba(31,78,216,.10);
+  box-shadow:0 4px 14px rgba(15,23,42,.04);
+}
+
+.menuItem,
+.sideItem{
+  background:rgba(255,255,255,.78);
+  border-color:rgba(15,23,42,.07);
+  box-shadow:none;
+}
+
+.menuItem:hover,
+.sideItem:hover{
+  border-color:rgba(31,78,216,.14);
+  box-shadow:0 10px 24px rgba(15,23,42,.06);
+}
+
+.menuItem.active,
+.sideItem.active{
+  background:
+    linear-gradient(180deg, rgba(31,78,216,.10), rgba(96,165,250,.05));
+  border-color:rgba(31,78,216,.18);
+}
+
+.menuText,
+.sideText{
+  color:#243247;
+  font-weight:700;
+}
+
+.chev{
+  color:#5e7de7;
+}
+
+.input{
+  background:rgba(255,255,255,.88);
+  border:1px solid rgba(15,23,42,.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.65);
+}
+
+.input:focus{
+  border-color:rgba(31,78,216,.30);
+  box-shadow:
+    0 0 0 4px rgba(31,78,216,.08),
+    inset 0 1px 0 rgba(255,255,255,.7);
+}
+
+.btn{
+  box-shadow:0 10px 22px rgba(15,23,42,.08);
+}
+
+.btnIn{
+  background:linear-gradient(180deg, #16a34a, #22c55e);
+}
+
+.btnOut{
+  background:linear-gradient(180deg, #dc2626, #ef4444);
+}
+
+.btnSoft,
+.adminPrimaryBtn{
+  background:linear-gradient(180deg, #1f4ed8, #2563eb);
+  color:#fff;
+  box-shadow:0 12px 28px rgba(37,99,235,.18);
+}
+
+.btnTiny{
+  background:rgba(255,255,255,.72);
+  border-color:rgba(15,23,42,.10);
+  color:#284574;
+}
+
+.btnTiny:hover{
+  background:rgba(31,78,216,.08);
+  border-color:rgba(31,78,216,.18);
+}
+
+.message{
+  background:rgba(22,163,74,.10);
+  border-color:rgba(22,163,74,.16);
+  box-shadow:0 8px 20px rgba(15,23,42,.04);
+}
+
+.message.error{
+  background:rgba(220,38,38,.08);
+  border-color:rgba(220,38,38,.16);
+}
+
+.tablewrap,
+.payrollWrap,
+.weeklyEditTable{
+  background:rgba(255,255,255,.84);
+  border-color:rgba(15,23,42,.08);
+}
+
+.tablewrap th,
+.payrollSheet thead th{
+  background:rgba(248,251,255,.96);
+  color:#233248;
+  border-bottom-color:rgba(15,23,42,.08);
+}
+
+.tablewrap td,
+.payrollSheet tbody td,
+.weeklyEditTable tbody td{
+  border-bottom-color:rgba(15,23,42,.06);
+}
+
+.tablewrap table tbody tr:nth-child(even),
+.weeklyEditTable tbody tr:nth-child(even) td{
+  background:rgba(248,250,253,.70);
+}
+
+.tablewrap table tbody tr:hover,
+.payrollSheet tbody tr:hover td,
+.weeklyEditTable tbody tr:hover td{
+  background:rgba(31,78,216,.04);
+}
+
+.weeklyEditTable thead th{
+  background:linear-gradient(180deg, #1f4ed8, #1d4ed8);
+  border-bottom-color:rgba(23,37,84,.22);
+}
+
+.payrollSummaryItem{
+  background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,251,255,.94));
+  border-color:rgba(15,23,42,.07);
+}
+
+.payrollChartCard{
+  background:
+    linear-gradient(180deg, rgba(248,251,255,.96), rgba(255,255,255,.94));
+  border-color:rgba(31,78,216,.10);
+}
+
+.payrollLegendRow{
+  background:rgba(255,255,255,.84);
+  border-color:rgba(15,23,42,.08);
+}
+
+.adminToolCard,
+.adminSectionCard{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,251,255,.94));
+  border-color:rgba(15,23,42,.08);
+}
+
+.adminToolTitle,
+.adminSectionTitle{
+  letter-spacing:-.01em;
+}
+
+.bottomNav{
+  background:rgba(255,255,255,.84);
+  border-top-color:rgba(15,23,42,.08);
+  box-shadow:0 -10px 30px rgba(15,23,42,.08);
+}
+
+.navIcon.active{
+  background:rgba(31,78,216,.08);
+}
+
+@media (min-width: 980px){
+  .sidebar{
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.82), rgba(246,250,255,.88));
+    border-color:rgba(15,23,42,.07);
+    box-shadow:0 12px 32px rgba(15,23,42,.07);
+  }
+}
 
 </style>
 """
@@ -8757,34 +9109,36 @@ def admin_force_clockin():
 
     except Exception:
         pass
-        if DB_MIGRATION_MODE:
-            try:
-                shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
 
-                db_row = WorkHour.query.filter_by(
-                    employee_email=username,
-                    date=shift_date,
-                    workplace=_session_workplace_id(),
-                ).order_by(WorkHour.id.desc()).first()
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
 
-                if db_row:
-                    db_row.clock_in = clock_in_dt
-                    db_row.clock_out = None
-                else:
-                    db.session.add(
-                        WorkHour(
-                            employee_email=username,
-                            date=shift_date,
-                            clock_in=clock_in_dt,
-                            clock_out=None,
-                            workplace=_session_workplace_id(),
-                        )
+            db_row = WorkHour.query.filter_by(
+                employee_email=username,
+                date=shift_date,
+                workplace=_session_workplace_id(),
+            ).order_by(WorkHour.id.desc()).first()
+
+            if db_row:
+                db_row.clock_in = clock_in_dt
+                db_row.clock_out = None
+            else:
+                db.session.add(
+                    WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        clock_in=clock_in_dt,
+                        clock_out=None,
+                        workplace=_session_workplace_id(),
                     )
+                )
 
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
     return redirect(request.referrer or "/admin")
