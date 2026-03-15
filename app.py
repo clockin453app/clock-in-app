@@ -9886,46 +9886,58 @@ def admin_employees():
     employee_options_html = "<option value='' selected disabled>Select employee</option>"
     try:
         wp_now = _session_workplace_id()
-        vals2 = employees_sheet.get_all_values()
-        headers2 = vals2[0] if vals2 else []
+        records = []
 
-        def idx2(name):
-            if not headers2:
-                return None
-            target = (name or "").strip().lower()
-            for i, h in enumerate(headers2):
-                if (h or "").strip().lower() == target:
-                    return i
-            return None
+        if request.args.get("source") == "db":
+            for rec in Employee.query.all():
+                username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
+                first_name = str(getattr(rec, "first_name", "") or "").strip()
+                last_name = str(getattr(rec, "last_name", "") or "").strip()
+                full_name = str(getattr(rec, "name", "") or "").strip()
+                active = str(getattr(rec, "active", "TRUE") or "TRUE").strip()
+                workplace_id = str(
+                    getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
+                ).strip() or "default"
 
-        i_user = idx2("Username")
-        i_fn = idx2("FirstName")
-        i_ln = idx2("LastName")
-        i_wp = idx2("Workplace_ID")
-        i_active = idx2("Active")
+                if (not first_name and not last_name) and full_name:
+                    parts = [p for p in full_name.split() if p]
+                    if parts:
+                        first_name = parts[0]
+                        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
 
-        if i_user is not None:
-            for r in (vals2[1:] if len(vals2) > 1 else []):
-                u = (r[i_user] if len(r) > i_user else "").strip()
-                if not u:
+                if not username:
                     continue
-                if i_wp is not None:
-                    r_wp = (r[i_wp] if len(r) > i_wp else "").strip()
-                    if r_wp != wp_now:
-                        continue
-                if i_active is not None:
-                    a = (r[i_active] if len(r) > i_active else "").strip().lower()
-                    inactive_tag = ""
-                    if a in ("false", "0", "no"):
-                        inactive_tag = " (inactive)"
 
-                fn = (r[i_fn] if i_fn is not None and len(r) > i_fn else "").strip()
-                ln = (r[i_ln] if i_ln is not None and len(r) > i_ln else "").strip()
-                disp = (fn + " " + ln).strip() or u
+                records.append({
+                    "Username": username,
+                    "FirstName": first_name,
+                    "LastName": last_name,
+                    "Active": active,
+                    "Workplace_ID": workplace_id,
+                })
+        else:
+            records = get_employees_compat()
 
-                employee_options_html += f"<option value='{escape(u)}'>{escape(disp)}{inactive_tag} ({escape(u)})</option>"
+        for rec in records:
+            u = str(rec.get("Username") or "").strip()
+            if not u:
+                continue
+
+            r_wp = str(rec.get("Workplace_ID") or "default").strip() or "default"
+            if r_wp != wp_now:
+                continue
+
+            a = str(rec.get("Active") or "TRUE").strip().lower()
+            inactive_tag = " (inactive)" if a in ("false", "0", "no") else ""
+
+            fn = str(rec.get("FirstName") or "").strip()
+            ln = str(rec.get("LastName") or "").strip()
+            disp = (fn + " " + ln).strip() or u
+
+            employee_options_html += f"<option value='{escape(u)}'>{escape(disp)}{inactive_tag} ({escape(u)})</option>"
     except Exception:
         pass
+
     content = f"""
 
       <div class="headerTop">
