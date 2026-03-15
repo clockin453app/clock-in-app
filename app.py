@@ -1419,25 +1419,25 @@ PWA_TAGS = """
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 """
 
-# ================= PREMIUM UI (REBUIlT CLEAN) =================
+# ================= PREMIUM UI (CLEAN + STABLE) =================
 STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root{
-  --bg:#f4f7fb;
+  --bg:#f7f9fc;
   --card:#ffffff;
-  --text:#0c1833;
+  --text:#0f172a;
   --muted:#64748b;
-  --border:rgba(15,23,42,.08);
-  --shadow: 0 14px 34px rgba(15,23,42,.06);
-  --shadow2: 0 22px 54px rgba(15,23,42,.12);
-  --radius: 20px;
+  --border:rgba(15,23,42,.10);
+  --shadow: 0 10px 28px rgba(15,23,42,.06);
+  --shadow2: 0 16px 46px rgba(15,23,42,.10);
+  --radius: 18px;
 
   /* Brand (finance blue) */
-  --navy:#1d4ed8;
+  --navy:#1e40af;
   --navy2:#1e3a8a;
-  --navySoft:rgba(37,99,235,.09);
+  --navySoft:rgba(30,64,175,.08);
 
   --green:#16a34a;
   --red:#dc2626;
@@ -1455,8 +1455,9 @@ body{
   margin:0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background:
-    radial-gradient(1200px 680px at 18% 0%, rgba(59,130,246,.11) 0%, rgba(59,130,246,0) 58%),
-    linear-gradient(180deg, #f8fbff 0%, #f4f7fb 42%, #f2f5fa 100%);
+    radial-gradient(900px 520px at 18% 0%, rgba(10,42,94,.08) 0%, rgba(10,42,94,0) 60%),
+    linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,0) 45%),
+    var(--bg);
   color: var(--text);
   padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
 }
@@ -1470,7 +1471,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .card{
   min-width: 0;
   max-width: 100%;
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(250,252,255,.96));
+  background: var(--card);
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow);
@@ -1982,7 +1983,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 
 .weeklyEditTable thead th{
-  background: linear-gradient(180deg, #1e3a8a, #2563eb);
+  background: linear-gradient(180deg, #dc2626, #b91c1c);
   color: white;
   font-size:13px;
   font-weight:800;
@@ -2634,15 +2635,15 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width:100%;
   padding: 12px 12px;
   border-radius: 16px;
-  border: 1px solid rgba(15,23,42,.10);
-  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(11,18,32,.12);
+  background: rgba(255,255,255,.92);
   font-size: 15px;
   outline:none;
   margin-top: 8px;
 }
 .input:focus{
   border-color: rgba(30,64,175,.45);
-  box-shadow: 0 0 0 4px rgba(37,99,235,.08);
+  box-shadow: 0 0 0 3px rgba(30,64,175,.10);
 }
 
 /* Buttons */
@@ -3465,11 +3466,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 @media (min-width: 980px){
   body{ padding: 18px 18px 22px 18px; }
     .shell{
-    max-width: 1420px;
-    width: min(100%, 1420px);
+    max-width: none;
+    width: calc(100vw - 36px);
     margin: 0 auto;
     display: grid;
-    grid-template-columns: 248px minmax(0, 1fr);
+    grid-template-columns: 280px minmax(0, 1fr);
     gap: 16px;
     align-items: start;
   }
@@ -3533,7 +3534,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     width:4px;
     border-radius: 999px;
     background: linear-gradient(180deg, rgba(30,64,175,1), rgba(30,64,175,.55));
-    box-shadow: 0 0 0 4px rgba(37,99,235,.08);
+    box-shadow: 0 0 0 3px rgba(30,64,175,.10);
   }
   .sideLeft{ display:flex; align-items:center; gap:12px; }
     .sideText{ font-weight:800; font-size: 14px; letter-spacing:.1px; }
@@ -4056,7 +4057,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     left: 18px;
     top: 18px;
     bottom: 18px;
-    width: 248px;
+    width: 280px;
     z-index: 140;
     transform: translateX(-115%);
     opacity: 0;
@@ -4077,8 +4078,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .payrollShell.payrollMenuOpen .main{
-    margin-left: 266px;
-    width: calc(100% - 266px);
+    margin-left: 298px;
+    width: calc(100% - 298px);
   }
 
   /* no dark overlay for docked mode */
@@ -4116,7 +4117,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .payrollShell.payrollMenuOpen .payrollMenuToggle{
-  left: 276px;
+  left: 308px;
 }
 
 .payrollShell.payrollMenuOpen .payrollMenuToggle::before{
@@ -4239,440 +4240,6 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 }
 
-
-
-/* ================= PREMIUM OVERRIDE (VALID + STABLE) ================= */
-:root{
-  --bg:#f4f7fb;
-  --card:#ffffff;
-  --text:#0c1833;
-  --muted:#64748b;
-  --border:rgba(15,23,42,.08);
-  --shadow:0 10px 28px rgba(15,23,42,.06);
-  --shadow2:0 16px 40px rgba(15,23,42,.10);
-  --navy:#1d4ed8;
-  --navy2:#153eaa;
-  --navySoft:rgba(29,78,216,.08);
-  --green:#16a34a;
-  --red:#dc2626;
-  --amber:#d97706;
-}
-
-body{
-  background:
-    radial-gradient(1100px 620px at 8% -4%, rgba(29,78,216,.10) 0%, rgba(29,78,216,0) 58%),
-    radial-gradient(920px 520px at 100% 0%, rgba(8,145,178,.06) 0%, rgba(8,145,178,0) 50%),
-    linear-gradient(180deg, rgba(255,255,255,.84), rgba(255,255,255,0) 34%),
-    var(--bg) !important;
-}
-
-.card,
-.menu,
-.quickCard,
-.activityCard,
-.sideInfoCard,
-.graphCard,
-.clockCard,
-.adminToolCard,
-.adminSectionCard,
-.payrollFiltersCard,
-.payrollChartCard{
-  border:1px solid rgba(15,23,42,.08) !important;
-  box-shadow:0 10px 28px rgba(15,23,42,.06) !important;
-  border-radius:22px !important;
-}
-
-.card{
-  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,251,255,.94)) !important;
-}
-
-.badge{
-  box-shadow:0 2px 10px rgba(15,23,42,.05) !important;
-  border-color:rgba(29,78,216,.14) !important;
-}
-
-.kpi{
-  padding:16px !important;
-}
-.kpi .label{
-  font-size:12px !important;
-  font-weight:800 !important;
-  letter-spacing:.08em !important;
-  text-transform:uppercase !important;
-}
-.kpi .value{
-  font-size:30px !important;
-  font-weight:900 !important;
-  letter-spacing:-.03em !important;
-}
-.graphCard{
-  padding:18px !important;
-}
-.graphShell{
-  background:
-    radial-gradient(circle at top left, rgba(29,78,216,.10), transparent 44%),
-    linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,254,.95)) !important;
-  border-color:rgba(15,23,42,.08) !important;
-}
-.bar{
-  background:linear-gradient(180deg, #143caa 0%, #2563eb 55%, #60a5fa 100%) !important;
-}
-.quickCard{
-  background:
-    radial-gradient(140% 140% at 100% 0%, rgba(29,78,216,.12), rgba(29,78,216,0) 44%),
-    linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.95)) !important;
-}
-.activityCard{
-  background:
-    radial-gradient(140% 140% at 100% 0%, rgba(109,40,217,.10), rgba(109,40,217,0) 44%),
-    linear-gradient(180deg, rgba(250,247,255,.98), rgba(255,255,255,.95)) !important;
-}
-.sideInfoCard{
-  background:
-    radial-gradient(140% 140% at 100% 0%, rgba(22,163,74,.10), rgba(22,163,74,0) 44%),
-    linear-gradient(180deg, rgba(246,255,250,.98), rgba(255,255,255,.95)) !important;
-}
-.quickMini,
-.sideInfoRow,
-.activityRow{
-  border-radius:16px !important;
-  box-shadow:0 4px 12px rgba(15,23,42,.04) !important;
-}
-.quickMini{
-  padding:11px 12px !important;
-}
-.quickMini .miniIcon{
-  width:34px !important;
-  height:34px !important;
-  border-radius:12px !important;
-}
-.quickMini .miniText{
-  font-size:13px !important;
-}
-
-.menuItem,
-.sideItem{
-  border-radius:18px !important;
-  border:1px solid rgba(15,23,42,.08) !important;
-  background:linear-gradient(180deg, rgba(255,255,255,.97), rgba(248,250,254,.93)) !important;
-}
-.menuItem.active,
-.sideItem.active{
-  background:linear-gradient(180deg, rgba(241,247,255,.98), rgba(255,255,255,.94)) !important;
-  border-color:rgba(29,78,216,.18) !important;
-  box-shadow:0 14px 32px rgba(29,78,216,.08) !important;
-}
-.icoBox,
-.sideIcon{
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.70) !important;
-}
-
-.bottomNav{
-  background:rgba(255,255,255,.88) !important;
-  box-shadow:0 -10px 32px rgba(15,23,42,.10) !important;
-}
-
-/* desktop balance */
-@media (min-width:980px){
-  .shell{
-    grid-template-columns:232px minmax(0,1fr) !important;
-    gap:18px !important;
-  }
-
-  .sidebar{
-    width:auto !important;
-    padding:10px !important;
-    border-radius:22px !important;
-    background:linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,250,254,.92)) !important;
-    border:1px solid rgba(15,23,42,.08) !important;
-    box-shadow:0 18px 44px rgba(15,23,42,.09) !important;
-  }
-
-  .dashboardMainMenu{
-    display:none !important;
-  }
-
-  .sideItem{
-    margin-top:6px !important;
-    padding:10px 11px !important;
-    border-radius:14px !important;
-  }
-
-  .sideLeft{
-    gap:10px !important;
-  }
-
-  .sideIcon{
-    width:32px !important;
-    height:32px !important;
-    border-radius:11px !important;
-  }
-
-  .sideIcon svg{
-    width:16px !important;
-    height:16px !important;
-  }
-
-  .sideText{
-    font-size:13px !important;
-    font-weight:800 !important;
-  }
-
-  .chev{
-    font-size:18px !important;
-  }
-
-  .graphCard{
-    padding:16px !important;
-  }
-
-  .bars{
-    height:210px !important;
-  }
-
-  .barTrack{
-    height:155px !important;
-  }
-
-  .dashboardBottom{
-    grid-template-columns:1.2fr .8fr !important;
-    gap:12px !important;
-  }
-
-  .quickCard,
-  .activityCard,
-  .sideInfoCard,
-  .menu,
-  .clockCard,
-  .adminSectionCard{
-    padding:12px !important;
-  }
-
-  .activityRow{
-    padding:10px 8px !important;
-    font-size:11px !important;
-  }
-
-  .payrollShell .sidebar{
-    width:232px !important;
-  }
-
-  .payrollShell.payrollMenuOpen .main{
-    margin-left:250px !important;
-    width:calc(100% - 250px) !important;
-  }
-
-  .payrollShell.payrollMenuOpen .payrollMenuToggle{
-    left:260px !important;
-  }
-}
-
-@media (max-width:700px){
-  .quickMini .miniIcon{
-    width:32px !important;
-    height:32px !important;
-  }
-}
-
-
-
-/* ================= REFINED PREMIUM SKIN (same layout geometry) ================= */
-a{ transition: color .16s ease; }
-
-h1{
-  font-size: clamp(28px, 5vw, 40px);
-  font-weight: 800;
-  letter-spacing: -.03em;
-}
-
-h2{
-  font-size: clamp(18px, 3vw, 22px);
-  font-weight: 750;
-}
-
-.sub{
-  color: #6b7a92;
-}
-
-.card:hover{
-  box-shadow: var(--shadow2);
-}
-
-.badge,
-.sectionBadge,
-.adminHintChip,
-.weekPill,
-.netBadge{
-  backdrop-filter: blur(8px);
-}
-
-.kpi,
-.graphCard,
-.quickCard,
-.activityCard,
-.sideInfoCard,
-.clockCard,
-.menu,
-.adminSectionCard,
-.payrollFiltersCard,
-.payrollChartCard{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,255,.96));
-  border-color: rgba(15,23,42,.07);
-}
-
-.kpi .label,
-.kpiMini .k,
-.payrollSummaryItem .k,
-.graphRange,
-.adminToolSub,
-.adminSectionSub{
-  letter-spacing: .02em;
-}
-
-.kpi .value,
-.kpiMini .v,
-.payrollSummaryItem .v,
-.graphStat .v{
-  letter-spacing: -.02em;
-}
-
-.graphCard{
-  border-radius: 24px;
-}
-
-.graphShell{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,249,255,.94));
-  border-color: rgba(37,99,235,.09);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.9), 0 8px 24px rgba(15,23,42,.04);
-}
-
-.barTrack{
-  background: linear-gradient(180deg, rgba(29,78,216,.05), rgba(29,78,216,.01));
-}
-
-.bar{
-  background: linear-gradient(180deg, #1e40af 0%, #3b82f6 100%);
-  box-shadow: 0 16px 28px rgba(37,99,235,.18);
-}
-
-.quickMini,
-.activityRow,
-.sideInfoRow,
-.graphStat,
-.payrollSummaryItem,
-.kpiMini,
-.payrollLegendRow{
-  border-color: rgba(15,23,42,.07);
-  box-shadow: 0 4px 14px rgba(15,23,42,.03);
-}
-
-.menuItem,
-.sideItem{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,251,255,.96));
-  border-color: rgba(15,23,42,.08);
-}
-
-.menuItem:hover,
-.sideItem:hover{
-  border-color: rgba(37,99,235,.18);
-}
-
-.menuText,
-.sideText{
-  color: #22304a;
-}
-
-.input{
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.85);
-}
-
-.btn,
-.adminPrimaryBtn{
-  background: linear-gradient(180deg, #1e40af 0%, #2563eb 100%);
-  box-shadow: 0 14px 28px rgba(37,99,235,.18);
-}
-
-.btnSoft{
-  background: linear-gradient(180deg, rgba(239,246,255,.96), rgba(219,234,254,.92));
-  color: #1d4ed8;
-  border: 1px solid rgba(59,130,246,.14);
-}
-
-.tablewrap,
-.payrollWrap,
-.weeklyEditTable{
-  background: rgba(255,255,255,.92);
-  border-color: rgba(15,23,42,.08);
-  box-shadow: 0 10px 26px rgba(15,23,42,.04);
-}
-
-.tablewrap th,
-.payrollSheet thead th{
-  background: linear-gradient(180deg, rgba(252,253,255,.98), rgba(247,250,255,.96));
-}
-
-.tablewrap tbody tr:hover,
-.payrollSheet tbody tr:hover td,
-.weeklyEditTable tbody tr:hover td{
-  background: rgba(239,246,255,.68);
-}
-
-.bottomNav{
-  background: rgba(255,255,255,.94);
-  border-top-color: rgba(15,23,42,.08);
-  box-shadow: 0 -10px 30px rgba(15,23,42,.10);
-}
-
-@media (min-width: 980px){
-  body{
-    padding: 20px 20px 28px 20px;
-  }
-
-  .shell{
-    gap: 18px;
-    align-items: start;
-  }
-
-  .sidebar{
-    padding: 12px;
-    border-radius: 22px;
-    border-color: rgba(15,23,42,.07);
-    background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,250,255,.92));
-    box-shadow: 0 16px 40px rgba(15,23,42,.06);
-  }
-
-  .sideItem{
-    padding: 11px 12px;
-    border-radius: 16px;
-    margin-top: 10px;
-  }
-
-  .sideIcon{
-    width: 34px;
-    height: 34px;
-    border-radius: 11px;
-  }
-
-  .sideText{
-    font-size: 14px;
-  }
-
-  .main{
-    max-width: 100%;
-  }
-}
-
-@media (max-width: 979px){
-  .card,
-  .graphCard,
-  .quickCard,
-  .activityCard,
-  .sideInfoCard,
-  .menu,
-  .clockCard{
-    border-radius: 18px;
-  }
-}
 
 </style>
 """
@@ -9269,43 +8836,47 @@ def admin_force_clockout():
         if headers and "Workplace_ID" in headers:
             wp_col = headers.index("Workplace_ID") + 1
             updates.append(
-                {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
+                {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]}
+            )
 
         import copy
         _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
     except Exception:
         pass
-        if DB_MIGRATION_MODE:
-            try:
-                shift_date = datetime.strptime(d, "%Y-%m-%d").date()
-                clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
-                clock_in_dt_check = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S")
 
-                if clock_out_dt < clock_in_dt_check:
-                    clock_out_dt = clock_out_dt + timedelta(days=1)
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(d, "%Y-%m-%d").date()
+            clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
+            clock_in_dt_check = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S")
 
-                db_row = WorkHour.query.filter_by(
-                    employee_email=username,
-                    date=shift_date,
-                    workplace=_session_workplace_id(),
-                ).order_by(WorkHour.id.desc()).first()
+            if clock_out_dt < clock_in_dt_check:
+                clock_out_dt = clock_out_dt + timedelta(days=1)
 
-                if db_row:
-                    db_row.clock_out = clock_out_dt
-                else:
-                    db.session.add(
-                        WorkHour(
-                            employee_email=username,
-                            date=shift_date,
-                            clock_in=None,
-                            clock_out=clock_out_dt,
-                            workplace=_session_workplace_id(),
-                        )
+            db_row = WorkHour.query.filter_by(
+                employee_email=username,
+                date=shift_date,
+                workplace=_session_workplace_id(),
+            ).order_by(WorkHour.id.desc()).first()
+
+            if db_row:
+                db_row.clock_out = clock_out_dt
+            else:
+                db.session.add(
+                    WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        clock_in=None,
+                        clock_out=clock_out_dt,
+                        workplace=_session_workplace_id(),
                     )
+                )
 
-                db.session.commit()
-            except Exception:
-                db.session.rollback()
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d, details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
