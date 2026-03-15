@@ -7833,6 +7833,34 @@ def admin_company():
                     if i_cur is not None:
                         row[i_cur] = str(settings.get("Currency_Symbol", "£"))
                     settings_sheet.append_row(row)
+                    if DB_MIGRATION_MODE:
+                        try:
+                            tax_value = settings.get("Tax_Rate", 20.0)
+                            try:
+                                tax_value = float(tax_value)
+                            except Exception:
+                                tax_value = 20.0
+
+                            currency_value = str(settings.get("Currency_Symbol", "£") or "£")
+
+                            db_row = WorkplaceSetting.query.filter_by(workplace_id=wp).first()
+                            if db_row:
+                                db_row.company_name = new_name
+                                db_row.tax_rate = tax_value
+                                db_row.currency_symbol = currency_value
+                            else:
+                                db.session.add(
+                                    WorkplaceSetting(
+                                        workplace_id=wp,
+                                        tax_rate=tax_value,
+                                        currency_symbol=currency_value,
+                                        company_name=new_name,
+                                    )
+                                )
+
+                            db.session.commit()
+                        except Exception:
+                            db.session.rollback()
 
                 log_audit("SET_COMPANY_NAME", actor=session.get("username", "admin"), details=f"{wp} -> {new_name}")
                 ok = True
