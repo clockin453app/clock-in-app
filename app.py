@@ -4996,6 +4996,73 @@ def update_or_append_onboarding(username: str, data: dict):
         onboarding_sheet.append_row(row_values)
 
 def get_onboarding_record(username: str):
+    current_wp = _session_workplace_id()
+
+    if DB_MIGRATION_MODE:
+        try:
+            rec = OnboardingRecord.query.filter_by(
+                username=(username or "").strip(),
+                workplace_id=current_wp,
+            ).first()
+
+            if not rec:
+                return None
+
+            return {
+                "Username": str(getattr(rec, "username", "") or ""),
+                "Workplace_ID": str(getattr(rec, "workplace_id", "") or ""),
+
+                "FirstName": str(getattr(rec, "first_name", "") or ""),
+                "LastName": str(getattr(rec, "last_name", "") or ""),
+                "BirthDate": str(getattr(rec, "birth_date", "") or ""),
+
+                "PhoneCountryCode": str(getattr(rec, "phone_country_code", "") or ""),
+                "PhoneNumber": str(getattr(rec, "phone_number", "") or ""),
+                "Email": str(getattr(rec, "email", "") or ""),
+
+                "StreetAddress": str(getattr(rec, "street_address", "") or ""),
+                "City": str(getattr(rec, "city", "") or ""),
+                "Postcode": str(getattr(rec, "postcode", "") or ""),
+
+                "EmergencyContactName": str(getattr(rec, "emergency_contact_name", "") or ""),
+                "EmergencyContactPhoneCountryCode": str(getattr(rec, "emergency_contact_phone_country_code", "") or ""),
+                "EmergencyContactPhoneNumber": str(getattr(rec, "emergency_contact_phone_number", "") or ""),
+
+                "MedicalCondition": str(getattr(rec, "medical_condition", "") or ""),
+                "MedicalDetails": str(getattr(rec, "medical_details", "") or ""),
+
+                "Position": str(getattr(rec, "position", "") or ""),
+                "CSCSNumber": str(getattr(rec, "cscs_number", "") or ""),
+                "CSCSExpiryDate": str(getattr(rec, "cscs_expiry_date", "") or ""),
+                "EmploymentType": str(getattr(rec, "employment_type", "") or ""),
+                "RightToWorkUK": str(getattr(rec, "right_to_work_uk", "") or ""),
+                "NationalInsurance": str(getattr(rec, "national_insurance", "") or ""),
+                "UTR": str(getattr(rec, "utr", "") or ""),
+                "StartDate": str(getattr(rec, "start_date", "") or ""),
+
+                "BankAccountNumber": str(getattr(rec, "bank_account_number", "") or ""),
+                "SortCode": str(getattr(rec, "sort_code", "") or ""),
+                "AccountHolderName": str(getattr(rec, "account_holder_name", "") or ""),
+
+                "CompanyTradingName": str(getattr(rec, "company_trading_name", "") or ""),
+                "CompanyRegistrationNo": str(getattr(rec, "company_registration_no", "") or ""),
+
+                "DateOfContract": str(getattr(rec, "date_of_contract", "") or ""),
+                "SiteAddress": str(getattr(rec, "site_address", "") or ""),
+
+                "PassportOrBirthCertLink": str(getattr(rec, "passport_or_birth_cert_link", "") or ""),
+                "CSCSFrontBackLink": str(getattr(rec, "cscs_front_back_link", "") or ""),
+                "PublicLiabilityLink": str(getattr(rec, "public_liability_link", "") or ""),
+                "ShareCodeLink": str(getattr(rec, "share_code_link", "") or ""),
+
+                "ContractAccepted": str(getattr(rec, "contract_accepted", "") or ""),
+                "SignatureName": str(getattr(rec, "signature_name", "") or ""),
+                "SignatureDateTime": str(getattr(rec, "signature_date_time", "") or ""),
+                "SubmittedAt": str(getattr(rec, "submitted_at", "") or ""),
+            }
+        except Exception:
+            return None
+
     headers = get_sheet_headers(onboarding_sheet)
     vals = onboarding_sheet.get_all_values()
     if not vals or "Username" not in headers:
@@ -5003,7 +5070,6 @@ def get_onboarding_record(username: str):
 
     ucol = headers.index("Username")
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-    current_wp = _session_workplace_id()
 
     for i in range(1, len(vals)):
         row = vals[i]
