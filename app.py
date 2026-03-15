@@ -10480,8 +10480,8 @@ def admin_employee_sites():
     sites = _get_active_locations()
     site_names = [s["name"] for s in sites] if sites else []
 
-    employee_rows = _list_employee_records_for_workplace()
     rows_html = []
+    employee_rows = get_employees_compat()
 
     def build_opts(current: str):
         opts = []
@@ -10501,9 +10501,15 @@ def admin_employee_sites():
 
         return "".join(opts)
 
+    current_wp = _session_workplace_id()
+
     for user in employee_rows:
         u = (user.get("Username") or "").strip()
         if not u:
+            continue
+
+        row_wp = (user.get("Workplace_ID") or "default").strip() or "default"
+        if row_wp != current_wp:
             continue
 
         fn = (user.get("FirstName") or "").strip()
@@ -10555,49 +10561,41 @@ def admin_employee_sites():
           </tr>
         """)
 
-    if not rows_html:
-        rows_html.append("""
-          <tr>
-            <td colspan='3' class='sub' style='padding:16px;'>No employees found in this workplace.</td>
-          </tr>
-        """)
+    body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No employees found.</td></tr>"
 
     content = f"""
-      <div class="card adminSectionCard">
-        <div class="adminSectionHead">
-          <div class="adminSectionHeadLeft">
-            <div class="adminSectionIcon locations">{_svg_pin()}</div>
-            <div>
-              <h2 class="adminSectionTitle">Employee Sites</h2>
-              <p class="adminSectionSub">Assign employees to one or two active locations for clock-in access.</p>
-            </div>
-          </div>
-          <div class="adminHintChip">{len(site_names)} active site(s)</div>
+      <div class="headerTop">
+        <div>
+          <h1>Employee Sites</h1>
+          <p class="sub">Assign each employee to up to 2 sites (used for geo-fence clock in/out).</p>
         </div>
+        <div class="badge admin">ADMIN</div>
+      </div>
 
+      <div class="card" style="padding:12px;">
+        <p class="sub" style="margin-top:0;">
+          This updates the <b>Employees → Site</b> column. You can save <b>two sites</b>; they will be stored as <b>Site1,Site2</b>.
+          If no site is set for an employee, the app falls back to <b>any active</b> location.
+        </p>
+        <a href="/admin/locations" style="display:inline-block; margin-top:8px;">
+          <button class="btnSoft" type="button">Manage Locations</button>
+        </a>
+      </div>
+
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <h2>Employees</h2>
         <div class="tablewrap" style="margin-top:12px;">
-          <table>
-            <thead>
-              <tr>
-                <th>Employee</th>
-                <th>Assigned Sites</th>
-                <th>Raw Site Value</th>
-              </tr>
-            </thead>
-            <tbody>
-              {''.join(rows_html)}
-            </tbody>
+          <table style="min-width:980px;">
+            <thead><tr><th>Employee</th><th>Assign site(s)</th><th>Raw</th></tr></thead>
+            <tbody>{body}</tbody>
           </table>
         </div>
       </div>
     """
 
     return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell(
-            active="admin",
-            role=session.get("role", "admin"),
-            content_html=content,
-        )
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
     )
 
 @app.post("/admin/employee-sites/save")
