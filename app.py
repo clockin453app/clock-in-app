@@ -9471,6 +9471,16 @@ def admin_locations_deactivate():
     if rownum:
         try:
             locations_sheet.update_cell(rownum, 5, "FALSE")
+
+            if DB_MIGRATION_MODE:
+                try:
+                    wp = _session_workplace_id()
+                    db_row = Location.query.filter_by(workplace_id=wp, site_name=name).first()
+                    if db_row:
+                        db_row.active = "FALSE"
+                        db.session.commit()
+                except Exception:
+                    db.session.rollback()
         except Exception:
             pass
 
@@ -9732,6 +9742,77 @@ def admin_employees():
                                 employees_sheet.update(f"A{rownum}:{end_col}{rownum}", [row])
                                 actor = session.get("username", "admin")
                                 log_audit("EMPLOYEE_UPDATE", actor=actor, username=edit_username, date_str="", details=" ".join(changed))
+
+                                if DB_MIGRATION_MODE:
+                                    try:
+                                        def _row_str(col_name, default=""):
+                                            if headers and col_name in headers:
+                                                idx = headers.index(col_name)
+                                                if idx < len(row):
+                                                    return str(row[idx] or "").strip()
+                                            return default
+
+                                        username_db = _row_str("Username", edit_username) or edit_username
+                                        first_name_db = _row_str("FirstName")
+                                        last_name_db = _row_str("LastName")
+                                        full_name_db = (" ".join([first_name_db, last_name_db])).strip()
+                                        role_db = _row_str("Role")
+                                        password_db = _row_str("Password")
+                                        early_access_db = _row_str("EarlyAccess")
+                                        active_db = _row_str("Active", "TRUE") or "TRUE"
+                                        workplace_id_db = _row_str("Workplace_ID", _session_workplace_id()) or _session_workplace_id()
+                                        site_db = _row_str("Site")
+
+                                        rate_db = None
+                                        rate_raw_db = _row_str("Rate")
+                                        if rate_raw_db != "":
+                                            try:
+                                                rate_db = Decimal(rate_raw_db)
+                                            except Exception:
+                                                rate_db = None
+
+                                        db_row = Employee.query.filter_by(username=username_db).first()
+                                        if not db_row:
+                                            db_row = Employee.query.filter_by(email=username_db).first()
+
+                                        if db_row:
+                                            db_row.email = username_db
+                                            db_row.name = full_name_db or username_db
+                                            db_row.role = role_db
+                                            db_row.workplace = workplace_id_db
+                                            db_row.username = username_db
+                                            db_row.first_name = first_name_db
+                                            db_row.last_name = last_name_db
+                                            db_row.password = password_db or db_row.password
+                                            db_row.rate = rate_db
+                                            db_row.early_access = early_access_db
+                                            db_row.active = active_db
+                                            db_row.workplace_id = workplace_id_db
+                                            db_row.site = site_db
+                                        else:
+                                            db.session.add(
+                                                Employee(
+                                                    email=username_db,
+                                                    name=full_name_db or username_db,
+                                                    role=role_db,
+                                                    workplace=workplace_id_db,
+                                                    created_at=None,
+                                                    username=username_db,
+                                                    first_name=first_name_db,
+                                                    last_name=last_name_db,
+                                                    password=password_db,
+                                                    rate=rate_db,
+                                                    early_access=early_access_db,
+                                                    active=active_db,
+                                                    workplace_id=workplace_id_db,
+                                                    site=site_db,
+                                                )
+                                            )
+
+                                        db.session.commit()
+                                    except Exception:
+                                        db.session.rollback()
+
                                 ok = True
                                 msg = "Employee updated."
                             except Exception:
@@ -9776,6 +9857,21 @@ def admin_employees():
                         else:
                             log_audit("EMPLOYEE_REACTIVATE", actor=actor, username=edit_username, date_str="", details="active=TRUE")
                             msg = "Employee reactivated."
+
+                        if DB_MIGRATION_MODE:
+                            try:
+                                db_row = Employee.query.filter_by(username=edit_username).first()
+                                if not db_row:
+                                    db_row = Employee.query.filter_by(email=edit_username).first()
+
+                                if db_row:
+                                    db_row.active = val
+                                    db_row.workplace = _session_workplace_id()
+                                    db_row.workplace_id = _session_workplace_id()
+                                    db.session.commit()
+                            except Exception:
+                                db.session.rollback()
+
                         ok = True
                     except Exception:
                         ok = False
@@ -9821,6 +9917,53 @@ def admin_employees():
                 employees_sheet.append_row(row)
                 actor = session.get("username", "admin")
                 log_audit("EMPLOYEE_CREATE", actor=actor, username=new_username, date_str="", details=f"role={role_new} rate={rate_val}")
+
+                if DB_MIGRATION_MODE:
+                    try:
+                        full_name = (" ".join([first, last])).strip()
+
+                        db_row = Employee.query.filter_by(username=new_username).first()
+                        if not db_row:
+                            db_row = Employee.query.filter_by(email=new_username).first()
+
+                        if db_row:
+                            db_row.email = new_username
+                            db_row.name = full_name or new_username
+                            db_row.role = role_new
+                            db_row.workplace = wp
+                            db_row.username = new_username
+                            db_row.first_name = first
+                            db_row.last_name = last
+                            db_row.password = hashed
+                            db_row.rate = Decimal(str(rate_val))
+                            db_row.early_access = "TRUE"
+                            db_row.active = "TRUE"
+                            db_row.workplace_id = wp
+                            db_row.site = ""
+                        else:
+                            db.session.add(
+                                Employee(
+                                    email=new_username,
+                                    name=full_name or new_username,
+                                    role=role_new,
+                                    workplace=wp,
+                                    created_at=None,
+                                    username=new_username,
+                                    first_name=first,
+                                    last_name=last,
+                                    password=hashed,
+                                    rate=Decimal(str(rate_val)),
+                                    early_access="TRUE",
+                                    active="TRUE",
+                                    workplace_id=wp,
+                                    site="",
+                                )
+                            )
+
+                        db.session.commit()
+                    except Exception:
+                        db.session.rollback()
+
                 ok = True
                 msg = "Employee created."
                 created = {"u": new_username, "p": temp_pw, "wp": wp}
