@@ -215,6 +215,68 @@ def get_employees():
         return Employee.query.all()
     return employees_sheet.get_all_records()
 
+def get_employees_compat():
+    out = []
+
+    for rec in (get_employees() or []):
+        if isinstance(rec, dict):
+            username = str(rec.get("Username") or rec.get("username") or rec.get("email") or "").strip()
+            first_name = str(rec.get("FirstName") or rec.get("first_name") or "").strip()
+            last_name = str(rec.get("LastName") or rec.get("last_name") or "").strip()
+            full_name = str(rec.get("Name") or rec.get("name") or "").strip()
+            role = str(rec.get("Role") or rec.get("role") or "").strip()
+
+            rate_raw = rec.get("Rate")
+            if rate_raw in (None, ""):
+                rate_raw = rec.get("rate")
+            rate = "" if rate_raw in (None, "") else str(rate_raw).strip()
+
+            early_access = str(rec.get("EarlyAccess") or rec.get("early_access") or "").strip()
+            active = str(rec.get("Active") or rec.get("active") or "TRUE").strip() or "TRUE"
+            workplace_id = str(
+                rec.get("Workplace_ID") or rec.get("workplace_id") or rec.get("workplace") or "default"
+            ).strip() or "default"
+            site = str(rec.get("Site") or rec.get("site") or "").strip()
+        else:
+            username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
+            first_name = str(getattr(rec, "first_name", "") or "").strip()
+            last_name = str(getattr(rec, "last_name", "") or "").strip()
+            full_name = str(getattr(rec, "name", "") or "").strip()
+            role = str(getattr(rec, "role", "") or "").strip()
+
+            rate_val = getattr(rec, "rate", None)
+            rate = "" if rate_val is None else str(rate_val).strip()
+
+            early_access = str(getattr(rec, "early_access", "") or "").strip()
+            active = str(getattr(rec, "active", "TRUE") or "TRUE").strip() or "TRUE"
+            workplace_id = str(
+                getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
+            ).strip() or "default"
+            site = str(getattr(rec, "site", "") or "").strip()
+
+        if (not first_name and not last_name) and full_name:
+            parts = [p for p in full_name.split() if p]
+            if parts:
+                first_name = parts[0]
+                last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+        if not username:
+            continue
+
+        out.append({
+            "Username": username,
+            "FirstName": first_name,
+            "LastName": last_name,
+            "Role": role,
+            "Rate": rate,
+            "EarlyAccess": early_access,
+            "Active": active,
+            "Workplace_ID": workplace_id,
+            "Site": site,
+        })
+
+    return out
+
 @app.route("/db-test")
 def db_test():
     try:
