@@ -1419,28 +1419,35 @@ PWA_TAGS = """
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 """
 
+# ================= PREMIUM UI (REBUIlT CLEAN) =================
 STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 :root{
-  --bg:#f7f9fc;
+  --bg:#f4f7fb;
+  --bg-soft:#eef4ff;
   --card:#ffffff;
+  --card-soft:#f8fbff;
   --text:#0f172a;
   --muted:#64748b;
-  --border:rgba(15,23,42,.10);
-  --shadow: 0 10px 28px rgba(15,23,42,.06);
-  --shadow2: 0 16px 46px rgba(15,23,42,.10);
-  --radius: 18px;
+  --border:rgba(15,23,42,.08);
+  --border-strong:rgba(15,23,42,.12);
+  --shadow:0 12px 30px rgba(15,23,42,.06);
+  --shadow2:0 22px 54px rgba(15,23,42,.10);
+  --shadow3:0 30px 70px rgba(29,78,216,.12);
+  --radius:22px;
 
-  /* Brand (finance blue) */
-  --navy:#1e40af;
-  --navy2:#1e3a8a;
-  --navySoft:rgba(30,64,175,.08);
+  --navy:#1d4ed8;
+  --navy2:#153eaa;
+  --navySoft:rgba(29,78,216,.08);
+  --navyGlow:rgba(37,99,235,.16);
 
   --green:#16a34a;
   --red:#dc2626;
-  --amber:#f59e0b;
+  --amber:#d97706;
+  --violet:#7c3aed;
+  --cyan:#0891b2;
 
   --h1: clamp(26px, 5vw, 38px);
   --h2: clamp(16px, 3vw, 20px);
@@ -1448,14 +1455,13 @@ STYLE = """
 }
 
 *{ box-sizing:border-box; }
-html,body{ height:100%; }
-
-body{
+html,body{
   margin:0;
   font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
   background:
-    radial-gradient(900px 520px at 18% 0%, rgba(10,42,94,.08) 0%, rgba(10,42,94,0) 60%),
-    linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,0) 45%),
+    radial-gradient(1100px 620px at 8% -4%, rgba(29,78,216,.10) 0%, rgba(29,78,216,0) 58%),
+    radial-gradient(920px 520px at 100% 0%, rgba(8,145,178,.06) 0%, rgba(8,145,178,0) 50%),
+    linear-gradient(180deg, rgba(255,255,255,.86), rgba(255,255,255,0) 34%),
     var(--bg);
   color: var(--text);
   padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
@@ -1468,12 +1474,12 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .sub{ color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35; font-weight:400; }
 
 .card{
-  min-width: 0;
-  max-width: 100%;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
+  min-width:0;
+  max-width:100%;
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,255,.94));
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  box-shadow:var(--shadow);
   transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
 }
 
@@ -1482,24 +1488,26 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:6px 12px;
+  gap:6px;
+  padding:7px 12px;
   border-radius:999px;
   font-size:12px;
   font-weight:800;
   letter-spacing:.02em;
-  background: rgba(239,246,255,.96);
-  color: var(--navy);
-  border:1px solid rgba(30,64,175,.16);
-  box-shadow: 0 2px 8px rgba(15,23,42,.05);
+  background:rgba(241,246,255,.98);
+  color:var(--navy);
+  border:1px solid rgba(29,78,216,.14);
+  box-shadow:0 2px 10px rgba(15,23,42,.05);
 }
+
 .badge.admin{
-  background: rgba(239,246,255,.96);
-  color: #1d4ed8;
-  border:1px solid rgba(59,130,246,.18);
+  background:rgba(239,246,255,.98);
+  color:var(--navy);
+  border:1px solid rgba(59,130,246,.16);
 }
 
 /* Shell */
-.shell{ max-width: 560px; margin: 0 auto; }
+.shell{ max-width:560px; margin:0 auto; }
 .sidebar{ display:none; }
 .main{
   width: 100%;
@@ -1522,16 +1530,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   gap: 12px;
   margin-top: 12px;
 }
-.kpi{ padding:14px; }
-.kpi .label{ font-size:var(--small); color:var(--muted); margin:0; font-weight:400; }
-.kpi .value{ font-size: 28px; font-weight:700; margin: 6px 0 0 0; font-variant-numeric: tabular-nums; }
+.kpi{ padding:16px; }
+.kpi .label{ font-size:12px; color:var(--muted); margin:0; font-weight:800; letter-spacing:.08em; text-transform:uppercase; }
 
-/* Graph */
-.graphCard{
-  margin-top: 12px;
-  padding: 16px;
-  border-radius: 22px;
-}
 .graphTop{
   display:flex;
   align-items:flex-start;
@@ -1552,14 +1553,14 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .graphShell{
-  margin-top: 14px;
-  padding: 14px 14px 10px 14px;
-  border-radius: 22px;
-  border: 1px solid rgba(10,42,94,.10);
+  margin-top:14px;
+  padding:14px 14px 10px 14px;
+  border-radius:22px;
+  border:1px solid rgba(15,23,42,.08);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)),
-    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 45%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+    radial-gradient(circle at top left, rgba(29,78,216,.10), transparent 44%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,254,.95));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.7);
 }
 
 .bars{
@@ -1602,11 +1603,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .bar{
-  width: 72%;
-  min-width: 24px;
-  border-radius: 18px 18px 12px 12px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
-  box-shadow: 0 14px 26px rgba(30,64,175,.22);
+  width:72%;
+  min-width:24px;
+  border-radius:18px 18px 12px 12px;
+  background:linear-gradient(180deg, #143caa 0%, #2563eb 55%, #60a5fa 100%);
+  box-shadow:0 14px 26px rgba(29,78,216,.22);
 }
 
 .barLabels{
@@ -1638,10 +1639,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .graphStat{
-  padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.82);
+  padding:12px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.08);
+  background:rgba(255,255,255,.84);
+  box-shadow:0 4px 14px rgba(15,23,42,.04);
 }
 
 .graphStat .k{
@@ -1677,20 +1679,23 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .quickCard{
   background:
-    linear-gradient(180deg, rgba(239,246,255,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(59,130,246,.14);
+    radial-gradient(140% 140% at 100% 0%, rgba(29,78,216,.12), rgba(29,78,216,0) 44%),
+    linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.95));
+  border:1px solid rgba(59,130,246,.14);
 }
 
 .activityCard{
   background:
-    linear-gradient(180deg, rgba(245,243,255,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(139,92,246,.14);
+    radial-gradient(140% 140% at 100% 0%, rgba(109,40,217,.10), rgba(109,40,217,0) 44%),
+    linear-gradient(180deg, rgba(250,247,255,.98), rgba(255,255,255,.95));
+  border:1px solid rgba(139,92,246,.14);
 }
 
 .sideInfoCard{
   background:
-    linear-gradient(180deg, rgba(236,253,245,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(34,197,94,.14);
+    radial-gradient(140% 140% at 100% 0%, rgba(22,163,74,.10), rgba(22,163,74,0) 44%),
+    linear-gradient(180deg, rgba(246,255,250,.98), rgba(255,255,255,.95));
+  border:1px solid rgba(34,197,94,.14);
 }
 
 .quickCard h2{
@@ -1717,12 +1722,14 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   justify-content:space-between;
   gap:10px;
-  padding:12px 12px;
+  padding:11px 12px;
   border-radius:16px;
   border:1px solid rgba(59,130,246,.12);
-  background: rgba(255,255,255,.88);
+  background:rgba(255,255,255,.88);
+  box-shadow:0 4px 12px rgba(15,23,42,.04);
   transition: transform .16s ease, box-shadow .16s ease;
 }
+
 .quickMini:hover{
   transform: translateY(-1px);
   box-shadow: var(--shadow2);
@@ -1735,21 +1742,18 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .quickMini .miniIcon{
-  width:36px;
-  height:36px;
+  width:34px;
+  height:34px;
   border-radius:12px;
   display:grid;
   place-items:center;
-  color: var(--navy);
-  background: rgba(30,64,175,.10);
-  border:1px solid rgba(30,64,175,.14);
+  color:var(--navy);
+  background:rgba(29,78,216,.10);
+  border:1px solid rgba(29,78,216,.14);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.72);
 }
 
-.quickMini .miniText{
-  font-weight:800;
-  font-size:14px;
-  color: rgba(15,23,42,.92);
-}
+.quickMini .miniText{ font-weight:800; font-size:13px; color:rgba(15,23,42,.92); }
 
 .activityList{
   margin-top:10px;
@@ -1760,16 +1764,17 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .activityRow{
   display:grid;
-  grid-template-columns: 92px 54px 54px 48px 64px;
+  grid-template-columns:92px 54px 54px 48px 64px;
   gap:8px;
   align-items:center;
-  padding:10px 10px;
-  border-radius:14px;
+  padding:10px;
+  border-radius:16px;
   border:1px solid rgba(139,92,246,.12);
-  background: rgba(255,255,255,.88);
+  background:rgba(255,255,255,.88);
+  box-shadow:0 4px 12px rgba(15,23,42,.04);
   font-size:12px;
   font-weight:700;
-  color: rgba(15,23,42,.88);
+  color:rgba(15,23,42,.88);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1806,10 +1811,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .sideInfoCard{
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.82);
+  padding:14px;
+  border-radius:20px;
 }
 
 .sideInfoList{
@@ -1825,9 +1828,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:space-between;
   gap:10px;
   padding:10px 12px;
-  border-radius:14px;
+  border-radius:16px;
   border:1px solid rgba(34,197,94,.12);
-  background: rgba(255,255,255,.88);
+  background:rgba(255,255,255,.88);
+  box-shadow:0 4px 12px rgba(15,23,42,.04);
 }
 
 .sideInfoLabel{
@@ -1857,9 +1861,18 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .payrollEmployeeCard .tablewrap{
+  margin-top:14px;
   width:100%;
-  box-sizing:border-box;
+  max-width:100%;
+  min-width:0;
   overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  border-radius:20px;
+  border:1px solid rgba(15,23,42,.10);
+  background:rgba(255,255,255,.72);
+  backdrop-filter:blur(10px);
+  box-shadow:0 8px 22px rgba(15,23,42,.05);
 }
 
 .payrollEmployeeCard .weeklyEditTable{
@@ -1980,14 +1993,13 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   color: #475569;
 }
 
-
 .weeklyEditTable thead th{
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-  color: white;
+  background:linear-gradient(180deg, #12378f, #1d4ed8);
+  color:white;
   font-size:13px;
   font-weight:800;
   padding:12px 10px;
-  border-bottom:1px solid rgba(127,29,29,.35);
+  border-bottom:1px solid rgba(21,58,170,.35);
 }
 
 .weeklyEditTable tbody td{
@@ -2108,9 +2120,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   background: rgba(34,197,94,.08);
 }
 .graphCard{
-  margin-top: 12px;
-  padding: 16px;
-  border-radius: 22px;
+  margin-top:12px;
+  padding:18px;
+  border-radius:24px;
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,255,.94));
 }
 
 .graphTop{
@@ -2280,7 +2293,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 /* Menu */
-.menu{ margin-top: 14px; padding: 12px; }
+.menu{ margin-top:14px; padding:12px; background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,255,.95)); }
 
 .adminGrid{
   display:grid;
@@ -2288,19 +2301,19 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   gap: 12px;
   margin-top: 6px;
 }
-.adminGrid .menuItem{ margin-top: 0; height:100%; }
-.adminToolCard{
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(15,23,42,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-  box-shadow: 0 10px 26px rgba(15,23,42,.08);
+.adminGrid .menuItem{
   display:flex;
-  flex-direction:column;
+  align-items:center;
+  justify-content:space-between;
   gap:12px;
-  min-height: 132px;
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
+  padding:13px 14px;
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(255,255,255,.97), rgba(248,250,254,.93));
+  border:1px solid rgba(15,23,42,.08);
+  margin-top:10px;
+  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
 }
+
 .adminToolCard:hover{
   transform: translateY(-2px);
   box-shadow: 0 16px 34px rgba(15,23,42,.12);
@@ -2438,8 +2451,17 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width:100%;
 }
 .adminFormRow .input{
-  margin-top:0;
+  width:100%;
+  padding:12px 12px;
+  border-radius:16px;
+  border:1px solid rgba(15,23,42,.12);
+  background:rgba(255,255,255,.94);
+  font-size:15px;
+  outline:none;
+  margin-top:8px;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.75);
 }
+
 .adminActionBar{
   display:grid;
   grid-template-columns: 190px minmax(220px, 260px) 170px max-content;
@@ -2525,14 +2547,21 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .menuItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
 .menuItem.active{
-  background: var(--navySoft);
-  border-color: rgba(30,64,175,.20);
+  background:linear-gradient(180deg, rgba(241,247,255,.98), rgba(255,255,255,.94));
+  border-color:rgba(29,78,216,.18);
+  box-shadow:0 14px 32px rgba(29,78,216,.08);
 }
 
 .menuItem.nav-home .icoBox{
-  background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
-  border-color: rgba(37,99,235,.16);
-  color: #1d4ed8;
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  background:rgba(255,255,255,.94);
+  border:1px solid rgba(15,23,42,.08);
+  display:grid;
+  place-items:center;
+  color:var(--navy);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.72);
 }
 
 .menuItem.nav-clock .icoBox{
@@ -2616,18 +2645,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .icoBox svg{ width:22px; height:22px; }
 
-.menuText{
-  font-weight:700;
-  font-size: 16px;
-  letter-spacing:.1px;
-  color: var(--navy);
-}
-.chev{
-  font-size: 26px;
-  color: rgba(30,64,175,.95);
-  font-weight:700;
-  opacity:.85;
-}
+.menuText{ font-weight:800; font-size:15px; letter-spacing:.1px; color:rgba(15,23,42,.90); }
+
+.chev{ font-size:22px; color:rgba(29,78,216,.85); font-weight:700; opacity:.85; }
 
 /* Inputs */
 .input{
@@ -2648,31 +2668,33 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Buttons */
 .btn{
   border:none;
-  border-radius: 18px;
-  padding: 14px 12px;
-  font-weight:700;
-  font-size: 15px;
+  border-radius:18px;
+  padding:14px 12px;
+  font-weight:800;
+  font-size:15px;
   cursor:pointer;
-  box-shadow: 0 10px 18px rgba(11,18,32,.08);
+  box-shadow:0 10px 18px rgba(11,18,32,.08);
   transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
 }
+
 .btn:hover{ transform: translateY(-1px); filter: brightness(1.02); }
 .btn:active{ transform: translateY(0px); filter: brightness(.98); }
-.btnIn{ background: var(--green); color:#fff; }
-.btnOut{ background: var(--red); color:#fff; }
+.btnIn{ background:linear-gradient(180deg, #16a34a, #22c55e); color:#fff; }
+.btnOut{ background:linear-gradient(180deg, #dc2626, #ef4444); color:#fff; }
 
 .btnSoft{
   width:100%;
   border:none;
-  border-radius: 18px;
-  padding: 12px 12px;
-  font-weight:700;
-  font-size: 14px;
+  border-radius:18px;
+  padding:12px 12px;
+  font-weight:800;
+  font-size:14px;
   cursor:pointer;
-  background: rgba(30,64,175,.10);
-  color: var(--navy);
+  background:rgba(29,78,216,.10);
+  color:var(--navy);
   transition: transform .16s ease, box-shadow .16s ease;
 }
+
 .btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
 /* Download CSV button styled like week pills (btnTiny) */
 .btnTiny.csvDownload{
@@ -2786,13 +2808,13 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .tablewrap th{
-  position: sticky;
+  position:sticky;
   top:0;
-  background: rgba(248,250,252,.96);
-  font-weight: 700;
-  color: rgba(11,18,32,.95);
+  background:rgba(248,250,252,.97);
+  font-weight:800;
+  color:rgba(11,18,32,.95);
   letter-spacing:.2px;
-  z-index: 2;
+  z-index:2;
 }
 
 .tablewrap table tbody tr:nth-child(even){ background: rgba(11,18,32,.02); }
@@ -3029,7 +3051,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 @media (max-width: 700px){
   .row2{
     display: grid !important;
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
     gap: 10px !important;
   }
 
@@ -3050,7 +3072,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .adminGrid{
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
   }
 
   .adminToolCard{
@@ -3383,18 +3405,36 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .bad{ border: 1px solid rgba(220,38,38,.55) !important; box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important; }
 .badLabel{ color: rgba(220,38,38,.92) !important; font-weight:800 !important; }
 
+.uploadTitle{
+  margin-top:12px;
+  margin-bottom:6px;
+  font-size:13px;
+  font-weight:800;
+  color:rgba(15,23,42,.86);
+}
+.adminLiveTableWrap,
+.workplacesTableWrap{
+  border-radius:18px;
+}
+.kpiPrimary .chip{
+  background:rgba(29,78,216,.10);
+  border-color:rgba(29,78,216,.14);
+  color:var(--navy);
+}
+
 /* Bottom nav (mobile) */
 .bottomNav{
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  background: rgba(255,255,255,.92);
-  border-top: 1px solid rgba(11,18,32,.10);
-  backdrop-filter: blur(10px);
-  padding: 10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
-  z-index: 99;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 30px rgba(11,18,32,.12);
+  position:fixed;
+  left:0; right:0; bottom:0;
+  background:rgba(255,255,255,.88);
+  border-top:1px solid rgba(15,23,42,.10);
+  backdrop-filter:blur(16px);
+  padding:10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+  z-index:99;
+  border-radius:20px 20px 0 0;
+  box-shadow:0 -10px 32px rgba(15,23,42,.10);
 }
+
 .navInner{
   max-width:560px;
   margin: 0 auto;
@@ -3463,66 +3503,56 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 /* Desktop wide layout */
 @media (min-width: 980px){
-  body{ padding: 18px 18px 22px 18px; }
-    .shell{
-    max-width: none;
-    width: calc(100vw - 36px);
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 16px;
-    align-items: start;
+  body{ padding:18px 18px 22px 18px; }
+  .shell{
+    max-width:none;
+    width:calc(100vw - 36px);
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:232px minmax(0, 1fr);
+    gap:18px;
+    align-items:start;
   }
   .bottomNav{ display:none; }
-    .sidebar{
+  .sidebar{
     display:flex;
     flex-direction:column;
-    gap: 8px;
-    position: sticky;
-    top: 18px;
-    height: calc(100vh - 36px);
-    overflow: hidden;
-    padding: 12px;
-    background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(248,250,252,.92));
-    border: 1px solid rgba(30,64,175,.10);
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(15,23,42,.08);
+    gap:8px;
+    position:sticky;
+    top:18px;
+    height:calc(100vh - 36px);
+    overflow:hidden;
+    padding:10px;
+    background:linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,250,254,.92));
+    border:1px solid rgba(15,23,42,.08);
+    border-radius:22px;
+    box-shadow:0 18px 44px rgba(15,23,42,.09);
   }
-  .sideScroll{
-    overflow:auto;
-    padding-right: 4px;
-    flex: 1 1 auto;
-  }
-  .sideTitle{
-    font-weight:800;
-    font-size: 14px;
-    color: rgba(11,18,32,.80);
-    margin: 0 0 10px 2px;
-  }
-    .sideItem{
+  .sideScroll{ overflow:auto; padding-right:4px; flex:1 1 auto; }
+  .sideTitle{ font-weight:800; font-size:13px; color:rgba(11,18,32,.72); margin:0 0 10px 2px; letter-spacing:.04em; text-transform:uppercase; }
+  .sideItem{
     display:flex;
     align-items:center;
     justify-content:space-between;
     gap:10px;
-    padding: 10px 11px;
-    border-radius: 14px;
-    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.96));
-    border: 1px solid rgba(30,64,175,.08);
-    margin-top: 8px;
-    position: relative;
-    overflow: hidden;
-    transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+    padding:10px 11px;
+    border-radius:15px;
+    background:linear-gradient(180deg, rgba(255,255,255,.97), rgba(248,250,254,.93));
+    border:1px solid rgba(15,23,42,.08);
+    margin-top:6px;
+    position:relative;
+    overflow:hidden;
+    transition:transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
   }
-    .sideItem:hover{
-    transform: translateY(-1px);
-    box-shadow: 0 12px 26px rgba(30,64,175,.14);
-    border-color: rgba(30,64,175,.18);
+  .sideItem:hover{
+    transform:translateY(-1px);
+    box-shadow:0 12px 26px rgba(29,78,216,.12);
+    border-color:rgba(29,78,216,.16);
   }
-
   .sideItem.active{
-    background: linear-gradient(180deg, rgba(30,64,175,.16), rgba(59,130,246,.10));
-    border-color: rgba(30,64,175,.26);
-    box-shadow: 0 12px 30px rgba(30,64,175,.16);
+    background:linear-gradient(180deg, rgba(241,247,255,.98), rgba(255,255,255,.94));
+    border-color:rgba(29,78,216,.18);
+    box-shadow:0 14px 32px rgba(29,78,216,.08);
   }
   .sideItem.active:before{
     content:"";
@@ -3531,114 +3561,45 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     top:10px;
     bottom:10px;
     width:4px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(30,64,175,1), rgba(30,64,175,.55));
-    box-shadow: 0 0 0 3px rgba(30,64,175,.10);
+    border-radius:999px;
+    background:linear-gradient(180deg, rgba(29,78,216,1), rgba(29,78,216,.55));
+    box-shadow:0 0 0 3px rgba(29,78,216,.10);
   }
-  .sideLeft{ display:flex; align-items:center; gap:12px; }
-    .sideText{ font-weight:800; font-size: 14px; letter-spacing:.1px; }
-
+  .sideLeft{ display:flex; align-items:center; gap:10px; }
+  .sideText{ font-weight:800; font-size:13px; letter-spacing:.1px; color:rgba(15,23,42,.90); }
   .sideIcon{
-    width: 36px; height: 36px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
-    border: 1px solid rgba(30,64,175,.12);
-    display:grid; place-items:center;
-    color: var(--navy);
+    width:32px;
+    height:32px;
+    border-radius:11px;
+    background:linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
+    border:1px solid rgba(29,78,216,.12);
+    display:grid;
+    place-items:center;
+    color:var(--navy);
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.72);
   }
-  .sideIcon svg{ width:18px; height:18px; }
+  .sideIcon svg{ width:16px; height:16px; }
 
-    /* Different colors for each sidebar item */
-  .sideItem.nav-home .sideIcon{
-    background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
-    border-color: rgba(37,99,235,.16);
-    color: #1d4ed8;
-  }
+  .sideItem.nav-home .sideIcon{ background:linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92)); border-color:rgba(37,99,235,.16); color:#1d4ed8; }
+  .sideItem.nav-clock .sideIcon{ background:linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92)); border-color:rgba(22,163,74,.18); color:#15803d; }
+  .sideItem.nav-times .sideIcon{ background:linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92)); border-color:rgba(217,119,6,.18); color:#b45309; }
+  .sideItem.nav-reports .sideIcon{ background:linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92)); border-color:rgba(79,70,229,.18); color:#4338ca; }
+  .sideItem.nav-agreements .sideIcon{ background:linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92)); border-color:rgba(8,145,178,.18); color:#0e7490; }
+  .sideItem.nav-profile .sideIcon{ background:linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92)); border-color:rgba(219,39,119,.16); color:#be185d; }
+  .sideItem.nav-admin .sideIcon{ background:linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92)); border-color:rgba(51,65,85,.18); color:#0f172a; }
 
-  .sideItem.nav-clock .sideIcon{
-    background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
-    border-color: rgba(22,163,74,.18);
-    color: #15803d;
-  }
+  .sideItem.nav-home.active{ border-color:rgba(37,99,235,.24); }
+  .sideItem.nav-clock.active{ border-color:rgba(22,163,74,.24); }
+  .sideItem.nav-times.active{ border-color:rgba(245,158,11,.24); }
+  .sideItem.nav-reports.active{ border-color:rgba(79,70,229,.24); }
+  .sideItem.nav-agreements.active{ border-color:rgba(8,145,178,.24); }
+  .sideItem.nav-profile.active{ border-color:rgba(219,39,119,.22); }
+  .sideItem.nav-admin.active{ border-color:rgba(51,65,85,.24); }
 
-  .sideItem.nav-times .sideIcon{
-    background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
-    border-color: rgba(217,119,6,.18);
-    color: #b45309;
-  }
-
-  .sideItem.nav-reports .sideIcon{
-    background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
-    border-color: rgba(79,70,229,.18);
-    color: #4338ca;
-  }
-
-  .sideItem.nav-agreements .sideIcon{
-    background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
-    border-color: rgba(8,145,178,.18);
-    color: #0e7490;
-  }
-
-  .sideItem.nav-profile .sideIcon{
-    background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
-    border-color: rgba(219,39,119,.16);
-    color: #be185d;
-  }
-
-  .sideItem.nav-admin .sideIcon{
-    background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
-    border-color: rgba(51,65,85,.18);
-    color: #0f172a;
-  }
-
-  .sideItem.nav-home.active{
-    background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
-    border-color: rgba(37,99,235,.24);
-  }
-
-  .sideItem.nav-clock.active{
-    background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
-    border-color: rgba(22,163,74,.24);
-  }
-
-  .sideItem.nav-times.active{
-    background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
-    border-color: rgba(245,158,11,.24);
-  }
-
-  .sideItem.nav-reports.active{
-    background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
-    border-color: rgba(79,70,229,.24);
-  }
-
-  .sideItem.nav-agreements.active{
-    background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
-    border-color: rgba(8,145,178,.24);
-  }
-
-  .sideItem.nav-profile.active{
-    background: linear-gradient(180deg, rgba(219,39,119,.14), rgba(244,114,182,.08));
-    border-color: rgba(219,39,119,.22);
-  }
-
-  .sideItem.nav-admin.active{
-    background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
-    border-color: rgba(51,65,85,.24);
-  }
-
-  .sideDivider{
-    height: 1px;
-    background: rgba(11,18,32,.12);
-    margin: 10px 0 6px 0;
-  }
-
-  .logoutBtn{
-    margin-top: 2px;
-    background: rgba(220,38,38,.08);
-    border-color: rgba(220,38,38,.12);
-  }
-  .logoutBtn .sideIcon, .logoutBtn .chev{ color: rgba(220,38,38,.95); }
-  .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
+  .sideDivider{ height:1px; background:rgba(11,18,32,.10); margin:10px 0 6px 0; }
+  .logoutBtn{ margin-top:2px; background:rgba(220,38,38,.06); border-color:rgba(220,38,38,.10); }
+  .logoutBtn .sideIcon, .logoutBtn .chev{ color:rgba(220,38,38,.95); }
+  .logoutBtn .sideText{ color:rgba(220,38,38,.95); }
 }
 
 /* ================= PAYROLL SHEET (condensed week design) ================= */
@@ -4029,7 +3990,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 @media print{
   .sidebar, .bottomNav, button, input, select, .weekRow { display:none !important; }
   body{ padding:0 !important; background:#fff !important; }
-  .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
+  .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr; }
   .card{ box-shadow:none !important; }
 }
 /* Dashboard page menu card:
@@ -4046,17 +4007,17 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Payroll page docked sidebar */
 @media (min-width: 980px){
   .payrollShell{
-    grid-template-columns: 1fr !important;
+    grid-template-columns: 1fr;
     position: relative;
   }
 
   .payrollShell .sidebar{
-    display: flex !important;
+    display:flex;
     position: fixed;
     left: 18px;
     top: 18px;
     bottom: 18px;
-    width: 280px;
+    width: 232px;
     z-index: 140;
     transform: translateX(-115%);
     opacity: 0;
@@ -4077,13 +4038,13 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .payrollShell.payrollMenuOpen .main{
-    margin-left: 298px;
-    width: calc(100% - 298px);
+    margin-left: 250px;
+    width: calc(100% - 250px);
   }
 
   /* no dark overlay for docked mode */
   .payrollMenuBackdrop{
-    display: none !important;
+    display:none;
   }
 
   .payrollMenuToggle{
@@ -4097,26 +4058,26 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(220,38,38,.22);
+  border: 1px solid rgba(29,78,216,.20);
   border-radius: 0 12px 12px 0;
-  background: linear-gradient(180deg, rgba(254,242,242,.98), rgba(252,231,243,.96));
+  background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(224,231,255,.96));
   color: transparent;
   font-size: 0;
   cursor: pointer;
-  box-shadow: 0 10px 22px rgba(220,38,38,.14);
+  box-shadow: 0 10px 22px rgba(29,78,216,.14);
   transition: left .22s ease, box-shadow .18s ease, background .18s ease;
 }
 
 .payrollMenuToggle::before{
   content: "❯";
-  color: rgba(220,38,38,.95);
+  color: rgba(29,78,216,.95);
   font-size: 15px;
   font-weight: 900;
   line-height: 1;
 }
 
 .payrollShell.payrollMenuOpen .payrollMenuToggle{
-  left: 308px;
+  left: 260px;
 }
 
 .payrollShell.payrollMenuOpen .payrollMenuToggle::before{
@@ -4124,8 +4085,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .payrollMenuToggle:hover{
-  box-shadow: 0 14px 26px rgba(220,38,38,.18);
-  background: linear-gradient(180deg, rgba(254,226,226,.98), rgba(252,231,243,.98));
+  box-shadow: 0 14px 26px rgba(29,78,216,.18);
+  background: linear-gradient(180deg, rgba(224,231,255,.98), rgba(219,234,254,.98));
 }
 }
 /* Admin payroll weekly employee cards - mobile compact table */
@@ -4239,243 +4200,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 }
 
-
-
-/* ================= PREMIUM OVERRIDE (VALID + STABLE) ================= */
-:root{
-  --bg:#f4f7fb;
-  --card:#ffffff;
-  --text:#0f172a;
-  --muted:#64748b;
-  --border:rgba(15,23,42,.08);
-  --shadow:0 10px 28px rgba(15,23,42,.06);
-  --shadow2:0 16px 40px rgba(15,23,42,.10);
-  --navy:#1d4ed8;
-  --navy2:#153eaa;
-  --navySoft:rgba(29,78,216,.08);
-  --green:#16a34a;
-  --red:#dc2626;
-  --amber:#d97706;
-}
-
-body{
-  background:
-    radial-gradient(1100px 620px at 8% -4%, rgba(29,78,216,.10) 0%, rgba(29,78,216,0) 58%),
-    radial-gradient(920px 520px at 100% 0%, rgba(8,145,178,.06) 0%, rgba(8,145,178,0) 50%),
-    linear-gradient(180deg, rgba(255,255,255,.84), rgba(255,255,255,0) 34%),
-    var(--bg) !important;
-}
-
-.card,
-.menu,
-.quickCard,
-.activityCard,
-.sideInfoCard,
-.graphCard,
-.clockCard,
-.adminToolCard,
-.adminSectionCard,
-.payrollFiltersCard,
-.payrollChartCard{
-  border:1px solid rgba(15,23,42,.08) !important;
-  box-shadow:0 10px 28px rgba(15,23,42,.06) !important;
-  border-radius:22px !important;
-}
-
-.card{
-  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,251,255,.94)) !important;
-}
-
-.badge{
-  box-shadow:0 2px 10px rgba(15,23,42,.05) !important;
-  border-color:rgba(29,78,216,.14) !important;
-}
-
-.kpi{
-  padding:16px !important;
-}
-.kpi .label{
-  font-size:12px !important;
-  font-weight:800 !important;
-  letter-spacing:.08em !important;
-  text-transform:uppercase !important;
-}
-.kpi .value{
-  font-size:30px !important;
-  font-weight:900 !important;
-  letter-spacing:-.03em !important;
-}
-.graphCard{
-  padding:18px !important;
-}
-.graphShell{
-  background:
-    radial-gradient(circle at top left, rgba(29,78,216,.10), transparent 44%),
-    linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,254,.95)) !important;
-  border-color:rgba(15,23,42,.08) !important;
-}
-.bar{
-  background:linear-gradient(180deg, #143caa 0%, #2563eb 55%, #60a5fa 100%) !important;
-}
-.quickCard{
-  background:
-    radial-gradient(140% 140% at 100% 0%, rgba(29,78,216,.12), rgba(29,78,216,0) 44%),
-    linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.95)) !important;
-}
-.activityCard{
-  background:
-    radial-gradient(140% 140% at 100% 0%, rgba(109,40,217,.10), rgba(109,40,217,0) 44%),
-    linear-gradient(180deg, rgba(250,247,255,.98), rgba(255,255,255,.95)) !important;
-}
-.sideInfoCard{
-  background:
-    radial-gradient(140% 140% at 100% 0%, rgba(22,163,74,.10), rgba(22,163,74,0) 44%),
-    linear-gradient(180deg, rgba(246,255,250,.98), rgba(255,255,255,.95)) !important;
-}
-.quickMini,
-.sideInfoRow,
-.activityRow{
-  border-radius:16px !important;
-  box-shadow:0 4px 12px rgba(15,23,42,.04) !important;
-}
-.quickMini{
-  padding:11px 12px !important;
-}
-.quickMini .miniIcon{
-  width:34px !important;
-  height:34px !important;
-  border-radius:12px !important;
-}
-.quickMini .miniText{
-  font-size:13px !important;
-}
-
-.menuItem,
-.sideItem{
-  border-radius:18px !important;
-  border:1px solid rgba(15,23,42,.08) !important;
-  background:linear-gradient(180deg, rgba(255,255,255,.97), rgba(248,250,254,.93)) !important;
-}
-.menuItem.active,
-.sideItem.active{
-  background:linear-gradient(180deg, rgba(241,247,255,.98), rgba(255,255,255,.94)) !important;
-  border-color:rgba(29,78,216,.18) !important;
-  box-shadow:0 14px 32px rgba(29,78,216,.08) !important;
-}
-.icoBox,
-.sideIcon{
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.70) !important;
-}
-
-.bottomNav{
-  background:rgba(255,255,255,.88) !important;
-  box-shadow:0 -10px 32px rgba(15,23,42,.10) !important;
-}
-
-/* desktop balance */
-@media (min-width:980px){
-  .shell{
-    grid-template-columns:232px minmax(0,1fr) !important;
-    gap:18px !important;
-  }
-
-  .sidebar{
-    width:auto !important;
-    padding:10px !important;
-    border-radius:22px !important;
-    background:linear-gradient(180deg, rgba(255,255,255,.88), rgba(247,250,254,.92)) !important;
-    border:1px solid rgba(15,23,42,.08) !important;
-    box-shadow:0 18px 44px rgba(15,23,42,.09) !important;
-  }
-
-  .dashboardMainMenu{
-    display:none !important;
-  }
-
-  .sideItem{
-    margin-top:6px !important;
-    padding:10px 11px !important;
-    border-radius:14px !important;
-  }
-
-  .sideLeft{
-    gap:10px !important;
-  }
-
-  .sideIcon{
-    width:32px !important;
-    height:32px !important;
-    border-radius:11px !important;
-  }
-
-  .sideIcon svg{
-    width:16px !important;
-    height:16px !important;
-  }
-
-  .sideText{
-    font-size:13px !important;
-    font-weight:800 !important;
-  }
-
-  .chev{
-    font-size:18px !important;
-  }
-
-  .graphCard{
-    padding:16px !important;
-  }
-
-  .bars{
-    height:210px !important;
-  }
-
-  .barTrack{
-    height:155px !important;
-  }
-
-  .dashboardBottom{
-    grid-template-columns:1.2fr .8fr !important;
-    gap:12px !important;
-  }
-
-  .quickCard,
-  .activityCard,
-  .sideInfoCard,
-  .menu,
-  .clockCard,
-  .adminSectionCard{
-    padding:12px !important;
-  }
-
-  .activityRow{
-    padding:10px 8px !important;
-    font-size:11px !important;
-  }
-
-  .payrollShell .sidebar{
-    width:232px !important;
-  }
-
-  .payrollShell.payrollMenuOpen .main{
-    margin-left:250px !important;
-    width:calc(100% - 250px) !important;
-  }
-
-  .payrollShell.payrollMenuOpen .payrollMenuToggle{
-    left:260px !important;
-  }
-}
-
-@media (max-width:700px){
-  .quickMini .miniIcon{
-    width:32px !important;
-    height:32px !important;
-  }
-}
-
 </style>
 """
+
 
 
 # ================= ICONS =================
@@ -5308,22 +5035,41 @@ def find_row_by_username(sheet, username: str):
     return None
 
 def get_employee_display_name(username: str) -> str:
+    u = (username or "").strip()
+    if not u:
+        return ""
+
+    current_wp = _session_workplace_id()
+
+    if DB_MIGRATION_MODE:
+        try:
+            rec = Employee.query.filter_by(username=u, workplace_id=current_wp).first()
+            if not rec:
+                rec = Employee.query.filter_by(email=u, workplace_id=current_wp).first()
+
+            if rec:
+                first_name = str(getattr(rec, "first_name", "") or "").strip()
+                last_name = str(getattr(rec, "last_name", "") or "").strip()
+                full_name = str(getattr(rec, "name", "") or "").strip()
+
+                display = (" ".join([first_name, last_name])).strip()
+                return display or full_name or u
+        except Exception:
+            pass
+
     try:
         vals = employees_sheet.get_all_values()
         if not vals:
-            return username
+            return u
 
         headers = vals[0]
         if "Username" not in headers:
-            return username
+            return u
 
         ucol = headers.index("Username")
         wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
         fn_col = headers.index("FirstName") if "FirstName" in headers else None
         ln_col = headers.index("LastName") if "LastName" in headers else None
-
-        current_wp = _session_workplace_id()
-        u = (username or "").strip()
 
         for i in range(1, len(vals)):
             row = vals[i]
@@ -5331,7 +5077,6 @@ def get_employee_display_name(username: str) -> str:
             if row_user != u:
                 continue
 
-            # If Workplace_ID exists, require it to match session workplace
             if wp_col is not None:
                 row_wp = ((row[wp_col] if len(row) > wp_col else "").strip() or "default")
                 if row_wp != current_wp:
@@ -5340,11 +5085,11 @@ def get_employee_display_name(username: str) -> str:
             fn = row[fn_col] if fn_col is not None and fn_col < len(row) else ""
             ln = row[ln_col] if ln_col is not None and ln_col < len(row) else ""
             full = (fn + " " + ln).strip()
-            return full or username
+            return full or u
 
-        return username
+        return u
     except Exception:
-        return username
+        return u
 
 def set_employee_field(username: str, field: str, value: str):
     vals = employees_sheet.get_all_values()
@@ -5353,6 +5098,7 @@ def set_employee_field(username: str, field: str, value: str):
     headers = vals[0]
     if "Username" not in headers or field not in headers:
         return False
+
     ucol = headers.index("Username")
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     fcol = headers.index(field) + 1
@@ -5361,18 +5107,51 @@ def set_employee_field(username: str, field: str, value: str):
 
     for i in range(1, len(vals)):
         row = vals[i]
-
         row_user = (row[ucol] if len(row) > ucol else "").strip()
         row_wp = ((row[wp_col] if (wp_col is not None and len(row) > wp_col) else "").strip() or "default")
 
         if row_user == username and row_wp == current_wp:
             rownum = i + 1
             break
+
     if not rownum:
         return False
-    employees_sheet.update_cell(rownum, fcol, value)
-    return True
 
+    employees_sheet.update_cell(rownum, fcol, value)
+
+    if DB_MIGRATION_MODE:
+        try:
+            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
+            if not db_row:
+                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+
+            if db_row:
+                if field == "Site" and hasattr(db_row, "site"):
+                    db_row.site = value
+                elif field == "Role" and hasattr(db_row, "role"):
+                    db_row.role = value
+                elif field == "Rate" and hasattr(db_row, "rate"):
+                    try:
+                        db_row.rate = Decimal(str(value)) if str(value).strip() != "" else None
+                    except Exception:
+                        pass
+                elif field == "EarlyAccess" and hasattr(db_row, "early_access"):
+                    db_row.early_access = value
+                elif field == "Active" and hasattr(db_row, "active"):
+                    db_row.active = value
+                elif field == "Workplace_ID":
+                    if hasattr(db_row, "workplace_id"):
+                        db_row.workplace_id = value
+                    if hasattr(db_row, "workplace"):
+                        db_row.workplace = value
+                elif field == "OnboardingCompleted" and hasattr(db_row, "onboarding_completed"):
+                    db_row.onboarding_completed = value
+
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+    return True
 def set_employee_first_last(username: str, first: str, last: str):
     vals = employees_sheet.get_all_values()
     if not vals:
@@ -6903,7 +6682,7 @@ def clock_page():
 
 
     # Active shift timer
-    rows2 = get_workhours_rows()
+    rows2 = work_sheet.get_all_values()
     osf2 = find_open_shift(rows2, username)
     active_start_iso = ""
     active_start_label = ""
@@ -7156,7 +6935,7 @@ def my_times():
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
 
-    rows = get_workhours_rows()
+    rows = work_sheet.get_all_values()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
@@ -8238,26 +8017,42 @@ def change_password():
 
 
 def _get_user_rate(username: str) -> float:
-    """Fetch hourly rate for a username from Employees sheet; fall back to session rate or 0."""
+    """Fetch hourly rate for a username; prefer DB in migration mode, then fall back to sheet/session."""
+    current_wp = _session_workplace_id()
+    u = (username or "").strip()
+
+    if DB_MIGRATION_MODE:
+        try:
+            rec = Employee.query.filter_by(username=u, workplace_id=current_wp).first()
+            if not rec:
+                rec = Employee.query.filter_by(email=u, workplace_id=current_wp).first()
+
+            if rec is not None:
+                rate_val = getattr(rec, "rate", None)
+                if rate_val not in (None, ""):
+                    return safe_float(rate_val, 0.0)
+        except Exception:
+            pass
+
     try:
-        # Prefer Employees sheet (source of truth)
         vals = employees_sheet.get_all_values()
         if not vals:
             return safe_float(session.get("rate", 0), 0.0)
+
         headers = vals[0]
         if "Username" not in headers:
             return safe_float(session.get("rate", 0), 0.0)
+
         ucol = headers.index("Username")
         rcol = headers.index("Rate") if "Rate" in headers else None
         wpcol = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-        current_wp = _session_workplace_id()
+
         for r in vals[1:]:
             if len(r) <= ucol:
                 continue
-            if (r[ucol] or "").strip() != (username or "").strip():
+            if (r[ucol] or "").strip() != u:
                 continue
 
-            # Enforce workplace match ONLY if Employees sheet has Workplace_ID
             if wpcol is not None:
                 row_wp = (r[wpcol] if len(r) > wpcol else "").strip() or "default"
                 if row_wp != current_wp:
@@ -8265,10 +8060,10 @@ def _get_user_rate(username: str) -> float:
 
             if rcol is not None and rcol < len(r):
                 return safe_float(r[rcol], default=0.0)
-            break
+
+        return safe_float(session.get("rate", 0), 0.0)
     except Exception:
-        pass
-    return safe_float(session.get("rate", 0), 0.0)
+        return safe_float(session.get("rate", 0), 0.0)
 
 def _get_open_shifts() -> list[dict]:
     """Return currently open shifts (ClockOut empty) with display metadata for Admin dashboard."""
@@ -8357,44 +8152,38 @@ def admin():
     open_total = len(open_shifts)
 
     try:
-        vals_emp = employees_sheet.get_all_values()
-        headers_emp = vals_emp[0] if vals_emp else []
-        ucol = headers_emp.index("Username") if "Username" in headers_emp else None
-        wp_col = headers_emp.index("Workplace_ID") if "Workplace_ID" in headers_emp else None
-        current_wp = _session_workplace_id()
-
-        if ucol is not None:
-            for r in vals_emp[1:]:
-                u = (r[ucol] if ucol < len(r) else "").strip()
-                if not u:
-                    continue
-                if wp_col is not None:
-                    row_wp = (r[wp_col] if wp_col < len(r) else "").strip() or "default"
-                    if row_wp != current_wp:
-                        continue
-                employees_total += 1
+        employees_total = len(_list_employee_records_for_workplace())
     except Exception:
         employees_total = 0
 
     try:
-        vals_onb = onboarding_sheet.get_all_values()
-        headers_onb = vals_onb[0] if vals_onb else []
-        ucol_onb = headers_onb.index("Username") if "Username" in headers_onb else None
-        wp_col_onb = headers_onb.index("Workplace_ID") if "Workplace_ID" in headers_onb else None
         current_wp = _session_workplace_id()
+        if DB_MIGRATION_MODE:
+            onboarding_total = sum(
+                1
+                for rec in OnboardingRecord.query.all()
+                if (str(getattr(rec, "workplace_id", "default") or "default").strip() or "default") == current_wp
+                and str(getattr(rec, "username", "") or "").strip()
+            )
+        else:
+            vals_onb = onboarding_sheet.get_all_values()
+            headers_onb = vals_onb[0] if vals_onb else []
+            ucol_onb = headers_onb.index("Username") if "Username" in headers_onb else None
+            wp_col_onb = headers_onb.index("Workplace_ID") if "Workplace_ID" in headers_onb else None
 
-        if ucol_onb is not None:
-            for r in vals_onb[1:]:
-                u = (r[ucol_onb] if ucol_onb < len(r) else "").strip()
-                if not u:
-                    continue
-                if wp_col_onb is not None:
-                    row_wp = (r[wp_col_onb] if wp_col_onb < len(r) else "").strip() or "default"
-                    if row_wp != current_wp:
+            if ucol_onb is not None:
+                for r in vals_onb[1:]:
+                    u = (r[ucol_onb] if ucol_onb < len(r) else "").strip()
+                    if not u:
                         continue
-                onboarding_total += 1
+                    if wp_col_onb is not None:
+                        row_wp = (r[wp_col_onb] if wp_col_onb < len(r) else "").strip() or "default"
+                        if row_wp != current_wp:
+                            continue
+                    onboarding_total += 1
     except Exception:
         onboarding_total = 0
+
     if open_shifts:
         rows = []
         for s in open_shifts:
@@ -9198,15 +8987,14 @@ def admin_payroll():
             "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
         }
 
-    # All users from Employees sheet
+    # All users from DB-aware employee records
     all_users = []
     try:
-        for rec in employees_sheet.get_all_records():
-            if not _same_workplace(rec):
-                continue
-            un = (rec.get("Username") or "").strip()
-            if un:
-                all_users.append(un)
+        all_users = [
+            (rec.get("Username") or "").strip()
+            for rec in _list_employee_records_for_workplace()
+            if (rec.get("Username") or "").strip()
+        ]
     except Exception:
         all_users = list(by_user.keys())
 
@@ -11372,6 +11160,61 @@ def admin_workplaces():
                                 set_emp("Active", "TRUE")
 
                             employees_sheet.append_row(emp_row)
+                            if DB_MIGRATION_MODE:
+                                try:
+                                    db_setting = WorkplaceSetting.query.filter_by(workplace_id=workplace_id).first()
+                                    if not db_setting:
+                                        db_setting = WorkplaceSetting(workplace_id=workplace_id)
+                                        db.session.add(db_setting)
+
+                                    db_setting.tax_rate = Decimal(str(tax_rate or "20"))
+                                    db_setting.currency_symbol = currency_symbol
+                                    db_setting.company_name = company_name
+
+                                    db_admin = Employee.query.filter_by(username=admin_username, workplace_id=workplace_id).first()
+                                    if not db_admin:
+                                        db_admin = Employee.query.filter_by(email=admin_username, workplace_id=workplace_id).first()
+
+                                    admin_hash = generate_password_hash(admin_password)
+
+                                    if db_admin:
+                                        db_admin.email = admin_username
+                                        db_admin.username = admin_username
+                                        db_admin.first_name = admin_first
+                                        db_admin.last_name = admin_last
+                                        db_admin.name = (" ".join([admin_first, admin_last])).strip() or admin_username
+                                        db_admin.password = admin_hash
+                                        db_admin.role = "admin"
+                                        db_admin.rate = Decimal("0")
+                                        db_admin.early_access = "TRUE"
+                                        db_admin.active = "TRUE"
+                                        db_admin.site = ""
+                                        db_admin.workplace = workplace_id
+                                        db_admin.workplace_id = workplace_id
+                                    else:
+                                        db.session.add(
+                                            Employee(
+                                                email=admin_username,
+                                                username=admin_username,
+                                                first_name=admin_first,
+                                                last_name=admin_last,
+                                                name=(" ".join([admin_first, admin_last])).strip() or admin_username,
+                                                password=admin_hash,
+                                                role="admin",
+                                                rate=Decimal("0"),
+                                                early_access="TRUE",
+                                                active="TRUE",
+                                                site="",
+                                                workplace=workplace_id,
+                                                workplace_id=workplace_id,
+                                                created_at=None,
+                                            )
+                                        )
+
+                                    db.session.commit()
+                                except Exception:
+                                    db.session.rollback()
+
                             if DB_MIGRATION_MODE:
                                 try:
                                     db_setting = WorkplaceSetting.query.filter_by(workplace_id=workplace_id).first()
