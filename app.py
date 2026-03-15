@@ -277,6 +277,253 @@ def get_employees_compat():
 
     return out
 
+# ================= FINAL DATABASE COMPAT HELPERS =================
+
+def _employee_record_from_model(rec):
+    if not rec:
+        return None
+
+    username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
+    full_name = str(getattr(rec, "name", "") or "").strip()
+    first_name = str(getattr(rec, "first_name", "") or "").strip()
+    last_name = str(getattr(rec, "last_name", "") or "").strip()
+
+    if (not first_name and not last_name) and full_name:
+        parts = [p for p in full_name.split() if p]
+        if parts:
+            first_name = parts[0]
+            last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
+
+    rate_val = getattr(rec, "rate", None)
+    rate_str = "" if rate_val in (None, "") else str(rate_val).strip()
+
+    return {
+        "Username": username,
+        "Password": str(getattr(rec, "password", "") or "").strip(),
+        "Role": str(getattr(rec, "role", "") or "").strip(),
+        "Rate": rate_str,
+        "EarlyAccess": str(getattr(rec, "early_access", "") or "").strip(),
+        "Active": str(getattr(rec, "active", "TRUE") or "TRUE").strip() or "TRUE",
+        "FirstName": first_name,
+        "LastName": last_name,
+        "Site": str(getattr(rec, "site", "") or "").strip(),
+        "Workplace_ID": str(
+            getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
+        ).strip() or "default",
+        "OnboardingCompleted": str(getattr(rec, "onboarding_completed", "") or "").strip(),
+    }
+
+
+def _find_employee_record(username: str, workplace_id: str | None = None):
+    target_user = (username or "").strip()
+    target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+
+    if not target_user:
+        return None
+
+    if DB_MIGRATION_MODE:
+        try:
+            for rec in Employee.query.all():
+                row = _employee_record_from_model(rec)
+                if not row:
+                    continue
+                if (row.get("Username", "") or "").strip() != target_user:
+                    continue
+                if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
+                    continue
+                return row
+        except Exception:
+            pass
+
+    try:
+        for user in employees_sheet.get_all_records():
+            row_user = (user.get("Username") or "").strip()
+            row_wp = (user.get("Workplace_ID") or "").strip() or "default"
+            if row_user == target_user and row_wp == target_wp:
+                return user
+    except Exception:
+        pass
+
+    return None
+
+
+def _list_employee_records_for_workplace(workplace_id: str | None = None, include_inactive: bool = True):
+    target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    out = []
+
+    if DB_MIGRATION_MODE:
+        try:
+            for rec in Employee.query.all():
+                row = _employee_record_from_model(rec)
+                if not row:
+                    continue
+                if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
+                    continue
+
+                if not include_inactive:
+                    active_raw = str(row.get("Active", "TRUE") or "TRUE").strip().lower()
+                    if active_raw in ("false", "0", "no", "n", "off"):
+                        continue
+
+                out.append(row)
+            return out
+        except Exception:
+            pass
+
+    try:
+        for user in employees_sheet.get_all_records():
+            row_wp = (user.get("Workplace_ID") or "").strip() or "default"
+            if row_wp != target_wp:
+                continue
+
+            if not include_inactive:
+                active_raw = str(user.get("Active", "TRUE") or "TRUE").strip().lower()
+                if active_raw in ("false", "0", "no", "n", "off"):
+                    continue
+
+            out.append(user)
+    except Exception:
+        pass
+
+    return out
+
+
+def get_workhours_rows():
+    if not DB_MIGRATION_MODE:
+        return work_sheet.get_all_values()
+
+    headers = ["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay", "Workplace_ID"]
+    out = [headers]
+    current_wp = _session_workplace_id()
+
+    try:
+        rows = WorkHour.query.all()
+    except Exception:
+        return out
+
+    def _to_time_str(v):
+        if not v:
+            return ""
+        try:
+            return v.strftime("%H:%M:%S")
+        except Exception:
+            return ""
+
+    def _to_date_str(v):
+        if not v:
+            return ""
+        try:
+            return v.isoformat()
+        except Exception:
+            return str(v)
+
+    items = []
+    for rec in rows:
+        username = str(
+            getattr(rec, "employee_email", None)
+            or getattr(rec, "username", None)
+            or getattr(rec, "user_email", None)
+            or ""
+        ).strip()
+        if not username:
+            continue
+
+        row_wp = str(
+            getattr(rec, "workplace", None)
+            or getattr(rec, "workplace_id", None)
+            or "default"
+        ).strip() or "default"
+        if row_wp != current_wp:
+            continue
+
+        d = getattr(rec, "date", None)
+        cin = getattr(rec, "clock_in", None)
+        cout = getattr(rec, "clock_out", None)
+
+        hours_val = ""
+        pay_val = ""
+
+        if cin and cout:
+            try:
+                raw_hours = max(0.0, (cout - cin).total_seconds() / 3600.0)
+                hours_num = round(_apply_unpaid_break(raw_hours), 2)
+                pay_num = round(hours_num * float(_get_user_rate(username)), 2)
+                hours_val = str(hours_num)
+                pay_val = str(pay_num)
+            except Exception:
+                hours_val = ""
+                pay_val = ""
+
+        items.append([
+            username,
+            _to_date_str(d),
+            _to_time_str(cin),
+            _to_time_str(cout),
+            hours_val,
+            pay_val,
+            row_wp,
+        ])
+
+    items.sort(key=lambda r: ((r[1] or ""), (r[0] or ""), (r[2] or "")))
+    out.extend(items)
+    return out
+
+
+def get_payroll_rows():
+    if not DB_MIGRATION_MODE:
+        return payroll_sheet.get_all_values()
+
+    headers = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "PaidAt", "PaidBy", "Paid", "Workplace_ID"]
+    out = [headers]
+    current_wp = _session_workplace_id()
+
+    try:
+        rows = PayrollReport.query.all()
+    except Exception:
+        return out
+
+    def _date_str(v):
+        if not v:
+            return ""
+        try:
+            return v.isoformat()
+        except Exception:
+            return str(v)
+
+    def _dt_str(v):
+        if not v:
+            return ""
+        try:
+            return v.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            try:
+                return v.isoformat(sep=" ")
+            except Exception:
+                return str(v)
+
+    items = []
+    for rec in rows:
+        row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
+        if row_wp != current_wp:
+            continue
+
+        items.append([
+            str(getattr(rec, "week_start", "") and _date_str(getattr(rec, "week_start")) or ""),
+            str(getattr(rec, "week_end", "") and _date_str(getattr(rec, "week_end")) or ""),
+            str(getattr(rec, "username", "") or "").strip(),
+            "" if getattr(rec, "gross", None) is None else str(getattr(rec, "gross")),
+            "" if getattr(rec, "tax", None) is None else str(getattr(rec, "tax")),
+            "" if getattr(rec, "net", None) is None else str(getattr(rec, "net")),
+            _dt_str(getattr(rec, "paid_at", None)),
+            str(getattr(rec, "paid_by", "") or "").strip(),
+            str(getattr(rec, "paid", "") or "").strip(),
+            row_wp,
+        ])
+
+    items.sort(key=lambda r: ((r[0] or ""), (r[2] or "")))
+    out.extend(items)
+    return out
+
 @app.route("/db-test")
 def db_test():
     try:
@@ -1176,632 +1423,595 @@ PWA_TAGS = """
 # ================= PREMIUM UI (CLEAN + STABLE) =================
 STYLE = """
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
 
 :root{
-  --bg:#f7f9fc;
-  --card:#ffffff;
-  --text:#0f172a;
+  --bg:#f4f7fb;
+  --bg2:#edf3fb;
+  --card:rgba(255,255,255,.90);
+  --card-strong:#ffffff;
+  --card-soft:rgba(249,251,255,.88);
+  --ink:#0f172a;
+  --ink-soft:#334155;
   --muted:#64748b;
-  --border:rgba(15,23,42,.10);
-  --shadow: 0 10px 28px rgba(15,23,42,.06);
-  --shadow2: 0 16px 46px rgba(15,23,42,.10);
-  --radius: 18px;
+  --line:rgba(15,23,42,.10);
+  --line-strong:rgba(15,23,42,.15);
+  --shadow-xs:0 4px 12px rgba(15,23,42,.04);
+  --shadow-sm:0 10px 30px rgba(15,23,42,.06);
+  --shadow-md:0 18px 44px rgba(15,23,42,.09);
+  --shadow-lg:0 26px 64px rgba(15,23,42,.12);
+  --radius:18px;
+  --radius-lg:24px;
+  --radius-xl:28px;
 
-  /* Brand (finance blue) */
-  --navy:#1e40af;
-  --navy2:#1e3a8a;
-  --navySoft:rgba(30,64,175,.08);
-
+  --navy:#1d4ed8;
+  --navy-deep:#153eaa;
+  --navy-soft:rgba(29,78,216,.10);
+  --teal:#0891b2;
+  --teal-soft:rgba(8,145,178,.10);
   --green:#16a34a;
+  --green-soft:rgba(22,163,74,.10);
+  --amber:#d97706;
+  --amber-soft:rgba(217,119,6,.10);
+  --violet:#6d28d9;
+  --violet-soft:rgba(109,40,217,.10);
+  --rose:#db2777;
+  --rose-soft:rgba(219,39,119,.10);
   --red:#dc2626;
-  --amber:#f59e0b;
+  --red-soft:rgba(220,38,38,.10);
+  --slate:#334155;
+  --slate-soft:rgba(51,65,85,.10);
 
-  --h1: clamp(26px, 5vw, 38px);
-  --h2: clamp(16px, 3vw, 20px);
-  --small: clamp(12px, 2vw, 14px);
+  --h1:clamp(28px,5vw,40px);
+  --h2:clamp(17px,3vw,21px);
+  --small:clamp(12px,2vw,14px);
+  --field-h:48px;
+  --focus:0 0 0 4px rgba(29,78,216,.12);
+  --glass:blur(18px) saturate(130%);
 }
 
-*{ box-sizing:border-box; }
-html,body{ height:100%; }
+*{box-sizing:border-box;}
+html,body{height:100%;}
+html{-webkit-text-size-adjust:100%;}
 
 body{
   margin:0;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  color:var(--ink);
   background:
-    radial-gradient(900px 520px at 18% 0%, rgba(10,42,94,.08) 0%, rgba(10,42,94,0) 60%),
-    linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,0) 45%),
-    var(--bg);
-  color: var(--text);
-  padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
+    radial-gradient(1100px 620px at 8% -4%, rgba(29,78,216,.11) 0%, rgba(29,78,216,0) 58%),
+    radial-gradient(920px 520px at 100% 0%, rgba(8,145,178,.07) 0%, rgba(8,145,178,0) 50%),
+    linear-gradient(180deg, rgba(255,255,255,.82), rgba(255,255,255,0) 34%),
+    linear-gradient(180deg, var(--bg), var(--bg2));
+  padding:16px 14px calc(92px + env(safe-area-inset-bottom)) 14px;
 }
 
-a{ color:inherit; text-decoration:none; }
+body::before{
+  content:"";
+  position:fixed;
+  inset:0;
+  pointer-events:none;
+  background:
+    linear-gradient(135deg, rgba(255,255,255,.24), rgba(255,255,255,0) 38%),
+    radial-gradient(700px 260px at 50% 100%, rgba(255,255,255,.18), transparent 70%);
+  opacity:.8;
+}
 
-h1{ font-size:var(--h1); margin:0; font-weight:700; letter-spacing:.2px; }
-h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
-.sub{ color:var(--muted); margin:6px 0 0 0; font-size:var(--small); line-height:1.35; font-weight:400; }
+a{
+  color:inherit;
+  text-decoration:none;
+}
+
+h1{
+  margin:0;
+  font-size:var(--h1);
+  line-height:1.03;
+  font-weight:800;
+  letter-spacing:-.03em;
+}
+
+h2{
+  margin:0 0 8px 0;
+  font-size:var(--h2);
+  line-height:1.15;
+  font-weight:800;
+  letter-spacing:-.02em;
+}
+
+.sub{
+  margin:6px 0 0 0;
+  color:var(--muted);
+  font-size:var(--small);
+  line-height:1.45;
+  font-weight:500;
+}
+
+.label,
+.k,
+.graphRange,
+.graphStat .k,
+.payrollSummaryItem .k,
+.kpiMini .k{
+  letter-spacing:.01em;
+}
 
 .card{
-  min-width: 0;
-  max-width: 100%;
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow);
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+  position:relative;
+  min-width:0;
+  max-width:100%;
+  background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(255,255,255,.88));
+  border:1px solid rgba(255,255,255,.68);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);
+  backdrop-filter:var(--glass);
+  -webkit-backdrop-filter:var(--glass);
+  transition:transform .18s ease, box-shadow .18s ease, border-color .18s ease, background .18s ease;
+  overflow:hidden;
 }
 
-/* Small badge */
+.card::before{
+  content:"";
+  position:absolute;
+  inset:0 0 auto 0;
+  height:1px;
+  background:linear-gradient(90deg, rgba(255,255,255,.9), rgba(255,255,255,.14));
+  pointer-events:none;
+}
+
+.card:hover{
+  box-shadow:var(--shadow-md);
+}
+
 .badge{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  padding:6px 12px;
+  gap:6px;
+  min-height:34px;
+  padding:6px 13px;
   border-radius:999px;
   font-size:12px;
-  font-weight:800;
-  letter-spacing:.02em;
-  background: rgba(239,246,255,.96);
-  color: var(--navy);
-  border:1px solid rgba(30,64,175,.16);
-  box-shadow: 0 2px 8px rgba(15,23,42,.05);
+  font-weight:900;
+  letter-spacing:.06em;
+  text-transform:uppercase;
+  color:var(--navy-deep);
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(237,245,255,.96));
+  border:1px solid rgba(29,78,216,.15);
+  box-shadow:var(--shadow-xs);
+  white-space:nowrap;
 }
+
 .badge.admin{
-  background: rgba(239,246,255,.96);
-  color: #1d4ed8;
-  border:1px solid rgba(59,130,246,.18);
+  color:#0f172a;
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(241,245,249,.96));
+  border-color:rgba(51,65,85,.16);
 }
 
-/* Shell */
-.shell{ max-width: 560px; margin: 0 auto; }
-.sidebar{ display:none; }
+.shell{
+  position:relative;
+  z-index:1;
+  max-width:560px;
+  margin:0 auto;
+}
+
+.sidebar{
+  display:none;
+}
+
 .main{
-  width: 100%;
-  min-width: 0;   /* IMPORTANT: allows wide content to scroll instead of overflowing */
+  width:100%;
+  min-width:0;
 }
 
-/* Header top */
 .headerTop{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
-  gap:12px;
+  gap:14px;
   margin-bottom:14px;
 }
 
-/* KPI cards */
+.headerTop > div:first-child{
+  min-width:0;
+}
+
+.sectionHead,
+.sectionHeadLeft,
+.adminSectionHead,
+.adminSectionHeadLeft,
+.graphTop,
+.adminToolTop,
+.sideLeft,
+.left,
+.menuLeft,
+.payrollLegendLeft{
+  min-width:0;
+}
+
 .kpiRow{
   display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 12px;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:12px;
 }
-.kpi{ padding:14px; }
-.kpi .label{ font-size:var(--small); color:var(--muted); margin:0; font-weight:400; }
-.kpi .value{ font-size: 28px; font-weight:700; margin: 6px 0 0 0; font-variant-numeric: tabular-nums; }
 
-/* Graph */
-.graphCard{
-  margin-top: 12px;
-  padding: 16px;
-  border-radius: 22px;
+.kpi{
+  padding:16px;
 }
-.graphTop{
+
+.kpiTop{
   display:flex;
   align-items:flex-start;
   justify-content:space-between;
-  gap:12px;
+  gap:10px;
+}
+
+.kpi .label{
+  margin:0;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.kpi .value{
+  margin:10px 0 0 0;
+  font-size:30px;
+  line-height:1.05;
+  font-weight:900;
+  letter-spacing:-.04em;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
+}
+
+.kpiFancy{
+  background:
+    radial-gradient(120% 140% at 100% 0%, rgba(29,78,216,.10) 0%, rgba(29,78,216,0) 48%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,251,255,.92));
+  border-color:rgba(29,78,216,.08);
+}
+
+.kpiFancy::after{
+  content:"";
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(135deg, rgba(255,255,255,.42), rgba(255,255,255,0) 42%);
+}
+
+.kpiPrimary{
+  background:
+    radial-gradient(120% 150% at 100% 0%, rgba(29,78,216,.18) 0%, rgba(29,78,216,0) 52%),
+    linear-gradient(180deg, rgba(240,246,255,.98), rgba(255,255,255,.94));
+  border-color:rgba(29,78,216,.16);
+  box-shadow:0 20px 46px rgba(29,78,216,.12);
+}
+
+.kpiPrimary .value{
+  color:var(--navy-deep);
+}
+
+.graphCard{
+  margin-top:12px;
+  padding:18px;
+  border-radius:var(--radius-xl);
 }
 
 .graphTitle{
-  font-weight:800;
-  font-size: 18px;
-  color: rgba(15,23,42,.96);
+  font-size:18px;
+  font-weight:900;
+  color:var(--ink);
+  letter-spacing:-.03em;
 }
 
 .graphRange{
-  color: var(--muted);
-  font-size: 13px;
-  font-weight:600;
+  align-self:flex-start;
+  padding:8px 11px;
+  border-radius:999px;
+  background:rgba(255,255,255,.85);
+  border:1px solid rgba(15,23,42,.08);
+  color:var(--ink-soft);
+  font-size:12px;
+  font-weight:800;
+  white-space:nowrap;
 }
 
 .graphShell{
-  margin-top: 14px;
-  padding: 14px 14px 10px 14px;
-  border-radius: 22px;
-  border: 1px solid rgba(10,42,94,.10);
+  margin-top:16px;
+  padding:16px 16px 12px 16px;
+  border-radius:24px;
+  border:1px solid rgba(15,23,42,.08);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)),
-    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 45%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+    radial-gradient(circle at top left, rgba(29,78,216,.10), transparent 44%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,254,.95));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.72);
 }
 
 .bars{
-  height: 240px;
+  position:relative;
+  height:244px;
   display:flex;
   align-items:flex-end;
   justify-content:space-between;
-  gap: 14px;
-  padding: 8px 6px 0 6px;
-  position: relative;
+  gap:14px;
+  padding:10px 6px 0 6px;
+}
+
+.bars::before{
+  content:"";
+  position:absolute;
+  left:8px;
+  right:8px;
+  bottom:46px;
+  top:8px;
+  border-radius:18px;
+  background:
+    linear-gradient(180deg, rgba(15,23,42,.045) 0 1px, transparent 1px) 0 0/100% 33.333%;
+  pointer-events:none;
+  opacity:.55;
 }
 
 .barCol{
-  flex: 1 1 0;
+  position:relative;
+  flex:1 1 0;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:flex-end;
-  gap:8px;
-  min-width: 0;
+  gap:9px;
+  min-width:0;
 }
 
 .barValue{
-  font-size: 12px;
-  font-weight: 800;
-  color: rgba(30,64,175,.92);
-  min-height: 16px;
-  white-space: nowrap;
+  min-height:16px;
+  font-size:11px;
+  font-weight:900;
+  color:var(--navy-deep);
+  white-space:nowrap;
 }
 
 .barTrack{
-  width: 100%;
-  height: 180px;
+  width:100%;
+  height:182px;
   display:flex;
   align-items:flex-end;
   justify-content:center;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(30,64,175,.03), rgba(30,64,175,0));
-  position: relative;
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(29,78,216,.04), rgba(29,78,216,0));
+  position:relative;
 }
 
 .bar{
-  width: 72%;
-  min-width: 24px;
-  border-radius: 18px 18px 12px 12px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
-  box-shadow: 0 14px 26px rgba(30,64,175,.22);
+  width:72%;
+  min-width:24px;
+  border-radius:18px 18px 12px 12px;
+  background:linear-gradient(180deg, #143caa 0%, #2563eb 55%, #60a5fa 100%);
+  box-shadow:0 18px 28px rgba(29,78,216,.20);
 }
 
 .barLabels{
   display:flex;
   justify-content:space-between;
   gap:14px;
-  margin-top: 8px;
-  color: var(--muted);
-  font-weight:700;
-  font-size: 13px;
+  margin-top:10px;
+  color:var(--muted);
+  font-weight:800;
+  font-size:12px;
 }
 
 .barLabels div{
-  flex:1 1 0;
-  text-align:center;
 }
 
 .graphMeta{
-  margin-top: 14px;
+  margin-top:14px;
   display:grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns:repeat(3,1fr);
   gap:10px;
 }
 
-@media (max-width: 900px){
-  .graphMeta{
-    grid-template-columns: 1fr;
-  }
-}
-
 .graphStat{
-  padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.82);
+  padding:12px 13px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.08);
+  background:rgba(255,255,255,.82);
 }
 
 .graphStat .k{
-  font-size: 12px;
-  color: var(--muted);
-  font-weight:700;
+  font-size:11px;
+  color:var(--muted);
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.08em;
 }
 
 .graphStat .v{
-  margin-top: 4px;
-  font-size: 18px;
-  font-weight:800;
-  color: rgba(15,23,42,.95);
-}
-.dashboardLower{
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 12px;
+  margin-top:6px;
+  font-size:18px;
+  font-weight:900;
+  color:var(--ink);
 }
 
-@media (max-width: 1100px){
-  .dashboardLower{
-    grid-template-columns: 1fr;
-  }
+.dashboardLower,
+.dashboardBottom{
+  margin-top:12px;
+  display:grid;
+  gap:12px;
+  align-items:start;
+}
+
+.dashboardLower{
+  grid-template-columns:1fr;
+}
+
+.dashboardBottom{
+  grid-template-columns:1.35fr .85fr;
 }
 
 .quickCard,
 .activityCard,
-.sideInfoCard{
-  padding: 14px;
+.sideInfoCard,
+.payrollFiltersCard,
+.payrollChartCard,
+.adminSectionCard,
+.clockCard,
+.menu{
+  padding:14px;
 }
 
 .quickCard{
   background:
-    linear-gradient(180deg, rgba(239,246,255,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(59,130,246,.14);
+    radial-gradient(140% 140% at 100% 0%, rgba(29,78,216,.14), rgba(29,78,216,0) 44%),
+    linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.95));
+  border-color:rgba(29,78,216,.10);
 }
 
 .activityCard{
   background:
-    linear-gradient(180deg, rgba(245,243,255,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(139,92,246,.14);
+    radial-gradient(140% 140% at 100% 0%, rgba(109,40,217,.12), rgba(109,40,217,0) 44%),
+    linear-gradient(180deg, rgba(250,247,255,.98), rgba(255,255,255,.95));
+  border-color:rgba(109,40,217,.11);
 }
 
 .sideInfoCard{
   background:
-    linear-gradient(180deg, rgba(236,253,245,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(34,197,94,.14);
+    radial-gradient(140% 140% at 100% 0%, rgba(22,163,74,.12), rgba(22,163,74,0) 44%),
+    linear-gradient(180deg, rgba(246,255,250,.98), rgba(255,255,255,.95));
+  border-color:rgba(22,163,74,.11);
 }
 
-.quickCard h2{
-  color: #1d4ed8;
-}
-
-.activityCard h2{
-  color: #7c3aed;
-}
-
-.sideInfoCard h2{
-  color: #15803d;
-}
+.quickCard h2{color:var(--navy-deep);}
+.activityCard h2{color:var(--violet);}
+.sideInfoCard h2{color:var(--green);}
 
 .quickGrid{
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:1fr 1fr;
   gap:10px;
   margin-top:10px;
 }
-
-.quickMini{
-  display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
-  padding:12px 12px;
-  border-radius:16px;
-  border:1px solid rgba(59,130,246,.12);
-  background: rgba(255,255,255,.88);
-  transition: transform .16s ease, box-shadow .16s ease;
+  padding:12px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.07);
+  background:rgba(255,255,255,.86);
+  box-shadow:var(--shadow-xs);
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease;
 }
+
+.quickMini:hover,
+.menuItem:hover,
+.sideItem:hover,
+.adminToolCard:hover{
+  transform:translateY(-1px);
+}
+
 .quickMini:hover{
-  transform: translateY(-1px);
-  box-shadow: var(--shadow2);
+  box-shadow:var(--shadow-sm);
+  border-color:rgba(29,78,216,.12);
 }
 
 .quickMini .left{
-  display:flex;
-  align-items:center;
   gap:10px;
 }
 
+.quickMini .miniIcon,
+.icoBox,
+.sideIcon,
+.adminToolIcon,
+.adminSectionIcon,
+.sectionIcon,
+.avatar{
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.60);
+}
+
 .quickMini .miniIcon{
-  width:36px;
-  height:36px;
-  border-radius:12px;
+  width:38px;
+  height:38px;
+  border-radius:14px;
   display:grid;
   place-items:center;
-  color: var(--navy);
-  background: rgba(30,64,175,.10);
-  border:1px solid rgba(30,64,175,.14);
+  color:var(--navy-deep);
+  background:linear-gradient(180deg, rgba(229,238,255,.98), rgba(212,226,255,.88));
+  border:1px solid rgba(29,78,216,.12);
+  flex:0 0 auto;
 }
 
 .quickMini .miniText{
   font-weight:800;
   font-size:14px;
-  color: rgba(15,23,42,.92);
+  color:var(--ink);
 }
 
-.activityList{
+.activityList,
+.sideInfoList{
   margin-top:10px;
   display:flex;
   flex-direction:column;
-  gap:10px;
-}
 
 .activityRow{
   display:grid;
-  grid-template-columns: 92px 54px 54px 48px 64px;
+  grid-template-columns:92px 54px 54px 48px 64px;
   gap:8px;
   align-items:center;
-  padding:10px 10px;
-  border-radius:14px;
-  border:1px solid rgba(139,92,246,.12);
-  background: rgba(255,255,255,.88);
+  padding:12px 10px;
+  border-radius:16px;
+  border:1px solid rgba(109,40,217,.10);
+  background:rgba(255,255,255,.88);
   font-size:12px;
-  font-weight:700;
-  color: rgba(15,23,42,.88);
-  font-variant-numeric: tabular-nums;
+  font-weight:800;
+  color:var(--ink);
+  font-variant-numeric:tabular-nums;
 }
 
 .activityHead{
-  color: var(--muted);
-  font-size:11px;
-  font-weight:800;
-  background: transparent;
+  color:var(--muted);
+  font-size:10px;
+  font-weight:900;
+  background:transparent;
   border:none;
   padding:0 2px;
+  text-transform:uppercase;
+  letter-spacing:.08em;
 }
 
 .activityEmpty{
   margin-top:10px;
   padding:14px;
-  border-radius:14px;
-  border:1px dashed rgba(11,18,32,.14);
-  color: var(--muted);
-  font-weight:600;
-  background: rgba(255,255,255,.60);
-}
-.dashboardBottom{
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: 1.35fr .85fr;
-  gap: 12px;
-  align-items: start;
-}
-
-@media (max-width: 1100px){
-  .dashboardBottom{
-    grid-template-columns: 1fr;
-  }
-}
-
-.sideInfoCard{
-  padding: 14px;
-  border-radius: 18px;
-  border: 1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.82);
-}
-
-.sideInfoList{
-  margin-top: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  border-radius:16px;
+  border:1px dashed rgba(15,23,42,.14);
+  color:var(--muted);
+  font-weight:700;
+  background:rgba(255,255,255,.70);
 }
 
 .sideInfoRow{
-  display:flex;
   align-items:center;
   justify-content:space-between;
   gap:10px;
-  padding:10px 12px;
-  border-radius:14px;
-  border:1px solid rgba(34,197,94,.12);
-  background: rgba(255,255,255,.88);
+  padding:12px;
+  border-radius:16px;
+  border:1px solid rgba(22,163,74,.10);
+  background:rgba(255,255,255,.86);
 }
 
 .sideInfoLabel{
-  font-size: 13px;
-  font-weight: 700;
-  color: rgba(15,23,42,.78);
+  font-size:13px;
+  font-weight:800;
+  color:var(--ink-soft);
 }
 
 .sideInfoValue{
-  font-size: 18px;
-  font-weight: 800;
-  color: rgba(15,23,42,.96);
-}
-.weeklyEditTable{
-  width:100%;
-  min-width:100%;
-  table-layout: fixed;
-  border-collapse:separate;
-  border-spacing:0;
-  border-radius:18px;
-  background: rgba(255,255,255,.88);
-  border:1px solid rgba(11,18,32,.08);
-}
-.payrollEmployeeCard{
-  width:100%;
-  box-sizing:border-box;
+  font-size:19px;
+  line-height:1;
+  font-weight:900;
+  color:var(--ink);
 }
 
-.payrollEmployeeCard .tablewrap{
-  width:100%;
-  box-sizing:border-box;
-  overflow-x:auto;
-}
-
-.payrollEmployeeCard .weeklyEditTable{
-  width:100%;
-}
-.payrollSummaryBar{
-  margin-top:12px;
-  display:grid;
-  grid-template-columns: repeat(5, minmax(120px, 1fr));
-  gap:10px;
-}
-
-@media (max-width: 1100px){
-  .payrollSummaryBar{
-    grid-template-columns: repeat(2, minmax(120px, 1fr));
-  }
-}
-
-.payrollSummaryItem{
-  padding:12px 14px;
-  border-radius:16px;
-  border:1px solid rgba(11,18,32,.08);
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-  box-shadow: 0 4px 12px rgba(15,23,42,.05);
-}
-
-.payrollSummaryItem .k{
-  font-size:12px;
-  font-weight:800;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing:.04em;
-}
-
-.payrollSummaryItem .v{
-  margin-top:4px;
-  font-size:20px;
-  font-weight:800;
-  color: rgba(15,23,42,.96);
-  line-height:1.15;
-}
-
-.payrollSummaryItem.net .v{
-  color:#111827;
-}
-
-.payrollSummaryItem.paidat .v{
-  font-size:16px;
-}
-
-.payrollEmployeeCard .payrollSummaryBar{
-  margin-top: 10px;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.payrollEmployeeCard .payrollSummaryItem{
-  padding: 3px 5px;
-  border-radius: 8px;
-}
-
-.payrollEmployeeCard .payrollSummaryItem .k{
-  font-size: 8px;
-}
-
-.payrollEmployeeCard .payrollSummaryItem .v{
-  font-size: 11px;
-  line-height: 1;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(1){
-  background: rgba(59,130,246,.10);
-  border-color: rgba(59,130,246,.22);
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v{
-  color: #1d4ed8;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(2){
-  background: rgba(34,197,94,.10);
-  border-color: rgba(34,197,94,.22);
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v{
-  color: #15803d;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(3){
-  background: rgba(245,158,11,.10);
-  border-color: rgba(245,158,11,.22);
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v{
-  color: #b45309;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(4){
-  background: rgba(168,85,247,.10);
-  border-color: rgba(168,85,247,.22);
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v{
-  color: #7e22ce;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(5){
-  background: rgba(148,163,184,.12);
-  border-color: rgba(148,163,184,.24);
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
-  color: #475569;
-}
-
-
-.weeklyEditTable thead th{
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
-  color: white;
-  font-size:13px;
-  font-weight:800;
-  padding:12px 10px;
-  border-bottom:1px solid rgba(127,29,29,.35);
-}
-
-.weeklyEditTable tbody td{
-  padding:14px 10px;
-  border-bottom:1px solid rgba(11,18,32,.06);
-  color: rgba(15,23,42,.92);
-  font-size:14px;
-  background: rgba(255,255,255,.82);
-  vertical-align:middle;
-}
-
-.weeklyEditTable tbody tr:nth-child(even) td{
-  background: rgba(248,250,252,.78);
-}
-
-.weeklyEditTable tbody tr:hover td{
-  background: rgba(239,246,255,.72);
-}
-
-.weeklyEditTable td.num,
-.weeklyEditTable th.num{
-  text-align:center;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings:"tnum";
-}
-
-.weeklyEditTable thead th:nth-child(3),
-.weeklyEditTable thead th:nth-child(4),
-.weeklyEditTable thead th:nth-child(5),
-.weeklyEditTable thead th:nth-child(6),
-.weeklyEditTable thead th:nth-child(7),
-.weeklyEditTable tbody td:nth-child(3),
-.weeklyEditTable tbody td:nth-child(4),
-.weeklyEditTable tbody td:nth-child(5),
-.weeklyEditTable tbody td:nth-child(6),
-.weeklyEditTable tbody td:nth-child(7){
-  text-align:center;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings:"tnum";
-}
-
-.weeklyEditTable tbody td:first-child{
-  font-weight:800;
-  width:70px;
-}
-
-.weeklyEditTable tbody td:nth-child(2){
-  color: var(--muted);
-  width:120px;
-}
-
-.weeklyEditTable tbody td:empty::after{
-  content:"";
-}
-
-.weeklyEditTable tbody tr:last-child td{
-  border-bottom:none;
-}
-.sectionHead{
+.sectionHead,
+.adminSectionHead{
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -1809,2191 +2019,1882 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   margin-bottom:8px;
 }
 
-.sectionHeadLeft{
+.sectionHeadLeft,
+.adminSectionHeadLeft{
   display:flex;
   align-items:center;
   gap:10px;
 }
 
-.sectionIcon{
-  width:36px;
-  height:36px;
-  border-radius:12px;
+.sectionIcon,
+.adminSectionIcon{
+  width:40px;
+  height:40px;
+  border-radius:14px;
   display:grid;
   place-items:center;
-  border:1px solid rgba(11,18,32,.08);
+  border:1px solid rgba(15,23,42,.08);
+  flex:0 0 auto;
+  background:linear-gradient(180deg, rgba(255,255,255,.94), rgba(243,247,252,.94));
 }
 
-.sectionIcon svg{
-  width:18px;
-  height:18px;
+.sectionIcon svg,
+.adminSectionIcon svg,
+.adminToolIcon svg,
+.icoBox svg,
+.sideIcon svg{
+  width:19px;
+  height:19px;
 }
 
-.sectionBadge{
-  font-size:12px;
-  font-weight:800;
-  padding:6px 10px;
+.sectionBadge,
+.adminHintChip,
+.netBadge{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 11px;
+  min-height:32px;
   border-radius:999px;
-  border:1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.88);
+  border:1px solid rgba(15,23,42,.08);
+  background:rgba(255,255,255,.88);
   white-space:nowrap;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.02em;
 }
 
 .activityCard .sectionIcon{
-  background: rgba(139,92,246,.14);
-  color: #7c3aed;
-  border-color: rgba(139,92,246,.18);
+  background:linear-gradient(180deg, rgba(239,232,255,.98), rgba(228,217,255,.90));
+  color:var(--violet);
+  border-color:rgba(109,40,217,.14);
 }
-
 .activityCard .sectionBadge{
-  color: #7c3aed;
-  border-color: rgba(139,92,246,.18);
-  background: rgba(139,92,246,.08);
+  color:var(--violet);
+  border-color:rgba(109,40,217,.13);
+  background:rgba(109,40,217,.08);
 }
-
 .sideInfoCard .sectionIcon{
-  background: rgba(34,197,94,.14);
-  color: #15803d;
-  border-color: rgba(34,197,94,.18);
+  background:linear-gradient(180deg, rgba(228,252,238,.98), rgba(206,247,222,.90));
+  color:var(--green);
+  border-color:rgba(22,163,74,.14);
 }
-
 .sideInfoCard .sectionBadge{
-  color: #15803d;
-  border-color: rgba(34,197,94,.18);
-  background: rgba(34,197,94,.08);
-}
-.graphCard{
-  margin-top: 12px;
-  padding: 16px;
-  border-radius: 22px;
+  color:var(--green);
+  border-color:rgba(22,163,74,.13);
+  background:rgba(22,163,74,.08);
 }
 
-.graphTop{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
+.menu{
+  margin-top:14px;
 }
 
-.graphTitle{
-  font-weight:800;
-  font-size: 18px;
-  color: rgba(15,23,42,.96);
-}
-
-.graphRange{
-  color: var(--muted);
-  font-size: 13px;
-  font-weight:600;
-}
-
-.graphShell{
-  margin-top: 14px;
-  padding: 14px 14px 10px 14px;
-  border-radius: 22px;
-  border: 1px solid rgba(10,42,94,.10);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)),
-    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 45%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
-}
-
-.bars{
-  height: 240px;
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap: 14px;
-  padding: 8px 6px 0 6px;
-  position: relative;
-}
-
-.barCol{
-  flex: 1 1 0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:flex-end;
-  gap:8px;
-  min-width: 0;
-}
-
-.barValue{
-  font-size: 12px;
-  font-weight: 800;
-  color: rgba(30,64,175,.92);
-  min-height: 16px;
-  white-space: nowrap;
-}
-
-.barTrack{
-  width: 100%;
-  height: 180px;
-  display:flex;
-  align-items:flex-end;
-  justify-content:center;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(30,64,175,.03), rgba(30,64,175,0));
-  position: relative;
-}
-
-.bar{
-  width: 72%;
-  min-width: 24px;
-  border-radius: 18px 18px 12px 12px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
-  box-shadow: 0 14px 26px rgba(30,64,175,.22);
-}
-
-.barLabels{
-  display:flex;
-  justify-content:space-between;
-  gap:14px;
-  margin-top: 8px;
-  color: var(--muted);
-  font-weight:700;
-  font-size: 13px;
-}
-
-.barLabels div{
-  flex:1 1 0;
-  text-align:center;
-}
-@media (max-width: 700px){
-  .graphCard{
-    padding: 12px;
-  }
-
-  .graphShell{
-    padding: 12px 10px 8px 10px;
-  }
-
-  .bars{
-    height: 200px;
-    gap: 8px;
-    padding: 4px 2px 0 2px;
-  }
-
-  .barTrack{
-    height: 150px;
-  }
-
-  .bar{
-    width: 82%;
-    min-width: 16px;
-  }
-
-  .barValue{
-    display: none;
-  }
-
-  .barLabels{
-    gap: 8px;
-    font-size: 12px;
-  }
-
-  .graphTop{
-    gap: 8px;
-  }
-
-  .graphRange{
-    font-size: 11px;
-    text-align: right;
-  }
-}
-.graphMeta{
-  margin-top: 14px;
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap:10px;
-}
-
-@media (max-width: 900px){
-  .graphMeta{
-    grid-template-columns: 1fr;
-  }
-}
-
-.graphStat{
-  padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.82);
-}
-
-.graphStat .k{
-  font-size: 12px;
-  color: var(--muted);
-  font-weight:700;
-}
-
-.graphStat .v{
-  margin-top: 4px;
-  font-size: 18px;
-  font-weight:800;
-  color: rgba(15,23,42,.95);
-}
-
-/* Menu */
-.menu{ margin-top: 14px; padding: 12px; }
-
-.adminGrid{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 6px;
-}
-.adminGrid .menuItem{ margin-top: 0; height:100%; }
-.adminToolCard{
-  padding: 16px;
-  border-radius: 18px;
-  border: 1px solid rgba(15,23,42,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-  box-shadow: 0 10px 26px rgba(15,23,42,.08);
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-  min-height: 132px;
-  transition: transform .16s ease, box-shadow .16s ease, border-color .16s ease;
-}
-.adminToolCard:hover{
-  transform: translateY(-2px);
-  box-shadow: 0 16px 34px rgba(15,23,42,.12);
-}
-.adminToolTop{
+.menuItem,
+.sideItem{
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
-}
-.adminToolIcon{
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  display:grid;
-  place-items:center;
-  border: 1px solid rgba(15,23,42,.08);
-}
-.adminToolIcon svg{
-  width: 22px;
-  height: 22px;
-}
-.adminToolTitle{
-  font-size: 16px;
-  font-weight: 800;
-  color: rgba(15,23,42,.94);
-}
-.adminToolSub{
-  font-size: 13px;
-  line-height: 1.4;
-  color: var(--muted);
-}
-
-/* Different colors for admin cards */
-.adminToolCard.payroll .adminToolIcon{
-  background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
-  color: #1d4ed8;
-  border-color: rgba(37,99,235,.16);
-}
-.adminToolCard.company .adminToolIcon{
-  background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
-  color: #15803d;
-  border-color: rgba(22,163,74,.18);
-}
-.adminToolCard.onboarding .adminToolIcon{
-  background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
-  color: #4338ca;
-  border-color: rgba(79,70,229,.18);
-}
-.adminToolCard.locations .adminToolIcon{
-  background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
-  color: #0e7490;
-  border-color: rgba(8,145,178,.18);
-}
-.adminToolCard.sites .adminToolIcon{
-  background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
-  color: #b45309;
-  border-color: rgba(217,119,6,.18);
-}
-.adminToolCard.employees .adminToolIcon{
-  background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
-  color: #be185d;
-  border-color: rgba(219,39,119,.16);
-}
-.adminToolCard.drive .adminToolIcon{
-  background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
-  color: #0f172a;
-  border-color: rgba(51,65,85,.18);
-}
-/* Admin lower section panels */
-.adminSectionCard{
-  padding: 14px;
-  border-radius: 20px;
-  border: 1px solid rgba(15,23,42,.10);
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-  box-shadow: 0 10px 26px rgba(15,23,42,.07);
-}
-
-.adminSectionHead{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
   gap:12px;
-  flex-wrap:wrap;
-  margin-bottom: 12px;
-}
-
-.adminSectionHeadLeft{
-  display:flex;
-  align-items:flex-start;
-  gap:12px;
-}
-
-.adminSectionIcon{
-  width: 46px;
-  height: 46px;
-  border-radius: 14px;
-  display:grid;
-  place-items:center;
-  border: 1px solid rgba(15,23,42,.08);
-  flex: 0 0 auto;
-}
-.adminSectionIcon svg{
-  width: 22px;
-  height: 22px;
-}
-
-.adminSectionIcon.clockin{
-  background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
-  color: #1d4ed8;
-  border-color: rgba(37,99,235,.16);
-}
-.adminSectionIcon.live{
-  background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
-  color: #15803d;
-  border-color: rgba(22,163,74,.18);
-}
-
-.adminSectionTitle{
-  font-size: 16px;
-  font-weight: 800;
-  color: rgba(15,23,42,.95);
-  margin: 0;
-}
-
-.adminSectionSub{
-  font-size: 13px;
-  line-height: 1.45;
-  color: var(--muted);
-  margin: 4px 0 0 0;
-}
-
-.adminFormRow{
-  display:block;
-  width:100%;
-}
-.adminFormRow .input{
-  margin-top:0;
-}
-.adminActionBar{
-  display:grid;
-  grid-template-columns: 190px minmax(220px, 260px) 170px max-content;
-  gap:10px;
-  align-items:center;
-  width: 100%;
-  padding: 12px;
-  border-radius: 16px;
-  background: linear-gradient(180deg, rgba(248,250,252,.95), rgba(241,245,249,.92));
-  border: 1px solid rgba(15,23,42,.08);
-}
-
-.adminActionBar .input{
-  width: 100%;
-  height: 44px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.96);
-}
-
-@media (max-width: 1200px){
-  .adminActionBar{
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-@media (max-width: 700px){
-  .adminActionBar{
-    grid-template-columns: 1fr;
-  }
-}
-
-.adminPrimaryBtn{
-  height: 44px;
-  min-width: 150px;
-  padding: 0 18px;
-  justify-self: start;
-  border: none;
-  border-radius: 14px;
-  font-weight: 800;
-  font-size: 14px;
-  cursor: pointer;
-  background: linear-gradient(180deg, rgba(30,64,175,1), rgba(37,99,235,.96));
-  color: #fff;
-  box-shadow: 0 10px 22px rgba(30,64,175,.18);
-  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
-}
-.adminPrimaryBtn:hover{
-  transform: translateY(-1px);
-  box-shadow: 0 14px 26px rgba(30,64,175,.22);
-}
-.adminPrimaryBtn:active{
-  transform: translateY(0);
-  filter: brightness(.98);
-}
-
-.adminHintChip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding: 7px 11px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight: 800;
-  background: rgba(30,64,175,.08);
-  border: 1px solid rgba(30,64,175,.14);
-  color: var(--navy);
-}
-@media (max-width: 780px){
-  .adminGrid{ grid-template-columns: 1fr; }
+  position:relative;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.08);
+  background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,254,.92));
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
 }
 
 .menuItem{
+  margin-top:10px;
+}
+
+.menuItem.active,
+.sideItem.active{
+  border-color:rgba(29,78,216,.18);
+  background:
+    linear-gradient(180deg, rgba(241,247,255,.98), rgba(255,255,255,.94));
+  box-shadow:0 14px 32px rgba(29,78,216,.09);
+}
+
+.menuItem.active::before,
+.sideItem.active::before{
+  content:"";
+  position:absolute;
+  left:0;
+  top:10px;
+  bottom:10px;
+  width:4px;
+  border-radius:999px;
+  background:linear-gradient(180deg, rgba(29,78,216,1), rgba(96,165,250,.55));
+}
+
+.menuLeft,
+.sideLeft{
   display:flex;
   align-items:center;
-  justify-content:space-between;
   gap:12px;
-  padding: 14px 14px;
-  border-radius: 18px;
-  background: rgba(255,255,255,.85);
-  border: 1px solid rgba(11,18,32,.08);
-  margin-top: 10px;
-  transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
-}
-.menuItem:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-.menuItem.active{
-  background: var(--navySoft);
-  border-color: rgba(30,64,175,.20);
 }
 
-.menuItem.nav-home .icoBox{
-  background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
-  border-color: rgba(37,99,235,.16);
-  color: #1d4ed8;
+.icoBox,
+.sideIcon{
+  width:44px;
+  height:44px;
+  border-radius:15px;
+  display:grid;
+  place-items:center;
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(243,247,252,.92));
+  border:1px solid rgba(15,23,42,.08);
+  color:var(--navy-deep);
+  flex:0 0 auto;
 }
 
-.menuItem.nav-clock .icoBox{
-  background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
-  border-color: rgba(22,163,74,.18);
-  color: #15803d;
+.sideIcon{
+  width:38px;
+  height:38px;
+  border-radius:13px;
 }
 
-.menuItem.nav-times .icoBox{
-  background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
-  border-color: rgba(217,119,6,.18);
-  color: #b45309;
+.menuText,
+.sideText{
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:-.01em;
+  color:var(--ink);
 }
 
-.menuItem.nav-reports .icoBox{
-  background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
-  border-color: rgba(79,70,229,.18);
-  color: #4338ca;
-}
-
-.menuItem.nav-agreements .icoBox{
-  background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
-  border-color: rgba(8,145,178,.18);
-  color: #0e7490;
-}
-
-.menuItem.nav-profile .icoBox{
-  background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
-  border-color: rgba(219,39,119,.16);
-  color: #be185d;
-}
-
-.menuItem.nav-admin .icoBox{
-  background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
-  border-color: rgba(51,65,85,.18);
-  color: #0f172a;
-}
-
-.menuItem.nav-home.active{
-  background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
-  border-color: rgba(37,99,235,.24);
-}
-
-.menuItem.nav-clock.active{
-  background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
-  border-color: rgba(22,163,74,.24);
-}
-
-.menuItem.nav-times.active{
-  background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
-  border-color: rgba(245,158,11,.24);
-}
-
-.menuItem.nav-reports.active{
-  background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
-  border-color: rgba(79,70,229,.24);
-}
-
-.menuItem.nav-agreements.active{
-  background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
-  border-color: rgba(8,145,178,.24);
-}
-
-.menuItem.nav-profile.active{
-  background: linear-gradient(180deg, rgba(219,39,119,.14), rgba(244,114,182,.08));
-  border-color: rgba(219,39,119,.22);
-}
-
-.menuItem.nav-admin.active{
-  background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
-  border-color: rgba(51,65,85,.24);
-}
-.menuLeft{ display:flex; align-items:center; gap:12px; }
-.icoBox{
-  width: 44px; height: 44px;
-  border-radius: 14px;
-  background: rgba(255,255,255,.92);
-  border: 1px solid rgba(11,18,32,.08);
-  display:grid; place-items:center;
-  color: var(--navy);
-}
-.icoBox svg{ width:22px; height:22px; }
-
-.menuText{
-  font-weight:700;
-  font-size: 16px;
-  letter-spacing:.1px;
-  color: var(--navy);
-}
 .chev{
-  font-size: 26px;
-  color: rgba(30,64,175,.95);
-  font-weight:700;
-  opacity:.85;
+  font-size:22px;
+  line-height:1;
+  color:rgba(15,23,42,.48);
+  font-weight:800;
+  flex:0 0 auto;
 }
 
-/* Inputs */
-.input{
+.menuItem.nav-home .icoBox,
+.sideItem.nav-home .sideIcon,
+.navIcon.nav-home{
+  color:var(--navy-deep);
+}
+.menuItem.nav-clock .icoBox,
+.sideItem.nav-clock .sideIcon,
+.navIcon.nav-clock{
+  color:var(--green);
+}
+.menuItem.nav-times .icoBox,
+.sideItem.nav-times .sideIcon,
+.navIcon.nav-times{
+  color:var(--amber);
+}
+.menuItem.nav-reports .icoBox,
+.sideItem.nav-reports .sideIcon,
+.navIcon.nav-reports{
+  color:var(--violet);
+}
+.menuItem.nav-agreements .icoBox,
+.sideItem.nav-agreements .sideIcon,
+.navIcon.nav-workplaces,
+.navIcon.nav-agreements{
+  color:var(--teal);
+}
+.menuItem.nav-profile .icoBox,
+.sideItem.nav-profile .sideIcon{
+  color:var(--rose);
+}
+.menuItem.nav-admin .icoBox,
+.sideItem.nav-admin .sideIcon,
+.navIcon.nav-admin{
+  color:#0f172a;
+}
+.navIcon.nav-logout{color:var(--red);}
+
+.menuItem.nav-home .icoBox,
+.sideItem.nav-home .sideIcon{
+  background:linear-gradient(180deg, rgba(228,238,255,.98), rgba(212,226,255,.90));
+  border-color:rgba(29,78,216,.12);
+}
+.menuItem.nav-clock .icoBox,
+.sideItem.nav-clock .sideIcon{
+  background:linear-gradient(180deg, rgba(228,252,238,.98), rgba(206,247,222,.90));
+  border-color:rgba(22,163,74,.12);
+}
+.menuItem.nav-times .icoBox,
+.sideItem.nav-times .sideIcon{
+  background:linear-gradient(180deg, rgba(255,244,220,.98), rgba(255,232,187,.90));
+  border-color:rgba(217,119,6,.12);
+}
+.menuItem.nav-reports .icoBox,
+.sideItem.nav-reports .sideIcon{
+  background:linear-gradient(180deg, rgba(241,235,255,.98), rgba(228,217,255,.90));
+  border-color:rgba(109,40,217,.12);
+}
+.menuItem.nav-agreements .icoBox,
+.sideItem.nav-agreements .sideIcon{
+  background:linear-gradient(180deg, rgba(227,251,255,.98), rgba(199,245,252,.90));
+  border-color:rgba(8,145,178,.12);
+}
+.menuItem.nav-profile .icoBox,
+.sideItem.nav-profile .sideIcon{
+  background:linear-gradient(180deg, rgba(255,236,247,.98), rgba(252,214,234,.90));
+  border-color:rgba(219,39,119,.12);
+}
+.menuItem.nav-admin .icoBox,
+.sideItem.nav-admin .sideIcon{
+  background:linear-gradient(180deg, rgba(244,247,250,.98), rgba(226,232,240,.92));
+  border-color:rgba(51,65,85,.12);
+}
+.logoutBtn{
+  background:linear-gradient(180deg, rgba(255,245,245,.98), rgba(255,237,237,.94));
+  border-color:rgba(220,38,38,.12);
+}
+.logoutBtn .sideIcon,
+.logoutBtn .chev,
+.logoutBtn .sideText{
+  color:var(--red);
+}
+
+.input,
+select.input,
+textarea.input{
   width:100%;
-  padding: 12px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(11,18,32,.12);
-  background: rgba(255,255,255,.92);
-  font-size: 15px;
+  min-height:var(--field-h);
+  padding:12px 14px;
+  border-radius:16px;
+  border:1px solid rgba(15,23,42,.12);
+  background:rgba(255,255,255,.90);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.84);
+  font-size:15px;
+  color:var(--ink);
   outline:none;
-  margin-top: 8px;
-}
-.input:focus{
-  border-color: rgba(30,64,175,.45);
-  box-shadow: 0 0 0 3px rgba(30,64,175,.10);
+  margin-top:8px;
+  transition:border-color .16s ease, box-shadow .16s ease, background .16s ease;
 }
 
-/* Buttons */
-.btn{
-  border:none;
-  border-radius: 18px;
-  padding: 14px 12px;
-  font-weight:700;
-  font-size: 15px;
-  cursor:pointer;
-  box-shadow: 0 10px 18px rgba(11,18,32,.08);
-  transition: transform .16s ease, box-shadow .16s ease, filter .16s ease;
+.input::placeholder{
+  color:#93a3b8;
 }
-.btn:hover{ transform: translateY(-1px); filter: brightness(1.02); }
-.btn:active{ transform: translateY(0px); filter: brightness(.98); }
-.btnIn{ background: var(--green); color:#fff; }
-.btnOut{ background: var(--red); color:#fff; }
+
+.input:hover{
+  border-color:rgba(15,23,42,.17);
+}
+
+.input:focus{
+  border-color:rgba(29,78,216,.34);
+  box-shadow:var(--focus);
+  background:#fff;
+}
+
+input[type="file"].input{
+  padding:10px 12px;
+}
+
+.btn,
+.btnSoft,
+.adminPrimaryBtn,
+.payCellBtn,
+.btnTiny{
+  -webkit-tap-highlight-color:transparent;
+}
+
+.btn,
+.adminPrimaryBtn{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  min-height:48px;
+  border:none;
+  border-radius:16px;
+  padding:0 16px;
+  font-size:14px;
+  font-weight:900;
+  cursor:pointer;
+  transition:transform .16s ease, box-shadow .16s ease, filter .16s ease, background .16s ease;
+}
+
+.btn{
+  box-shadow:var(--shadow-sm);
+}
+
+.btn:hover,
+.adminPrimaryBtn:hover,
+.btnSoft:hover{
+  transform:translateY(-1px);
+}
+
+.btn:active,
+.adminPrimaryBtn:active,
+.btnSoft:active,
+.payCellBtn:active{
+  transform:translateY(0);
+  filter:brightness(.98);
+}
+
+.btnIn{
+  background:linear-gradient(180deg, #22c55e, #16a34a);
+  color:#fff;
+}
+
+.btnOut{
+  background:linear-gradient(180deg, #ef4444, #dc2626);
+  color:#fff;
+}
 
 .btnSoft{
   width:100%;
+  min-height:46px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
   border:none;
-  border-radius: 18px;
-  padding: 12px 12px;
-  font-weight:700;
-  font-size: 14px;
+  border-radius:16px;
+  padding:0 14px;
+  font-size:14px;
+  font-weight:900;
   cursor:pointer;
-  background: rgba(30,64,175,.10);
-  color: var(--navy);
-  transition: transform .16s ease, box-shadow .16s ease;
+  color:var(--navy-deep);
+  background:linear-gradient(180deg, rgba(241,247,255,.98), rgba(231,240,255,.92));
+  border:1px solid rgba(29,78,216,.12);
+  box-shadow:var(--shadow-xs);
+  transition:transform .16s ease, box-shadow .16s ease, filter .16s ease;
 }
-.btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-/* Download CSV button styled like week pills (btnTiny) */
-.btnTiny.csvDownload{
-  background: #217346;
-  border-color: #1a5c37;
-  color: #fff;
+
+.adminPrimaryBtn{
+  min-width:150px;
+  padding:0 18px;
+  background:linear-gradient(180deg, #1d4ed8, #2563eb);
+  color:#fff;
+  box-shadow:0 14px 28px rgba(29,78,216,.20);
 }
-.btnTiny.csvDownload:hover{
-  background: #1b5f38;
-  border-color: #144a2b;
-}
+
 .btnTiny{
-  border: 1px solid rgba(15,23,42,.14);
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-weight:700;
-  font-size: 12px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:30px;
+  padding:6px 12px;
+  border:1px solid rgba(15,23,42,.14);
+  border-radius:999px;
+  background:rgba(255,255,255,.88);
+  color:var(--ink-soft);
+  font-size:12px;
+  font-weight:900;
+  white-space:nowrap;
   cursor:pointer;
-  background: rgba(30,64,175,.08);
-  color: rgba(30,64,175,1);
-  white-space: nowrap;
+  box-shadow:var(--shadow-xs);
+  transition:background .16s ease, border-color .16s ease, color .16s ease, transform .16s ease;
 }
+
 .btnTiny:hover{
-  background: rgba(30,64,175,.14);
-  border-color: rgba(30,64,175,.35);
+  background:rgba(29,78,216,.08);
+  border-color:rgba(29,78,216,.24);
+  color:var(--navy-deep);
 }
+
+.btnTiny.csvDownload{
+  background:linear-gradient(180deg, #237749, #1a5f39);
+  border-color:#1a5f39;
+  color:#fff;
+}
+
+.btnTiny.csvDownload:hover{
+  background:linear-gradient(180deg, #1f6b42, #175534);
+  border-color:#175534;
+  color:#fff;
+}
+
 .btnTiny.paidDone{
-  background: rgba(22,163,74,.15);
-  border-color: rgba(22,163,74,.22);
-  color: rgba(21,128,61,.95);
-  cursor: default;
-}
-/* Payroll: unpaid "Paid" button = neutral */
-.payrollSheet form .btnTiny:not(.paidDone),
-.payrollSheet form .btnTiny.dark:not(.paidDone){
-  background: transparent;
-  border-color: rgba(15,23,42,.22);
-  color: rgba(15,23,42,.72);
+  background:rgba(22,163,74,.14);
+  border-color:rgba(22,163,74,.20);
+  color:#166534;
+  cursor:default;
 }
 
-.payrollSheet form .btnTiny:not(.paidDone):hover,
-.payrollSheet form .btnTiny.dark:not(.paidDone):hover{
-  background: rgba(15,23,42,.06);
-  border-color: rgba(15,23,42,.32);
-  color: rgba(15,23,42,.86);
+.btnTiny.dark{
+  background:rgba(15,23,42,.08);
+  color:var(--ink);
 }
-/* Messages */
+
 .message{
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 18px;
-  font-weight:700;
-  text-align:center;
-  background: rgba(22,163,74,.10);
-  border: 1px solid rgba(22,163,74,.18);
-}
-.message.error{ background: rgba(220,38,38,.10); border-color: rgba(220,38,38,.20); }
-
-/* Clock */
-.clockCard{ margin-top: 12px; padding: 14px; }
-.timerBig{
+  margin-top:12px;
+  padding:13px 14px;
+  border-radius:18px;
   font-weight:800;
-  font-size: clamp(26px, 6vw, 36px);
-  margin-top: 6px;
-  font-variant-numeric: tabular-nums;
-}
-.timerSub{ color: var(--muted); font-weight:500; font-size: 13px; margin-top: 6px; }
-.actionRow{
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-top: 14px;
+  text-align:center;
+  color:#166534;
+  background:rgba(22,163,74,.11);
+  border:1px solid rgba(22,163,74,.16);
+  box-shadow:var(--shadow-xs);
 }
 
-.tablewrap{
-  margin-top:14px;
-  width: 100%;
-  max-width: 100%;
-  min-width: 0;                 /* IMPORTANT inside flex layouts */
-  overflow-x: auto;
-  overflow-y: hidden;
-  -webkit-overflow-scrolling: touch;
-  border-radius: 18px;
-  border:1px solid rgba(11,18,32,.10);
-  background: rgba(255,255,255,.65);
-  backdrop-filter: blur(8px);
+.message.error{
+  color:#b91c1c;
+  background:rgba(220,38,38,.10);
+  border-color:rgba(220,38,38,.16);
 }
-/* Ensure the table scrolls inside .tablewrap instead of widening the page */
-.tablewrap table{
-  width: max-content;
-  min-width: 100%;
+
+.clockCard{
+  margin-top:12px;
+}
+
+.timerBig{
+  margin-top:8px;
+  font-size:clamp(28px,6vw,40px);
+  line-height:1;
+  font-weight:900;
+  letter-spacing:-.04em;
+  font-variant-numeric:tabular-nums;
+}
+
+.timerSub{
+  margin-top:6px;
+  color:var(--muted);
+  font-size:13px;
+  font-weight:600;
+}
+
+.actionRow,
+.row2{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:14px;
+}
+
+.tablewrap,
+.adminLiveTableWrap,
+.workplacesTableWrap{
+  margin-top:14px;
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  overflow-x:auto;
+  overflow-y:hidden;
+  -webkit-overflow-scrolling:touch;
+  border-radius:20px;
+  border:1px solid rgba(15,23,42,.09);
+  background:rgba(255,255,255,.74);
+  box-shadow:var(--shadow-sm);
+  backdrop-filter:var(--glass);
+  -webkit-backdrop-filter:var(--glass);
 }
 
 .tablewrap table{
   width:100%;
-  border-collapse: collapse;
-  min-width: 720px;
-  background:#fff;
+  min-width:720px;
+  border-collapse:separate;
+  border-spacing:0;
+  background:rgba(255,255,255,.94);
 }
 
 .tablewrap th,
 .tablewrap td{
-  padding: 10px 12px;
-  border-bottom: 1px solid rgba(11,18,32,.08);
+  padding:12px 12px;
+  border-bottom:1px solid rgba(15,23,42,.07);
   text-align:left;
-  font-size: 14px;
-  vertical-align: middle;
-  color: rgba(11,18,32,.88);
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+  font-size:14px;
+  vertical-align:middle;
+  color:rgba(15,23,42,.90);
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
 }
 
 .tablewrap th{
-  position: sticky;
+  position:sticky;
   top:0;
-  background: rgba(248,250,252,.96);
-  font-weight: 700;
-  color: rgba(11,18,32,.95);
-  letter-spacing:.2px;
-  z-index: 2;
+  z-index:2;
+  background:rgba(248,250,253,.96);
+  backdrop-filter:blur(10px);
+  color:rgba(15,23,42,.84);
+  font-weight:900;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  font-size:12px;
 }
 
-.tablewrap table tbody tr:nth-child(even){ background: rgba(11,18,32,.02); }
-.tablewrap table tbody tr:hover{ background: rgba(30,64,175,.05); }
-
-/* Numeric cells helper */
-.num{
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-  white-space: nowrap;
+.tablewrap table tbody tr:nth-child(even){
+  background:rgba(15,23,42,.018);
 }
 
-/* Make action buttons (Mark Paid / etc.) consistent inside ANY tablewrap */
+.tablewrap table tbody tr:hover{
+  background:rgba(29,78,216,.045);
+}
+
 .tablewrap td:last-child button,
 .tablewrap td:last-child a{
   display:inline-flex;
   align-items:center;
   justify-content:center;
   gap:6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(15,23,42,.14);
-  background: rgba(30,64,175,.08);
-  color: rgba(30,64,175,1);
-  font-size: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all .15s ease;
-  white-space: nowrap;
+  padding:6px 12px;
+  border-radius:999px;
+  border:1px solid rgba(15,23,42,.12);
+  background:rgba(255,255,255,.88);
+  color:var(--ink-soft);
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  transition:all .15s ease;
+  white-space:nowrap;
 }
-/* Employee weekly tables (below): make ALL table inputs readable
-   (Hours/Pay are <input class="input" ...> with NO type) */
-.tablewrap input.input{
-  font-weight: 800;
-  color: rgba(2,6,23,.95);
-  opacity: 1; /* prevent faded disabled text */
-  -webkit-text-fill-color: rgba(2,6,23,.95); /* Safari/Chrome */
-}
-/* Employee weekly tables: center column headers (keep first column like Date left) */
-.tablewrap table thead th:not(:first-child),
-.tablewrap table thead td:not(:first-child){
-  text-align: center;
-}
-/* Right-align numeric inputs inside numeric cells (Hours/Pay columns) */
-.tablewrap td.num input.input{
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
-/* Numbers (hours/pay) easier to scan */
-.tablewrap input[type="number"]{
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
-}
+
 .tablewrap td:last-child button:hover,
 .tablewrap td:last-child a:hover{
-  background: rgba(30,64,175,.14);
-  border-color: rgba(30,64,175,.35);
-}
-.workplacesTable{
-  min-width: 860px;
+  background:rgba(29,78,216,.08);
+  border-color:rgba(29,78,216,.22);
+  color:var(--navy-deep);
 }
 
-@media (max-width: 700px){
-  .workplacesTable{
-    min-width: 100% !important;
-    table-layout: auto !important;
-  }
-
-  .workplacesTable thead{
-    display: none;
-  }
-
-  .workplacesTable,
-  .workplacesTable tbody,
-  .workplacesTable tr,
-  .workplacesTable td{
-    display: block;
-    width: 100%;
-  }
-
-  .workplacesTable tr{
-    padding: 12px;
-    border-bottom: 1px solid rgba(11,18,32,.08);
-    background: #fff;
-  }
-
-  .workplacesTable td{
-    border: none;
-    padding: 8px 0;
-    text-align: left !important;
-  }
-
-  .workplacesTable td:last-child{
-    padding-top: 10px;
-  }
+.tablewrap input.input{
+  font-weight:800;
+  color:rgba(2,6,23,.95);
+  opacity:1;
+  -webkit-text-fill-color:rgba(2,6,23,.95);
 }
 
+.tablewrap table thead th:not(:first-child),
+.tablewrap table thead td:not(:first-child){
+  text-align:center;
+}
+
+.tablewrap td.num input.input,
+.tablewrap input[type="number"],
+.num{
+  text-align:right;
+  font-variant-numeric:tabular-nums;
+  font-feature-settings:"tnum" 1;
+  white-space:nowrap;
+}
+
+.weeklyEditTable{
+  width:100%;
+  min-width:100%;
+  table-layout:fixed;
+  border-collapse:separate;
+  border-spacing:0;
+  border-radius:18px;
+  background:rgba(255,255,255,.94);
+  border:1px solid rgba(15,23,42,.08);
+}
+
+.payrollEmployeeCard{
+  width:100%;
+  box-sizing:border-box;
+.payrollEmployeeCard .tablewrap{
+  width:100%;
+  box-sizing:border-box;
+}
+
+.weeklyEditTable thead th{
+  background:linear-gradient(180deg, rgba(15,23,42,.92), rgba(30,41,59,.90));
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.05em;
+  text-transform:uppercase;
+  padding:12px 10px;
+  border-bottom:1px solid rgba(15,23,42,.26);
+}
+
+.weeklyEditTable tbody td{
+  padding:14px 10px;
+  border-bottom:1px solid rgba(15,23,42,.06);
+  color:var(--ink);
+  font-size:14px;
+  background:rgba(255,255,255,.90);
+  vertical-align:middle;
+}
+
+.weeklyEditTable tbody tr:nth-child(even) td{
+  background:rgba(248,250,252,.88);
+}
+
+.weeklyEditTable tbody tr:hover td{
+  background:rgba(239,246,255,.82);
+}
+
+.weeklyEditTable td.num,
+.weeklyEditTable th.num{
+  text-align:center;
+}
+
+.weeklyEditTable thead th:nth-child(3),
+.weeklyEditTable tbody td:nth-child(6),
+.weeklyEditTable tbody td:nth-child(7){
+  text-align:center;
+}
+
+.weeklyEditTable tbody td:first-child{
+  font-weight:900;
+  width:70px;
+}
+
+.weeklyEditTable tbody td:nth-child(2){
+  color:var(--muted);
+  width:120px;
+}
+
+.weeklyEditTable tbody tr:last-child td{
+  border-bottom:none;
+}
+
+.payrollSummaryBar{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:repeat(5, minmax(120px,1fr));
+  gap:10px;
+}
+
+.payrollSummaryItem{
+  padding:12px 14px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.08);
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,253,.94));
+  box-shadow:var(--shadow-xs);
+}
+
+.payrollSummaryItem .k{
+  font-size:11px;
+  font-weight:900;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.payrollSummaryItem .v{
+  margin-top:5px;
+  font-size:20px;
+  line-height:1.1;
+  font-weight:900;
+  color:var(--ink);
+}
+
+.payrollSummaryItem.net .v{color:#0f172a;}
+.payrollSummaryItem.paidat .v{font-size:16px;}
+
+.payrollEmployeeCard .payrollSummaryBar{
+  margin-top:10px;
+  grid-template-columns:repeat(5, minmax(0,1fr));
+  gap:6px;
+}
+
+.payrollEmployeeCard .payrollSummaryItem{
+  padding:5px 6px;
+  border-radius:10px;
+}
+
+.payrollEmployeeCard .payrollSummaryItem .k{font-size:8px;}
+.payrollEmployeeCard .payrollSummaryItem .v{
+  font-size:11px;
+  line-height:1.05;
+}
+
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1){
+  background:rgba(29,78,216,.08);
+  border-color:rgba(29,78,216,.15);
+}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v{color:var(--navy-deep);}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2){
+  background:rgba(22,163,74,.08);
+  border-color:rgba(22,163,74,.14);
+}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v{color:#166534;}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3){
+  background:rgba(217,119,6,.08);
+  border-color:rgba(217,119,6,.14);
+}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v{color:#92400e;}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4){
+  background:rgba(109,40,217,.08);
+  border-color:rgba(109,40,217,.14);
+}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v{color:var(--violet);}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5){
+  background:rgba(51,65,85,.08);
+  border-color:rgba(51,65,85,.14);
+}
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{color:var(--slate);}
+
+.workplacesTable{min-width:860px;}
 .employeesTable{
   width:100% !important;
   min-width:980px !important;
-  table-layout:fixed !important;
   border-collapse:separate;
   border-spacing:0;
 }
-
 .employeesTable th,
 .employeesTable td{
   padding:14px 16px !important;
   vertical-align:middle !important;
 }
-
-.employeesTable th{
-  font-weight:800 !important;
-}
-
+.employeesTable th{font-weight:900 !important;}
 .employeesTable th:nth-child(1),
-.employeesTable td:nth-child(1){
-  width:30% !important;
-  text-align:left !important;
-}
-
+.employeesTable td:nth-child(1){width:30% !important; text-align:left !important;}
 .employeesTable th:nth-child(2),
-.employeesTable td:nth-child(2){
-  width:20% !important;
-  text-align:left !important;
-}
-
+.employeesTable td:nth-child(2){width:20% !important; text-align:left !important;}
 .employeesTable th:nth-child(3),
-.employeesTable td:nth-child(3){
-  width:20% !important;
-  text-align:left !important;
-}
-
+.employeesTable td:nth-child(3){width:20% !important; text-align:left !important;}
 .employeesTable th:nth-child(4),
-.employeesTable td:nth-child(4){
-  width:15% !important;
-  text-align:center !important;
-}
-
+.employeesTable td:nth-child(4){width:15% !important; text-align:center !important;}
 .employeesTable th:nth-child(5),
-.employeesTable td:nth-child(5){
-  width:15% !important;
-  text-align:right !important;
-}
-
+.employeesTable td:nth-child(5){width:15% !important; text-align:right !important;}
 .employeesTable td:nth-child(2),
 .employeesTable td:nth-child(3),
 .employeesTable td:nth-child(4),
-.employeesTable td:nth-child(5){
+.employeesTable td:nth-child(5){white-space:nowrap;}
+
+.adminLiveTable{
+  min-width:1100px;
+}
+
+.chip,
+.paidNetBadge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+  min-height:28px;
+  padding:4px 10px;
+  border-radius:999px;
+  border:1px solid rgba(15,23,42,.10);
+  background:rgba(255,255,255,.84);
+  color:rgba(15,23,42,.72);
+  font-size:12px;
+  font-weight:900;
   white-space:nowrap;
 }
 
-@media (max-width: 700px){
-  .employeesTable{
-    min-width:100% !important;
-    table-layout:auto !important;
-  }
-
-  .employeesTable thead{
-    display:none;
-  }
-
-  .employeesTable,
-  .employeesTable tbody,
-  .employeesTable tr,
-  .employeesTable td{
-    display:block;
-    width:100%;
-  }
-
-  .employeesTable tr{
-    padding:12px;
-    border-bottom:1px solid rgba(11,18,32,.08);
-    background:#fff;
-  }
-
-  .employeesTable td{
-    border:none;
-    padding:8px 0 !important;
-    text-align:left !important;
-  }
-}
-.adminLiveTable{
-  min-width: 1100px;
+.chip.ok,
+.paidNetBadge{
+  background:rgba(22,163,74,.14);
+  border-color:rgba(22,163,74,.18);
+  color:#166534;
 }
 
-@media (max-width: 700px){
-  .adminLiveTable{
-    min-width: 100% !important;
-    table-layout: auto !important;
-  }
-
-  .adminLiveTable thead{
-    display: none;
-  }
-
-  .adminLiveTable,
-  .adminLiveTable tbody,
-  .adminLiveTable tr,
-  .adminLiveTable td{
-    display: block;
-    width: 100%;
-  }
-
-  .adminLiveTable tr{
-    padding: 12px;
-    border-bottom: 1px solid rgba(11,18,32,.08);
-    background: #fff;
-  }
-
-  .adminLiveTable td{
-    border: none;
-    padding: 8px 0;
-    text-align: left !important;
-  }
-
-  .adminLiveTable td:last-child{
-    padding-top: 10px;
-  }
-
-  .adminLiveTable form{
-    width: 100%;
-  }
-
-  .adminLiveTable input.input{
-    max-width: 100% !important;
-    width: 100%;
-  }
-}
-
-@media (max-width: 700px){
-  .row2{
-    display: grid !important;
-    grid-template-columns: 1fr !important;
-    gap: 10px !important;
-  }
-
-  .row2 .input,
-  .row2 button,
-  .row2 a{
-    width: 100% !important;
-    max-width: 100% !important;
-  }
-
-  .headerTop{
-    align-items: flex-start;
-    flex-wrap: wrap;
-  }
-
-  .badge{
-    max-width: 100%;
-  }
-
-  .adminGrid{
-    grid-template-columns: 1fr !important;
-  }
-
-  .adminToolCard{
-    min-height: auto;
-  }
-
-  .menuItem{
-    align-items: center;
-  }
-
-  .tablewrap{
-    border-radius: 14px;
-  }
-}
-/* Status chips */
-.chip{
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 12px;
-  font-weight:700;
-  border: 1px solid rgba(11,18,32,.12);
-  background: rgba(255,255,255,.85);
-  color: rgba(11,18,32,.74);
-  white-space: nowrap;
-}
-.chip.ok{
-  background: rgba(22,163,74,.15);
-  border-color: rgba(22,163,74,.22);
-  color: rgba(21,128,61,.95);
-}
 .chip.warn{
-  background: rgba(234,179,8,.16);
-  border-color: rgba(234,179,8,.20);
-  color: rgba(146,64,14,.95);
-}
-.chip.bad{
-  background: rgba(220,38,38,.12);
-  border-color: rgba(220,38,38,.20);
-  color: rgba(185,28,28,.98);
+  background:rgba(245,158,11,.14);
+  border-color:rgba(245,158,11,.18);
+  color:#92400e;
 }
 
-/* Avatar */
+.chip.bad{
+  background:rgba(220,38,38,.12);
+  border-color:rgba(220,38,38,.18);
+  color:#b91c1c;
+}
+
 .avatar{
-  width: 34px;
-  height: 34px;
-  border-radius: 999px;
+  width:36px;
+  height:36px;
+  border-radius:999px;
   display:grid;
   place-items:center;
-  font-weight:800;
-  color: var(--navy);
-  background: rgba(30,64,175,.08);
-  border: 1px solid rgba(30,64,175,.14);
+  font-size:13px;
+  font-weight:900;
+  color:var(--navy-deep);
+  background:linear-gradient(180deg, rgba(228,238,255,.98), rgba(212,226,255,.90));
+  border:1px solid rgba(29,78,216,.12);
 }
 
-/* Week selector row */
 .weekRow{
-  margin-top: 10px;
+  margin-top:10px;
   display:flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-wrap:wrap;
+  gap:8px;
 }
+
 .weekPill{
-  font-size: 12px;
-  padding: 7px 10px;
-  border-radius: 999px;
-  font-weight:700;
-  border: 1px solid rgba(11,18,32,.12);
-  background: rgba(255,255,255,.75);
-  color: rgba(11,18,32,.72);
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:34px;
+  padding:7px 11px;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:900;
+  border:1px solid rgba(15,23,42,.10);
+  background:rgba(255,255,255,.88);
+  color:var(--ink-soft);
+  box-shadow:var(--shadow-xs);
 }
+
 .weekPill.active{
-  background: var(--navySoft);
-  border-color: rgba(30,64,175,.20);
-  color: var(--navy);
+  background:rgba(29,78,216,.10);
+  border-color:rgba(29,78,216,.18);
+  color:var(--navy-deep);
 }
 
-/* KPI strip */
-.kpiStrip{
-  margin-top: 12px;
+.kpiStrip,
+.adminStats{
+  margin-top:12px;
   display:grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 10px;
+  grid-template-columns:repeat(4,1fr);
+  gap:10px;
 }
+
+.kpiMini,
+.adminStatCard{
+  padding:12px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.08);
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,253,.94));
+  box-shadow:var(--shadow-xs);
+}
+
+.kpiMini .k,
+.adminStatCard .k{
+  font-size:11px;
+  color:var(--muted);
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+}
+
+.kpiMini .v,
+.adminStatCard .v{
+  margin-top:6px;
+  font-size:19px;
+  line-height:1.05;
+  font-weight:900;
+  font-variant-numeric:tabular-nums;
+  color:var(--ink);
+}
+
+.adminStats .adminStatCard.employees{
+  background:linear-gradient(180deg, rgba(228,238,255,.98), rgba(255,255,255,.94));
+  border-color:rgba(29,78,216,.12);
+}
+.adminStats .adminStatCard.employees .k,
+.adminStats .adminStatCard.employees .v{color:var(--navy-deep);}
+.adminStats .adminStatCard.clocked{
+  background:linear-gradient(180deg, rgba(228,252,238,.98), rgba(255,255,255,.94));
+  border-color:rgba(22,163,74,.12);
+}
+.adminStats .adminStatCard.clocked .k,
+.adminStats .adminStatCard.clocked .v{color:#166534;}
+.adminStats .adminStatCard.locations{
+  background:linear-gradient(180deg, rgba(227,251,255,.98), rgba(255,255,255,.94));
+  border-color:rgba(8,145,178,.12);
+}
+.adminStats .adminStatCard.locations .k,
+.adminStats .adminStatCard.locations .v{color:var(--teal);}
+.adminStats .adminStatCard.onboarding{
+  background:linear-gradient(180deg, rgba(241,235,255,.98), rgba(255,255,255,.94));
+  border-color:rgba(109,40,217,.12);
+}
+.adminStats .adminStatCard.onboarding .k,
+.adminStats .adminStatCard.onboarding .v{color:var(--violet);}
+
+
+.myReportsTopGrid{
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:14px;
+  align-items:start;
+}
+.myReportsMonthCard,
+.myReportsWeekPicker,
+.myReportsWeekTable{
+  padding:14px;
+}
+.myReportsMonthCard{
+  background:
+    radial-gradient(140% 140% at 100% 0%, rgba(29,78,216,.10), rgba(29,78,216,0) 44%),
+    linear-gradient(180deg, rgba(248,251,255,.98), rgba(255,255,255,.95));
+  border-color:rgba(29,78,216,.10);
+}
+.myReportsWeekPicker,
+.myReportsWeekTable{
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,253,.95));
+  border-color:rgba(15,23,42,.08);
+}
+.cols{
+  background:rgba(248,250,253,.94);
+}
+
 .payrollTopGrid{
-  margin-top: 12px;
-  display: grid;
-  grid-template-columns: 1.15fr .85fr;
-  gap: 14px;
-  align-items: stretch;
+  margin-top:12px;
+  display:grid;
+  grid-template-columns:1.15fr .85fr;
+  gap:14px;
+  align-items:stretch;
 }
 
-@media (max-width: 1100px){
-  .payrollTopGrid{
-    grid-template-columns: 1fr;
-  }
-}
-
-.payrollFiltersCard,
-.payrollChartCard{
-  padding: 14px;
+.payrollFiltersCard{
+  background:
+    radial-gradient(140% 140% at 100% 0%, rgba(29,78,216,.10), rgba(29,78,216,0) 44%),
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,249,253,.95));
+  border-color:rgba(29,78,216,.09);
 }
 
 .payrollChartCard{
   background:
-    linear-gradient(180deg, rgba(239,246,255,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(59,130,246,.14);
+    radial-gradient(140% 140% at 100% 0%, rgba(8,145,178,.10), rgba(8,145,178,0) 44%),
+    linear-gradient(180deg, rgba(250,253,255,.98), rgba(255,255,255,.95));
+  border-color:rgba(8,145,178,.09);
 }
 
 .payrollDonutWrap{
-  margin-top: 8px;
+  margin-top:8px;
   display:flex;
   align-items:center;
   justify-content:center;
-  min-height: 250px;
+  min-height:250px;
 }
 
 .payrollDonut{
-  width: 230px;
-  height: 230px;
-  border-radius: 999px;
-  position: relative;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 12px 26px rgba(15,23,42,.08);
+  width:230px;
+  height:230px;
+  border-radius:999px;
+  position:relative;
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.70), 0 18px 32px rgba(15,23,42,.10);
 }
 
 .payrollDonut::after{
   content:"";
   position:absolute;
-  inset: 38px;
-  border-radius: 999px;
-  background: white;
-  box-shadow: inset 0 1px 0 rgba(15,23,42,.04);
+  inset:38px;
+  border-radius:999px;
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,251,255,.98));
+  box-shadow:inset 0 1px 0 rgba(15,23,42,.04);
 }
 
 .payrollDonutCenter{
-  position:absolute;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:2;
-  text-align:center;
-  pointer-events:none;
 }
 
 .payrollDonutCenter .k{
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
+  font-size:11px;
+  font-weight:900;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:.08em;
 }
 
 .payrollDonutCenter .v{
-  margin-top: 4px;
-  font-size: 20px;
-  font-weight: 800;
-  color: rgba(15,23,42,.96);
+  margin-top:4px;
+  font-size:20px;
+  font-weight:900;
+  color:var(--ink);
 }
 
 .payrollLegend{
-  margin-top: 12px;
+  margin-top:12px;
   display:grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns:1fr 1fr;
   gap:8px;
   align-items:start;
 }
 
-@media (max-width: 1100px){
-  .payrollLegend{
-    grid-template-columns: 1fr;
-  }
-}
-
 .payrollLegendRow{
-  display:flex;
   align-items:center;
   justify-content:space-between;
   gap:8px;
-  padding:7px 9px;
-  border-radius: 12px;
-  border:1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.84);
-  min-width:0;
-}
-
-.payrollLegendLeft{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  min-width:0;
+  padding:8px 10px;
+  border-radius:14px;
+  border:1px solid rgba(15,23,42,.07);
+  background:rgba(255,255,255,.86);
 }
 
 .payrollLegendDot{
-  width:12px;
-  height:12px;
-  border-radius:999px;
-  flex:0 0 auto;
-}
 
 .payrollLegendName{
   font-size:12px;
-  font-weight:700;
-  color: rgba(15,23,42,.88);
+  font-weight:800;
+  color:var(--ink);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
-}
 
 .payrollLegendVal{
   font-size:12px;
-  font-weight:800;
-  color: rgba(30,64,175,.95);
+  font-weight:900;
+  color:var(--navy-deep);
   white-space:nowrap;
 }
-@media (max-width: 800px){
-  .kpiStrip{ grid-template-columns: 1fr 1fr; }
-}
-.kpiMini{
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(11,18,32,.10);
-  background: rgba(255,255,255,.80);
-}
-.kpiMini .k{ font-size: 12px; color: var(--muted); font-weight:600; }
-.kpiMini .v{ margin-top:6px; font-size: 18px; font-weight:800; font-variant-numeric: tabular-nums; }
-/* Admin summary cards */
-.adminStats .adminStatCard{
-  border-radius: 18px;
-  border: 1px solid rgba(15,23,42,.10);
-  box-shadow: 0 8px 22px rgba(15,23,42,.06);
-}
 
-.adminStats .adminStatCard .k{
-  font-size: 12px;
-  font-weight: 700;
-}
-
-.adminStats .adminStatCard .v{
-  font-size: 18px;
-  font-weight: 900;
-}
-
-/* Individual colors */
-.adminStats .adminStatCard.employees{
-  background: linear-gradient(180deg, rgba(219,234,254,.55), rgba(255,255,255,.96));
-  border-color: rgba(37,99,235,.16);
-}
-.adminStats .adminStatCard.employees .k,
-.adminStats .adminStatCard.employees .v{
-  color: #1d4ed8;
-}
-
-.adminStats .adminStatCard.clocked{
-  background: linear-gradient(180deg, rgba(220,252,231,.55), rgba(255,255,255,.96));
-  border-color: rgba(22,163,74,.16);
-}
-.adminStats .adminStatCard.clocked .k,
-.adminStats .adminStatCard.clocked .v{
-  color: #15803d;
-}
-
-.adminStats .adminStatCard.locations{
-  background: linear-gradient(180deg, rgba(207,250,254,.55), rgba(255,255,255,.96));
-  border-color: rgba(8,145,178,.16);
-}
-.adminStats .adminStatCard.locations .k,
-.adminStats .adminStatCard.locations .v{
-  color: #0e7490;
-}
-
-.adminStats .adminStatCard.onboarding{
-  background: linear-gradient(180deg, rgba(224,231,255,.55), rgba(255,255,255,.96));
-  border-color: rgba(79,70,229,.16);
-}
-.adminStats .adminStatCard.onboarding .k,
-.adminStats .adminStatCard.onboarding .v{
-  color: #4338ca;
-}
-
-/* Weekly net badge */
 .netBadge{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding: 8px 12px;
-  border-radius: 999px;
-  border: 1px solid rgba(30,64,175,.18);
-  background: rgba(30,64,175,.10);
-  color: var(--navy);
-  font-weight:800;
-  font-variant-numeric: tabular-nums;
+  border-color:rgba(29,78,216,.14);
+  background:rgba(29,78,216,.09);
+  color:var(--navy-deep);
+  font-variant-numeric:tabular-nums;
 }
 
-/* Row emphasis if gross > 0 */
-.rowHasValue{ background: rgba(30,64,175,.035) !important; }
+.rowHasValue{
+  background:rgba(29,78,216,.035) !important;
+}
 
-/* Overtime highlight (thin left marker, no ugly full-row fill) */
 .overtimeRow{
-  background: transparent !important;
-  box-shadow: inset 4px 0 0 rgba(245,158,11,.75);
+  background:transparent !important;
+  box-shadow:inset 4px 0 0 rgba(245,158,11,.75);
 }
+
 .overtimeChip{
   display:inline-flex;
   align-items:center;
-  padding: 4px 10px;
+  padding:4px 10px;
   border-radius:999px;
   font-size:12px;
-  font-weight:800;
-  background: rgba(245,158,11,.14);
-  border: 1px solid rgba(245,158,11,.22);
-  color: rgba(146,64,14,.95);
+  font-weight:900;
+  background:rgba(245,158,11,.14);
+  border:1px solid rgba(245,158,11,.18);
+  color:#92400e;
 }
 
-/* Contract box */
 .contractBox{
-  margin-top: 12px;
-  padding: 12px;
-  border-radius: 18px;
-  border: 1px solid rgba(11,18,32,.10);
-  background: rgba(248,250,252,.90);
-  max-height: 320px;
-  overflow: auto;
-  white-space: pre-wrap;
-  font-size: 13px;
-  color: rgba(11,18,32,.88);
-  line-height: 1.4;
+  margin-top:12px;
+  padding:14px;
+  border-radius:18px;
+  border:1px solid rgba(15,23,42,.09);
+  background:linear-gradient(180deg, rgba(248,250,252,.96), rgba(255,255,255,.92));
+  max-height:320px;
+  overflow:auto;
+  white-space:pre-wrap;
+  font-size:13px;
+  color:rgba(15,23,42,.88);
+  line-height:1.5;
 }
-.bad{ border: 1px solid rgba(220,38,38,.55) !important; box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important; }
-.badLabel{ color: rgba(220,38,38,.92) !important; font-weight:800 !important; }
 
-/* Bottom nav (mobile) */
-.bottomNav{
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  background: rgba(255,255,255,.92);
-  border-top: 1px solid rgba(11,18,32,.10);
-  backdrop-filter: blur(10px);
-  padding: 10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
-  z-index: 99;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 30px rgba(11,18,32,.12);
+.uploadTitle{
+  margin-top:12px;
+  margin-bottom:6px;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
+  color:var(--ink-soft);
 }
+
+.bad{
+  border:1px solid rgba(220,38,38,.42) !important;
+  box-shadow:0 0 0 4px rgba(220,38,38,.10) !important;
+}
+
+.badLabel{
+  color:#b91c1c !important;
+  font-weight:900 !important;
+}
+
+.bottomNav{
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:99;
+  background:rgba(255,255,255,.84);
+  border-top:1px solid rgba(15,23,42,.08);
+  backdrop-filter:blur(18px) saturate(140%);
+  -webkit-backdrop-filter:blur(18px) saturate(140%);
+  padding:10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+  box-shadow:0 -10px 32px rgba(15,23,42,.10);
+}
+
 .navInner{
   max-width:560px;
-  margin: 0 auto;
+  margin:0 auto;
   display:flex;
   align-items:center;
   justify-content:space-around;
 }
+
 .navIcon{
-  width: 46px; height: 46px;
-  border-radius: 16px;
-  display:grid; place-items:center;
-  color: var(--navy);
-  transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
-}
-.navIcon.active{ background: transparent; }
-.navIcon svg{ width: 22px; height: 22px; }
-.safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
-
-@media (max-width: 700px){
-  .navInner{
-    gap: 4px;
-    justify-content: space-between;
-  }
-
-  .navIcon{
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    flex: 0 0 auto;
-  }
-
-  .navIcon svg{
-    width: 20px;
-    height: 20px;
-  }
+  width:48px;
+  height:48px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  transition:transform .16s ease, background .16s ease, box-shadow .16s ease, color .16s ease;
 }
 
-.navIcon.nav-home{ color:#1d4ed8; }
-.navIcon.nav-clock{ color:#15803d; }
-.navIcon.nav-times{ color:#b45309; }
-.navIcon.nav-reports{ color:#4338ca; }
-.navIcon.nav-admin{ color:#0f172a; }
-.navIcon.nav-workplaces{ color:#0e7490; }
-.navIcon.nav-logout{ color:rgba(220,38,38,.92); }
-
-.navIcon.nav-home.active{
-  background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
-}
-.navIcon.nav-clock.active{
-  background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
-}
-.navIcon.nav-times.active{
-  background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
-}
-.navIcon.nav-reports.active{
-  background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
-}
-.navIcon.nav-admin.active{
-  background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
-}
-.navIcon.nav-workplaces.active{
-  background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
-}
-.navIcon.nav-logout.active{
-  background: linear-gradient(180deg, rgba(220,38,38,.12), rgba(248,113,113,.08));
-}
-/* Desktop wide layout */
-@media (min-width: 980px){
-  body{ padding: 18px 18px 22px 18px; }
-    .shell{
-    max-width: none;
-    width: calc(100vw - 36px);
-    margin: 0 auto;
-    display: grid;
-    grid-template-columns: 280px minmax(0, 1fr);
-    gap: 16px;
-    align-items: start;
-  }
-  .bottomNav{ display:none; }
-    .sidebar{
-    display:flex;
-    flex-direction:column;
-    gap: 8px;
-    position: sticky;
-    top: 18px;
-    height: calc(100vh - 36px);
-    overflow: hidden;
-    padding: 12px;
-    background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(248,250,252,.92));
-    border: 1px solid rgba(30,64,175,.10);
-    border-radius: 16px;
-    box-shadow: 0 10px 30px rgba(15,23,42,.08);
-  }
-  .sideScroll{
-    overflow:auto;
-    padding-right: 4px;
-    flex: 1 1 auto;
-  }
-  .sideTitle{
-    font-weight:800;
-    font-size: 14px;
-    color: rgba(11,18,32,.80);
-    margin: 0 0 10px 2px;
-  }
-    .sideItem{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:10px;
-    padding: 10px 11px;
-    border-radius: 14px;
-    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.96));
-    border: 1px solid rgba(30,64,175,.08);
-    margin-top: 8px;
-    position: relative;
-    overflow: hidden;
-    transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
-  }
-    .sideItem:hover{
-    transform: translateY(-1px);
-    box-shadow: 0 12px 26px rgba(30,64,175,.14);
-    border-color: rgba(30,64,175,.18);
-  }
-
-  .sideItem.active{
-    background: linear-gradient(180deg, rgba(30,64,175,.16), rgba(59,130,246,.10));
-    border-color: rgba(30,64,175,.26);
-    box-shadow: 0 12px 30px rgba(30,64,175,.16);
-  }
-  .sideItem.active:before{
-    content:"";
-    position:absolute;
-    left:0;
-    top:10px;
-    bottom:10px;
-    width:4px;
-    border-radius: 999px;
-    background: linear-gradient(180deg, rgba(30,64,175,1), rgba(30,64,175,.55));
-    box-shadow: 0 0 0 3px rgba(30,64,175,.10);
-  }
-  .sideLeft{ display:flex; align-items:center; gap:12px; }
-    .sideText{ font-weight:800; font-size: 14px; letter-spacing:.1px; }
-
-  .sideIcon{
-    width: 36px; height: 36px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
-    border: 1px solid rgba(30,64,175,.12);
-    display:grid; place-items:center;
-    color: var(--navy);
-  }
-  .sideIcon svg{ width:18px; height:18px; }
-  
-    /* Different colors for each sidebar item */
-  .sideItem.nav-home .sideIcon{
-    background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
-    border-color: rgba(37,99,235,.16);
-    color: #1d4ed8;
-  }
-
-  .sideItem.nav-clock .sideIcon{
-    background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
-    border-color: rgba(22,163,74,.18);
-    color: #15803d;
-  }
-
-  .sideItem.nav-times .sideIcon{
-    background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
-    border-color: rgba(217,119,6,.18);
-    color: #b45309;
-  }
-
-  .sideItem.nav-reports .sideIcon{
-    background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
-    border-color: rgba(79,70,229,.18);
-    color: #4338ca;
-  }
-
-  .sideItem.nav-agreements .sideIcon{
-    background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
-    border-color: rgba(8,145,178,.18);
-    color: #0e7490;
-  }
-
-  .sideItem.nav-profile .sideIcon{
-    background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
-    border-color: rgba(219,39,119,.16);
-    color: #be185d;
-  }
-
-  .sideItem.nav-admin .sideIcon{
-    background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
-    border-color: rgba(51,65,85,.18);
-    color: #0f172a;
-  }
-
-  .sideItem.nav-home.active{
-    background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
-    border-color: rgba(37,99,235,.24);
-  }
-
-  .sideItem.nav-clock.active{
-    background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
-    border-color: rgba(22,163,74,.24);
-  }
-
-  .sideItem.nav-times.active{
-    background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
-    border-color: rgba(245,158,11,.24);
-  }
-
-  .sideItem.nav-reports.active{
-    background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
-    border-color: rgba(79,70,229,.24);
-  }
-
-  .sideItem.nav-agreements.active{
-    background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
-    border-color: rgba(8,145,178,.24);
-  }
-
-  .sideItem.nav-profile.active{
-    background: linear-gradient(180deg, rgba(219,39,119,.14), rgba(244,114,182,.08));
-    border-color: rgba(219,39,119,.22);
-  }
-
-  .sideItem.nav-admin.active{
-    background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
-    border-color: rgba(51,65,85,.24);
-  }
-
-  .sideDivider{
-    height: 1px;
-    background: rgba(11,18,32,.12);
-    margin: 10px 0 6px 0;
-  }
-
-  .logoutBtn{
-    margin-top: 2px;
-    background: rgba(220,38,38,.08);
-    border-color: rgba(220,38,38,.12);
-  }
-  .logoutBtn .sideIcon, .logoutBtn .chev{ color: rgba(220,38,38,.95); }
-  .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
+.navIcon svg{
+  width:22px;
+  height:22px;
 }
 
-/* ================= PAYROLL SHEET (condensed week design) ================= */
+.navIcon.active{
+  background:rgba(255,255,255,.74);
+  box-shadow:var(--shadow-xs);
+}
+
+.safeBottom{
+  height:calc(120px + env(safe-area-inset-bottom));
+}
+
+.sideDivider{
+  height:1px;
+  background:rgba(15,23,42,.08);
+  margin:12px 0 8px 0;
+}
+
+.sideTitle{
+  margin:0 0 10px 2px;
+  font-size:12px;
+  font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.10em;
+  color:var(--muted);
+}
+
+.sideScroll{
+  overflow:auto;
+  padding-right:4px;
+  flex:1 1 auto;
+}
+
+.adminGrid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+  margin-top:6px;
+}
+
+.adminGrid .menuItem{
+  margin-top:0;
+  height:100%;
+}
+
+.adminToolCard{
+  padding:16px;
+  border-radius:22px;
+  border:1px solid rgba(15,23,42,.08);
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(247,250,254,.94));
+  box-shadow:var(--shadow-sm);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  min-height:132px;
+}
+
+.adminToolTop{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+
+.adminToolIcon{
+  width:46px;
+  height:46px;
+  border-radius:16px;
+  display:grid;
+  place-items:center;
+  border:1px solid rgba(15,23,42,.08);
+  flex:0 0 auto;
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(243,247,252,.92));
+}
+
+.adminToolTitle{
+  font-size:16px;
+  font-weight:900;
+  letter-spacing:-.02em;
+  color:var(--ink);
+}
+
+.adminToolSub,
+.adminSectionSub{
+  font-size:13px;
+  line-height:1.5;
+  color:var(--muted);
+}
+
+.adminToolCard.payroll .adminToolIcon{background:linear-gradient(180deg, rgba(228,238,255,.98), rgba(212,226,255,.90)); color:var(--navy-deep); border-color:rgba(29,78,216,.12);}
+.adminToolCard.company .adminToolIcon{background:linear-gradient(180deg, rgba(228,252,238,.98), rgba(206,247,222,.90)); color:#166534; border-color:rgba(22,163,74,.12);}
+.adminToolCard.onboarding .adminToolIcon{background:linear-gradient(180deg, rgba(241,235,255,.98), rgba(228,217,255,.90)); color:var(--violet); border-color:rgba(109,40,217,.12);}
+.adminToolCard.locations .adminToolIcon{background:linear-gradient(180deg, rgba(227,251,255,.98), rgba(199,245,252,.90)); color:var(--teal); border-color:rgba(8,145,178,.12);}
+.adminToolCard.sites .adminToolIcon{background:linear-gradient(180deg, rgba(255,244,220,.98), rgba(255,232,187,.90)); color:#92400e; border-color:rgba(217,119,6,.12);}
+.adminToolCard.employees .adminToolIcon{background:linear-gradient(180deg, rgba(255,236,247,.98), rgba(252,214,234,.90)); color:var(--rose); border-color:rgba(219,39,119,.12);}
+.adminToolCard.drive .adminToolIcon{background:linear-gradient(180deg, rgba(244,247,250,.98), rgba(226,232,240,.92)); color:#0f172a; border-color:rgba(51,65,85,.12);}
+
+.adminSectionCard{
+  border-radius:24px;
+}
+
+.adminSectionTitle{
+  margin:0;
+  font-size:16px;
+  font-weight:900;
+  letter-spacing:-.02em;
+  color:var(--ink);
+}
+
+.adminSectionIcon.clockin{background:linear-gradient(180deg, rgba(228,238,255,.98), rgba(212,226,255,.90)); color:var(--navy-deep); border-color:rgba(29,78,216,.12);}
+.adminSectionIcon.live{background:linear-gradient(180deg, rgba(228,252,238,.98), rgba(206,247,222,.90)); color:#166534; border-color:rgba(22,163,74,.12);}
+
+.adminFormRow{
+  display:block;
+  width:100%;
+}
+
+.adminFormRow .input{
+  margin-top:0;
+}
+
+.adminActionBar{
+  display:grid;
+  grid-template-columns:190px minmax(220px,260px) 170px max-content;
+  gap:10px;
+  align-items:center;
+  width:100%;
+  padding:12px;
+  border-radius:18px;
+  background:linear-gradient(180deg, rgba(248,250,252,.96), rgba(241,245,249,.92));
+  border:1px solid rgba(15,23,42,.08);
+}
+
+.adminActionBar .input{
+  margin-top:0;
+  height:44px;
+}
+
+.adminHintChip{
+  color:var(--navy-deep);
+  border-color:rgba(29,78,216,.14);
+  background:rgba(29,78,216,.08);
+}
+
 .payrollWrap{
   margin-top:14px;
   width:100%;
   max-width:100%;
   min-width:0;
-  background:#fff;
+  background:rgba(255,255,255,.92);
   border:1px solid rgba(15,23,42,.10);
-  border-radius:18px;
+  border-radius:22px;
   overflow-x:auto;
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
-  box-shadow:var(--shadow);
+  box-shadow:var(--shadow-sm);
   padding-right:18px;
   box-sizing:border-box;
 }
-
-.payrollSheet{
-  width:100%;
-  min-width:0;
   table-layout:fixed;
   border-collapse:separate;
   border-spacing:0;
-  background:#fff;
+  background:rgba(255,255,255,.98);
 }
 
 .payrollSheet th,
 .payrollSheet td{
   border:none;
-  border-bottom:1px solid rgba(15,23,42,.10);
+  border-bottom:1px solid rgba(15,23,42,.08);
   font-variant-numeric:tabular-nums;
   font-feature-settings:"tnum" 1;
 }
-
-.payrollSheet thead th{
   position:sticky;
   top:0;
   z-index:5;
-  background:#fff;
-  color:rgba(15,23,42,.84);
-  font-size:14px;
+  background:rgba(248,250,253,.98);
+  backdrop-filter:blur(14px);
+  color:rgba(15,23,42,.70);
+  font-size:12px;
   font-weight:900;
+  text-transform:uppercase;
+  letter-spacing:.08em;
   padding:14px 12px;
   white-space:nowrap;
-  border-bottom:1px solid rgba(15,23,42,.12);
+  border-bottom:1px solid rgba(15,23,42,.10);
   text-align:left;
 }
 
-.payrollSheet thead th:not(:first-child){
-  text-align:center;
-}
-
-.payrollSheet tbody td{
-  padding:14px 12px;
-  font-size:14px;
-  line-height:1.2;
-  vertical-align:top;
-  background:#fff;
-  color:rgba(2,6,23,.92);
 }
 
 .payrollSheet tbody tr:hover td{
-  background:rgba(248,250,252,.92);
+  background:rgba(248,250,252,.94);
 }
 
 .payrollSheet tbody tr.is-selected td{
-  background:rgba(239,246,255,.94);
-}
 
 .payrollSheet tbody tr:hover td:first-child,
 .payrollSheet tbody tr.is-selected td:first-child{
-  box-shadow:inset 3px 0 0 rgba(30,64,175,.30);
+  box-shadow:inset 3px 0 0 rgba(29,78,216,.26);
 }
 
-/* employee */
 .payrollEmpCell,
 .payrollSheet thead th:first-child,
 .payrollSheet tbody td:first-child{
-  width:170px;
-  min-width:170px;
-  max-width:170px;
-}
-
-.payrollSheet .emp{
-  display:block;
-  width:100%;
-  min-width:0;
-  font-size:14px;
-  font-weight:900;
-  line-height:1.15;
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
-}
-
-.payrollSheet .empSub{
   display:block;
   margin-top:4px;
   font-size:12px;
-  font-weight:600;
-  color:rgba(15,23,42,.54);
+  font-weight:700;
+  color:rgba(15,23,42,.52);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
 
-/* condensed day cells */
 .payrollDayCell{
   width:118px;
   min-width:118px;
   max-width:118px;
   text-align:left;
 }
+
 .payrollDayStack{
   display:flex;
   flex-direction:column;
-  gap:4px;
-  min-height:74px;
   justify-content:flex-start;
 }
 
-.payrollDayLine{
+.payrollDayLine,
+.payrollDayHours{
   min-height:20px;
   display:flex;
   align-items:center;
 }
 
 .payrollDayHours{
-  min-height:20px;
-  display:flex;
-  align-items:center;
   font-size:13px;
-  font-weight:800;
-  color:rgba(15,23,42,.68);
+  font-weight:900;
+  color:rgba(15,23,42,.64);
 }
 
 .payrollDayEmpty{
-  min-height:74px;
-  display:flex;
-  align-items:center;
   justify-content:center;
   font-size:20px;
   font-weight:700;
-  color:rgba(15,23,42,.38);
+  color:rgba(15,23,42,.32);
 }
 
 .payrollDayCellOT{
   background:rgba(245,158,11,.10) !important;
-  box-shadow:inset 0 0 0 1px rgba(245,158,11,.15);
-  border-radius:10px;
+  box-shadow:inset 0 0 0 1px rgba(245,158,11,.14);
+  border-radius:12px;
 }
 
 .payrollSheet tbody tr:hover td.payrollDayCellOT,
 .payrollSheet tbody tr.is-selected td.payrollDayCellOT{
-  background:rgba(245,158,11,.14) !important;
+  background:rgba(245,158,11,.13) !important;
 }
 
-/* time inputs */
 .payrollSheet input:disabled,
 .payrollSheet select:disabled{
   background:transparent;
 }
 
 .payrollSheet input[type="time"]{
-  font-weight:800;
+  font-weight:900;
   color:rgba(2,6,23,.98);
 }
 
-.payrollSheet input[type="time"]:disabled{
-  opacity:1;
-  -webkit-text-fill-color:rgba(2,6,23,.98);
-}
-
-.payrollSheet input.payrollTimeInput,
-.payrollTimeInput{
-  width:100%;
-  min-width:0;
-  max-width:none;
-  height:20px;
-  line-height:20px;
-  padding:0 4px 0 0;
-  border:none;
-  border-radius:8px;
   background:transparent;
   box-shadow:none;
   font-size:14px;
-  font-weight:800;
+  font-weight:900;
   text-align:left;
   color:rgba(15,23,42,.94);
   outline:none;
-  appearance:none;
-  -webkit-appearance:none;
-}
-
-.payrollSheet input.payrollTimeInput::-webkit-calendar-picker-indicator,
-.payrollSheet input.payrollTimeInput::-webkit-clear-button,
-.payrollSheet input.payrollTimeInput::-webkit-inner-spin-button,
-.payrollSheet input.payrollTimeInput::-webkit-outer-spin-button{
-  display:none !important;
-  -webkit-appearance:none !important;
-  opacity:0 !important;
-}
-
-.payrollSheet input.payrollTimeInput[value=""]{
-  color:transparent !important;
-}
-
-.payrollSheet input.payrollTimeInput[value=""]::-webkit-datetime-edit,
-.payrollSheet input.payrollTimeInput[value=""]::-webkit-date-and-time-value{
-  color:transparent !important;
-}
 
 .payrollSheet input.payrollTimeInput:focus{
   color:rgba(15,23,42,.94) !important;
-  background:rgba(30,64,175,.06) !important;
-  box-shadow:inset 0 0 0 1px rgba(30,64,175,.18) !important;
+  background:rgba(29,78,216,.06) !important;
+  box-shadow:inset 0 0 0 1px rgba(29,78,216,.18) !important;
 }
 
 .payrollSheet input.payrollTimeInput:focus::-webkit-datetime-edit,
-.payrollSheet input.payrollTimeInput:focus::-webkit-date-and-time-value{
   color:rgba(15,23,42,.94) !important;
 }
 
-/* summary columns */
 .payrollSummaryTotal{
   width:72px;
   min-width:72px;
-  max-width:72px;
-  text-align:center !important;
-}
-
-.payrollSummaryMoney{
-  width:112px;
-  min-width:112px;
-  max-width:112px;
-  text-align:right !important;
-}
-
 .payrollSheet td.payrollSummaryTotal,
 .payrollSheet td.payrollSummaryMoney{
   vertical-align:middle;
-  font-weight:800;
+  font-weight:900;
 }
 
-/* states */
 .payrollSheet td.net{
   background:transparent;
   color:rgba(2,6,23,.92);
-  font-weight:800;
+  font-weight:900;
 }
 
 .payrollSheet tbody tr:hover td.net,
-.payrollSheet tbody tr.is-selected td.net{
-  background:transparent;
-}
 
 .payrollSheet td.net.paidNetCell{
   background:transparent !important;
-  color:rgba(21,128,61,.98) !important;
+  color:#166534 !important;
   font-weight:900;
   text-align:center !important;
 }
-
-.payrollSheet td.net.zeroNetCell{
-  background:transparent !important;
-  color:rgba(2,6,23,.72) !important;
   font-weight:800;
   text-align:right !important;
 }
-.paidNetBadge{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:3px;
-  height:28px;
-  padding:0 10px;
-  border-radius:10px;
-  background:rgba(22,163,74,.14);
-  color:rgba(21,128,61,.98);
-  font-size:11px;
-  font-weight:900;
-  line-height:1;
-  white-space:nowrap;
-}
-/* pay button */
+
 .payCellForm{
   margin:0;
 }
-
-.payCellBtn{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  gap:6px;
-  width:100%;
-  min-height:36px;
   padding:6px 10px;
   border:none;
   border-radius:12px;
-  background:rgba(250,204,21,.24);
+  background:linear-gradient(180deg, rgba(254,240,138,.86), rgba(252,211,77,.92));
   color:rgba(2,6,23,.94);
   font-size:12px;
   font-weight:900;
   line-height:1;
   white-space:nowrap;
   cursor:pointer;
+  box-shadow:var(--shadow-xs);
   transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;
 }
 
 .payCellBtn:hover{
   filter:brightness(.98);
-  box-shadow:inset 0 0 0 1px rgba(146,64,14,.18);
-}
-
-.payCellBtn:active{
-  transform:scale(.99);
+  box-shadow:inset 0 0 0 1px rgba(146,64,14,.16), var(--shadow-xs);
 }
 
 .payCellBtn .payLabel{
   display:inline;
   margin:0;
   font-size:10px;
-  font-weight:800;
-  color:rgba(146,64,14,.95);
+  font-weight:900;
+  color:#92400e;
 }
 
-/* mobile */
-@media (max-width: 979px){
-  .payrollSheet{
-    min-width:1120px;
-  }
-
-  .payrollEmpCell,
-  .payrollSheet thead th:first-child,
-  .payrollSheet tbody td:first-child{
-    width:120px;
-    min-width:120px;
-    max-width:120px;
-  }
-
-  .payrollDayCell{
-    width:96px;
-    min-width:96px;
-    max-width:96px;
-  }
-
-  .payrollSummaryTotal{
-    width:64px;
-    min-width:64px;
-    max-width:64px;
-  }
-
-  .payrollSummaryMoney{
-    width:96px;
-    min-width:96px;
-    max-width:96px;
-  }
-
-  .payrollSheet thead th{
-    font-size:12px;
-    padding:12px 8px;
-  }
-
-  .payrollSheet tbody td{
-    padding:12px 8px;
-  }
-
-  .payrollSheet .emp{
-    font-size:12px;
-  }
-
-  .payrollSheet .empSub{
-    font-size:10px;
-  }
-
-  .payrollSheet input.payrollTimeInput,
-  .payrollTimeInput{
-    font-size:12px;
-  }
-
-  .payrollDayHours{
-    font-size:11px;
-  }
-}
-/* Print tidy */
-@media print{
-  .sidebar, .bottomNav, button, input, select, .weekRow { display:none !important; }
-  body{ padding:0 !important; background:#fff !important; }
-  .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
-  .card{ box-shadow:none !important; }
-}
-/* Dashboard page menu card:
-   keep on mobile, hide on desktop because sidebar already exists */
 .dashboardMainMenu{
   display:block;
 }
 
-@media (min-width: 980px){
+@media (min-width:980px){
+  body{
+    padding:18px 18px 22px 18px;
+  }
+
+  .shell{
+    max-width:none;
+    width:calc(100vw - 36px);
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:280px minmax(0,1fr);
+    gap:16px;
+    align-items:start;
+  }
+
+  .sidebar{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    position:sticky;
+    top:18px;
+    height:calc(100vh - 36px);
+    overflow:hidden;
+    padding:12px;
+    background:linear-gradient(180deg, rgba(255,255,255,.86), rgba(247,250,254,.92));
+    border:1px solid rgba(15,23,42,.08);
+    border-radius:22px;
+    box-shadow:var(--shadow-md);
+    backdrop-filter:blur(16px) saturate(130%);
+    -webkit-backdrop-filter:blur(16px) saturate(130%);
+  }
+
+  .bottomNav{
+    display:none;
+  }
+
   .dashboardMainMenu{
     display:none;
   }
-}
-/* Payroll page docked sidebar */
-@media (min-width: 980px){
+
+  .sideItem{
+    margin-top:8px;
+    padding:11px 12px;
+  }
+
   .payrollShell{
-    grid-template-columns: 1fr !important;
-    position: relative;
+    grid-template-columns:1fr !important;
+    position:relative;
   }
 
   .payrollShell .sidebar{
-    display: flex !important;
-    position: fixed;
-    left: 18px;
-    top: 18px;
-    bottom: 18px;
-    width: 280px;
-    z-index: 140;
-    transform: translateX(-115%);
-    opacity: 0;
-    pointer-events: none;
-    transition: transform .22s ease, opacity .22s ease;
+    display:flex !important;
+    position:fixed;
+    left:18px;
+    top:18px;
+    bottom:18px;
+    width:280px;
+    z-index:140;
+    transform:translateX(-115%);
+    opacity:0;
+    pointer-events:none;
+    transition:transform .22s ease, opacity .22s ease;
   }
 
   .payrollShell.payrollMenuOpen .sidebar{
-    transform: translateX(0);
-    opacity: 1;
-    pointer-events: auto;
+    transform:translateX(0);
+    opacity:1;
+    pointer-events:auto;
   }
 
   .payrollShell .main{
-    width: 100%;
-    min-width: 0;
-    transition: margin-left .22s ease, width .22s ease;
+    width:100%;
+    min-width:0;
+    transition:margin-left .22s ease, width .22s ease;
   }
 
   .payrollShell.payrollMenuOpen .main{
-    margin-left: 298px;
-    width: calc(100% - 298px);
+    margin-left:298px;
+    width:calc(100% - 298px);
   }
 
-  /* no dark overlay for docked mode */
   .payrollMenuBackdrop{
-    display: none !important;
+    display:none !important;
   }
 
   .payrollMenuToggle{
-  position: fixed;
-  left: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 160;
-  width: 20px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(220,38,38,.22);
-  border-radius: 0 12px 12px 0;
-  background: linear-gradient(180deg, rgba(254,242,242,.98), rgba(252,231,243,.96));
-  color: transparent;
-  font-size: 0;
-  cursor: pointer;
-  box-shadow: 0 10px 22px rgba(220,38,38,.14);
-  transition: left .22s ease, box-shadow .18s ease, background .18s ease;
+    position:fixed;
+    left:5px;
+    top:50%;
+    transform:translateY(-50%);
+    z-index:160;
+    width:22px;
+    height:44px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border:1px solid rgba(220,38,38,.18);
+    border-radius:0 14px 14px 0;
+    background:linear-gradient(180deg, rgba(255,250,250,.98), rgba(255,239,242,.95));
+    color:transparent;
+    font-size:0;
+    cursor:pointer;
+    box-shadow:0 12px 22px rgba(220,38,38,.14);
+    transition:left .22s ease, box-shadow .18s ease, background .18s ease;
+  }
+
+  .payrollMenuToggle::before{
+    content:"❯";
+    color:rgba(220,38,38,.94);
+    font-size:15px;
+    font-weight:900;
+    line-height:1;
+  }
+
+  .payrollShell.payrollMenuOpen .payrollMenuToggle{
+    left:308px;
+  }
+
+  .payrollShell.payrollMenuOpen .payrollMenuToggle::before{
+    content:"❮";
+  }
+
+  .payrollMenuToggle:hover{
+    box-shadow:0 14px 26px rgba(220,38,38,.18);
+    background:linear-gradient(180deg, rgba(255,240,240,.98), rgba(255,231,236,.98));
+  }
 }
 
-.payrollMenuToggle::before{
-  content: "❯";
-  color: rgba(220,38,38,.95);
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1;
+@media (max-width:1200px){
+  .adminActionBar{
+    grid-template-columns:1fr 1fr;
+  }
 }
 
-.payrollShell.payrollMenuOpen .payrollMenuToggle{
-  left: 308px;
+@media (max-width:1100px){
+  .dashboardBottom,
+  .payrollTopGrid{
+    grid-template-columns:1fr;
+  }
+
+  .payrollSummaryBar{
+    grid-template-columns:repeat(2, minmax(120px,1fr));
+  }
+
+  .payrollLegend,
+  .graphMeta{
+    grid-template-columns:1fr;
+  }
 }
 
-.payrollShell.payrollMenuOpen .payrollMenuToggle::before{
-  content: "❮";
+@media (max-width:980px){
+  .payrollSheet{
+    min-width:1120px;
+  }
+  }
+
+  .payrollSheet thead th{
+    font-size:11px;
+    padding:12px 8px;
+  }
+
+    font-size:11px;
+  }
 }
 
-.payrollMenuToggle:hover{
-  box-shadow: 0 14px 26px rgba(220,38,38,.18);
-  background: linear-gradient(180deg, rgba(254,226,226,.98), rgba(252,231,243,.98));
+@media (max-width:900px){
+  .graphMeta{
+    grid-template-columns:1fr;
+  }
 }
+
+@media (max-width:800px){
+  .kpiStrip,
+  .adminStats{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .payrollEmployeeCard .payrollSummaryBar{
+    grid-template-columns:1fr 1fr;
+    gap:8px;
+  }
 }
-/* Admin payroll weekly employee cards - mobile compact table */
+
+@media (max-width:780px){
+  .adminGrid{
+    grid-template-columns:1fr;
+  }
+
+  .payrollEmployeeCard{
+    padding:10px !important;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable thead th,
+  .payrollEmployeeCard .weeklyEditTable tbody td{
+    padding:6px 2px;
+    font-size:10px;
+  }
+
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(1),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(1){width:30px;}
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(2),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(2){width:66px;}
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(3),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(3),
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(4),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(4){width:46px;}
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(5),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(5){width:38px;}
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(6),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(6),
+  .payrollEmployeeCard .weeklyEditTable th:nth-child(7),
+  .payrollEmployeeCard .weeklyEditTable td:nth-child(7){width:52px;}
+}
+
+@media (max-width:700px){
+  .headerTop{
+    align-items:flex-start;
+    flex-wrap:wrap;
+  }
+
+  .badge{
+    max-width:100%;
+  }
+
+  .kpiRow,
+  .actionRow,
+  .row2,
+  .quickGrid,
+  .adminActionBar{
+    grid-template-columns:1fr !important;
+  }
+
+  .graphCard{
+    padding:12px;
+  }
+
+  .graphShell{
+    padding:12px 10px 8px 10px;
+  }
+
+  .bars{
+    height:204px;
+    gap:8px;
+    padding:4px 2px 0 2px;
+  }
+
+  .barTrack{
+    height:150px;
+  }
+
+  .bar{
+    width:82%;
+    min-width:16px;
+  }
+
+  .barValue{
+    display:none;
+  }
+
+  .barLabels{
+    gap:8px;
+    font-size:11px;
+  }
+
+  .graphTop{
+    gap:8px;
+    flex-wrap:wrap;
+  }
+
+  .graphRange{
+    font-size:11px;
+  }
+
+  .tablewrap,
+  .adminLiveTableWrap,
+  .workplacesTableWrap{
+    border-radius:16px;
+  }
+
+  .navInner{
+    gap:4px;
+    justify-content:space-between;
+  }
+
+  .navIcon{
+    width:42px;
+    height:42px;
+    border-radius:14px;
+    flex:0 0 auto;
+  }
+
+  .navIcon svg{
+    width:20px;
+    height:20px;
+  }
+
+  .workplacesTable,
+  .employeesTable,
+  .adminLiveTable{
+    min-width:100% !important;
+    table-layout:auto !important;
+  }
+
+  .workplacesTable thead,
+  .employeesTable thead,
+  .adminLiveTable thead{
+    display:none;
+  }
+
+  .workplacesTable,
+  .workplacesTable tbody,
+  .workplacesTable tr,
+  .workplacesTable td,
+  .employeesTable,
+  .employeesTable tbody,
+  .employeesTable tr,
+  .employeesTable td,
+  .adminLiveTable,
+  .adminLiveTable tbody,
+  .adminLiveTable tr,
+  .adminLiveTable td{
+    display:block;
+    width:100%;
+  }
+
+  .workplacesTable tr,
+  .employeesTable tr,
+  .adminLiveTable tr{
+    padding:12px;
+    border-bottom:1px solid rgba(15,23,42,.08);
+    background:#fff;
+  }
+
+  .workplacesTable td,
+  .employeesTable td,
+  .adminLiveTable td{
+    border:none;
+    padding:8px 0 !important;
+    text-align:left !important;
+  }
+
+  .workplacesTable td:last-child,
+  .adminLiveTable td:last-child{
+    padding-top:10px !important;
+  }
+
+  .adminLiveTable form{
+    width:100%;
+  }
+
+  .adminLiveTable input.input{
+    max-width:100% !important;
+    width:100%;
+  }
+
+  .row2 .input,
+  .row2 button,
+  .row2 a{
+    width:100% !important;
+    max-width:100% !important;
+  }
+
+  .menuItem{
+    align-items:center;
+  }
+}
+
 .payrollEmployeeCard .weeklyEditTable{
-  table-layout: fixed;
-  width: 100%;
-  min-width: 0;
+  table-layout:fixed;
+  width:100%;
+  min-width:0;
 }
 
 .payrollEmployeeCard .weeklyEditTable thead th,
 .payrollEmployeeCard .weeklyEditTable tbody td{
-  padding: 8px 4px;
-  font-size: 12px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  padding:8px 4px;
+  font-size:12px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
 }
 
 .payrollEmployeeCard .weeklyEditTable thead th{
-  letter-spacing: 0;
-  font-size: 11px;
+  letter-spacing:0;
+  font-size:11px;
 }
 
 .payrollEmployeeCard .weeklyEditTable th:nth-child(1),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(1){
-  width: 38px;
-}
-
+.payrollEmployeeCard .weeklyEditTable td:nth-child(1){width:38px;}
 .payrollEmployeeCard .weeklyEditTable th:nth-child(2),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(2){
-  width: 78px;
-}
-
+.payrollEmployeeCard .weeklyEditTable td:nth-child(2){width:78px;}
 .payrollEmployeeCard .weeklyEditTable th:nth-child(3),
 .payrollEmployeeCard .weeklyEditTable td:nth-child(3),
 .payrollEmployeeCard .weeklyEditTable th:nth-child(4),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(4){
-  width: 56px;
-  text-align: center;
-}
-
+.payrollEmployeeCard .weeklyEditTable td:nth-child(4){width:56px; text-align:center;}
 .payrollEmployeeCard .weeklyEditTable th:nth-child(5),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(5){
-  width: 46px;
-}
-
+.payrollEmployeeCard .weeklyEditTable td:nth-child(5){width:46px;}
 .payrollEmployeeCard .weeklyEditTable th:nth-child(6),
 .payrollEmployeeCard .weeklyEditTable td:nth-child(6),
 .payrollEmployeeCard .weeklyEditTable th:nth-child(7),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(7){
-  width: 64px;
-}
+.payrollEmployeeCard .weeklyEditTable td:nth-child(7){width:64px;}
 
-@media (max-width: 780px){
-  .payrollEmployeeCard{
-    padding: 10px !important;
+@media print{
+  .sidebar,
+  .bottomNav,
+  button,
+  input,
+  select,
+  .weekRow{
+    display:none !important;
   }
 
-  .payrollEmployeeCard .weeklyEditTable thead th,
-.payrollEmployeeCard .weeklyEditTable tbody td{
-  padding: 6px 2px;
-  font-size: 10px;
-}
-
-.payrollEmployeeCard .weeklyEditTable th:nth-child(1),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(1){
-  width: 30px;
-}
-
-.payrollEmployeeCard .weeklyEditTable th:nth-child(2),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(2){
-  width: 66px;
-}
-
-.payrollEmployeeCard .weeklyEditTable th:nth-child(3),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(3),
-.payrollEmployeeCard .weeklyEditTable th:nth-child(4),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(4){
-  width: 46px;
-}
-
-.payrollEmployeeCard .weeklyEditTable th:nth-child(5),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(5){
-  width: 38px;
-}
-
-.payrollEmployeeCard .weeklyEditTable th:nth-child(6),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(6),
-.payrollEmployeeCard .weeklyEditTable th:nth-child(7),
-.payrollEmployeeCard .weeklyEditTable td:nth-child(7){
-  width: 52px;
-}
-
-  .payrollEmployeeCard .payrollSummaryBar{
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
+  body{
+    padding:0 !important;
+    background:#fff !important;
   }
 
-  .payrollEmployeeCard .payrollSummaryItem{
-  padding: 3px 5px;
-  border-radius: 8px;
-}
+  body::before{
+    display:none !important;
+  }
 
-.payrollEmployeeCard .payrollSummaryItem .k{
-  font-size: 8px;
-}
+  .shell{
+    width:100% !important;
+    max-width:none !important;
+    grid-template-columns:1fr !important;
+  }
 
-.payrollEmployeeCard .payrollSummaryItem .v{
-  font-size: 11px;
-  line-height: 1;
+  .card{
+    box-shadow:none !important;
+    border-color:rgba(15,23,42,.10) !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+  }
 }
-}
-
 
 </style>
 """
@@ -4420,11 +4321,40 @@ def _haversine_m(lat1, lon1, lat2, lon2) -> float:
     return R * c
 
 def _get_employee_sites(username: str) -> list[str]:
-    """Return list of site names assigned to employee.
-    Supports:
-      - Employees sheet column 'Site' with comma/semicolon-separated sites
-      - Optional column 'Site2' (if present)
-    """
+    current_wp = _session_workplace_id()
+
+    def _normalize_sites(raw_values):
+        sites = []
+        for raw in raw_values:
+            raw = (raw or "").strip()
+            if not raw:
+                continue
+            for part in re.split(r"[;,]", raw):
+                p = (part or "").strip()
+                if p:
+                    sites.append(p)
+
+        seen = set()
+        out = []
+        for s in sites:
+            key = s.lower()
+            if key not in seen:
+                seen.add(key)
+                out.append(s)
+        return out
+
+    if DB_MIGRATION_MODE:
+        try:
+            rec = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
+            if not rec:
+                rec = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+            if rec:
+                raw1 = str(getattr(rec, "site", "") or "").strip()
+                raw2 = str(getattr(rec, "site2", "") or "").strip() if hasattr(rec, "site2") else ""
+                return _normalize_sites([raw1, raw2])
+        except Exception:
+            pass
+
     try:
         vals = employees_sheet.get_all_values()
         if not vals:
@@ -4434,7 +4364,6 @@ def _get_employee_sites(username: str) -> list[str]:
             return []
         ucol = headers.index("Username")
         wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-        current_wp = _session_workplace_id()
         scol = headers.index("Site") if "Site" in headers else None
         s2col = headers.index("Site2") if "Site2" in headers else None
 
@@ -4445,44 +4374,47 @@ def _get_employee_sites(username: str) -> list[str]:
                     row_wp = (row[wp_col] if len(row) > wp_col else "").strip() or "default"
                     if row_wp != current_wp:
                         continue
-                sites: list[str] = []
-                if scol is not None and scol < len(row):
-                    raw = (row[scol] or "").strip()
-                    if raw:
-                        # allow comma/semicolon separated
-                        for part in re.split(r"[;,]", raw):
-                            p = (part or "").strip()
-                            if p:
-                                sites.append(p)
-                if s2col is not None and s2col < len(row):
-                    raw2 = (row[s2col] or "").strip()
-                    if raw2:
-                        for part in re.split(r"[;,]", raw2):
-                            p = (part or "").strip()
-                            if p:
-                                sites.append(p)
-                # unique preserve order
-                seen = set()
-                out = []
-                for s in sites:
-                    key = s.lower()
-                    if key not in seen:
-                        seen.add(key)
-                        out.append(s)
-                return out
+
+                raw1 = (row[scol] or "").strip() if scol is not None and scol < len(row) else ""
+                raw2 = (row[s2col] or "").strip() if s2col is not None and s2col < len(row) else ""
+                return _normalize_sites([raw1, raw2])
     except Exception:
         return []
-    return []
 
-def _get_employee_site(username: str) -> str:
-    """Backwards-compatible: return primary site (first) or empty."""
-    sites = _get_employee_sites(username)
-    return sites[0] if sites else ""
+    return []
 
 def _get_active_locations() -> list[dict]:
     out = []
+    current_wp = _session_workplace_id()
+
+    if DB_MIGRATION_MODE:
+        try:
+            for rec in Location.query.all():
+                row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
+                if row_wp != current_wp:
+                    continue
+
+                name = str(getattr(rec, "site_name", "") or "").strip()
+                active = str(getattr(rec, "active", "TRUE") or "TRUE").strip().upper()
+                lat = safe_float(getattr(rec, "lat", None), None)
+                lon = safe_float(getattr(rec, "lon", None), None)
+                rad = safe_float(getattr(rec, "radius_meters", None), 0.0)
+
+                if not name:
+                    continue
+                if active not in ("TRUE", "YES", "1"):
+                    continue
+                if lat is None or lon is None or rad <= 0:
+                    continue
+
+                out.append({"name": name, "lat": float(lat), "lon": float(lon), "radius": float(rad)})
+            return out
+        except Exception:
+            pass
+
     if not locations_sheet:
         return out
+
     try:
         vals = locations_sheet.get_all_values()
         if not vals:
@@ -4490,35 +4422,39 @@ def _get_active_locations() -> list[dict]:
         headers = vals[0]
         def idx(n): return headers.index(n) if n in headers else None
 
-        i_name = idx("SiteName");
-        i_lat = idx("Lat");
-        i_lon = idx("Lon");
-        i_rad = idx("RadiusMeters");
+        i_name = idx("SiteName")
+        i_lat = idx("Lat")
+        i_lon = idx("Lon")
+        i_rad = idx("RadiusMeters")
         i_act = idx("Active")
-        i_wp = idx("Workplace_ID");
-        current_wp = _session_workplace_id()
+        i_wp = idx("Workplace_ID")
+
         for r in vals[1:]:
-            # Workplace filter (only if Locations sheet has Workplace_ID column)
             if i_wp is not None:
                 row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
                 if row_wp != current_wp:
                     continue
+
             name = (r[i_name] if i_name is not None and i_name < len(r) else "").strip()
             if not name:
                 continue
+
             active = (r[i_act] if i_act is not None and i_act < len(r) else "TRUE").strip().upper()
-            if active not in ("TRUE","YES","1"):
+            if active not in ("TRUE", "YES", "1"):
                 continue
+
             lat = safe_float(r[i_lat] if i_lat is not None and i_lat < len(r) else "", None)
             lon = safe_float(r[i_lon] if i_lon is not None and i_lon < len(r) else "", None)
             rad = safe_float(r[i_rad] if i_rad is not None and i_rad < len(r) else "", 0.0)
+
             if lat is None or lon is None or rad <= 0:
                 continue
+
             out.append({"name": name, "lat": float(lat), "lon": float(lon), "radius": float(rad)})
     except Exception:
         return []
-    return out
 
+    return out
 def _get_site_config(site_name: str) -> dict | None:
     sites = _get_active_locations()
     if not sites:
@@ -4863,7 +4799,6 @@ def set_employee_first_last(username: str, first: str, last: str):
     vals = employees_sheet.get_all_values()
     if not vals:
         return
-
     headers = vals[0]
     if "Username" not in headers:
         return
@@ -4889,13 +4824,30 @@ def set_employee_first_last(username: str, first: str, last: str):
             rownum = i + 1
             break
 
-    if not rownum:
-        return
+    if rownum:
+        if fn_col:
+            employees_sheet.update_cell(rownum, fn_col, first or "")
+        if ln_col:
+            employees_sheet.update_cell(rownum, ln_col, last or "")
 
-    if fn_col:
-        employees_sheet.update_cell(rownum, fn_col, first or "")
-    if ln_col:
-        employees_sheet.update_cell(rownum, ln_col, last or "")
+    if DB_MIGRATION_MODE:
+        try:
+            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
+            if not db_row:
+                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+
+            if db_row:
+                db_row.first_name = first or ""
+                db_row.last_name = last or ""
+                full_name = (" ".join([first or "", last or ""])).strip()
+                if full_name:
+                    db_row.name = full_name
+                db_row.workplace = current_wp
+                db_row.workplace_id = current_wp
+                db.session.commit()
+        except Exception:
+            db.session.rollback()
+
 
 def update_employee_password(username: str, new_password: str) -> bool:
     vals = employees_sheet.get_all_values()
@@ -4904,12 +4856,14 @@ def update_employee_password(username: str, new_password: str) -> bool:
     headers = vals[0]
     if "Username" not in headers or "Password" not in headers:
         return False
+
     ucol = headers.index("Username")
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     pcol = headers.index("Password") + 1
     hashed = generate_password_hash(new_password)
     current_wp = _session_workplace_id()
 
+    sheet_ok = False
     for i in range(1, len(vals)):
         row = vals[i]
 
@@ -4918,8 +4872,27 @@ def update_employee_password(username: str, new_password: str) -> bool:
 
         if row_user == username and row_wp == current_wp:
             employees_sheet.update_cell(i + 1, pcol, hashed)
-            return True
-    return False
+            sheet_ok = True
+            break
+
+    db_ok = False
+    if DB_MIGRATION_MODE:
+        try:
+            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
+            if not db_row:
+                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+
+            if db_row:
+                db_row.password = hashed
+                db_row.workplace = current_wp
+                db_row.workplace_id = current_wp
+                db.session.commit()
+                db_ok = True
+        except Exception:
+            db.session.rollback()
+
+    return sheet_ok or db_ok
+
 
 def is_password_valid(stored: str, provided: str) -> bool:
     stored = stored or ""
@@ -4927,29 +4900,11 @@ def is_password_valid(stored: str, provided: str) -> bool:
         return check_password_hash(stored, provided)
     return stored == provided
 
+
 def migrate_password_if_plain(username: str, stored: str, provided: str):
     stored = stored or ""
     if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
         update_employee_password(username, provided)
-def _ensure_onboarding_workplace_header():
-    """Ensure Onboarding sheet has Workplace_ID column (append only; keep existing headers)."""
-    if not onboarding_sheet:
-        return
-    try:
-        vals = onboarding_sheet.get_all_values()
-        if not vals:
-            return
-        headers = vals[0] or []
-        if not headers or "Username" not in headers:
-            return
-        if "Workplace_ID" in headers:
-            return
-
-        new_headers = headers + ["Workplace_ID"]
-        end_a1 = gspread.utils.rowcol_to_a1(1, len(new_headers))  # e.g. "K1"
-        onboarding_sheet.update(f"A1:{end_a1}", [new_headers])  # e.g. "A1:K1"
-    except Exception:
-        return
 def update_or_append_onboarding(username: str, data: dict):
     _ensure_onboarding_workplace_header()
     headers = get_sheet_headers(onboarding_sheet)
@@ -4964,7 +4919,6 @@ def update_or_append_onboarding(username: str, data: dict):
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     current_wp = _session_workplace_id()
 
-    # Find row by (Username + Workplace_ID) if Workplace_ID exists
     rownum = None
     for i in range(1, len(vals)):
         row = vals[i]
@@ -4995,73 +4949,120 @@ def update_or_append_onboarding(username: str, data: dict):
     else:
         onboarding_sheet.append_row(row_values)
 
+    if DB_MIGRATION_MODE:
+        try:
+            rec = OnboardingRecord.query.filter_by(username=username, workplace_id=current_wp).first()
+            if not rec:
+                rec = OnboardingRecord(username=username, workplace_id=current_wp)
+                db.session.add(rec)
+
+            mapping = {
+                "first_name": "FirstName",
+                "last_name": "LastName",
+                "birth_date": "BirthDate",
+                "phone_country_code": "PhoneCountryCode",
+                "phone": "PhoneNumber",
+                "email": "Email",
+                "street_address": "StreetAddress",
+                "city": "City",
+                "postcode": "Postcode",
+                "emergency_contact_name": "EmergencyContactName",
+                "emergency_contact_phone_country_code": "EmergencyContactPhoneCountryCode",
+                "emergency_contact_phone": "EmergencyContactPhoneNumber",
+                "medical_condition": "MedicalCondition",
+                "medical_details": "MedicalDetails",
+                "position": "Position",
+                "cscs_number": "CSCSNumber",
+                "cscs_expiry_date": "CSCSExpiryDate",
+                "employment_type": "EmploymentType",
+                "right_to_work_uk": "RightToWorkUK",
+                "national_insurance": "NationalInsurance",
+                "utr": "UTR",
+                "start_date": "StartDate",
+                "bank_account_number": "BankAccountNumber",
+                "sort_code": "SortCode",
+                "account_holder_name": "AccountHolderName",
+                "company_trading_name": "CompanyTradingName",
+                "company_registration_no": "CompanyRegistrationNo",
+                "date_of_contract": "DateOfContract",
+                "site_address": "SiteAddress",
+                "passport_or_birth_cert_link": "PassportOrBirthCertLink",
+                "cscs_front_back_link": "CSCSFrontBackLink",
+                "public_liability_link": "PublicLiabilityLink",
+                "share_code_link": "ShareCodeLink",
+                "contract_accepted": "ContractAccepted",
+                "signature_name": "SignatureName",
+                "signature_datetime": "SignatureDateTime",
+                "submitted_at": "SubmittedAt",
+                "address": "StreetAddress",
+                "emergency_contact_phone_number": "EmergencyContactPhoneNumber",
+            }
+
+            for attr, key in mapping.items():
+                if hasattr(rec, attr):
+                    setattr(rec, attr, str(data.get(key, "")))
+
+            if hasattr(rec, "workplace_id"):
+                rec.workplace_id = current_wp
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+
+
 def get_onboarding_record(username: str):
     current_wp = _session_workplace_id()
 
     if DB_MIGRATION_MODE:
         try:
-            rec = OnboardingRecord.query.filter_by(
-                username=(username or "").strip(),
-                workplace_id=current_wp,
-            ).first()
+            rec = OnboardingRecord.query.filter_by(username=username, workplace_id=current_wp).first()
+            if rec:
+                def gv(attr):
+                    return "" if not hasattr(rec, attr) or getattr(rec, attr) is None else str(getattr(rec, attr))
 
-            if not rec:
-                return None
-
-            return {
-                "Username": str(getattr(rec, "username", "") or ""),
-                "Workplace_ID": str(getattr(rec, "workplace_id", "") or ""),
-
-                "FirstName": str(getattr(rec, "first_name", "") or ""),
-                "LastName": str(getattr(rec, "last_name", "") or ""),
-                "BirthDate": str(getattr(rec, "birth_date", "") or ""),
-
-                "PhoneCountryCode": str(getattr(rec, "phone_country_code", "") or ""),
-                "PhoneNumber": str(getattr(rec, "phone_number", "") or ""),
-                "Email": str(getattr(rec, "email", "") or ""),
-
-                "StreetAddress": str(getattr(rec, "street_address", "") or ""),
-                "City": str(getattr(rec, "city", "") or ""),
-                "Postcode": str(getattr(rec, "postcode", "") or ""),
-
-                "EmergencyContactName": str(getattr(rec, "emergency_contact_name", "") or ""),
-                "EmergencyContactPhoneCountryCode": str(getattr(rec, "emergency_contact_phone_country_code", "") or ""),
-                "EmergencyContactPhoneNumber": str(getattr(rec, "emergency_contact_phone_number", "") or ""),
-
-                "MedicalCondition": str(getattr(rec, "medical_condition", "") or ""),
-                "MedicalDetails": str(getattr(rec, "medical_details", "") or ""),
-
-                "Position": str(getattr(rec, "position", "") or ""),
-                "CSCSNumber": str(getattr(rec, "cscs_number", "") or ""),
-                "CSCSExpiryDate": str(getattr(rec, "cscs_expiry_date", "") or ""),
-                "EmploymentType": str(getattr(rec, "employment_type", "") or ""),
-                "RightToWorkUK": str(getattr(rec, "right_to_work_uk", "") or ""),
-                "NationalInsurance": str(getattr(rec, "national_insurance", "") or ""),
-                "UTR": str(getattr(rec, "utr", "") or ""),
-                "StartDate": str(getattr(rec, "start_date", "") or ""),
-
-                "BankAccountNumber": str(getattr(rec, "bank_account_number", "") or ""),
-                "SortCode": str(getattr(rec, "sort_code", "") or ""),
-                "AccountHolderName": str(getattr(rec, "account_holder_name", "") or ""),
-
-                "CompanyTradingName": str(getattr(rec, "company_trading_name", "") or ""),
-                "CompanyRegistrationNo": str(getattr(rec, "company_registration_no", "") or ""),
-
-                "DateOfContract": str(getattr(rec, "date_of_contract", "") or ""),
-                "SiteAddress": str(getattr(rec, "site_address", "") or ""),
-
-                "PassportOrBirthCertLink": str(getattr(rec, "passport_or_birth_cert_link", "") or ""),
-                "CSCSFrontBackLink": str(getattr(rec, "cscs_front_back_link", "") or ""),
-                "PublicLiabilityLink": str(getattr(rec, "public_liability_link", "") or ""),
-                "ShareCodeLink": str(getattr(rec, "share_code_link", "") or ""),
-
-                "ContractAccepted": str(getattr(rec, "contract_accepted", "") or ""),
-                "SignatureName": str(getattr(rec, "signature_name", "") or ""),
-                "SignatureDateTime": str(getattr(rec, "signature_date_time", "") or ""),
-                "SubmittedAt": str(getattr(rec, "submitted_at", "") or ""),
-            }
+                return {
+                    "Username": username,
+                    "Workplace_ID": current_wp,
+                    "FirstName": gv("first_name"),
+                    "LastName": gv("last_name"),
+                    "BirthDate": gv("birth_date"),
+                    "PhoneCountryCode": gv("phone_country_code"),
+                    "PhoneNumber": gv("phone"),
+                    "Email": gv("email"),
+                    "StreetAddress": gv("street_address") or gv("address"),
+                    "City": gv("city"),
+                    "Postcode": gv("postcode"),
+                    "EmergencyContactName": gv("emergency_contact_name"),
+                    "EmergencyContactPhoneCountryCode": gv("emergency_contact_phone_country_code"),
+                    "EmergencyContactPhoneNumber": gv("emergency_contact_phone"),
+                    "MedicalCondition": gv("medical_condition"),
+                    "MedicalDetails": gv("medical_details"),
+                    "Position": gv("position"),
+                    "CSCSNumber": gv("cscs_number"),
+                    "CSCSExpiryDate": gv("cscs_expiry_date"),
+                    "EmploymentType": gv("employment_type"),
+                    "RightToWorkUK": gv("right_to_work_uk"),
+                    "NationalInsurance": gv("national_insurance"),
+                    "UTR": gv("utr"),
+                    "StartDate": gv("start_date"),
+                    "BankAccountNumber": gv("bank_account_number"),
+                    "SortCode": gv("sort_code"),
+                    "AccountHolderName": gv("account_holder_name"),
+                    "CompanyTradingName": gv("company_trading_name"),
+                    "CompanyRegistrationNo": gv("company_registration_no"),
+                    "DateOfContract": gv("date_of_contract"),
+                    "SiteAddress": gv("site_address"),
+                    "PassportOrBirthCertLink": gv("passport_or_birth_cert_link"),
+                    "CSCSFrontBackLink": gv("cscs_front_back_link"),
+                    "PublicLiabilityLink": gv("public_liability_link"),
+                    "ShareCodeLink": gv("share_code_link"),
+                    "ContractAccepted": gv("contract_accepted"),
+                    "SignatureName": gv("signature_name"),
+                    "SignatureDateTime": gv("signature_datetime"),
+                    "SubmittedAt": gv("submitted_at"),
+                }
         except Exception:
-            return None
+            pass
 
     headers = get_sheet_headers(onboarding_sheet)
     vals = onboarding_sheet.get_all_values()
@@ -5256,7 +5257,7 @@ def _ensure_locations_headers():
 
 def _ensure_payroll_headers():
     try:
-        vals = payroll_sheet.get_all_values()
+        vals = get_payroll_rows()
         if not vals:
             payroll_sheet.append_row(PAYROLL_HEADERS)
             return
@@ -5340,7 +5341,7 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
     """Return (is_paid, paid_at)."""
     try:
         _ensure_payroll_headers()
-        vals = payroll_sheet.get_all_values()
+        vals = get_payroll_rows()
         if not vals or len(vals) < 2:
             return (False, "")
         headers = vals[0]
@@ -5576,20 +5577,16 @@ def login():
             msg = f"Too many login attempts. Try again in {mins} minute(s)."
         else:
             ok_user = None
-            # Force fresh read of Employees on login (avoid cached empty sheet after manual edits)
-            try:
-                sid = getattr(spreadsheet, "id", None)
-                wid = getattr(employees_sheet, "id", None)
-                if sid and wid:
-                    _cache_invalidate_prefix((sid, wid))
-            except Exception:
-                pass
-            for user in employees_sheet.get_all_records():
-                row_user = (user.get("Username") or "").strip()
-                row_wp = (user.get("Workplace_ID") or "").strip() or "default"  # backward-compatible
-                if row_user == username and row_wp == workplace_id:
-                    ok_user = user
-                    break
+            if not DB_MIGRATION_MODE:
+                try:
+                    sid = getattr(spreadsheet, "id", None)
+                    wid = getattr(employees_sheet, "id", None)
+                    if sid and wid:
+                        _cache_invalidate_prefix((sid, wid))
+                except Exception:
+                    pass
+
+            ok_user = _find_employee_record(username, workplace_id)
 
             if ok_user and is_password_valid(ok_user.get("Password", ""), password):
                 active_raw = str(ok_user.get("Active", "") or "").strip().lower()
@@ -5700,7 +5697,7 @@ def home():
 
     now = datetime.now(TZ)
     today = now.date()
-    rows = work_sheet.get_all_values()
+    rows = get_workhours_rows()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
@@ -6158,7 +6155,7 @@ def clock_page():
                     msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
                 msg_class = "message error"
             else:
-                rows = work_sheet.get_all_values()
+                rows = get_workhours_rows()
 
                 if action == "in":
                     if has_any_row_today(rows, username, today_str):
@@ -6328,7 +6325,7 @@ def clock_page():
 
 
     # Active shift timer
-    rows2 = work_sheet.get_all_values()
+    rows2 = get_workhours_rows()
     osf2 = find_open_shift(rows2, username)
     active_start_iso = ""
     active_start_label = ""
@@ -6581,7 +6578,7 @@ def my_times():
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
 
-    rows = work_sheet.get_all_values()
+    rows = get_workhours_rows()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
@@ -6667,7 +6664,7 @@ def my_reports():
     selected_week_start = this_monday - timedelta(days=7 * wk_offset)
     selected_week_end = selected_week_start + timedelta(days=6)
 
-    rows = work_sheet.get_all_values()
+    rows = get_workhours_rows()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
@@ -7603,12 +7600,9 @@ def change_password():
         new2 = request.form.get("new2", "")
 
         stored_pw = None
-        for user in employees_sheet.get_all_records():
-            if not _same_workplace(user):
-                continue
-            if user.get("Username") == username:
-                stored_pw = user.get("Password", "")
-                break
+        user_row = _find_employee_record(username)
+        if user_row:
+            stored_pw = user_row.get("Password", "")
 
         if stored_pw is None or not is_password_valid(stored_pw, current):
             msg = "Current password is incorrect."
@@ -7702,7 +7696,7 @@ def _get_open_shifts() -> list[dict]:
     """Return currently open shifts (ClockOut empty) with display metadata for Admin dashboard."""
     out = []
     try:
-        rows = work_sheet.get_all_values()
+        rows = get_workhours_rows()
         if not rows or len(rows) < 2:
             return out
         headers = rows[0]
@@ -8396,7 +8390,7 @@ def admin_force_clockout():
     if not username or not out_time:
         return redirect(request.referrer or "/admin")
 
-    rows = work_sheet.get_all_values()
+    rows = get_workhours_rows()
     osf = find_open_shift(rows, username)
     if not osf:
         return redirect(request.referrer or "/admin")
@@ -8521,7 +8515,7 @@ def admin_payroll():
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
 
-    rows = work_sheet.get_all_values()
+    rows = get_workhours_rows()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
@@ -9406,7 +9400,24 @@ def admin_onboarding_list():
         return gate
 
     q = (request.args.get("q", "") or "").strip().lower()
-    vals = onboarding_sheet.get_all_values()
+    vals = onboarding_sheet.get_all_values() if not DB_MIGRATION_MODE else [
+                                                                               ["Username", "FirstName", "LastName",
+                                                                                "SubmittedAt", "Workplace_ID"]
+                                                                           ] + [
+                                                                               [
+                                                                                   str(getattr(rec, "username",
+                                                                                               "") or "").strip(),
+                                                                                   str(getattr(rec, "first_name",
+                                                                                               "") or "").strip(),
+                                                                                   str(getattr(rec, "last_name",
+                                                                                               "") or "").strip(),
+                                                                                   str(getattr(rec, "submitted_at",
+                                                                                               "") or "").strip(),
+                                                                                   str(getattr(rec, "workplace_id",
+                                                                                               "default") or "default").strip(),
+                                                                               ]
+                                                                               for rec in OnboardingRecord.query.all()
+                                                                           ]
     if not vals:
         body = "<tr><td colspan='3'>No onboarding data.</td></tr>"
     else:
@@ -9893,7 +9904,78 @@ def admin_employee_sites():
     site_names = [s["name"] for s in sites] if sites else []
 
     # Employees list
-    vals = employees_sheet.get_all_values()
+    employee_rows = _list_employee_records_for_workplace()
+    rows_html = []
+
+    if employee_rows:
+        for user in employee_rows:
+            u = (user.get("Username") or "").strip()
+            if not u:
+                continue
+
+            fn = (user.get("FirstName") or "").strip()
+            ln = (user.get("LastName") or "").strip()
+            raw_site = (user.get("Site") or "").strip()
+            disp = (fn + " " + ln).strip() or u
+
+            assigned = _get_employee_sites(u)
+            s1 = assigned[0] if len(assigned) > 0 else ""
+            s2 = assigned[1] if len(assigned) > 1 else ""
+
+            def build_opts(current: str):
+                opts = []
+                cur = (current or "").strip()
+                cur_l = cur.lower()
+                if cur and (cur not in site_names):
+                    opts.append(f"<option value='{escape(cur)}' selected>{escape(cur)} (inactive/unknown)</option>")
+                if not site_names:
+                    opts.append("<option value='' selected>(No active locations)</option>")
+                else:
+                    opts.append("<option value=''>— None —</option>")
+                    for n in site_names:
+                        sel = "selected" if (n.strip().lower() == cur_l and cur) else ""
+                        opts.append(f"<option value='{escape(n)}' {sel}>{escape(n)}</option>")
+                return "".join(opts)
+
+            chips = []
+            if not assigned:
+                chips.append("<span class='chip warn'>No site (fallback to any active)</span>")
+            else:
+                for s in assigned[:2]:
+                    if s and s in site_names:
+                        chips.append(f"<span class='chip ok'>{escape(s)}</span>")
+                    elif s:
+                        chips.append(f"<span class='chip bad'>{escape(s)}?</span>")
+
+            rows_html.append(f"""
+              <tr>
+                <td>
+                  <div style='display:flex; align-items:center; gap:10px;'>
+                    <div class='avatar'>{escape(initials(disp))}</div>
+                    <div>
+                      <div style='font-weight:600;'>{escape(disp)}</div>
+                      <div class='sub' style='margin:2px 0 0 0;'>{escape(u)}</div>
+                      <div style='margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;'>{''.join(chips)}</div>
+                    </div>
+                  </div>
+                </td>
+                <td style='min-width:420px;'>
+                  <form method='POST' action='/admin/employee-sites/save' style='margin:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;'>
+                    <input type='hidden' name='csrf' value='{escape(csrf)}'>
+                    <input type='hidden' name='user' value='{escape(u)}'>
+                    <select class='input' name='site1' style='margin-top:0; max-width:200px;'>
+                      {build_opts(s1)}
+                    </select>
+                    <select class='input' name='site2' style='margin-top:0; max-width:200px;'>
+                      {build_opts(s2)}
+                    </select>
+                    <button class='btnTiny' type='submit'>Save</button>
+                  </form>
+                  <div class='sub' style='margin-top:6px;'>Tip: leave both blank to allow clock-in at any active site.</div>
+                </td>
+                <td class='sub'>{escape(raw_site) if raw_site else ''}</td>
+              </tr>
+            """)
     rows_html = []
 
     if vals:
@@ -10034,19 +10116,15 @@ def admin_employee_sites_save():
     s1 = (request.form.get("site1") or "").strip()
     s2 = (request.form.get("site2") or "").strip()
 
-    # normalize duplicates
     if s1 and s2 and s1.strip().lower() == s2.strip().lower():
         s2 = ""
 
-    # store in Employees -> Site as "Site1,Site2" (no sheet schema changes needed)
-    site_val = ""
-    if s1 and s2:
-        site_val = f"{s1},{s2}"
-    else:
-        site_val = s1 or s2 or ""
+    site_val = f"{s1},{s2}" if (s1 and s2) else (s1 or s2 or "")
 
     if u:
-        # Ensure "Site" column exists
+        if not _find_employee_record(u):
+            return redirect("/admin/employee-sites")
+
         try:
             headers = get_sheet_headers(employees_sheet)
             if headers and "Site" not in headers:
@@ -10055,9 +10133,25 @@ def admin_employee_sites_save():
                 employees_sheet.update(f"A1:{end_col}1", [headers2])
         except Exception:
             pass
-        if not user_in_same_workplace(u):
-            return redirect("/admin/employee-sites")
-        set_employee_field(u, "Site", site_val)
+
+        try:
+            set_employee_field(u, "Site", site_val)
+        except Exception:
+            pass
+
+        if DB_MIGRATION_MODE:
+            try:
+                wp = _session_workplace_id()
+                db_row = Employee.query.filter_by(username=u, workplace_id=wp).first()
+                if not db_row:
+                    db_row = Employee.query.filter_by(email=u, workplace_id=wp).first()
+                if db_row:
+                    db_row.site = site_val
+                    db_row.workplace = wp
+                    db_row.workplace_id = wp
+                    db.session.commit()
+            except Exception:
+                db.session.rollback()
 
         actor = session.get("username", "admin")
         log_audit("EMPLOYEE_SITE_SET", actor=actor, username=u, date_str="", details=f"site={site_val}")
@@ -10785,6 +10879,60 @@ def admin_workplaces():
                                 set_emp("Active", "TRUE")
 
                             employees_sheet.append_row(emp_row)
+                            if DB_MIGRATION_MODE:
+                                try:
+                                    db_setting = WorkplaceSetting.query.filter_by(workplace_id=workplace_id).first()
+                                    if not db_setting:
+                                        db_setting = WorkplaceSetting(workplace_id=workplace_id)
+                                        db.session.add(db_setting)
+
+                                    db_setting.tax_rate = Decimal(str(tax_rate or "20"))
+                                    db_setting.currency_symbol = currency_symbol
+                                    db_setting.company_name = company_name
+
+                                    db_admin = Employee.query.filter_by(username=admin_username, workplace_id=workplace_id).first()
+                                    if not db_admin:
+                                        db_admin = Employee.query.filter_by(email=admin_username, workplace_id=workplace_id).first()
+
+                                    admin_hash = generate_password_hash(admin_password)
+
+                                    if db_admin:
+                                        db_admin.email = admin_username
+                                        db_admin.username = admin_username
+                                        db_admin.first_name = admin_first
+                                        db_admin.last_name = admin_last
+                                        db_admin.name = (" ".join([admin_first, admin_last])).strip() or admin_username
+                                        db_admin.password = admin_hash
+                                        db_admin.role = "admin"
+                                        db_admin.rate = Decimal("0")
+                                        db_admin.early_access = "TRUE"
+                                        db_admin.active = "TRUE"
+                                        db_admin.site = ""
+                                        db_admin.workplace = workplace_id
+                                        db_admin.workplace_id = workplace_id
+                                    else:
+                                        db.session.add(
+                                            Employee(
+                                                email=admin_username,
+                                                username=admin_username,
+                                                first_name=admin_first,
+                                                last_name=admin_last,
+                                                name=(" ".join([admin_first, admin_last])).strip() or admin_username,
+                                                password=admin_hash,
+                                                role="admin",
+                                                rate=Decimal("0"),
+                                                early_access="TRUE",
+                                                active="TRUE",
+                                                site="",
+                                                workplace=workplace_id,
+                                                workplace_id=workplace_id,
+                                                created_at=None,
+                                            )
+                                        )
+
+                                    db.session.commit()
+                                except Exception:
+                                    db.session.rollback()
 
                             session["workplace_id"] = workplace_id
                             ok = True
