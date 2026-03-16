@@ -262,6 +262,7 @@ app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 
 db = SQLAlchemy(app)
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
+PAYROLL_AUTO_REFRESH_SEC = max(0, int(os.environ.get("PAYROLL_AUTO_REFRESH_SEC", "15") or "15"))
 
 
 # ================= DATABASE VIEW / IMPORT ROUTES =================
@@ -10214,6 +10215,53 @@ def admin_payroll():
       selected = tr;
     }});
   }});
+}})();
+</script>
+
+<script>
+(function(){{
+  const refreshSec = {PAYROLL_AUTO_REFRESH_SEC};
+  if (!refreshSec || refreshSec <= 0) return;
+
+  let timer = null;
+
+  function schedule(){{
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(function(){{
+      const u = new URL(window.location.href);
+      u.searchParams.set("_ts", Date.now().toString());
+      window.location.replace(u.toString());
+    }}, refreshSec * 1000);
+  }}
+
+  function stop(){{
+    if (timer) clearTimeout(timer);
+  }}
+
+  function isEditing(){{
+    const el = document.activeElement;
+    if (!el) return false;
+    return ["INPUT", "TEXTAREA", "SELECT"].includes(el.tagName);
+  }}
+
+  window.addEventListener("focus", function(){{
+    if (!isEditing()) schedule();
+  }});
+
+  document.addEventListener("visibilitychange", function(){{
+    if (document.hidden) {{
+      stop();
+      return;
+    }}
+    if (!isEditing()) schedule();
+  }});
+
+  document.addEventListener("input", stop);
+  document.addEventListener("change", function(){{
+    if (!isEditing()) schedule();
+  }});
+
+  schedule();
 }})();
 </script>
 
