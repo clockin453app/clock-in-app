@@ -6930,38 +6930,41 @@ def clock_page():
                             # ✅ IMPORTANT: batch_update must be OUTSIDE the loop
                             if updates:
                                 _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
-                            if DB_MIGRATION_MODE:
-                                try:
-                                    shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
-                                    clock_in_dt = datetime.strptime(f"{today_str} {cin}", "%Y-%m-%d %H:%M:%S")
 
-                                    db_row = WorkHour.query.filter_by(
-                                        employee_email=username,
-                                        date=shift_date,
-                                        workplace=_session_workplace_id(),
-                                    ).order_by(WorkHour.id.desc()).first()
+                        if DB_MIGRATION_MODE:
+                            try:
+                                shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
+                                clock_in_dt = datetime.strptime(f"{today_str} {cin}", "%Y-%m-%d %H:%M:%S")
 
-                                    if db_row:
-                                        db_row.clock_in = clock_in_dt
-                                        db_row.clock_out = None
-                                    else:
-                                        db.session.add(
-                                            WorkHour(
-                                                employee_email=username,
-                                                date=shift_date,
-                                                clock_in=clock_in_dt,
-                                                clock_out=None,
-                                                workplace=_session_workplace_id(),
-                                            )
+                                db_row = WorkHour.query.filter_by(
+                                    employee_email=username,
+                                    date=shift_date,
+                                    workplace=_session_workplace_id(),
+                                ).order_by(WorkHour.id.desc()).first()
+
+                                if db_row:
+                                    db_row.clock_in = clock_in_dt
+                                    db_row.clock_out = None
+                                else:
+                                    db.session.add(
+                                        WorkHour(
+                                            employee_email=username,
+                                            date=shift_date,
+                                            clock_in=clock_in_dt,
+                                            clock_out=None,
+                                            workplace=_session_workplace_id(),
                                         )
+                                    )
 
-                                    db.session.commit()
-                                except Exception:
-                                    db.session.rollback()
-                    if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
-                        msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
-                    else:
-                        msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
+                                db.session.commit()
+                            except Exception:
+                                db.session.rollback()
+
+                        if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
+                            msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
+                        else:
+                            msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
+
 
                 elif action == "out":
                     osf = find_open_shift(rows, username)
@@ -6998,12 +7001,15 @@ def clock_page():
                         ]:
                             c = _col(k)
                             if c:
-                                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, c),
-                                                "values": [["" if v is None else str(v)]]})
+                                updates.append({
+                                    "range": gspread.utils.rowcol_to_a1(sheet_row, c),
+                                    "values": [["" if v is None else str(v)]]
+                                })
 
                         import copy
                         if updates:
                             _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+
                         if DB_MIGRATION_MODE:
                             try:
                                 shift_date = datetime.strptime(d, "%Y-%m-%d").date()
@@ -7035,7 +7041,8 @@ def clock_page():
                                 db.session.commit()
                             except Exception:
                                 db.session.rollback()
-                    msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
+
+                        msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
                 else:
                     msg = "Invalid action."
