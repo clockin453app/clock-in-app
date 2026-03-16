@@ -5518,14 +5518,27 @@ def set_employee_first_last(username: str, first: str, last: str):
         except Exception:
             db.session.rollback()
 
+    def update_employee_password(username: str, new_password: str) -> bool:
+        current_wp = _session_workplace_id()
+        hashed = generate_password_hash(new_password)
 
-def update_employee_password(username: str, new_password: str) -> bool:
-    vals = employees_sheet.get_all_values()
-    if not vals:
-        return False
-    headers = vals[0]
-    if "Username" not in headers or "Password" not in headers:
-        return False
+        try:
+            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
+            if not db_row:
+                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+
+            if not db_row:
+                return False
+
+            db_row.password = hashed
+            db_row.workplace = current_wp
+            db_row.workplace_id = current_wp
+            db.session.commit()
+            return True
+
+        except Exception:
+            db.session.rollback()
+            return False
 
     ucol = headers.index("Username")
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
@@ -10503,36 +10516,51 @@ def admin_locations_save():
 
 @app.post("/admin/locations/deactivate")
 def admin_locations_deactivate():
-    gate = require_admin()
+    gate = require_master_admin()
     if gate:
         return gate
     require_csrf()
 
     name = (request.form.get("name") or "").strip()
-    if not locations_sheet or not name:
+    if not name:
         return redirect("/admin/locations")
 
-    rownum = _find_location_row_by_name(name)
-    if rownum:
-        try:
-            locations_sheet.update_cell(rownum, 5, "FALSE")
-
-            if DB_MIGRATION_MODE:
-                try:
-                    wp = _session_workplace_id()
-                    db_row = Location.query.filter_by(workplace_id=wp, site_name=name).first()
-                    if db_row:
-                        db_row.active = "FALSE"
-                        db.session.commit()
-                except Exception:
-                    db.session.rollback()
-        except Exception:
-            pass
+    try:
+        wp = _session_workplace_id()
+        db_row = Location.query.filter_by(workplace_id=wp, site_name=name).first()
+        if db_row:
+            db_row.active = "FALSE"
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     actor = session.get("username", "admin")
     log_audit("LOCATIONS_DEACTIVATE", actor=actor, username="", date_str="", details=name)
     return redirect("/admin/locations")
 
+@app.post("/admin/locations/delete")
+def admin_locations_delete():
+    gate = require_master_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    name = (request.form.get("name") or "").strip()
+    if not name:
+        return redirect("/admin/locations")
+
+    try:
+        wp = _session_workplace_id()
+        db_row = Location.query.filter_by(workplace_id=wp, site_name=name).first()
+        if db_row:
+            db.session.delete(db_row)
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    actor = session.get("username", "admin")
+    log_audit("LOCATIONS_DELETE", actor=actor, username="", date_str="", details=name)
+    return redirect("/admin/locations")
 
 # ---------- ADMIN: EMPLOYEE SITE ASSIGNMENTS ----------
 @app.get("/admin/employee-sites")
