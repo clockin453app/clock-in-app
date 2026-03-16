@@ -6960,10 +6960,10 @@ def clock_page():
                             except Exception:
                                 db.session.rollback()
 
-                        if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
-                            msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
-                        else:
-                            msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
+                                if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
+                                    msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
+                                else:
+                                    msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
 
 
                 elif action == "out":
@@ -7042,7 +7042,7 @@ def clock_page():
                             except Exception:
                                 db.session.rollback()
 
-                        msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
+                                msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
                 else:
                     msg = "Invalid action."
