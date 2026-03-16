@@ -3842,6 +3842,30 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   max-width:170px;
 }
 
+.payrollSheet thead th:first-child{
+  position: sticky;
+  left: 0;
+  z-index: 9;
+  background: #fff;
+  box-shadow: 6px 0 14px rgba(15,23,42,.08);
+}
+
+.payrollSheet tbody td:first-child{
+  position: sticky;
+  left: 0;
+  z-index: 4;
+  background: #fff;
+  box-shadow: 6px 0 14px rgba(15,23,42,.08);
+}
+
+.payrollSheet tbody tr:hover td:first-child{
+  background: rgba(248,250,252,.92);
+}
+
+.payrollSheet tbody tr.is-selected td:first-child{
+  background: rgba(239,246,255,.94);
+}
+
 .payrollSheet .emp{
   display:block;
   width:100%;
