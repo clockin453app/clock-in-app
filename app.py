@@ -6958,9 +6958,10 @@ def clock_page():
                                     db.session.commit()
                                 except Exception:
                                     db.session.rollback()
-                    msg = "You have already clocked in today."
                     if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                         msg = f"Clocked In (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
+                    else:
+                        msg = f"Clocked In • {cfg['name']} ({int(dist_m)}m)"
 
                 elif action == "out":
                     osf = find_open_shift(rows, username)
@@ -7034,7 +7035,7 @@ def clock_page():
                                 db.session.commit()
                             except Exception:
                                 db.session.rollback()
-                    msg = "You have already clocked out today."
+                    msg = f"Clocked Out • {cfg['name']} ({int(dist_m)}m)"
 
                 else:
                     msg = "Invalid action."
@@ -7144,12 +7145,15 @@ def clock_page():
 
   <div class="clockPanel">
     <form method="POST" class="actionRow" id="geoClockForm">
-      <input type="hidden" name="lat" id="latField">
-      <input type="hidden" name="lon" id="lonField">
+  <input type="hidden" name="csrf" value="{escape(csrf)}">
+  <input type="hidden" name="action" id="geoAction" value="">
+  <input type="hidden" name="lat" id="geoLat" value="">
+  <input type="hidden" name="lon" id="geoLon" value="">
+  <input type="hidden" name="acc" id="geoAcc" value="">
 
-      <button class="btn btnIn" name="action" value="in">Clock In</button>
-      <button class="btn btnOut" name="action" value="out">Clock Out</button>
-    </form>
+  <button class="btn btnIn" id="btnClockIn" type="button">Clock In</button>
+  <button class="btn btnOut" id="btnClockOut" type="button">Clock Out</button>
+</form>
 
     <a href="/my-times">
       <button class="btnSoft" type="button">View time logs</button>
