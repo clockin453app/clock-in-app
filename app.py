@@ -407,28 +407,18 @@ def _find_employee_record(username: str, workplace_id: str | None = None):
     if not target_user:
         return None
 
-    if DB_MIGRATION_MODE:
-        try:
-            for rec in Employee.query.all():
-                row = _employee_record_from_model(rec)
-                if not row:
-                    continue
-                if (row.get("Username", "") or "").strip() != target_user:
-                    continue
-                if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
-                    continue
-                return row
-        except Exception:
-            pass
-
     try:
-        for user in employees_sheet.get_all_records():
-            row_user = (user.get("Username") or "").strip()
-            row_wp = (user.get("Workplace_ID") or "").strip() or "default"
-            if row_user == target_user and row_wp == target_wp:
-                return user
+        for rec in Employee.query.all():
+            row = _employee_record_from_model(rec)
+            if not row:
+                continue
+            if (row.get("Username", "") or "").strip() != target_user:
+                continue
+            if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
+                continue
+            return row
     except Exception:
-        pass
+        return None
 
     return None
 
@@ -437,39 +427,22 @@ def _list_employee_records_for_workplace(workplace_id: str | None = None, includ
     target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
     out = []
 
-    if DB_MIGRATION_MODE:
-        try:
-            for rec in Employee.query.all():
-                row = _employee_record_from_model(rec)
-                if not row:
-                    continue
-                if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
-                    continue
-
-                if not include_inactive:
-                    active_raw = str(row.get("Active", "TRUE") or "TRUE").strip().lower()
-                    if active_raw in ("false", "0", "no", "n", "off"):
-                        continue
-
-                out.append(row)
-            return out
-        except Exception:
-            pass
-
     try:
-        for user in employees_sheet.get_all_records():
-            row_wp = (user.get("Workplace_ID") or "").strip() or "default"
-            if row_wp != target_wp:
+        for rec in Employee.query.all():
+            row = _employee_record_from_model(rec)
+            if not row:
+                continue
+            if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
                 continue
 
             if not include_inactive:
-                active_raw = str(user.get("Active", "TRUE") or "TRUE").strip().lower()
+                active_raw = str(row.get("Active", "TRUE") or "TRUE").strip().lower()
                 if active_raw in ("false", "0", "no", "n", "off"):
                     continue
 
-            out.append(user)
+            out.append(row)
     except Exception:
-        pass
+        return []
 
     return out
 
