@@ -5580,48 +5580,129 @@ def set_employee_first_last(username: str, first: str, last: str):
 
 
 def update_employee_password(username: str, new_password: str) -> bool:
-    vals = employees_sheet.get_all_values()
-    if not vals:
-        return False
-    headers = vals[0]
-    if "Username" not in headers or "Password" not in headers:
-        return False
-
-    ucol = headers.index("Username")
-    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-    pcol = headers.index("Password") + 1
     hashed = generate_password_hash(new_password)
-    current_wp = _session_workplace_id()
+    current_wp = (_session_workplace_id() or "default").strip() or "default"
+    target_user = (username or "").strip()
+
+    if not target_user:
+        return False
 
     sheet_ok = False
-    for i in range(1, len(vals)):
-        row = vals[i]
+    try:
+        vals = employees_sheet.get_all_values() if employees_sheet else []
+        if vals:
+            headers = vals[0]
+            if "Username" in headers and "Password" in headers:
+                ucol = headers.index("Username")
+                wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+                pcol = headers.index("Password") + 1
 
-        row_user = row[ucol].strip() if len(row) > ucol else ""
-        row_wp = (row[wp_col].strip() if (wp_col is not None and len(row) > wp_col) else "") or "default"
+                for i in range(1, len(vals)):
+                    row = vals[i]
+                    row_user = row[ucol].strip() if len(row) > ucol else ""
+                    row_wp = (row[wp_col].strip() if (wp_col is not None and len(row) > wp_col) else "") or "default"
 
-        if row_user == username and row_wp == current_wp:
-            employees_sheet.update_cell(i + 1, pcol, hashed)
-            sheet_ok = True
-            break
+                    if row_user == target_user and row_wp == current_wp:
+                        employees_sheet.update_cell(i + 1, pcol, hashed)
+                        sheet_ok = True
+                        break
+    except Exception:
+        sheet_ok = False
 
     db_ok = False
-    if DB_MIGRATION_MODE:
-        try:
-            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
-            if not db_row:
-                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+    try:
+        db_row = Employee.query.filter_by(username=target_user, workplace_id=current_wp).first()
+        if not db_row:
+            db_row = Employee.query.filter_by(email=target_user, workplace_id=current_wp).first()
 
-            if db_row:
-                db_row.password = hashed
-                db_row.workplace = current_wp
-                db_row.workplace_id = current_wp
-                db.session.commit()
-                db_ok = True
-        except Exception:
-            db.session.rollback()
+        if db_row:
+            db_row.password = hashed
+            db_row.workplace = current_wp
+            db_row.workplace_id = current_wp
+            db.session.commit()
+            db_ok = True
+    except Exception:
+        db.session.rollback()
+        db_ok = False
 
     return sheet_ok or db_ok
+
+@app.post("/admin/employees/reset-password")
+def admin_employee_reset_password():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    username = (request.form.get("username") or "").strip()
+    new_password = (request.form.get("new_password") or "").strip()
+
+    if not username or len(new_password) < 8:
+        session["_pwreset_ok"] = False
+        session["_pwreset_msg"] = "Enter a valid username and a password with at least 8 characters."
+        session.pop("_pwreset_user", None)
+        session.pop("_pwreset_password", None)
+        return redirect("/admin/employees")
+
+    ok = update_employee_password(username, new_password)
+
+    actor = session.get("username", "admin")
+    if ok:
+        log_audit("RESET_PASSWORD", actor=actor, username=username, date_str="", details="current workplace")
+        session["_pwreset_ok"] = True
+        session["_pwreset_msg"] = f"Password reset successfully for {username}."
+        session["_pwreset_user"] = username
+        session["_pwreset_password"] = new_password
+    else:
+        log_audit("RESET_PASSWORD_FAILED", actor=actor, username=username, date_str="", details="current workplace")
+        session["_pwreset_ok"] = False
+        session["_pwreset_msg"] = f"Could not reset password for {username}."
+        session.pop("_pwreset_user", None)
+        session.pop("_pwreset_password", None)
+
+    return redirect("/admin/employees")
+
+def get_reset_user_options_html() -> str:
+    current_wp = (_session_workplace_id() or "default").strip() or "default"
+    options = []
+    seen = set()
+
+    try:
+        records = get_employees_compat()
+        for rec in records:
+            username = str(rec.get("Username") or "").strip()
+            if not username:
+                continue
+
+            workplace_id = str(rec.get("Workplace_ID") or "default").strip() or "default"
+            role = str(rec.get("Role") or "").strip()
+            role_key = role.lower()
+            first_name = str(rec.get("FirstName") or "").strip()
+            last_name = str(rec.get("LastName") or "").strip()
+            display_name = (first_name + " " + last_name).strip() or username
+
+            include = (workplace_id == current_wp) or (role_key in ("admin", "master_admin"))
+            if not include:
+                continue
+
+            key = (workplace_id, username)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            packed = f"{workplace_id}||{username}"
+            label = f"{display_name} ({username}) — {role or 'employee'} — {workplace_id}"
+            options.append((
+                0 if workplace_id == current_wp else 1,
+                workplace_id.lower(),
+                label.lower(),
+                f"<option value='{escape(packed)}'>{escape(label)}</option>",
+            ))
+    except Exception:
+        return "<option value='' selected disabled>Select user</option>"
+
+    options.sort(key=lambda item: (item[0], item[1], item[2]))
+    return "<option value='' selected disabled>Select user</option>" + "".join(item[3] for item in options)
 
 
 def is_password_valid(stored: str, provided: str) -> bool:
@@ -10885,6 +10966,14 @@ def admin_employees():
             if not edit_username:
                 ok = False
                 msg = "Enter a username to update."
+                reset_user = session.pop("_pwreset_user", "")
+                reset_password = session.pop("_pwreset_password", "")
+                reset_msg = session.pop("_pwreset_msg", "")
+                reset_ok = session.pop("_pwreset_ok", None)
+
+                if reset_ok is not None:
+                    msg = reset_msg
+                    ok = bool(reset_ok)
             else:
                 _ensure_employees_columns()
                 headers = get_sheet_headers(employees_sheet)
@@ -11067,6 +11156,45 @@ def admin_employees():
                     except Exception:
                         ok = False
                         msg = "Could not update employee (sheet write failed)."
+
+        elif action == "reset_password":
+            if session.get("role") != "master_admin":
+                ok = False
+                msg = "Only master admin can reset passwords."
+            else:
+                packed_target = (request.form.get("reset_target") or "").strip()
+                legacy_username = (request.form.get("reset_username") or "").strip()
+                new_password = (request.form.get("new_password") or "").strip()
+
+                target_wp = (_session_workplace_id() or "default").strip() or "default"
+                reset_username = legacy_username
+                if packed_target and "||" in packed_target:
+                    target_wp, reset_username = packed_target.split("||", 1)
+                    target_wp = (target_wp or "").strip() or "default"
+                    reset_username = (reset_username or "").strip()
+
+                if not reset_username:
+                    ok = False
+                    msg = "Choose a user to reset."
+                elif len(new_password) < 8:
+                    ok = False
+                    msg = "New password must be at least 8 characters."
+                else:
+                    changed = update_employee_password(reset_username, new_password, workplace_id=target_wp)
+                    if changed:
+                        actor = session.get("username", "master_admin")
+                        log_audit(
+                            "EMPLOYEE_PASSWORD_RESET",
+                            actor=actor,
+                            username=reset_username,
+                            date_str="",
+                            details=f"manual reset workplace={target_wp}",
+                        )
+                        ok = True
+                        msg = f"Password reset for {reset_username} ({target_wp})."
+                    else:
+                        ok = False
+                        msg = "Could not reset password for that user."
 
         elif action == "create":
             first = (request.form.get("first") or "").strip()
@@ -11338,6 +11466,48 @@ def admin_employees():
     except Exception:
         pass
 
+    reset_user = session.pop("_pwreset_user", "")
+    reset_password = session.pop("_pwreset_password", "")
+    reset_msg = session.pop("_pwreset_msg", "")
+    reset_ok = session.pop("_pwreset_ok", None)
+
+    if reset_ok is not None:
+        msg = reset_msg
+        ok = bool(reset_ok)
+
+    reset_card = ""
+    if session.get("role") in ("admin", "master_admin"):
+        reset_card = f"""
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <h2>Reset Password</h2>
+            <p class="sub">Admins can reset passwords only for users in the current workplace.</p>
+
+            <form method="POST" action="/admin/employees/reset-password" style="margin-top:12px;">
+              <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+              <label class="sub">Username</label>
+              <select class="input" name="username" required>
+                <option value="">Select employee</option>
+                {employee_options_html}
+              </select>
+
+              <label class="sub" style="margin-top:10px;">New password</label>
+              <input class="input" type="password" name="new_password" minlength="8" required>
+
+              <button class="btnSoft" type="submit" style="margin-top:12px;">Reset password</button>
+            </form>
+          </div>
+       """
+    reset_result_card = ""
+    if reset_password:
+        reset_result_card = f"""
+          <div class="card" style="padding:12px; margin-top:12px; background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.35);">
+            <h2>New Password</h2>
+            <p class="sub">Save this now. It is shown only once.</p>
+            <div style="font-weight:700; margin-top:8px;">User: {escape(reset_user)}</div>
+            <div style="font-size:18px; font-weight:800; margin-top:6px;">{escape(reset_password)}</div>
+          </div>
+        """
     content = f"""
 
       <div class="headerTop">
@@ -11349,7 +11519,9 @@ def admin_employees():
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
-      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+{("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
+
+{reset_result_card}
 
       <div class="card" style="padding:12px;">
         <form method="POST">
@@ -11431,50 +11603,24 @@ def admin_employees():
 </div>
   </form>
 </div>
+      {reset_card}
       <div class="card" style="padding:12px; margin-top:12px;">
         <h2>Employees (this workplace)</h2>
         <div class="tablewrap" style="margin-top:12px;">
-  <table class="employeesTable">
-    <thead>
-      <tr>
-        <th>Name</th>
-        <th>Username</th>
-        <th>Role</th>
-        <th>Early Access</th>
-        <th class="num">Rate</th>
-      </tr>
-    </thead>
-    <tbody>{table}</tbody>
-  </table>
-            </div>
-
-            <div class="payrollSummaryBar">
-              <div class="payrollSummaryItem">
-                <div class="k">Hours</div>
-                <div class="v">{wk_hours:.2f}</div>
-              </div>
-
-              <div class="payrollSummaryItem">
-                <div class="k">Gross</div>
-                <div class="v">{escape(currency)}{money(wk_gross)}</div>
-              </div>
-
-              <div class="payrollSummaryItem">
-                <div class="k">Tax</div>
-                <div class="v">{escape(currency)}{money(wk_tax)}</div>
-              </div>
-
-              <div class="payrollSummaryItem net">
-                <div class="k">Net</div>
-                <div class="v">{escape(currency)}{money(wk_net)}</div>
-              </div>
-
-              <div class="payrollSummaryItem paidat">
-                <div class="k">Paid at</div>
-                <div class="v">{escape(paid_at) if paid and paid_at else "—"}</div>
-              </div>
-            </div>
-          </div>
+          <table class="employeesTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Early Access</th>
+                <th class="num">Rate</th>
+              </tr>
+            </thead>
+            <tbody>{table}</tbody>
+          </table>
+        </div>
+      </div>
     """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
@@ -11487,7 +11633,7 @@ def admin_employees():
 
 @app.route("/admin/workplaces", methods=["GET", "POST"])
 def admin_workplaces():
-    gate = require_master_admin()
+    gate = require_admin()
     if gate:
         return gate
 
