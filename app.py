@@ -10477,70 +10477,56 @@ def admin_locations_save():
     rad = (request.form.get("rad") or "").strip()
     active = "TRUE" if (request.form.get("active") == "yes") else "FALSE"
 
-    if not locations_sheet or not name:
+    if not name:
         return redirect("/admin/locations")
 
     try:
-        float(lat);
-        float(lon);
-        float(rad)
+        lat_f = float(lat)
+        lon_f = float(lon)
+        rad_i = int(float(rad))
     except Exception:
         return redirect("/admin/locations")
 
-    _ensure_locations_headers()
-
-    rownum = _find_location_row_by_name(orig or name)
-    row = [name, lat, lon, rad, active, _session_workplace_id()]
     try:
-        if rownum:
-            locations_sheet.update(f"A{rownum}:F{rownum}", [row])
-        else:
-            locations_sheet.append_row(row)
-    except Exception:
-        pass
+        wp = _session_workplace_id()
 
-    if DB_MIGRATION_MODE:
-        try:
-            wp = _session_workplace_id()
+        db_row = Location.query.filter_by(
+            workplace_id=wp,
+            site_name=(orig or name)
+        ).first()
 
+        if not db_row:
             db_row = Location.query.filter_by(
                 workplace_id=wp,
-                site_name=(orig or name)
+                site_name=name
             ).first()
 
-            if not db_row:
-                db_row = Location.query.filter_by(
+        if db_row:
+            db_row.site_name = name
+            db_row.lat = lat_f
+            db_row.lon = lon_f
+            db_row.radius_meters = rad_i
+            db_row.active = active
+        else:
+            db.session.add(
+                Location(
+                    site_name=name,
+                    lat=lat_f,
+                    lon=lon_f,
+                    radius_meters=rad_i,
+                    active=active,
                     workplace_id=wp,
-                    site_name=name
-                ).first()
-
-            if db_row:
-                db_row.site_name = name
-                db_row.lat = float(lat)
-                db_row.lon = float(lon)
-                db_row.radius_meters = int(float(rad))
-                db_row.active = active
-            else:
-                db.session.add(
-                    Location(
-                        site_name=name,
-                        lat=float(lat),
-                        lon=float(lon),
-                        radius_meters=int(float(rad)),
-                        active=active,
-                        workplace_id=wp,
-                    )
                 )
+            )
 
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
 
     actor = session.get("username", "admin")
     log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="",
               details=f"{name} {lat},{lon} r={rad} active={active}")
     return redirect("/admin/locations")
-
 
 @app.post("/admin/locations/deactivate")
 def admin_locations_deactivate():
