@@ -27,6 +27,7 @@ import re
 import time
 import random
 from urllib.parse import urlparse
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 try:
     from google.oauth2.service_account import Credentials as SACredentials
@@ -229,27 +230,47 @@ def _gs_write_with_retry(fn, *, tries: int = 3, base_sleep: float = 0.6):
 # ================= APP =================
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
+
+def _env_flag(name: str, default: bool = False) -> bool:
+    val = os.environ.get(name)
+    if val is None:
+        return default
+    return str(val).strip().lower() in {"1", "true", "yes", "on"}
+
+
+def _is_sqlite_url(url: str) -> bool:
+    return str(url or "").strip().lower().startswith("sqlite:")
+
+
+APP_ENV = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", "production")).strip().lower() or "production"
+DEBUG_MODE = _env_flag("FLASK_DEBUG", default=False) or _env_flag("APP_DEBUG", default=False)
+IS_PRODUCTION = APP_ENV == "production" and not DEBUG_MODE
+
 app = Flask(
     __name__,
     static_folder=os.path.join(BASE_DIR, "static"),
     static_url_path="/static",
 )
+app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_port=1)
+
 SECRET_KEY = os.environ.get("SECRET_KEY", "").strip()
 if not SECRET_KEY:
     raise RuntimeError("SECRET_KEY environment variable must be set (do not use a default in production).")
+
 app.secret_key = SECRET_KEY
 app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_UPLOAD_MB", "15")) * 1024 * 1024
+app.config["PREFERRED_URL_SCHEME"] = "https" if IS_PRODUCTION else "http"
 app.config.update(
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SAMESITE="Lax",
-    SESSION_COOKIE_SECURE=bool(os.environ.get("SESSION_COOKIE_SECURE", "1") == "1"),
+    SESSION_COOKIE_SECURE=_env_flag("SESSION_COOKIE_SECURE", default=IS_PRODUCTION),
 )
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 DATABASE_ENABLED = (
-        os.environ.get("DATABASE", "0") == "1"
-        or os.environ.get("USE_DATABASE", "0") == "1"
-        or os.environ.get("DB_MIGRATION_MODE", "0") == "1"
+        _env_flag("DATABASE")
+        or _env_flag("USE_DATABASE")
+        or _env_flag("DB_MIGRATION_MODE")
 )
 USE_DATABASE = DATABASE_ENABLED
 DB_MIGRATION_MODE = DATABASE_ENABLED
@@ -257,8 +278,18 @@ DB_MIGRATION_MODE = DATABASE_ENABLED
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = "postgresql://" + DATABASE_URL[len("postgres://"):]
 
+if DATABASE_ENABLED and not DATABASE_URL:
+    raise RuntimeError("DATABASE_ENABLED is on but DATABASE_URL is not set. Refusing to fall back to in-memory SQLite.")
+
 app.config["SQLALCHEMY_DATABASE_URI"] = DATABASE_URL if DATABASE_URL else "sqlite:///:memory:"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+if DATABASE_URL and not _is_sqlite_url(DATABASE_URL):
+    app.config["SQLALCHEMY_ENGINE_OPTIONS"] = {
+        "pool_pre_ping": True,
+        "pool_recycle": int(os.environ.get("DB_POOL_RECYCLE", "1800")),
+        "pool_size": int(os.environ.get("DB_POOL_SIZE", "5")),
+        "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "10")),
+    }
 
 db = SQLAlchemy(app)
 TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
@@ -1268,6 +1299,8 @@ audit_sheet = None
 locations_sheet = None
 
 if ENABLE_GOOGLE_SHEETS:
+    if gspread is None or SACredentials is None:
+        raise RuntimeError("Google Sheets runtime/import is enabled but required Google libraries are not installed.")
     try:
         if creds_json:
             service_account_info = json.loads(creds_json)
@@ -12781,7 +12814,7 @@ if DATABASE_ENABLED:
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    app.run(host="0.0.0.0", port=port, debug=DEBUG_MODE)
 
 
 
