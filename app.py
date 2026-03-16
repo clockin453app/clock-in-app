@@ -4721,6 +4721,911 @@ h2{
     box-shadow:0 12px 32px rgba(15,23,42,.07);
   }
 }
+/* ===== PROFESSIONAL UI OVERRIDE ===== */
+
+:root{
+  --bg:#f3f6fb;
+  --surface:#ffffff;
+  --surface-2:#f8fafc;
+  --text:#0f172a;
+  --muted:#64748b;
+  --muted-2:#94a3b8;
+  --border:#e2e8f0;
+
+  --primary:#2563eb;
+  --primary-2:#1d4ed8;
+  --primary-soft:#eff6ff;
+
+  --success:#16a34a;
+  --success-soft:#f0fdf4;
+
+  --danger:#dc2626;
+  --danger-soft:#fef2f2;
+
+  --warning:#d97706;
+  --warning-soft:#fffbeb;
+
+  --shadow-sm:0 2px 10px rgba(15,23,42,.04);
+  --shadow-md:0 10px 30px rgba(15,23,42,.08);
+  --shadow-lg:0 18px 50px rgba(15,23,42,.12);
+
+  --radius-sm:12px;
+  --radius-md:16px;
+  --radius-lg:20px;
+
+  --space-1:8px;
+  --space-2:12px;
+  --space-3:16px;
+  --space-4:24px;
+  --space-5:32px;
+}
+
+/* Base */
+
+html{
+  scroll-behavior:smooth;
+}
+
+body{
+  background:
+    radial-gradient(900px 500px at 15% -5%, rgba(37,99,235,.06), transparent 60%),
+    linear-gradient(180deg, #f8fbff 0%, #f3f6fb 100%);
+  color:var(--text);
+  font-family:Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  padding:20px 16px calc(88px + env(safe-area-inset-bottom)) 16px;
+}
+
+h1{
+  font-size:clamp(28px, 4vw, 38px);
+  line-height:1.08;
+  font-weight:800;
+  letter-spacing:-.035em;
+  color:var(--text);
+  margin:0;
+}
+
+h2{
+  font-size:clamp(18px, 2.4vw, 22px);
+  line-height:1.2;
+  font-weight:700;
+  letter-spacing:-.02em;
+  color:var(--text);
+  margin:0;
+}
+
+.sub{
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.5;
+  margin-top:6px;
+}
+
+.shell{
+  max-width:1240px;
+  margin:0 auto;
+}
+
+.main{
+  min-width:0;
+}
+
+/* Global section rhythm */
+
+.main > * + *{
+  margin-top:16px;
+}
+
+.headerTop{
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:4px;
+}
+
+.badge{
+  background:var(--primary-soft);
+  color:var(--primary-2);
+  border:1px solid rgba(37,99,235,.14);
+  box-shadow:none;
+  border-radius:999px;
+  font-size:12px;
+  font-weight:700;
+  letter-spacing:.02em;
+  padding:7px 12px;
+}
+
+.badge.admin{
+  background:#eef2ff;
+  color:#4338ca;
+  border-color:rgba(67,56,202,.14);
+}
+
+/* Cards */
+
+.card,
+.kpi,
+.graphCard,
+.quickCard,
+.activityCard,
+.sideInfoCard,
+.clockCard,
+.menu,
+.adminSectionCard,
+.adminToolCard,
+.payrollFiltersCard,
+.payrollChartCard,
+.contractBox,
+.payrollWrap,
+.tablewrap,
+.weeklyEditTable,
+.payrollSummaryItem,
+.kpiMini,
+.quickMini,
+.activityRow,
+.sideInfoRow,
+.payrollEmployeeCard{
+  background:var(--surface);
+  border:1px solid var(--border);
+  border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-sm);
+  backdrop-filter:none;
+  -webkit-backdrop-filter:none;
+}
+
+.card:hover,
+.kpi:hover,
+.graphCard:hover,
+.quickCard:hover,
+.activityCard:hover,
+.sideInfoCard:hover,
+.payrollWrap:hover{
+  box-shadow:var(--shadow-md);
+}
+
+.clockCard,
+.graphCard,
+.quickCard,
+.activityCard,
+.sideInfoCard,
+.payrollWrap,
+.payrollFiltersCard,
+.payrollChartCard,
+.tablewrap,
+.weeklyEditTable{
+  padding:20px;
+}
+
+/* Top section emphasis */
+
+.clockCard{
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.98));
+  border-color:#dbe5f1;
+}
+
+.kpiRow{
+  gap:16px;
+  margin-top:0;
+}
+
+.kpi{
+  padding:18px;
+  border-radius:18px;
+}
+
+.kpi .label{
+  color:var(--muted);
+  text-transform:uppercase;
+  font-size:11px;
+  letter-spacing:.08em;
+  font-weight:700;
+}
+
+.kpi .value{
+  font-size:30px;
+  font-weight:800;
+  letter-spacing:-.03em;
+  color:var(--text);
+}
+
+.kpi .sub{
+  margin-top:8px;
+}
+
+.kpiPrimary{
+  background:
+    linear-gradient(180deg, rgba(239,246,255,.9), rgba(255,255,255,1));
+  border-color:#cfe0ff;
+}
+
+/* Section headers */
+
+.sectionHead{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  margin-bottom:14px;
+}
+
+.sectionHeadLeft{
+  display:flex;
+  align-items:flex-start;
+  gap:12px;
+}
+
+.sectionIcon,
+.miniIcon,
+.icoBox,
+.sideIcon,
+.adminToolIcon,
+.adminSectionIcon,
+.avatar{
+  width:42px;
+  height:42px;
+  border-radius:14px;
+  background:linear-gradient(180deg, #ffffff, #f8fbff);
+  border:1px solid #dbe5f1;
+  box-shadow:none;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+
+.sectionBadge,
+.chip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:30px;
+  padding:6px 10px;
+  border-radius:999px;
+  background:#f8fafc;
+  color:var(--muted);
+  border:1px solid var(--border);
+  font-size:12px;
+  font-weight:700;
+}
+
+.chip.ok{
+  background:var(--success-soft);
+  color:#15803d;
+  border-color:#bbf7d0;
+}
+
+.chip.warn{
+  background:var(--warning-soft);
+  color:#b45309;
+  border-color:#fde68a;
+}
+
+/* Buttons */
+
+.btn,
+.btnSoft,
+.btnTiny,
+.adminPrimaryBtn{
+  border-radius:14px;
+  border:1px solid transparent;
+  font-weight:700;
+  letter-spacing:-.01em;
+  transition:
+    transform .15s ease,
+    box-shadow .18s ease,
+    background .18s ease,
+    border-color .18s ease,
+    opacity .18s ease;
+}
+
+.btn{
+  min-height:48px;
+  padding:0 18px;
+  box-shadow:none;
+}
+
+.btn:hover,
+.btnSoft:hover,
+.btnTiny:hover,
+.adminPrimaryBtn:hover{
+  transform:translateY(-1px);
+  box-shadow:var(--shadow-md);
+}
+
+.btn:active,
+.btnSoft:active,
+.btnTiny:active,
+.adminPrimaryBtn:active{
+  transform:translateY(0);
+}
+
+.btnIn{
+  background:linear-gradient(180deg, #22c55e, #16a34a);
+  color:#fff;
+}
+
+.btnOut{
+  background:linear-gradient(180deg, #ef4444, #dc2626);
+  color:#fff;
+}
+
+.btnSoft,
+.adminPrimaryBtn{
+  background:linear-gradient(180deg, #3b82f6, #2563eb);
+  color:#fff;
+}
+
+.btnTiny{
+  min-height:36px;
+  padding:0 12px;
+  background:#fff;
+  color:var(--text);
+  border:1px solid var(--border);
+  box-shadow:none;
+}
+
+.btnTiny.paidDone{
+  background:var(--success-soft);
+  color:#15803d;
+  border-color:#bbf7d0;
+}
+
+/* Forms */
+
+.input,
+select,
+textarea{
+  width:100%;
+  min-height:46px;
+  border-radius:14px;
+  border:1px solid #d7e0ea;
+  background:#fff;
+  color:var(--text);
+  padding:12px 14px;
+  font-size:14px;
+  box-shadow:none;
+}
+
+.input:focus,
+select:focus,
+textarea:focus{
+  outline:none;
+  border-color:#93c5fd;
+  box-shadow:0 0 0 4px rgba(37,99,235,.10);
+}
+
+/* Messages / alerts */
+
+.message{
+  background:var(--success-soft);
+  color:#166534;
+  border:1px solid #bbf7d0;
+  border-radius:16px;
+  padding:14px 16px;
+  font-size:14px;
+  font-weight:600;
+  box-shadow:none;
+}
+
+.message.error{
+  background:var(--danger-soft);
+  color:#b91c1c;
+  border-color:#fecaca;
+}
+
+/* Menu cards and dashboard menu */
+
+.menu{
+  padding:10px;
+}
+
+.menuItem,
+.sideItem{
+  border:1px solid transparent;
+  border-radius:16px;
+  background:#fff;
+  min-height:56px;
+  padding:12px 14px;
+  box-shadow:none;
+}
+
+.menuItem + .menuItem,
+.sideItem + .sideItem{
+  margin-top:8px;
+}
+
+.menuItem:hover,
+.sideItem:hover{
+  background:#f8fbff;
+  border-color:#dbeafe;
+  box-shadow:none;
+}
+
+.menuItem.active,
+.sideItem.active{
+  background:linear-gradient(180deg, #eff6ff, #f8fbff);
+  border-color:#bfdbfe;
+}
+
+.menuText,
+.sideText{
+  color:var(--text);
+  font-weight:700;
+}
+
+.chev{
+  color:var(--muted-2);
+  font-size:18px;
+}
+
+.sideTitle{
+  font-weight:800;
+  color:var(--text);
+  padding:4px 6px 12px 6px;
+}
+
+.sideDivider{
+  height:1px;
+  background:var(--border);
+  margin:10px 0;
+}
+
+.sidebar{
+  border-radius:22px;
+  padding:12px;
+}
+
+/* Bottom nav */
+
+.bottomNav{
+  background:rgba(255,255,255,.94);
+  border-top:1px solid rgba(226,232,240,.95);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  box-shadow:0 -8px 24px rgba(15,23,42,.06);
+}
+
+.navInner{
+  max-width:620px;
+  margin:0 auto;
+}
+
+.navIcon{
+  color:var(--muted);
+}
+
+.navIcon.active{
+  color:var(--primary);
+}
+
+/* Quick stats / activity */
+
+.quickGrid{
+  gap:12px;
+}
+
+.quickMini,
+.sideInfoRow,
+.activityRow{
+  border-radius:16px;
+  padding:14px 16px;
+  background:#fbfdff;
+  border:1px solid #e6edf5;
+}
+
+.activityHead{
+  background:#f8fafc;
+}
+
+.sideInfoLabel,
+.label,
+.graphRange,
+.graphTop .sub{
+  color:var(--muted);
+}
+
+.sideInfoValue,
+.value,
+.graphTitle{
+  color:var(--text);
+}
+
+/* Payroll / tables */
+
+.payrollWrap,
+.tablewrap,
+.weeklyEditTable{
+  overflow:auto;
+}
+
+.payrollSheet{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  font-size:14px;
+}
+
+.payrollSheet thead th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f8fafc;
+  color:#475569;
+  font-size:12px;
+  text-transform:uppercase;
+  letter-spacing:.06em;
+  font-weight:800;
+  border-bottom:1px solid var(--border);
+  padding:14px 12px;
+}
+
+.payrollSheet tbody td{
+  background:#fff;
+  border-bottom:1px solid #eef2f7;
+  padding:14px 12px;
+  vertical-align:middle;
+}
+
+.payrollSheet tbody tr:nth-child(even) td{
+  background:#fcfdff;
+}
+
+.payrollSheet tbody tr:hover td{
+  background:#f8fbff;
+}
+
+.payrollSheet tbody tr.is-selected td{
+  background:#eff6ff;
+}
+
+.payrollSheet thead th:first-child,
+.payrollSheet tbody td:first-child{
+  position:sticky;
+  left:0;
+  z-index:1;
+  background:inherit;
+}
+
+.payrollSheet .emp{
+  font-weight:700;
+  color:var(--text);
+}
+
+.payrollSheet .empSub{
+  color:var(--muted);
+  font-size:12px;
+}
+
+.payrollSummaryBar{
+  gap:12px;
+}
+
+.payrollSummaryItem{
+  padding:14px 16px;
+  border-radius:16px;
+  background:#fbfdff;
+}
+
+.payrollSummaryMoney,
+.payrollSummaryTotal{
+  font-weight:800;
+  letter-spacing:-.02em;
+}
+
+/* Clock page specifics */
+
+.actionRow{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+#geoStatus{
+  display:flex;
+  align-items:center;
+  gap:8px;
+  min-height:44px;
+  padding:12px 14px;
+  background:#f8fafc;
+  border:1px solid var(--border);
+  border-radius:14px;
+  color:var(--muted);
+  font-weight:600;
+}
+
+#map{
+  height:220px !important;
+  border-radius:16px !important;
+  border:1px solid #dbe5f1 !important;
+  box-shadow:none !important;
+  overflow:hidden;
+}
+
+a[href="/my-times"]{
+  display:block;
+  margin-top:12px;
+}
+
+a[href="/my-times"] .btnSoft{
+  width:100%;
+  min-height:46px;
+}
+
+/* Login / smaller cards */
+
+.shell[style*="max-width:560px"] .card,
+.shell[style*="max-width:560px"] .clockCard{
+  border-radius:18px;
+}
+
+/* Desktop */
+
+@media (min-width: 1025px){
+  body{
+    padding:26px 24px 26px 24px;
+  }
+
+  .shell{
+    display:grid;
+    grid-template-columns:280px minmax(0, 1fr);
+    gap:24px;
+    align-items:start;
+  }
+
+  .sidebar{
+    display:block;
+    position:sticky;
+    top:24px;
+  }
+
+  .bottomNav{
+    display:none;
+  }
+
+  .main{
+    width:100%;
+  }
+
+  .dashboardLower,
+  .dashboardBottom{
+    display:grid;
+    grid-template-columns:minmax(0, 1.3fr) minmax(280px, .7fr);
+    gap:16px;
+    align-items:start;
+  }
+
+  .dashboardMainMenu{
+    display:none;
+  }
+
+  .payrollWrap{
+    padding:18px;
+  }
+}
+
+/* Tablet / mobile */
+
+@media (max-width: 1024px){
+  .sidebar{
+    display:none !important;
+  }
+
+  .shell{
+    max-width:760px;
+  }
+}
+
+@media (max-width: 768px){
+  body{
+    padding:16px 12px calc(86px + env(safe-area-inset-bottom)) 12px;
+  }
+
+  h1{
+    font-size:28px;
+  }
+
+  .headerTop{
+    align-items:flex-start;
+  }
+
+  .kpiRow{
+    grid-template-columns:1fr;
+    gap:12px;
+  }
+
+  .sectionHead{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+
+  .actionRow{
+    grid-template-columns:1fr;
+  }
+
+  .clockCard,
+  .graphCard,
+  .quickCard,
+  .activityCard,
+  .sideInfoCard,
+  .payrollWrap,
+  .payrollFiltersCard,
+  .payrollChartCard{
+    padding:16px;
+  }
+
+  #map{
+    height:200px !important;
+  }
+
+  .payrollSheet thead th,
+  .payrollSheet tbody td{
+    padding:12px 10px;
+  }
+}
+
+/* Print polish */
+
+@media print{
+  body{
+    background:#fff !important;
+    padding:0 !important;
+  }
+
+  .card,
+  .payrollWrap,
+  .tablewrap{
+    box-shadow:none !important;
+    border:1px solid #dbe3ee !important;
+  }
+}
+/* ===== clean clock page block ===== */
+
+.clockCard{
+  padding:20px 22px;
+}
+
+.timerState{
+  font-size:15px;
+  font-weight:800;
+  letter-spacing:.01em;
+  margin-bottom:8px;
+}
+
+.timerStateIdle{
+  color:#475569;
+}
+
+.timerStateLive{
+  color:#15803d;
+}
+
+.timerBig{
+  font-size:52px !important;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:-.04em;
+  color:#0f172a !important;
+  margin:0 0 10px 0;
+}
+
+.timerHint{
+  font-size:15px;
+  line-height:1.45;
+  color:#64748b;
+  font-weight:600;
+  margin-top:2px;
+}
+
+.clockSection{
+  margin-top:16px;
+}
+
+.clockSection:first-of-type{
+  margin-top:12px;
+}
+
+.clockSectionLabel{
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#64748b;
+  margin-bottom:10px;
+}
+
+.clockSectionLabelSecondary{
+  margin-top:14px;
+  margin-bottom:10px;
+}
+
+.siteInfoRow{
+  margin:0;
+}
+
+.siteInfoPill{
+  display:flex;
+  align-items:center;
+  width:100%;
+  min-height:40px;
+  padding:0 14px;
+  border-radius:14px;
+  background:#f8fafc;
+  border:1px solid #dbe5f1;
+  color:#334155;
+  font-size:14px;
+  font-weight:700;
+}
+
+#geoStatus{
+  font-weight:700;
+}
+
+.clockSectionMap{
+  margin-top:18px;
+}
+
+.clockSectionMap #map{
+  margin-top:0 !important;
+  height:240px !important;
+  border-radius:18px !important;
+  overflow:hidden;
+  border:1px solid #dbe5f1 !important;
+  box-shadow:none !important;
+}
+
+.clockSectionActions{
+  margin-top:18px;
+}
+
+.clockSectionActions .actionRow{
+  margin-top:0 !important;
+}
+
+.actionRow{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:12px;
+}
+
+.clockSectionActions .btn,
+.clockSectionActions .btnSoft{
+  min-height:48px;
+}
+
+.clockSectionActions a[href="/my-times"]{
+  display:block;
+  margin-top:0;
+}
+
+.clockSectionActions a[href="/my-times"] .btnSoft{
+  width:100%;
+}
+
+@media (max-width: 768px){
+  .clockCard{
+    padding:18px;
+  }
+
+  .timerBig{
+    font-size:44px !important;
+  }
+
+  .timerState,
+  .timerHint{
+    font-size:14px;
+  }
+
+  .clockSection{
+    margin-top:14px;
+  }
+
+  .actionRow{
+    grid-template-columns:1fr;
+  }
+
+  .clockSectionMap #map{
+    height:210px !important;
+  }
+}
 
 </style>
 """
@@ -7305,12 +8210,12 @@ def clock_page():
 
     if active_start_iso:
         timer_html = f"""
-        <div class="timerSub">Active session started</div>
+        <div class="timerState timerStateLive">Currently clocked in</div>
         <div class="timerBig" id="timerDisplay">00:00:00</div>
         <div style="margin-top:8px;">
           <span class="chip ok" id="otChip">Normal</span>
         </div>
-        <div class="timerSub">Start: {escape(active_start_label)} </div>
+        <div class="timerHint">Started at {escape(active_start_label)}</div>
         <script>
           (function() {{
             const startIso = "{escape(active_start_iso)}";
@@ -7345,9 +8250,9 @@ def clock_page():
         """
     else:
         timer_html = f"""
-        <div class="timerSub">No active session</div>
+        <div class="timerState timerStateIdle">Not clocked in</div>
         <div class="timerBig">00:00:00</div>
-        <div class="timerSub">Clock in to start the live timer.</div>
+        <div class="timerHint">Tap Clock In to start tracking your shift.</div>
         """
 
     # Map config for front-end (if site configured)
@@ -7364,20 +8269,20 @@ def clock_page():
 
     content = f"""
       {leaflet_tags}
-      <div class="headerTop">
-        <div>
-          <h1>Clock In & Out</h1>
-          <p class="sub">{escape(display_name)} • Location required</p>
-        </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
-      </div>
 
-      {("<div class='" + msg_class + "'>" + escape(msg) + "</div>") if msg else ""}
+{f'''
+<div class="statusCard {'statusCardError' if msg_class=='message error' else 'statusCardOk'}">
+  <div class="statusCardTitle">{'Attention needed' if msg_class=='message error' else 'Status'}</div>
+  <div class="statusCardText">{escape(msg)}</div>
+</div>
+''' if msg else ""}
+
 <div class="card clockCard">
   {timer_html}
 
-
-  <div class="sub" id="geoStatus" style="margin-top:10px;">📍 Waiting for location…</div>
+  <div class="siteInfoRow">
+    <div class="siteInfoPill" id="geoStatus">📍 Waiting for location…</div>
+  </div>
 
         <div id="map" style="margin-top:10px; height:240px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);"></div>
 
