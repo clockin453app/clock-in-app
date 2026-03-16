@@ -5576,6 +5576,47 @@ def set_employee_first_last(username: str, first: str, last: str):
 
     return sheet_ok or db_ok
 
+@app.post("/admin/employees/reset-password")
+def admin_reset_employee_password():
+    gate = require_master_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    username = (request.form.get("user") or request.form.get("username") or "").strip()
+    new_password = (request.form.get("new_password") or "").strip()
+
+    if not username or len(new_password) < 8:
+        return redirect(request.referrer or "/admin/employees")
+
+    current_wp = _session_workplace_id()
+
+    try:
+        db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
+        if not db_row:
+            db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+
+        if not db_row:
+            return redirect(request.referrer or "/admin/employees")
+
+        db_row.password = generate_password_hash(new_password)
+        db_row.workplace = current_wp
+        db_row.workplace_id = current_wp
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        return redirect(request.referrer or "/admin/employees")
+
+    actor = session.get("username", "master_admin")
+    log_audit(
+        "RESET_EMPLOYEE_PASSWORD",
+        actor=actor,
+        username=username,
+        date_str="",
+        details=f"workplace={current_wp}"
+    )
+    return redirect(request.referrer or "/admin/employees")
 
 def is_password_valid(stored: str, provided: str) -> bool:
     stored = stored or ""
@@ -11737,7 +11778,66 @@ def admin_workplaces():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("workplaces", "master_admin", content))
 
+@app.post("/admin/workplaces/delete")
+def admin_workplace_delete():
+    gate = require_master_admin()
+    if gate:
+        return gate
+    require_csrf()
 
+    workplace_id = (request.form.get("workplace_id") or "").strip()
+    current_wp = (_session_workplace_id() or "").strip()
+
+    if not workplace_id:
+        return redirect("/admin/workplaces")
+
+    # Never allow deleting the workplace currently opened in session
+    if workplace_id == current_wp:
+        return redirect("/admin/workplaces")
+
+    try:
+        deps = {
+            "employees": Employee.query.filter_by(workplace_id=workplace_id).count(),
+            "workhours": WorkHour.query.filter(
+                (WorkHour.workplace == workplace_id) | (WorkHour.workplace_id == workplace_id)
+            ).count(),
+            "payroll_reports": PayrollReport.query.filter_by(workplace_id=workplace_id).count(),
+            "onboarding_records": OnboardingRecord.query.filter_by(workplace_id=workplace_id).count(),
+            "audit_logs": AuditLog.query.filter_by(workplace_id=workplace_id).count(),
+            "locations": Location.query.filter_by(workplace_id=workplace_id).count(),
+        }
+
+        total_refs = sum(int(v or 0) for v in deps.values())
+        if total_refs > 0:
+            actor = session.get("username", "master_admin")
+            log_audit(
+                "DELETE_WORKPLACE_BLOCKED",
+                actor=actor,
+                username="",
+                date_str="",
+                details=f"{workplace_id} refs={deps}"
+            )
+            return redirect("/admin/workplaces")
+
+        db_setting = WorkplaceSetting.query.filter_by(workplace_id=workplace_id).first()
+        if db_setting:
+            db.session.delete(db_setting)
+
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        return redirect("/admin/workplaces")
+
+    actor = session.get("username", "master_admin")
+    log_audit(
+        "DELETE_WORKPLACE",
+        actor=actor,
+        username="",
+        date_str="",
+        details=workplace_id
+    )
+    return redirect("/admin/workplaces")
 # ================= DATABASE TABLES =================
 
 class Employee(db.Model):
