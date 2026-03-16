@@ -2060,64 +2060,38 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   line-height: 1;
 }
 
-.payrollEmployeeCard .payrollSummaryItem:nth-child(1){
-  background: rgba(59,130,246,.10);
-  border-color: rgba(59,130,246,.22);
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5){
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+  border-color: rgba(11,18,32,.08);
 }
 
 .payrollEmployeeCard .payrollSummaryItem:nth-child(1) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v{
-  color: #1d4ed8;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(2){
-  background: rgba(34,197,94,.10);
-  border-color: rgba(34,197,94,.22);
-}
-
 .payrollEmployeeCard .payrollSummaryItem:nth-child(2) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v{
-  color: #15803d;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(3){
-  background: rgba(245,158,11,.10);
-  border-color: rgba(245,158,11,.22);
-}
-
 .payrollEmployeeCard .payrollSummaryItem:nth-child(3) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v{
-  color: #b45309;
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(4){
-  background: rgba(168,85,247,.10);
-  border-color: rgba(168,85,247,.22);
-}
-
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4) .k,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v{
-  color: #7e22ce;
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k{
+  color: var(--muted);
 }
 
-.payrollEmployeeCard .payrollSummaryItem:nth-child(5){
-  background: rgba(148,163,184,.12);
-  border-color: rgba(148,163,184,.24);
-}
-
-.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
-  color: #475569;
+  color: rgba(15,23,42,.96);
 }
-
 
 .weeklyEditTable thead th{
-  background: linear-gradient(180deg, #dc2626, #b91c1c);
+  background: linear-gradient(180deg, #2563eb, #1d4ed8);
   color: white;
   font-size:13px;
   font-weight:800;
   padding:12px 10px;
-  border-bottom:1px solid rgba(127,29,29,.35);
+  border-bottom:1px solid rgba(29,78,216,.35);
 }
 
 .weeklyEditTable tbody td{
@@ -7575,44 +7549,26 @@ def my_reports():
   line-height: 1.1;
 }
 
-.myReportsWeekTable .payrollSummaryItem:nth-child(1){
-  background: rgba(59,130,246,.10);
-  border-color: rgba(59,130,246,.22);
+.myReportsWeekTable .payrollSummaryItem:nth-child(1),
+.myReportsWeekTable .payrollSummaryItem:nth-child(2),
+.myReportsWeekTable .payrollSummaryItem:nth-child(3),
+.myReportsWeekTable .payrollSummaryItem:nth-child(4){
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+  border-color: rgba(11,18,32,.08);
 }
 
 .myReportsWeekTable .payrollSummaryItem:nth-child(1) .k,
-.myReportsWeekTable .payrollSummaryItem:nth-child(1) .v{
-  color: #1d4ed8;
-}
-
-.myReportsWeekTable .payrollSummaryItem:nth-child(2){
-  background: rgba(34,197,94,.10);
-  border-color: rgba(34,197,94,.22);
-}
-
 .myReportsWeekTable .payrollSummaryItem:nth-child(2) .k,
-.myReportsWeekTable .payrollSummaryItem:nth-child(2) .v{
-  color: #15803d;
-}
-
-.myReportsWeekTable .payrollSummaryItem:nth-child(3){
-  background: rgba(245,158,11,.10);
-  border-color: rgba(245,158,11,.22);
-}
-
 .myReportsWeekTable .payrollSummaryItem:nth-child(3) .k,
-.myReportsWeekTable .payrollSummaryItem:nth-child(3) .v{
-  color: #b45309;
+.myReportsWeekTable .payrollSummaryItem:nth-child(4) .k{
+  color: var(--muted);
 }
 
-.myReportsWeekTable .payrollSummaryItem:nth-child(4){
-  background: rgba(168,85,247,.10);
-  border-color: rgba(168,85,247,.22);
-}
-
-.myReportsWeekTable .payrollSummaryItem:nth-child(4) .k,
+.myReportsWeekTable .payrollSummaryItem:nth-child(1) .v,
+.myReportsWeekTable .payrollSummaryItem:nth-child(2) .v,
+.myReportsWeekTable .payrollSummaryItem:nth-child(3) .v,
 .myReportsWeekTable .payrollSummaryItem:nth-child(4) .v{
-  color: #7e22ce;
+  color: rgba(15,23,42,.96);
 }
       .myReportsWeekTable .weeklyEditTable{
         table-layout: fixed;
@@ -9817,34 +9773,32 @@ def admin_payroll():
                 </tbody>
               </table>
             </div>
-
             <div class="payrollSummaryBar">
-  <div class="payrollSummaryItem">
-    <div class="k">Hours</div>
-    <div class="v">{wk_hours:.2f}</div>
-  </div>
+    <div class="payrollSummaryItem">
+        <div class="k">Hours</div>
+        <div class="v">{wk_hours:.2f}</div>
+    </div>
 
-  <div class="payrollSummaryItem">
-    <div class="k">Gross</div>
-    <div class="v">{escape(currency)}{money(wk_gross)}</div>
-  </div>
+    <div class="payrollSummaryItem">
+        <div class="k">Gross</div>
+        <div class="v">{escape(currency)}{money(wk_gross)}</div>
+    </div>
 
-  <div class="payrollSummaryItem">
-    <div class="k">Tax</div>
-    <div class="v">{escape(currency)}{money(wk_tax)}</div>
-  </div>
+    <div class="payrollSummaryItem">
+        <div class="k">Tax</div>
+        <div class="v">{escape(currency)}{money(wk_tax)}</div>
+    </div>
 
-  <div class="payrollSummaryItem net">
-    <div class="k">Net</div>
-    <div class="v">{escape(currency)}{money(wk_net)}</div>
-  </div>
+    <div class="payrollSummaryItem net">
+        <div class="k">Net</div>
+        <div class="v">{escape(currency)}{money(wk_net)}</div>
+    </div>
 
-  <div class="payrollSummaryItem paidat">
-    <div class="k">Paid at</div>
-    <div class="v">{escape(paid_at) if paid and paid_at else "—"}</div>
-  </div>
+    <div class="payrollSummaryItem paidat">
+        <div class="k">Paid at</div>
+        <div class="v">{escape(paid_at) if paid and paid_at else "—"}</div>
+    </div>
 </div>
-          </div>
         """)
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
@@ -11435,8 +11389,35 @@ def admin_employees():
     </thead>
     <tbody>{table}</tbody>
   </table>
-</div>
-      </div>
+            </div>
+
+            <div class="payrollSummaryBar">
+              <div class="payrollSummaryItem">
+                <div class="k">Hours</div>
+                <div class="v">{wk_hours:.2f}</div>
+              </div>
+
+              <div class="payrollSummaryItem">
+                <div class="k">Gross</div>
+                <div class="v">{escape(currency)}{money(wk_gross)}</div>
+              </div>
+
+              <div class="payrollSummaryItem">
+                <div class="k">Tax</div>
+                <div class="v">{escape(currency)}{money(wk_tax)}</div>
+              </div>
+
+              <div class="payrollSummaryItem net">
+                <div class="k">Net</div>
+                <div class="v">{escape(currency)}{money(wk_net)}</div>
+              </div>
+
+              <div class="payrollSummaryItem paidat">
+                <div class="k">Paid at</div>
+                <div class="v">{escape(paid_at) if paid and paid_at else "—"}</div>
+              </div>
+            </div>
+          </div>
     """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
