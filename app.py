@@ -9055,85 +9055,63 @@ def admin_force_clockout():
     if not username or not out_time:
         return redirect(request.referrer or "/admin")
 
-    rows = get_workhours_rows()
-    osf = find_open_shift(rows, username)
-    if not osf:
-        return redirect(request.referrer or "/admin")
-
-    idx, d, cin = osf  # idx is 0-based data index (within rows list)
-    rate = _get_user_rate(username)
-
-    # normalize to HH:MM:SS
     if len(out_time.split(":")) == 2:
         out_time = out_time + ":00"
 
-    computed_hours = _compute_hours_from_times(d, cin, out_time)
-    if computed_hours is None:
-        return redirect(request.referrer or "/admin")
-
-    pay = round(computed_hours * rate, 2)
-
-    sheet_row = idx + 1
+    current_wp = _session_workplace_id()
 
     try:
-        vals = work_sheet.get_all_values()
-        headers = vals[0] if vals else []
-
-        updates = [
-            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1), "values": [[out_time]]},
-            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_HOURS + 1), "values": [[str(computed_hours)]]},
-            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1), "values": [[str(pay)]]},
-        ]
-
-        # Ensure Workplace_ID is set (if column exists)
-        if headers and "Workplace_ID" in headers:
-            wp_col = headers.index("Workplace_ID") + 1
-            updates.append(
-                {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]}
-            )
-
-        import copy
-        _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
-    except Exception:
-        pass
-
-    if DB_MIGRATION_MODE:
-        try:
-            shift_date = datetime.strptime(d, "%Y-%m-%d").date()
-            clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
-            clock_in_dt_check = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S")
-
-            if clock_out_dt < clock_in_dt_check:
-                clock_out_dt = clock_out_dt + timedelta(days=1)
-
-            db_row = WorkHour.query.filter_by(
+        open_shift = (
+            WorkHour.query
+            .filter_by(
                 employee_email=username,
-                date=shift_date,
-                workplace=_session_workplace_id(),
-            ).order_by(WorkHour.id.desc()).first()
+                workplace=current_wp,
+                clock_out=None,
+            )
+            .order_by(WorkHour.id.desc())
+            .first()
+        )
+        if not open_shift:
+            return redirect(request.referrer or "/admin")
 
-            if db_row:
-                db_row.clock_out = clock_out_dt
-            else:
-                db.session.add(
-                    WorkHour(
-                        employee_email=username,
-                        date=shift_date,
-                        clock_in=None,
-                        clock_out=clock_out_dt,
-                        workplace=_session_workplace_id(),
-                    )
-                )
+        shift_date = open_shift.date
+        if isinstance(shift_date, str):
+            shift_date = datetime.strptime(shift_date, "%Y-%m-%d").date()
 
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
+        clock_in_dt = open_shift.clock_in
+        if isinstance(clock_in_dt, str):
+            clock_in_dt = datetime.strptime(clock_in_dt, "%Y-%m-%d %H:%M:%S")
+
+        if not clock_in_dt:
+            return redirect(request.referrer or "/admin")
+
+        d = shift_date.strftime("%Y-%m-%d")
+        cin = clock_in_dt.strftime("%H:%M:%S")
+
+        rate = _get_user_rate(username)
+        computed_hours = _compute_hours_from_times(d, cin, out_time)
+        if computed_hours is None:
+            return redirect(request.referrer or "/admin")
+
+        pay = round(computed_hours * rate, 2)
+
+        clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
+        if clock_out_dt < clock_in_dt:
+            clock_out_dt = clock_out_dt + timedelta(days=1)
+
+        open_shift.clock_out = clock_out_dt
+        open_shift.hours = computed_hours
+        open_shift.pay = pay
+        db.session.commit()
+
+    except Exception:
+        db.session.rollback()
+        return redirect(request.referrer or "/admin")
 
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
               details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
-
 
 @app.post("/admin/mark-paid")
 def admin_mark_paid():
