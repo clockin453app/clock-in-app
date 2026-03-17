@@ -6258,8 +6258,8 @@ def _ensure_audit_headers():
         return
 
 
-def log_audit(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
-    """Best-effort audit logging (never raises)."""
+def _legacy_log_audit_before_db_patch(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
+    """Legacy pre-DB-patch audit logger kept only for reference; runtime uses the later log_audit()."""
     ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
 
     if audit_sheet:
@@ -6327,9 +6327,9 @@ def _ensure_payroll_headers():
         return
 
 
-def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float,
+def _legacy_append_paid_record_safe_before_db_patch(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float,
                              paid_by: str):
-    """Append a paid record for the week/user if not already paid."""
+    """Legacy pre-DB-patch payroll appender kept only for reference; runtime uses the later _append_paid_record_safe()."""
     try:
         _ensure_payroll_headers()
         paid, _ = _is_paid_for_week(week_start, week_end, username)
@@ -6685,7 +6685,7 @@ def login():
         <div class="card" style="padding:14px;">
           <form method="POST">
             <input type="hidden" name="csrf" value="{escape(csrf)}">
-            <label class="sub">Username</label>
+            <label class="sub">User</label>
             <input class="input" name="username" required>
             <label class="sub" style="margin-top:10px; display:block;">Workplace ID</label>
             <input class="input" name="workplace_id" value="" placeholder="e.g. default" required>
@@ -11212,20 +11212,6 @@ def admin_employees():
             if not edit_username:
                 ok = False
                 msg = "Enter a username to update."
-                reset_user = session.pop("_pwreset_user", "")
-                reset_password = session.pop("_pwreset_password", "")
-                reset_msg = session.pop("_pwreset_msg", "")
-                reset_ok = session.pop("_pwreset_ok", None)
-
-                if reset_ok is not None:
-                    msg = reset_msg
-                    ok = bool(reset_ok)
-                    emp_msg = session.pop("_emp_msg", "")
-                    emp_ok = session.pop("_emp_ok", None)
-
-                    if emp_ok is not None:
-                        msg = emp_msg
-                        ok = bool(emp_ok)
             else:
                 _ensure_employees_columns()
                 headers = get_sheet_headers(employees_sheet)
@@ -11263,7 +11249,7 @@ def admin_employees():
 
                         if not changed:
                             ok = False
-                            msg = "Nothing to update (enter a new role and/or rate)."
+                            msg = "Nothing to update (enter a new role, rate, and/or early access change)."
                         else:
                             end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
                             try:
