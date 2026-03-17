@@ -11699,8 +11699,7 @@ def admin_employees():
 
           <label class="sub">Employee</label>
           <select class="input" name="username" required>
-            <option value="">Select employee</option>
-            {delete_employee_options_html}
+            {employee_options_html}
           </select>
 
           <button class="btnSoft" type="submit" style="margin-top:12px;"
@@ -11714,8 +11713,7 @@ def admin_employees():
 
           <label class="sub">Delete employee</label>
           <select class="input" name="username" required>
-            <option value="">Select employee</option>
-            {employee_options_html}
+            {delete_employee_options_html}
           </select>
 
           <button class="btnSoft" type="submit" style="margin-top:12px; background:#7f1d1d; border-color:#7f1d1d;"
