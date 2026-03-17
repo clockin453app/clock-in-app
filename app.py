@@ -1571,6 +1571,12 @@ UPLOAD_MAX_BYTES = int(os.environ.get("UPLOAD_MAX_BYTES", str(10 * 1024 * 1024))
 _ALLOWED_UPLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 _ALLOWED_UPLOAD_MIMES = {"application/pdf", "image/jpeg", "image/png", "image/webp", "application/octet-stream"}
 
+# Clock selfie settings
+CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true", "yes", "on")
+CLOCK_SELFIE_MAX_BYTES = int(os.environ.get("CLOCK_SELFIE_MAX_BYTES", str(3 * 1024 * 1024)) or str(3 * 1024 * 1024))
+CLOCK_SELFIE_DIR = os.path.join(BASE_DIR, "instance", "clock_selfies")
+_ALLOWED_CLOCK_SELFIE_MIMES = {"image/jpeg", "image/png", "image/webp"}
+
 
 def _detect_upload_kind(file_bytes: bytes):
     if file_bytes.startswith(b"%PDF-"):
