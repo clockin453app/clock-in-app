@@ -7708,10 +7708,8 @@ def clock_page():
         <div class="sub">Take a selfie before clocking in or out.</div>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btnSoft" id="openSelfieCameraBtn" type="button">Open camera</button>
         <button class="btnSoft" id="takeSelfieBtn" type="button" disabled>Take selfie</button>
         <button class="btnSoft" id="retakeSelfieBtn" type="button" disabled>Retake</button>
-        <label class="btnSoft" for="selfieFileFallback" style="cursor:pointer; display:inline-flex; align-items:center;">Upload photo</label>
       </div>
     </div>
 
@@ -7720,7 +7718,6 @@ def clock_page():
       <img id="selfiePreview" alt="Selfie preview" style="width:100%; border-radius:14px; border:1px solid #dbe5f1; background:#f8fafc; min-height:220px; object-fit:cover; display:none;">
     </div>
     <canvas id="selfieCanvas" style="display:none;"></canvas>
-    <input type="file" id="selfieFileFallback" accept="image/*" capture="user" style="display:none;">
     <div id="selfieStatus" class="sub" style="margin-top:10px;">No selfie captured yet.</div>
   </div>
 
@@ -7759,11 +7756,10 @@ def clock_page():
           const selfiePreview = document.getElementById("selfiePreview");
           const selfieCanvas = document.getElementById("selfieCanvas");
           const selfieStatus = document.getElementById("selfieStatus");
-          const openSelfieCameraBtn = document.getElementById("openSelfieCameraBtn");
           const takeSelfieBtn = document.getElementById("takeSelfieBtn");
           const retakeSelfieBtn = document.getElementById("retakeSelfieBtn");
-          const selfieFileFallback = document.getElementById("selfieFileFallback");
           let selfieStream = null;
+          let selfieTriedAutostart = false;
 
           function setDisabled(v){{
             btnIn.disabled = v;
@@ -7839,18 +7835,21 @@ def clock_page():
 
           async function startSelfieCamera(){{
             if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){{
-              selfieStatus.textContent = "Camera preview is not supported here. Use Upload photo instead.";
+              selfieStatus.textContent = "Camera preview is not supported on this device/browser.";
               return;
             }}
             try {{
               stopSelfieCamera();
               selfieStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "user", width: {{ ideal: 1280 }}, height: {{ ideal: 720 }} }}, audio: false }});
               selfieVideo.srcObject = selfieStream;
+              if (selfieVideo.play) {{
+                try {{ await selfieVideo.play(); }} catch(e) {{}}
+              }}
               takeSelfieBtn.disabled = false;
               selfieStatus.textContent = "Camera ready. Take your selfie.";
             }} catch(err) {{
               console.log(err);
-              selfieStatus.textContent = "Could not open camera. Use Upload photo instead.";
+              selfieStatus.textContent = "Could not open camera. Please allow camera permission and try again.";
             }}
           }}
 
@@ -7887,22 +7886,9 @@ def clock_page():
             stopSelfieCamera();
           }}
 
-          function readFallbackFile(file){{
-            if(!file) return;
-            const reader = new FileReader();
-            reader.onload = function(ev){{
-              setSelfieData(String(ev.target.result || ""));
-              stopSelfieCamera();
-            }};
-            reader.onerror = function(){{
-              alert("Could not read selected selfie image.");
-            }};
-            reader.readAsDataURL(file);
-          }}
-
           function requestLocationAndSubmit(actionValue){{
             if(!selfieDataEl.value){{
-              alert("Please take or upload a selfie before clocking in or out.");
+              alert("Please take a selfie before clocking in or out.");
               selfieStatus.textContent = "Selfie required before clocking in or out.";
               return;
             }}
@@ -7957,10 +7943,13 @@ def clock_page():
             }}, {{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }});
           }}
 
-          openSelfieCameraBtn.addEventListener("click", ()=> startSelfieCamera());
           takeSelfieBtn.addEventListener("click", ()=> captureSelfieFrame());
           retakeSelfieBtn.addEventListener("click", ()=> {{ setSelfieData(""); startSelfieCamera(); }});
-          selfieFileFallback.addEventListener("change", (e)=> readFallbackFile(e.target.files && e.target.files[0] ? e.target.files[0] : null));
+
+          if(!selfieTriedAutostart){{
+            selfieTriedAutostart = true;
+            startSelfieCamera();
+          }}
 
           btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
