@@ -20,6 +20,8 @@
 import os
 import json
 import io
+import base64
+import binascii
 import secrets
 import string
 import math
@@ -1658,6 +1660,114 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
 
     file_id = created["id"]
     return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+
+def _upload_bytes_to_drive(file_bytes: bytes, filename_prefix: str, safe_name: str, mime_type: str) -> str:
+    drive_service = get_user_drive_service()
+    if not drive_service:
+        drive_service = get_service_account_drive_service()
+    if not drive_service:
+        raise RuntimeError("Drive upload is not available.")
+
+    if UPLOAD_FOLDER_ID:
+        try:
+            drive_service.files().get(
+                fileId=UPLOAD_FOLDER_ID,
+                fields="id,name",
+                supportsAllDrives=True
+            ).execute()
+        except Exception as e:
+            raise RuntimeError("Upload folder not found or not shared with app account.") from e
+
+    media = MediaIoBaseUpload(io.BytesIO(file_bytes), mimetype=mime_type, resumable=False)
+    metadata = {"name": f"{filename_prefix}_{safe_name}"}
+    if UPLOAD_FOLDER_ID:
+        metadata["parents"] = [UPLOAD_FOLDER_ID]
+
+    created = drive_service.files().create(
+        body=metadata,
+        media_body=media,
+        fields="id, webViewLink",
+        supportsAllDrives=True,
+    ).execute()
+
+    file_id = created["id"]
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+
+def _save_clock_selfie_locally(file_bytes: bytes, safe_name: str) -> str:
+    os.makedirs(CLOCK_SELFIE_DIR, exist_ok=True)
+    token = secrets.token_hex(8)
+    final_name = f"{token}_{safe_name}"
+    full_path = os.path.join(CLOCK_SELFIE_DIR, final_name)
+    with open(full_path, "wb") as fh:
+        fh.write(file_bytes)
+    return url_for("view_clock_selfie", filename=final_name)
+
+
+def _validate_clock_selfie_data(selfie_data_url: str):
+    raw = (selfie_data_url or "").strip()
+    if not raw:
+        raise RuntimeError("Selfie is required before clocking in or out.")
+    if not raw.startswith("data:image/") or "," not in raw:
+        raise RuntimeError("Invalid selfie image data.")
+
+    header, b64_data = raw.split(",", 1)
+    declared_mime = header.split(";", 1)[0][5:].lower()
+    if declared_mime not in _ALLOWED_CLOCK_SELFIE_MIMES:
+        raise RuntimeError("Unsupported selfie format. Use JPG, PNG, or WEBP.")
+
+    try:
+        file_bytes = base64.b64decode(b64_data, validate=True)
+    except (binascii.Error, ValueError):
+        raise RuntimeError("Could not read selfie image.")
+
+    if not file_bytes:
+        raise RuntimeError("Captured selfie image is empty.")
+    if len(file_bytes) > CLOCK_SELFIE_MAX_BYTES:
+        raise RuntimeError(f"Selfie image is too large. Max size is {CLOCK_SELFIE_MAX_BYTES // (1024 * 1024)}MB.")
+
+    detected = _detect_upload_kind(file_bytes)
+    if not detected:
+        raise RuntimeError("Unsupported selfie format. Use JPG, PNG, or WEBP.")
+    detected_ext, detected_mime = detected
+    if detected_mime not in _ALLOWED_CLOCK_SELFIE_MIMES:
+        raise RuntimeError("Selfie must be an image file.")
+
+    safe_name = f"selfie{detected_ext}"
+    return file_bytes, detected_mime, safe_name
+
+
+def _store_clock_selfie(selfie_data_url: str, username: str, action: str, now_dt: datetime) -> str:
+    file_bytes, mime_type, safe_name = _validate_clock_selfie_data(selfie_data_url)
+    stamp = now_dt.strftime("%Y%m%d_%H%M%S")
+    prefix = f"{secure_filename(username or 'employee')}_{action}_{stamp}"
+    try:
+        return _upload_bytes_to_drive(file_bytes, prefix, safe_name, mime_type)
+    except Exception:
+        return _save_clock_selfie_locally(file_bytes, safe_name)
+
+
+@app.get("/clock-selfie/<path:filename>")
+def view_clock_selfie(filename):
+    gate = require_admin()
+    if gate:
+        return gate
+
+    safe_filename = os.path.basename(filename or "")
+    if not safe_filename:
+        abort(404)
+
+    full_path = os.path.abspath(os.path.join(CLOCK_SELFIE_DIR, safe_filename))
+    base_path = os.path.abspath(CLOCK_SELFIE_DIR)
+    if not full_path.startswith(base_path + os.sep):
+        abort(403)
+    if not os.path.exists(full_path):
+        abort(404)
+
+    ext = os.path.splitext(safe_filename)[1].lower()
+    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}.get(ext, "application/octet-stream")
+    return send_file(full_path, mimetype=mime)
 
 
 # ================= CONSTANTS =================
@@ -5062,11 +5172,11 @@ def linkify(url: str) -> str:
 #   SiteName | Lat | Lon | RadiusMeters | Active
 #
 # WorkHours sheet (optional extra columns):
-#   InLat, InLon, InAcc, InSite, InDistM, OutLat, OutLon, OutAcc, OutSite, OutDistM
+#   InLat, InLon, InAcc, InSite, InDistM, InSelfieURL, OutLat, OutLon, OutAcc, OutSite, OutDistM, OutSelfieURL
 
 WORKHOURS_GEO_HEADERS = [
-    "InLat", "InLon", "InAcc", "InSite", "InDistM",
-    "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM",
+    "InLat", "InLon", "InAcc", "InSite", "InDistM", "InSelfieURL",
+    "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM", "OutSelfieURL",
 ]
 
 
@@ -7278,108 +7388,200 @@ def clock_page():
     if request.method == "POST":
         require_csrf()
         action = (request.form.get("action") or "").strip()
+        selfie_data = (request.form.get("selfie_data") or "").strip()
 
-        # require geolocation for BOTH clock in and clock out
-        lat_v = _read_float("lat")
-        lon_v = _read_float("lon")
-        acc_v = _read_float("acc")
+        if CLOCK_SELFIE_REQUIRED and action in ("in", "out") and not selfie_data:
+            msg = "Selfie is required before clocking in or out."
+            msg_class = "message error"
+        else:
+            lat_v = _read_float("lat")
+            lon_v = _read_float("lon")
+            acc_v = _read_float("acc")
 
-        try:
-            ok_loc, cfg, dist_m = _validate_user_location(username, lat_v, lon_v, acc_v)
+            try:
+                ok_loc, cfg, dist_m = _validate_user_location(username, lat_v, lon_v, acc_v)
 
-            if not ok_loc:
-                # Build a clean error message
-                if not site_cfg and not cfg.get("radius"):
-                    msg = "Location system is not configured. Ask Admin to create Locations sheet and set your Site."
-                elif lat_v is None or lon_v is None:
-                    msg = "Location is required. Please allow location access and try again."
-                else:
-                    msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
-                msg_class = "message error"
-            else:
-                rows = work_sheet.get_all_values()
-
-                if action == "in":
-                    open_shift = find_open_shift(rows, username)
-
-                    if open_shift:
-                        msg = "You are already clocked in."
-                        msg_class = "message error"
-
-                    elif has_any_row_today(rows, username, today_str):
-                        msg = "You already completed your shift for today."
-                        msg_class = "message error"
-
+                if not ok_loc:
+                    if not site_cfg and not cfg.get("radius"):
+                        msg = "Location system is not configured. Ask Admin to create Locations sheet and set your Site."
+                    elif lat_v is None or lon_v is None:
+                        msg = "Location is required. Please allow location access and try again."
                     else:
-                        cin = normalized_clock_in_time(now, early_access)
+                        msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
+                    msg_class = "message error"
+                else:
+                    rows = work_sheet.get_all_values()
 
-                        # ✅ Append row INCLUDING Workplace_ID so _find_workhours_row_by_user_date can find it
-                        headers_now = work_sheet.row_values(1)  # fresh header row
+                    if action == "in":
+                        open_shift = find_open_shift(rows, username)
 
-                        new_row = [username, today_str, cin, "", "", ""]  # Username, Date, ClockIn, ClockOut, Hours, Pay
+                        if open_shift:
+                            msg = "You are already clocked in."
+                            msg_class = "message error"
 
-                        if headers_now and "Workplace_ID" in headers_now:
-                            wp_idx = headers_now.index("Workplace_ID")
-                            if len(new_row) <= wp_idx:
-                                new_row += [""] * (wp_idx + 1 - len(new_row))
-                            new_row[wp_idx] = _session_workplace_id()
+                        elif has_any_row_today(rows, username, today_str):
+                            msg = "You already completed your shift for today."
+                            msg_class = "message error"
 
-                        # Pad to header width (prevents misalignment if sheet has extra columns)
-                        if headers_now and len(new_row) < len(headers_now):
-                            new_row += [""] * (len(headers_now) - len(new_row))
+                        else:
+                            selfie_url = _store_clock_selfie(selfie_data, username, "clock_in", now) if CLOCK_SELFIE_REQUIRED else ""
+                            cin = normalized_clock_in_time(now, early_access)
 
-                        _gs_write_with_retry(lambda: work_sheet.append_row(new_row, value_input_option="USER_ENTERED"))
+                            headers_now = work_sheet.row_values(1)
+                            new_row = [username, today_str, cin, "", "", ""]
 
-                        # Find the row we just added and store geo fields
-                        vals = work_sheet.get_all_values()
-                        rownum = _find_workhours_row_by_user_date(vals, username, today_str)
-                        if rownum:
+                            if headers_now and "Workplace_ID" in headers_now:
+                                wp_idx = headers_now.index("Workplace_ID")
+                                if len(new_row) <= wp_idx:
+                                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                                new_row[wp_idx] = _session_workplace_id()
+
+                            if headers_now and len(new_row) < len(headers_now):
+                                new_row += [""] * (len(headers_now) - len(new_row))
+
+                            _gs_write_with_retry(lambda: work_sheet.append_row(new_row, value_input_option="USER_ENTERED"))
+
+                            vals = work_sheet.get_all_values()
+                            rownum = _find_workhours_row_by_user_date(vals, username, today_str)
+                            if rownum:
+                                headers = vals[0] if vals else []
+
+                                def _col(name):
+                                    return headers.index(name) + 1 if name in headers else None
+
+                                import copy
+
+                                updates = []
+                                for k, v in [
+                                    ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
+                                    ("InSite", cfg.get("name", "")), ("InDistM", int(dist_m)),
+                                    ("InSelfieURL", selfie_url), ("Workplace_ID", _session_workplace_id()),
+                                ]:
+                                    c = _col(k)
+                                    if c:
+                                        updates.append({
+                                            "range": gspread.utils.rowcol_to_a1(rownum, c),
+                                            "values": [["" if v is None else v]],
+                                        })
+
+                                if updates:
+                                    _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+
+                                if DB_MIGRATION_MODE:
+                                    try:
+                                        shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
+                                        clock_in_dt = datetime.strptime(f"{today_str} {cin}", "%Y-%m-%d %H:%M:%S")
+
+                                        db_row = WorkHour.query.filter(
+                                            WorkHour.employee_email == username,
+                                            WorkHour.date == shift_date,
+                                            or_(WorkHour.workplace_id == _session_workplace_id(), WorkHour.workplace == _session_workplace_id()),
+                                        ).order_by(WorkHour.id.desc()).first()
+
+                                        if db_row:
+                                            db_row.clock_in = clock_in_dt
+                                            db_row.clock_out = None
+                                            db_row.in_selfie_url = selfie_url
+                                        else:
+                                            db.session.add(
+                                                WorkHour(
+                                                    employee_email=username,
+                                                    date=shift_date,
+                                                    clock_in=clock_in_dt,
+                                                    clock_out=None,
+                                                    workplace=_session_workplace_id(),
+                                                    workplace_id=_session_workplace_id(),
+                                                    in_selfie_url=selfie_url,
+                                                )
+                                            )
+
+                                        db.session.commit()
+                                    except Exception:
+                                        db.session.rollback()
+
+                            if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
+                                msg = f"Clocked in successfully (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
+                            else:
+                                msg = f"Clocked in successfully • {cfg['name']} ({int(dist_m)}m)"
+
+                    elif action == "out":
+                        osf = find_open_shift(rows, username)
+
+                        if not osf:
+                            if has_any_row_today(rows, username, today_str):
+                                msg = "You already clocked out today."
+                            else:
+                                msg = "No active shift found."
+                            msg_class = "message error"
+
+                        else:
+                            selfie_url = _store_clock_selfie(selfie_data, username, "clock_out", now) if CLOCK_SELFIE_REQUIRED else ""
+                            i, d, t = osf
+                            cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+                            raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
+                            hours_rounded = round(_apply_unpaid_break(raw_hours), 2)
+                            pay = round(hours_rounded * float(rate), 2)
+
+                            sheet_row = i + 1
+                            cout = now.strftime("%H:%M:%S")
+
+                            updates = [
+                                {
+                                    "range": f"{gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1)}:{gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1)}",
+                                    "values": [[cout, hours_rounded, pay]],
+                                }
+                            ]
+
+                            vals = work_sheet.get_all_values()
                             headers = vals[0] if vals else []
 
                             def _col(name):
                                 return headers.index(name) + 1 if name in headers else None
 
-                            import copy
-
-                            updates = []
                             for k, v in [
-                                ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
-                                ("InSite", cfg.get("name", "")), ("InDistM", int(dist_m)),
-                                ("Workplace_ID", _session_workplace_id()),
+                                ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
+                                ("OutSite", cfg.get("name", "")), ("OutDistM", int(dist_m)),
+                                ("OutSelfieURL", selfie_url),
                             ]:
                                 c = _col(k)
                                 if c:
                                     updates.append({
-                                        "range": gspread.utils.rowcol_to_a1(rownum, c),
-                                        "values": [["" if v is None else v]],
+                                        "range": gspread.utils.rowcol_to_a1(sheet_row, c),
+                                        "values": [["" if v is None else str(v)]],
                                     })
 
+                            import copy
                             if updates:
                                 _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
 
                             if DB_MIGRATION_MODE:
                                 try:
-                                    shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
-                                    clock_in_dt = datetime.strptime(f"{today_str} {cin}", "%Y-%m-%d %H:%M:%S")
+                                    shift_date = datetime.strptime(d, "%Y-%m-%d").date()
+                                    clock_out_dt = datetime.strptime(f"{d} {cout}", "%Y-%m-%d %H:%M:%S")
+                                    clock_in_dt_check = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
 
-                                    db_row = WorkHour.query.filter_by(
-                                        employee_email=username,
-                                        date=shift_date,
-                                        workplace=_session_workplace_id(),
+                                    if clock_out_dt < clock_in_dt_check:
+                                        clock_out_dt = clock_out_dt + timedelta(days=1)
+
+                                    db_row = WorkHour.query.filter(
+                                        WorkHour.employee_email == username,
+                                        WorkHour.date == shift_date,
+                                        or_(WorkHour.workplace_id == _session_workplace_id(), WorkHour.workplace == _session_workplace_id()),
                                     ).order_by(WorkHour.id.desc()).first()
 
                                     if db_row:
-                                        db_row.clock_in = clock_in_dt
-                                        db_row.clock_out = None
+                                        db_row.clock_out = clock_out_dt
+                                        db_row.out_selfie_url = selfie_url
                                     else:
                                         db.session.add(
                                             WorkHour(
                                                 employee_email=username,
                                                 date=shift_date,
-                                                clock_in=clock_in_dt,
-                                                clock_out=None,
+                                                clock_in=None,
+                                                clock_out=clock_out_dt,
                                                 workplace=_session_workplace_id(),
                                                 workplace_id=_session_workplace_id(),
+                                                out_selfie_url=selfie_url,
                                             )
                                         )
 
@@ -7387,101 +7589,19 @@ def clock_page():
                                 except Exception:
                                     db.session.rollback()
 
-                        if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
-                            msg = f"Clocked in successfully (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
-                        else:
-                            msg = f"Clocked in successfully • {cfg['name']} ({int(dist_m)}m)"
-                elif action == "out":
-                    osf = find_open_shift(rows, username)
-
-                    if not osf:
-                        if has_any_row_today(rows, username, today_str):
-                            msg = "You already clocked out today."
-                        else:
-                            msg = "No active shift found."
-                        msg_class = "message error"
+                            msg = f"Clocked out successfully • {cfg['name']} ({int(dist_m)}m) • Total today: {hours_rounded:.2f}h"
 
                     else:
-                        i, d, t = osf
-                        cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-                        raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-                        hours_rounded = round(_apply_unpaid_break(raw_hours), 2)
-                        pay = round(hours_rounded * float(rate), 2)
-
-                        sheet_row = i + 1  # find_open_shift returns index in rows list
-                        cout = now.strftime("%H:%M:%S")
-
-                        updates = [
-                            {
-                                "range": f"{gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1)}:{gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1)}",
-                                "values": [[cout, hours_rounded, pay]],
-                            }
-                        ]
-
-                        # Store geo fields (clock-out) in the same batch update (if headers exist)
-                        vals = work_sheet.get_all_values()
-                        headers = vals[0] if vals else []
-
-                        def _col(name):
-                            return headers.index(name) + 1 if name in headers else None
-
-                        for k, v in [
-                            ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
-                            ("OutSite", cfg.get("name", "")), ("OutDistM", int(dist_m)),
-                        ]:
-                            c = _col(k)
-                            if c:
-                                updates.append({
-                                    "range": gspread.utils.rowcol_to_a1(sheet_row, c),
-                                    "values": [["" if v is None else str(v)]]
-                                })
-
-                        import copy
-                        if updates:
-                            _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
-
-                        if DB_MIGRATION_MODE:
-                            try:
-                                shift_date = datetime.strptime(d, "%Y-%m-%d").date()
-                                clock_out_dt = datetime.strptime(f"{d} {cout}", "%Y-%m-%d %H:%M:%S")
-                                clock_in_dt_check = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
-
-                                if clock_out_dt < clock_in_dt_check:
-                                    clock_out_dt = clock_out_dt + timedelta(days=1)
-
-                                db_row = WorkHour.query.filter_by(
-                                    employee_email=username,
-                                    date=shift_date,
-                                    workplace=_session_workplace_id(),
-                                ).order_by(WorkHour.id.desc()).first()
-
-                                if db_row:
-                                    db_row.clock_out = clock_out_dt
-                                else:
-                                    db.session.add(
-                                        WorkHour(
-                                            employee_email=username,
-                                            date=shift_date,
-                                            clock_in=None,
-                                            clock_out=clock_out_dt,
-                                            workplace=_session_workplace_id(),
-                                            workplace_id=_session_workplace_id(),
-                                        )
-                                    )
-
-                                db.session.commit()
-                            except Exception:
-                                db.session.rollback()
-
-                        msg = f"Clocked out successfully • {cfg['name']} ({int(dist_m)}m) • Total today: {hours_rounded:.2f}h"
-
-                else:
-                    msg = "Invalid action."
+                        msg = "Invalid action."
+                        msg_class = "message error"
+            except Exception as e:
+                if isinstance(e, RuntimeError):
+                    msg = str(e) or "Unable to process selfie."
                     msg_class = "message error"
-        except Exception as e:
-            app.logger.exception('Clock POST failed')
-            msg = 'Internal error while saving. Please refresh and try again.'
-            msg_class = 'message error'
+                else:
+                    app.logger.exception("Clock POST failed")
+                    msg = "Internal error while saving. Please refresh and try again."
+                    msg_class = "message error"
 
     # Active shift timer
     rows2 = work_sheet.get_all_values()
@@ -7581,12 +7701,36 @@ def clock_page():
     <div id="map" style="height:240px; min-height:240px; border-radius:14px; overflow:hidden; border:1px solid #dbe5f1;"></div>
   </div>
 
+  <div class="clockPanel" style="padding:14px;">
+    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
+      <div>
+        <div style="font-weight:700; color:var(--navy);">Selfie required</div>
+        <div class="sub">Take a selfie before clocking in or out.</div>
+      </div>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button class="btnSoft" id="openSelfieCameraBtn" type="button">Open camera</button>
+        <button class="btnSoft" id="takeSelfieBtn" type="button" disabled>Take selfie</button>
+        <button class="btnSoft" id="retakeSelfieBtn" type="button" disabled>Retake</button>
+        <label class="btnSoft" for="selfieFileFallback" style="cursor:pointer; display:inline-flex; align-items:center;">Upload photo</label>
+      </div>
+    </div>
+
+    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
+      <video id="selfieVideo" autoplay playsinline muted style="width:100%; border-radius:14px; border:1px solid #dbe5f1; background:#0f172a; min-height:220px; object-fit:cover;"></video>
+      <img id="selfiePreview" alt="Selfie preview" style="width:100%; border-radius:14px; border:1px solid #dbe5f1; background:#f8fafc; min-height:220px; object-fit:cover; display:none;">
+    </div>
+    <canvas id="selfieCanvas" style="display:none;"></canvas>
+    <input type="file" id="selfieFileFallback" accept="image/*" capture="user" style="display:none;">
+    <div id="selfieStatus" class="sub" style="margin-top:10px;">No selfie captured yet.</div>
+  </div>
+
   <form method="POST" class="actionRow" id="geoClockForm">
   <input type="hidden" name="csrf" value="{escape(csrf)}">
   <input type="hidden" name="action" id="geoAction" value="">
   <input type="hidden" name="lat" id="geoLat" value="">
   <input type="hidden" name="lon" id="geoLon" value="">
   <input type="hidden" name="acc" id="geoAcc" value="">
+  <input type="hidden" name="selfie_data" id="selfieData" value="">
 
   <button class="btn btnIn" id="btnClockIn" type="button">Clock In</button>
   <button class="btn btnOut" id="btnClockOut" type="button">Clock Out</button>
@@ -7610,6 +7754,16 @@ def clock_page():
 
           const btnIn = document.getElementById("btnClockIn");
           const btnOut = document.getElementById("btnClockOut");
+          const selfieDataEl = document.getElementById("selfieData");
+          const selfieVideo = document.getElementById("selfieVideo");
+          const selfiePreview = document.getElementById("selfiePreview");
+          const selfieCanvas = document.getElementById("selfieCanvas");
+          const selfieStatus = document.getElementById("selfieStatus");
+          const openSelfieCameraBtn = document.getElementById("openSelfieCameraBtn");
+          const takeSelfieBtn = document.getElementById("takeSelfieBtn");
+          const retakeSelfieBtn = document.getElementById("retakeSelfieBtn");
+          const selfieFileFallback = document.getElementById("selfieFileFallback");
+          let selfieStream = null;
 
           function setDisabled(v){{
             btnIn.disabled = v;
@@ -7674,7 +7828,84 @@ def clock_page():
             }}
           }}
 
+          function stopSelfieCamera(){{
+            if(selfieStream){{
+              selfieStream.getTracks().forEach(track => track.stop());
+              selfieStream = null;
+            }}
+            selfieVideo.srcObject = null;
+            takeSelfieBtn.disabled = true;
+          }}
+
+          async function startSelfieCamera(){{
+            if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){{
+              selfieStatus.textContent = "Camera preview is not supported here. Use Upload photo instead.";
+              return;
+            }}
+            try {{
+              stopSelfieCamera();
+              selfieStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "user", width: {{ ideal: 1280 }}, height: {{ ideal: 720 }} }}, audio: false }});
+              selfieVideo.srcObject = selfieStream;
+              takeSelfieBtn.disabled = false;
+              selfieStatus.textContent = "Camera ready. Take your selfie.";
+            }} catch(err) {{
+              console.log(err);
+              selfieStatus.textContent = "Could not open camera. Use Upload photo instead.";
+            }}
+          }}
+
+          function setSelfieData(dataUrl){{
+            selfieDataEl.value = dataUrl || "";
+            if(dataUrl){{
+              selfiePreview.src = dataUrl;
+              selfiePreview.style.display = "block";
+              retakeSelfieBtn.disabled = false;
+              selfieStatus.textContent = "Selfie ready.";
+            }} else {{
+              selfiePreview.src = "";
+              selfiePreview.style.display = "none";
+              retakeSelfieBtn.disabled = true;
+              selfieStatus.textContent = "No selfie captured yet.";
+            }}
+          }}
+
+          function captureSelfieFrame(){{
+            if(!selfieVideo || !selfieVideo.videoWidth || !selfieVideo.videoHeight){{
+              alert("Open the camera first, then take your selfie.");
+              return;
+            }}
+            const maxW = 960;
+            const scale = Math.min(1, maxW / selfieVideo.videoWidth);
+            const width = Math.max(320, Math.round(selfieVideo.videoWidth * scale));
+            const height = Math.max(240, Math.round(selfieVideo.videoHeight * scale));
+            selfieCanvas.width = width;
+            selfieCanvas.height = height;
+            const ctx = selfieCanvas.getContext("2d");
+            ctx.drawImage(selfieVideo, 0, 0, width, height);
+            const dataUrl = selfieCanvas.toDataURL("image/jpeg", 0.88);
+            setSelfieData(dataUrl);
+            stopSelfieCamera();
+          }}
+
+          function readFallbackFile(file){{
+            if(!file) return;
+            const reader = new FileReader();
+            reader.onload = function(ev){{
+              setSelfieData(String(ev.target.result || ""));
+              stopSelfieCamera();
+            }};
+            reader.onerror = function(){{
+              alert("Could not read selected selfie image.");
+            }};
+            reader.readAsDataURL(file);
+          }}
+
           function requestLocationAndSubmit(actionValue){{
+            if(!selfieDataEl.value){{
+              alert("Please take or upload a selfie before clocking in or out.");
+              selfieStatus.textContent = "Selfie required before clocking in or out.";
+              return;
+            }}
             if(!navigator.geolocation){{
               alert("Geolocation is not supported on this device/browser.");
               return;
@@ -7725,6 +7956,11 @@ def clock_page():
               statusEl.style.color = "var(--red)";
             }}, {{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }});
           }}
+
+          openSelfieCameraBtn.addEventListener("click", ()=> startSelfieCamera());
+          takeSelfieBtn.addEventListener("click", ()=> captureSelfieFrame());
+          retakeSelfieBtn.addEventListener("click", ()=> {{ setSelfieData(""); startSelfieCamera(); }});
+          selfieFileFallback.addEventListener("change", (e)=> readFallbackFile(e.target.files && e.target.files[0] ? e.target.files[0] : null));
 
           btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
@@ -12466,6 +12702,8 @@ class WorkHour(db.Model):
     out_acc = db.Column(db.Numeric(10, 2))
     out_site = db.Column(db.String(255))
     out_dist_m = db.Column(db.Integer)
+    in_selfie_url = db.Column(db.Text)
+    out_selfie_url = db.Column(db.Text)
     workplace_id = db.Column(db.String(255), index=True)
 
 
@@ -12889,7 +13127,7 @@ class _LocationsProxy(_ProxySheetBase):
 
 class _WorkHoursProxy(_ProxySheetBase):
     headers = ["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay", "InLat", "InLon", "InAcc", "InSite",
-               "InDistM", "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM", "Workplace_ID"]
+               "InDistM", "InSelfieURL", "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM", "OutSelfieURL", "Workplace_ID"]
     model = WorkHour
 
     def _records(self):
@@ -12912,11 +13150,13 @@ class _WorkHoursProxy(_ProxySheetBase):
             _db_format_decimal(getattr(rec, "in_acc", None)),
             str(getattr(rec, "in_site", "") or ""),
             "" if getattr(rec, "in_dist_m", None) is None else str(getattr(rec, "in_dist_m")),
+            str(getattr(rec, "in_selfie_url", "") or ""),
             _db_format_decimal(getattr(rec, "out_lat", None)),
             _db_format_decimal(getattr(rec, "out_lon", None)),
             _db_format_decimal(getattr(rec, "out_acc", None)),
             str(getattr(rec, "out_site", "") or ""),
             "" if getattr(rec, "out_dist_m", None) is None else str(getattr(rec, "out_dist_m")),
+            str(getattr(rec, "out_selfie_url", "") or ""),
             str(getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"),
         ]
 
@@ -12957,11 +13197,12 @@ class _WorkHoursProxy(_ProxySheetBase):
         rec.pay = Decimal(pay_txt) if pay_txt else None
         for col, attr in {
             "InLat": "in_lat", "InLon": "in_lon", "InAcc": "in_acc", "InSite": "in_site", "InDistM": "in_dist_m",
+            "InSelfieURL": "in_selfie_url",
             "OutLat": "out_lat", "OutLon": "out_lon", "OutAcc": "out_acc", "OutSite": "out_site",
-            "OutDistM": "out_dist_m",
+            "OutDistM": "out_dist_m", "OutSelfieURL": "out_selfie_url",
         }.items():
             raw = data.get(col)
-            if attr.endswith("_site"):
+            if attr.endswith("_site") or attr.endswith("_url"):
                 setattr(rec, attr, str(raw or ""))
             elif attr.endswith("_dist_m"):
                 setattr(rec, attr, int(float(raw)) if str(raw or "").strip() else None)
@@ -13211,6 +13452,8 @@ def _ensure_database_schema():
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_acc NUMERIC(10,2)",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_site VARCHAR(255)",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_dist_m INTEGER",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS in_selfie_url TEXT",
+            "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS out_selfie_url TEXT",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
             "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS actor VARCHAR(255)",
             "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS username VARCHAR(255)",
