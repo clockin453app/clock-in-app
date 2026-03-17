@@ -5736,6 +5736,15 @@ def admin_delete_employee():
         session["_emp_msg"] = "You cannot delete your own account."
         session["_emp_ok"] = False
         return redirect("/admin/employees")
+    target_employee = Employee.query.filter(
+        Employee.username == username,
+        Employee.workplace_id == wp,
+    ).first()
+
+    if target_employee and (target_employee.role or "").strip().lower() == "master_admin":
+        session["_emp_msg"] = "Master admin account cannot be deleted."
+        session["_emp_ok"] = False
+        return redirect("/admin/employees")
 
     try:
         workhours_deleted = WorkHour.query.filter(
@@ -11568,6 +11577,7 @@ def admin_employees():
         """
         # Build employee dropdown options (this workplace)
     employee_options_html = "<option value='' selected disabled>Select employee</option>"
+    delete_employee_options_html = "<option value='' selected disabled>Select employee</option>"
     try:
         wp_now = _session_workplace_id()
         records = []
@@ -11592,10 +11602,13 @@ def admin_employees():
                 if not username:
                     continue
 
+                role = str(getattr(rec, "role", "") or "").strip()
+
                 records.append({
                     "Username": username,
                     "FirstName": first_name,
                     "LastName": last_name,
+                    "Role": role,
                     "Active": active,
                     "Workplace_ID": workplace_id,
                 })
@@ -11618,7 +11631,13 @@ def admin_employees():
             ln = str(rec.get("LastName") or "").strip()
             disp = (fn + " " + ln).strip() or u
 
-            employee_options_html += f"<option value='{escape(u)}'>{escape(disp)}{inactive_tag} ({escape(u)})</option>"
+            role_raw = str(rec.get("Role") or "").strip().lower()
+            label = f"{disp}{inactive_tag} ({u})"
+
+            employee_options_html += f"<option value='{escape(u)}'>{escape(label)}</option>"
+
+            if role_raw != "master_admin":
+                delete_employee_options_html += f"<option value='{escape(u)}'>{escape(label)}</option>"
     except Exception:
         pass
 
@@ -11681,7 +11700,7 @@ def admin_employees():
           <label class="sub">Employee</label>
           <select class="input" name="username" required>
             <option value="">Select employee</option>
-            {employee_options_html}
+            {delete_employee_options_html}
           </select>
 
           <button class="btnSoft" type="submit" style="margin-top:12px;"
