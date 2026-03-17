@@ -101,6 +101,7 @@ if gspread is None:
     gspread = _FallbackGspread()
 
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
 from flask_sqlalchemy import SQLAlchemy
 
 # ================= PERFORMANCE: gspread caching (TTL) =================
@@ -448,6 +449,10 @@ def _find_employee_record(username: str, workplace_id: str | None = None):
                     continue
                 if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
                     continue
+                stored_pw = str(row.get("Password", "") or "").strip()
+                if stored_pw and not _password_is_hashed(stored_pw):
+                    row = dict(row)
+                    row["Password"] = _ensure_password_hash_for_user(target_user, stored_pw, workplace_id=target_wp)
                 return row
         except Exception:
             pass
@@ -457,6 +462,10 @@ def _find_employee_record(username: str, workplace_id: str | None = None):
             row_user = (user.get("Username") or "").strip()
             row_wp = (user.get("Workplace_ID") or "").strip() or "default"
             if row_user == target_user and row_wp == target_wp:
+                stored_pw = str(user.get("Password", "") or "").strip()
+                if stored_pw and not _password_is_hashed(stored_pw):
+                    user = dict(user)
+                    user["Password"] = _ensure_password_hash_for_user(target_user, stored_pw, workplace_id=target_wp)
                 return user
     except Exception:
         pass
@@ -1556,6 +1565,56 @@ def get_user_drive_service():
     return build("drive", "v3", credentials=creds_user, cache_discovery=False)
 
 
+UPLOAD_MAX_BYTES = int(os.environ.get("UPLOAD_MAX_BYTES", str(10 * 1024 * 1024)) or str(10 * 1024 * 1024))
+_ALLOWED_UPLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
+_ALLOWED_UPLOAD_MIMES = {"application/pdf", "image/jpeg", "image/png", "image/webp", "application/octet-stream"}
+
+
+def _detect_upload_kind(file_bytes: bytes):
+    if file_bytes.startswith(b"%PDF-"):
+        return (".pdf", "application/pdf")
+    if file_bytes.startswith(b"\xff\xd8\xff"):
+        return (".jpg", "image/jpeg")
+    if file_bytes.startswith(b"\x89PNG\r\n\x1a\n"):
+        return (".png", "image/png")
+    if len(file_bytes) >= 12 and file_bytes[:4] == b"RIFF" and file_bytes[8:12] == b"WEBP":
+        return (".webp", "image/webp")
+    return None
+
+
+def _validate_upload_file(file_storage):
+    if not file_storage or not getattr(file_storage, "filename", ""):
+        raise RuntimeError("Missing upload file.")
+
+    original = secure_filename(file_storage.filename or "upload") or "upload"
+    _, ext = os.path.splitext(original)
+    ext = (ext or "").lower()
+
+    file_bytes = file_storage.read()
+    file_storage.stream.seek(0)
+
+    if not file_bytes:
+        raise RuntimeError("Uploaded file is empty.")
+    if len(file_bytes) > UPLOAD_MAX_BYTES:
+        raise RuntimeError(f"File too large. Max size is {UPLOAD_MAX_BYTES // (1024 * 1024)}MB.")
+
+    detected = _detect_upload_kind(file_bytes)
+    if not detected:
+        raise RuntimeError("Unsupported file type. Upload PDF, JPG, PNG, or WEBP only.")
+
+    detected_ext, detected_mime = detected
+    claimed_mime = (getattr(file_storage, "mimetype", "") or "application/octet-stream").lower()
+
+    if ext and ext not in _ALLOWED_UPLOAD_EXTS:
+        raise RuntimeError("Unsupported file extension. Upload PDF, JPG, PNG, or WEBP only.")
+    if claimed_mime not in _ALLOWED_UPLOAD_MIMES:
+        raise RuntimeError("Unsupported upload content type.")
+
+    safe_base = os.path.splitext(original)[0] or "upload"
+    safe_name = f"{safe_base}{detected_ext}"
+    return file_bytes, detected_mime, safe_name
+
+
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
     # First try OAuth user Drive (connected via /connect-drive by master admin)
     drive_service = get_user_drive_service()
@@ -1577,15 +1636,12 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
         except Exception as e:
             raise RuntimeError("Upload folder not found or not shared with app account.") from e
 
-    file_bytes = file_storage.read()
-    file_storage.stream.seek(0)
-
-    original = file_storage.filename or "upload"
-    name = f"{filename_prefix}_{original}"
+    file_bytes, detected_mime, safe_name = _validate_upload_file(file_storage)
+    name = f"{filename_prefix}_{safe_name}"
 
     media = MediaIoBaseUpload(
         io.BytesIO(file_bytes),
-        mimetype=file_storage.mimetype or "application/octet-stream",
+        mimetype=detected_mime,
         resumable=False,
     )
 
@@ -5656,9 +5712,9 @@ def set_employee_first_last(username: str, first: str, last: str):
             db.session.rollback()
 
 
-def update_employee_password(username: str, new_password: str) -> bool:
+def update_employee_password(username: str, new_password: str, workplace_id: str | None = None) -> bool:
     hashed = generate_password_hash(new_password)
-    current_wp = (_session_workplace_id() or "default").strip() or "default"
+    current_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
     target_user = (username or "").strip()
 
     if not target_user:
@@ -5729,7 +5785,7 @@ def admin_employee_reset_password():
         session["_pwreset_ok"] = True
         session["_pwreset_msg"] = f"Password reset successfully for {username}."
         session["_pwreset_user"] = username
-        session["_pwreset_password"] = new_password
+        session.pop("_pwreset_password", None)
     else:
         log_audit("RESET_PASSWORD_FAILED", actor=actor, username=username, date_str="", details="current workplace")
         session["_pwreset_ok"] = False
@@ -5932,17 +5988,44 @@ def get_reset_user_options_html() -> str:
     return "<option value='' selected disabled>Select user</option>" + "".join(item[3] for item in options)
 
 
+def _password_is_hashed(stored: str) -> bool:
+    stored = (stored or "").strip()
+    return stored.startswith("pbkdf2:") or stored.startswith("scrypt:")
+
+
+def _normalize_password_hash_value(raw_password: str) -> str:
+    raw_password = (raw_password or "").strip()
+    if not raw_password:
+        return ""
+    if _password_is_hashed(raw_password):
+        return raw_password
+    return generate_password_hash(raw_password)
+
+
+def _ensure_password_hash_for_user(username: str, stored: str, workplace_id: str | None = None) -> str:
+    stored = (stored or "").strip()
+    if not stored:
+        return ""
+    if _password_is_hashed(stored):
+        return stored
+
+    try:
+        update_employee_password(username, stored, workplace_id=workplace_id)
+    except Exception:
+        pass
+
+    return generate_password_hash(stored)
+
+
 def is_password_valid(stored: str, provided: str) -> bool:
-    stored = stored or ""
-    if stored.startswith("pbkdf2:") or stored.startswith("scrypt:"):
-        return check_password_hash(stored, provided)
-    return stored == provided
+    stored = (stored or "").strip()
+    return bool(stored) and _password_is_hashed(stored) and check_password_hash(stored, provided)
 
 
-def migrate_password_if_plain(username: str, stored: str, provided: str):
-    stored = stored or ""
-    if stored and not (stored.startswith("pbkdf2:") or stored.startswith("scrypt:")):
-        update_employee_password(username, provided)
+def migrate_password_if_plain(username: str, stored: str, provided: str, workplace_id: str | None = None):
+    stored = (stored or "").strip()
+    if stored and not _password_is_hashed(stored):
+        _ensure_password_hash_for_user(username, stored, workplace_id=workplace_id)
 
 
 def update_or_append_onboarding(username: str, data: dict):
@@ -6656,7 +6739,7 @@ def login():
                 else:
                     _login_rate_limit_clear(ip)
 
-                    migrate_password_if_plain(username, ok_user.get("Password", ""), password)
+                    migrate_password_if_plain(username, ok_user.get("Password", ""), password, workplace_id=workplace_id)
                     session.clear()
                     session["csrf"] = csrf
                     session["username"] = username
@@ -8387,7 +8470,7 @@ def onboarding():
                     emergency_phone_full = " ".join([x for x in [ec_cc, ec_phone] if x]).strip()
                     address_full = ", ".join([x for x in [street, city, postcode] if x]).strip()
 
-                    db_row = OnboardingRecord.query.filter_by(username=username).first()
+                    db_row = OnboardingRecord.query.filter_by(username=username, workplace_id=_session_workplace_id()).first()
 
                     if db_row:
                         db_row.first_name = first
@@ -8404,6 +8487,7 @@ def onboarding():
                         db.session.add(
                             OnboardingRecord(
                                 username=username,
+                                workplace_id=_session_workplace_id(),
                                 first_name=first,
                                 last_name=last,
                                 birth_date=birth,
@@ -11272,7 +11356,7 @@ def admin_employees():
                                         last_name_db = _row_str("LastName")
                                         full_name_db = (" ".join([first_name_db, last_name_db])).strip()
                                         role_db = _row_str("Role")
-                                        password_db = _row_str("Password")
+                                        password_db = _normalize_password_hash_value(_row_str("Password"))
                                         early_access_db = _row_str("EarlyAccess")
                                         active_db = _row_str("Active", "TRUE") or "TRUE"
                                         workplace_id_db = _row_str("Workplace_ID",
@@ -11287,9 +11371,9 @@ def admin_employees():
                                             except Exception:
                                                 rate_db = None
 
-                                        db_row = Employee.query.filter_by(username=username_db).first()
+                                        db_row = Employee.query.filter_by(username=username_db, workplace_id=workplace_id_db).first()
                                         if not db_row:
-                                            db_row = Employee.query.filter_by(email=username_db).first()
+                                            db_row = Employee.query.filter_by(email=username_db, workplace_id=workplace_id_db).first()
 
                                         if db_row:
                                             db_row.email = username_db
@@ -11378,9 +11462,9 @@ def admin_employees():
 
                         if DB_MIGRATION_MODE:
                             try:
-                                db_row = Employee.query.filter_by(username=edit_username).first()
+                                db_row = Employee.query.filter_by(username=edit_username, workplace_id=_session_workplace_id()).first()
                                 if not db_row:
-                                    db_row = Employee.query.filter_by(email=edit_username).first()
+                                    db_row = Employee.query.filter_by(email=edit_username, workplace_id=_session_workplace_id()).first()
 
                                 if db_row:
                                     db_row.active = val
@@ -11480,9 +11564,9 @@ def admin_employees():
                     try:
                         full_name = (" ".join([first, last])).strip()
 
-                        db_row = Employee.query.filter_by(username=new_username).first()
+                        db_row = Employee.query.filter_by(username=new_username, workplace_id=wp).first()
                         if not db_row:
-                            db_row = Employee.query.filter_by(email=new_username).first()
+                            db_row = Employee.query.filter_by(email=new_username, workplace_id=wp).first()
 
                         if db_row:
                             db_row.email = new_username
@@ -11715,7 +11799,7 @@ def admin_employees():
         pass
 
     reset_user = session.pop("_pwreset_user", "")
-    reset_password = session.pop("_pwreset_password", "")
+    session.pop("_pwreset_password", None)
     reset_msg = session.pop("_pwreset_msg", "")
     reset_ok = session.pop("_pwreset_ok", None)
     emp_msg = session.pop("_emp_msg", "")
@@ -11752,13 +11836,12 @@ def admin_employees():
           </div>
        """
     reset_result_card = ""
-    if reset_password:
+    if reset_ok and reset_user:
         reset_result_card = f"""
           <div class="card" style="padding:12px; margin-top:12px; background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.35);">
-            <h2>New Password</h2>
-            <p class="sub">Save this now. It is shown only once.</p>
+            <h2>Password Updated</h2>
+            <p class="sub">Password was updated successfully for this user.</p>
             <div style="font-weight:700; margin-top:8px;">User: {escape(reset_user)}</div>
-            <div style="font-size:18px; font-weight:800; margin-top:6px;">{escape(reset_password)}</div>
           </div>
         """
     danger_card = ""
