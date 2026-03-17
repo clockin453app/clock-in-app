@@ -5662,6 +5662,141 @@ def admin_employee_reset_password():
 
     return redirect("/admin/employees")
 
+from sqlalchemy import or_, and_
+
+@app.post("/admin/employees/clear-history")
+def admin_clear_employee_history():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    username = (request.form.get("username") or "").strip()
+    wp = (_session_workplace_id() or "default").strip() or "default"
+
+    if not username:
+        session["_emp_msg"] = "Choose an employee first."
+        session["_emp_ok"] = False
+        return redirect("/admin/employees")
+
+    try:
+        workhours_deleted = WorkHour.query.filter(
+            and_(
+                or_(
+                    WorkHour.employee_email == username,
+                ),
+                or_(
+                    WorkHour.workplace_id == wp,
+                    and_(WorkHour.workplace_id.is_(None), WorkHour.workplace == wp),
+                    WorkHour.workplace == wp,
+                ),
+            )
+        ).delete(synchronize_session=False)
+
+        payroll_deleted = PayrollReport.query.filter(
+            and_(
+                PayrollReport.username == username,
+                PayrollReport.workplace_id == wp,
+            )
+        ).delete(synchronize_session=False)
+
+        db.session.commit()
+
+        session["_emp_msg"] = (
+            f"Clear history ran for {username}. "
+            f"Deleted workhours={int(workhours_deleted or 0)}, "
+            f"payroll={int(payroll_deleted or 0)}."
+        )
+        session["_emp_ok"] = True
+
+    except Exception as e:
+        db.session.rollback()
+        session["_emp_msg"] = f"Clear history failed: {str(e)}"
+        session["_emp_ok"] = False
+
+    return redirect("/admin/employees")
+
+
+@app.post("/admin/employees/delete")
+def admin_delete_employee():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    username = (request.form.get("username") or "").strip()
+    wp = (_session_workplace_id() or "default").strip() or "default"
+
+    if not username:
+        session["_emp_msg"] = "Choose an employee first."
+        session["_emp_ok"] = False
+        return redirect("/admin/employees")
+
+    if username == session.get("username"):
+        session["_emp_msg"] = "You cannot delete your own account."
+        session["_emp_ok"] = False
+        return redirect("/admin/employees")
+
+    try:
+        workhours_deleted = WorkHour.query.filter(
+            and_(
+                or_(
+                    WorkHour.employee_email == username,
+                ),
+                or_(
+                    WorkHour.workplace_id == wp,
+                    and_(WorkHour.workplace_id.is_(None), WorkHour.workplace == wp),
+                    WorkHour.workplace == wp,
+                ),
+            )
+        ).delete(synchronize_session=False)
+
+        payroll_deleted = PayrollReport.query.filter(
+            and_(
+                PayrollReport.username == username,
+                PayrollReport.workplace_id == wp,
+            )
+        ).delete(synchronize_session=False)
+
+        onboarding_deleted = OnboardingRecord.query.filter(
+            and_(
+                OnboardingRecord.username == username,
+                OnboardingRecord.workplace_id == wp,
+            )
+        ).delete(synchronize_session=False)
+
+        employees_deleted = Employee.query.filter(
+            and_(
+                or_(
+                    Employee.username == username,
+                    Employee.email == username,
+                ),
+                or_(
+                    Employee.workplace_id == wp,
+                    and_(Employee.workplace_id.is_(None), Employee.workplace == wp),
+                    Employee.workplace == wp,
+                ),
+            )
+        ).delete(synchronize_session=False)
+
+        db.session.commit()
+
+        session["_emp_msg"] = (
+            f"Delete ran for {username}. "
+            f"Deleted employees={int(employees_deleted or 0)}, "
+            f"workhours={int(workhours_deleted or 0)}, "
+            f"payroll={int(payroll_deleted or 0)}, "
+            f"onboarding={int(onboarding_deleted or 0)}."
+        )
+        session["_emp_ok"] = True
+
+    except Exception as e:
+        db.session.rollback()
+        session["_emp_msg"] = f"Delete failed: {str(e)}"
+        session["_emp_ok"] = False
+
+    return redirect("/admin/employees")
+
 def get_reset_user_options_html() -> str:
     current_wp = (_session_workplace_id() or "default").strip() or "default"
     options = []
@@ -10989,6 +11124,12 @@ def admin_employees():
                 if reset_ok is not None:
                     msg = reset_msg
                     ok = bool(reset_ok)
+                    emp_msg = session.pop("_emp_msg", "")
+                    emp_ok = session.pop("_emp_ok", None)
+
+                    if emp_ok is not None:
+                        msg = emp_msg
+                        ok = bool(emp_ok)
             else:
                 _ensure_employees_columns()
                 headers = get_sheet_headers(employees_sheet)
@@ -11489,6 +11630,12 @@ def admin_employees():
     if reset_ok is not None:
         msg = reset_msg
         ok = bool(reset_ok)
+        emp_msg = session.pop("_emp_msg", "")
+        emp_ok = session.pop("_emp_ok", None)
+
+        if emp_ok is not None:
+            msg = emp_msg
+            ok = bool(emp_ok)
 
     reset_card = ""
     if session.get("role") in ("admin", "master_admin"):
@@ -11523,6 +11670,43 @@ def admin_employees():
             <div style="font-size:18px; font-weight:800; margin-top:6px;">{escape(reset_password)}</div>
           </div>
         """
+    danger_card = f"""
+      <div class="card" style="padding:12px; margin-top:12px; border:1px solid rgba(239,68,68,.25);">
+        <h2>Clear / Delete Employee</h2>
+        <p class="sub">Clear timesheet + payroll history, or delete the employee completely.</p>
+
+        <form method="POST" action="/admin/employees/clear-history" style="margin-top:12px;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+          <label class="sub">Employee</label>
+          <select class="input" name="username" required>
+            <option value="">Select employee</option>
+            {employee_options_html}
+          </select>
+
+          <button class="btnSoft" type="submit" style="margin-top:12px;"
+                  onclick="return confirm('Clear all clock and payroll history for this employee?');">
+            Clear history
+          </button>
+        </form>
+
+        <form method="POST" action="/admin/employees/delete" style="margin-top:12px;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+          <label class="sub">Delete employee</label>
+          <select class="input" name="username" required>
+            <option value="">Select employee</option>
+            {employee_options_html}
+          </select>
+
+          <button class="btnSoft" type="submit" style="margin-top:12px; background:#7f1d1d; border-color:#7f1d1d;"
+                  onclick="return confirm('Delete this employee completely? This cannot be undone.');">
+            Delete account
+          </button>
+        </form>
+      </div>
+    """
+
     content = f"""
 
       <div class="headerTop">
@@ -11537,6 +11721,7 @@ def admin_employees():
 {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
 {reset_result_card}
+{danger_card}
 
       <div class="card" style="padding:12px;">
         <form method="POST">
