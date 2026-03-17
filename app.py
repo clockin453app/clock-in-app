@@ -7952,17 +7952,22 @@ def clock_page():
             }}, {{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }});
           }}
 
-          takeSelfieBtn.addEventListener("click", ()=> captureSelfieFrame());
+          takeSelfieBtn.addEventListener("click", async ()=> {{
+  const hasLiveCamera = !!(selfieStream || (selfieVideo && selfieVideo.srcObject));
+
+  if(!hasLiveCamera){{
+    await startSelfieCamera();
+    selfieStatus.textContent = "Camera ready. Tap Take selfie again to capture.";
+    return;
+  }}
+
+  captureSelfieFrame();
+}});
 
           retakeSelfieBtn.addEventListener("click", ()=> {{
             setSelfieData("");
             startSelfieCamera();
           }});
-
-          if(!selfieTriedAutostart){{
-            selfieTriedAutostart = true;
-            startSelfieCamera();
-          }}
 
           window.addEventListener("pagehide", ()=> {{
             stopSelfieCamera();
