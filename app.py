@@ -21,6 +21,7 @@ import os
 import json
 import io
 import base64
+import hashlib
 import binascii
 import secrets
 import string
@@ -894,7 +895,7 @@ def import_employees():
 
             role = str(rec.get("Role", "")).strip()
             workplace_id = str(rec.get("Workplace_ID", "")).strip() or "default"
-            password = str(rec.get("Password", "")).strip()
+            password = _normalize_password_hash_value(str(rec.get("Password", "")).strip())
             early_access = str(rec.get("EarlyAccess", "")).strip()
             active = str(rec.get("Active", "")).strip() or "TRUE"
             site = str(rec.get("Site", "")).strip()
@@ -1477,6 +1478,7 @@ def _make_oauth_flow():
 #   DRIVE_TOKEN_STORE_PATH (default: ./instance/drive_token.enc)
 #   DRIVE_TOKEN_ENCRYPTION_KEY (recommended): urlsafe base64 32-byte key (Fernet).
 #   DRIVE_TOKEN_JSON (optional): bootstrap token JSON (e.g., for migration), but prefer file store.
+#   If DRIVE_TOKEN_ENCRYPTION_KEY is not set, the app derives an encryption key from SECRET_KEY.
 try:
     from cryptography.fernet import Fernet, InvalidToken
 except Exception:
@@ -1498,12 +1500,20 @@ def _ensure_instance_dir():
 
 
 def _fernet():
-    if not DRIVE_TOKEN_ENCRYPTION_KEY or not Fernet:
+    if not Fernet:
         return None
+
     try:
-        return Fernet(DRIVE_TOKEN_ENCRYPTION_KEY.encode("utf-8"))
+        if DRIVE_TOKEN_ENCRYPTION_KEY:
+            return Fernet(DRIVE_TOKEN_ENCRYPTION_KEY.encode("utf-8"))
+
+        if SECRET_KEY:
+            derived_key = base64.urlsafe_b64encode(hashlib.sha256(SECRET_KEY.encode("utf-8")).digest())
+            return Fernet(derived_key)
     except Exception:
         return None
+
+    return None
 
 
 def _save_drive_token(token_dict: dict):
@@ -7840,7 +7850,7 @@ def clock_page():
         <div class="sub">Take a selfie before clocking in or out.</div>
       </div>
       <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btnSoft" id="takeSelfieBtn" type="button" disabled>Take selfie</button>
+        <button class="btnSoft" id="takeSelfieBtn" type="button">Take selfie</button>
         <button class="btnSoft" id="retakeSelfieBtn" type="button" disabled>Retake</button>
       </div>
     </div>
