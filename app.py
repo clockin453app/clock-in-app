@@ -27,6 +27,7 @@ import secrets
 import string
 import math
 import re
+import html
 import time
 import random
 from urllib.parse import urlparse
@@ -249,6 +250,15 @@ def _is_sqlite_url(url: str) -> bool:
 APP_ENV = os.environ.get("APP_ENV", os.environ.get("FLASK_ENV", "production")).strip().lower() or "production"
 DEBUG_MODE = _env_flag("FLASK_DEBUG", default=False) or _env_flag("APP_DEBUG", default=False)
 IS_PRODUCTION = APP_ENV == "production" and not DEBUG_MODE
+DB_DEBUG_EXPORTS_ENABLED = _env_flag("DB_DEBUG_EXPORTS_ENABLED", default=not IS_PRODUCTION)
+DESTRUCTIVE_ADMIN_CONFIRM_VALUE = os.environ.get("DESTRUCTIVE_ADMIN_CONFIRM_VALUE", "CONFIRM").strip() or "CONFIRM"
+MAX_CLOCK_LOCATION_ACCURACY_M = float(
+    os.environ.get("MAX_CLOCK_LOCATION_ACCURACY_M", os.environ.get("CLOCK_GEO_MAX_ACCURACY_METERS", "250")) or "250"
+)
+MAX_CLOCK_LOCATION_AGE_S = int(
+    os.environ.get("MAX_CLOCK_LOCATION_AGE_S", os.environ.get("CLOCK_GEO_MAX_AGE_SECONDS", "180")) or "180"
+)
+ALLOWED_EMPLOYEE_ROLES = {"employee", "admin"}
 
 app = Flask(
     __name__,
@@ -269,6 +279,18 @@ app.config.update(
     SESSION_COOKIE_SAMESITE="Lax",
     SESSION_COOKIE_SECURE=_env_flag("SESSION_COOKIE_SECURE", default=IS_PRODUCTION),
 )
+
+
+@app.after_request
+def _set_security_headers(response):
+    response.headers.setdefault("X-Frame-Options", "DENY")
+    response.headers.setdefault("X-Content-Type-Options", "nosniff")
+    response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
+    response.headers.setdefault("Permissions-Policy", "geolocation=(self), camera=(self)")
+    if IS_PRODUCTION:
+        response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+    return response
+
 
 DATABASE_URL = os.environ.get("DATABASE_URL", "").strip()
 DATABASE_ENABLED = (
@@ -300,38 +322,80 @@ TZ = ZoneInfo(os.environ.get("APP_TZ", "Europe/London"))
 
 # ================= DATABASE VIEW / IMPORT ROUTES =================
 
-SENSITIVE_DEBUG_EXPORTS_ENABLED = parse_bool(os.environ.get("ENABLE_DB_DEBUG_EXPORTS", "0"))
-
-_REDACTED_MODEL_FIELDS = {
-    "Employee": {"password", "active_session_token"},
-    "OnboardingRecord": {
-        "bank_account_number", "sort_code", "national_insurance", "utr",
-        "medical_details", "passport_or_birth_cert_link", "cscs_front_back_link",
-        "public_liability_link", "share_code_link", "phone_number",
-        "emergency_contact_phone_number", "street_address", "city", "postcode",
-        "date_of_birth", "signature_name", "signature_date_time"
-    },
-    "WorkHour": {"in_selfie_url", "out_selfie_url", "in_lat", "in_lon", "out_lat", "out_lon"},
+_DB_DEBUG_ALLOWED_COLUMNS = {
+    "employees": [
+        "id", "username", "role", "first_name", "last_name", "rate", "early_access", "active", "site",
+        "site2", "workplace_id", "created_at"
+    ],
+    "workhours": [
+        "id", "employee_email", "date", "clock_in", "clock_out", "hours", "pay", "in_site", "in_dist_m",
+        "out_site", "out_dist_m", "workplace", "workplace_id", "created_at"
+    ],
+    "audit_logs": [
+        "id", "action", "user_email", "actor", "username", "date_text", "details", "workplace_id",
+        "created_at"
+    ],
+    "payroll_reports": [
+        "id", "username", "week_start", "week_end", "gross", "tax", "net", "paid_at", "paid_by", "paid",
+        "workplace_id", "created_at"
+    ],
+    "onboarding_records": [
+        "id", "username", "workplace_id", "first_name", "last_name", "position", "employment_type",
+        "right_to_work_uk", "start_date", "contract_accepted", "signature_datetime", "submitted_at"
+    ],
+    "locations": ["id", "site_name", "radius_meters", "active", "workplace_id", "created_at"],
+    "workplace_settings": ["id", "workplace_id", "tax_rate", "currency_symbol", "company_name", "created_at"],
 }
 
 
-def _mask_redacted_value(val):
-    return "" if val in (None, "") else "[redacted]"
+def _is_sensitive_debug_export_enabled() -> bool:
+    return bool(DB_DEBUG_EXPORTS_ENABLED)
 
 
-def _rows_to_dicts(model, limit=200):
+def _redact_value(column_name: str, value):
+    col = str(column_name or "").strip().lower()
+    if value is None:
+        return None
+    if hasattr(value, "isoformat"):
+        value = value.isoformat()
+
+    secret_markers = (
+        "password", "token", "secret", "hash", "bank", "sort_code", "sortcode",
+        "national_insurance", "ni", "utr", "passport", "birth_cert", "share_code",
+        "public_liability", "cscs_front_back", "selfie", "lat", "lon", "acc",
+        "signature", "document", "geo", "medical_details",
+    )
+    if any(marker in col for marker in secret_markers):
+        return "[REDACTED]"
+
+    if col.endswith("_link") or col.endswith("_url"):
+        return "[REDACTED]"
+
+    if col in {"email", "phone", "phone_number", "emergency_contact_phone", "emergency_contact_phone_number"}:
+        return "[REDACTED]"
+
+    if col in {"bank_account_number", "sort_code", "national_insurance", "utr"}:
+        return "[REDACTED]"
+
+    if col in {"birth_date", "street_address", "address", "postcode", "city"}:
+        return "[REDACTED]"
+
+    if isinstance(value, str) and len(value) > 500:
+        return value[:497] + "..."
+    return value
+
+
+def _rows_to_dicts(model, limit=200, allowed_columns=None):
     rows = model.query.limit(limit).all()
     out = []
-    redact_fields = _REDACTED_MODEL_FIELDS.get(getattr(model, "__name__", ""), set())
+    allowed = set(allowed_columns or [])
     for row in rows:
         item = {}
         for col in row.__table__.columns:
+            if allowed and col.name not in allowed:
+                continue
             val = getattr(row, col.name)
-            if col.name in redact_fields:
-                val = _mask_redacted_value(val)
-            elif hasattr(val, "isoformat"):
-                val = val.isoformat()
-            item[col.name] = val
+            item[col.name] = _redact_value(col.name, val)
         out.append(item)
     return out
 
@@ -341,19 +405,19 @@ def _rows_to_dicts(model, limit=200):
 def get_locations():
     if USE_DATABASE:
         return Location.query.all()
-    return locations_sheet.get_all_records()
+    return _get_import_sheet("locations").get_all_records()
 
 
 def get_settings():
     if USE_DATABASE:
         return WorkplaceSetting.query.all()
-    return settings_sheet.get_all_records()
+    return _get_import_sheet("settings").get_all_records()
 
 
 def get_employees():
     if USE_DATABASE:
         return Employee.query.all()
-    return employees_sheet.get_all_records()
+    return _get_import_sheet("employees").get_all_records()
 
 
 def get_employees_compat():
@@ -482,7 +546,7 @@ def _find_employee_record(username: str, workplace_id: str | None = None):
             pass
 
     try:
-        for user in employees_sheet.get_all_records():
+        for user in _get_import_sheet("employees").get_all_records():
             row_user = (user.get("Username") or "").strip()
             row_wp = (user.get("Workplace_ID") or "").strip() or "default"
             if row_user == target_user and row_wp == target_wp:
@@ -521,7 +585,7 @@ def _list_employee_records_for_workplace(workplace_id: str | None = None, includ
             pass
 
     try:
-        for user in employees_sheet.get_all_records():
+        for user in _get_import_sheet("employees").get_all_records():
             row_wp = (user.get("Workplace_ID") or "").strip() or "default"
             if row_wp != target_wp:
                 continue
@@ -619,186 +683,6 @@ def get_workhours_rows():
     return out
 
 
-_WORKHOUR_UNSET = object()
-
-
-def _workhour_workplace_filter(wp: str | None = None):
-    wp = (wp or _session_workplace_id() or "default").strip() or "default"
-    return or_(
-        WorkHour.workplace_id == wp,
-        and_(WorkHour.workplace_id.is_(None), WorkHour.workplace == wp),
-        WorkHour.workplace == wp,
-    )
-
-
-def _db_find_workhour(username: str, date_str: str, workplace_id: str | None = None):
-    if not DATABASE_ENABLED:
-        return None
-    try:
-        shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except Exception:
-        return None
-    wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
-    return WorkHour.query.filter(
-        WorkHour.employee_email == username,
-        WorkHour.date == shift_date,
-        _workhour_workplace_filter(wp),
-    ).order_by(WorkHour.id.desc()).first()
-
-
-def _db_upsert_workhour(
-        username: str,
-        date_str: str,
-        *,
-        clock_in=_WORKHOUR_UNSET,
-        clock_out=_WORKHOUR_UNSET,
-        hours=_WORKHOUR_UNSET,
-        pay=_WORKHOUR_UNSET,
-        extras: dict | None = None,
-        workplace_id: str | None = None,
-):
-    if not DATABASE_ENABLED:
-        raise RuntimeError("database mode disabled")
-
-    try:
-        shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-    except Exception as e:
-        raise ValueError(f"invalid workhour date: {date_str}") from e
-
-    wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
-    row = _db_find_workhour(username, date_str, workplace_id=wp)
-    if not row:
-        row = WorkHour(employee_email=username, date=shift_date, workplace=wp, workplace_id=wp)
-        db.session.add(row)
-
-    row.employee_email = username
-    row.date = shift_date
-    row.workplace = wp
-    row.workplace_id = wp
-
-    if clock_in is not _WORKHOUR_UNSET:
-        row.clock_in = clock_in
-    if clock_out is not _WORKHOUR_UNSET:
-        row.clock_out = clock_out
-    if hours is not _WORKHOUR_UNSET and hasattr(row, "hours"):
-        row.hours = Decimal(str(hours)) if hours not in (None, "") else None
-    if pay is not _WORKHOUR_UNSET and hasattr(row, "pay"):
-        row.pay = Decimal(str(pay)) if pay not in (None, "") else None
-
-    if extras:
-        for field, value in extras.items():
-            if hasattr(row, field):
-                setattr(row, field, value)
-
-    db.session.commit()
-    return row
-
-
-def _runtime_workhour_rows():
-    try:
-        return get_workhours_rows()
-    except Exception:
-        return [["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay", "Workplace_ID"]]
-
-
-def _runtime_save_workhour_row(
-        username: str,
-        date_str: str,
-        *,
-        cin=_WORKHOUR_UNSET,
-        cout=_WORKHOUR_UNSET,
-        hours_val=_WORKHOUR_UNSET,
-        pay_val=_WORKHOUR_UNSET,
-        extras: dict | None = None,
-):
-    wp = _session_workplace_id()
-    extras = dict(extras or {})
-
-    if DATABASE_ENABLED:
-        clock_in_dt = _WORKHOUR_UNSET
-        clock_out_dt = _WORKHOUR_UNSET
-        if cin is not _WORKHOUR_UNSET:
-            clock_in_dt = None if cin in (None, "") else datetime.strptime(f"{date_str} {cin}", "%Y-%m-%d %H:%M:%S")
-        if cout is not _WORKHOUR_UNSET:
-            clock_out_dt = None if cout in (None, "") else datetime.strptime(f"{date_str} {cout}", "%Y-%m-%d %H:%M:%S")
-            if clock_in_dt not in (_WORKHOUR_UNSET, None) and clock_out_dt not in (_WORKHOUR_UNSET,
-                                                                                   None) and clock_out_dt < clock_in_dt:
-                clock_out_dt = clock_out_dt + timedelta(days=1)
-        return _db_upsert_workhour(
-            username,
-            date_str,
-            clock_in=clock_in_dt,
-            clock_out=clock_out_dt,
-            hours=hours_val,
-            pay=pay_val,
-            extras=extras,
-            workplace_id=wp,
-        )
-
-    vals = work_sheet.get_all_values()
-    headers = vals[0] if vals else []
-    rownum = _find_workhours_row_by_user_date(vals, username, date_str)
-    if rownum:
-        if cin is not _WORKHOUR_UNSET:
-            work_sheet.update_cell(rownum, COL_IN + 1, "" if cin in (None, "") else cin)
-        if cout is not _WORKHOUR_UNSET:
-            work_sheet.update_cell(rownum, COL_OUT + 1, "" if cout in (None, "") else cout)
-        if hours_val is not _WORKHOUR_UNSET:
-            work_sheet.update_cell(rownum, COL_HOURS + 1, "" if hours_val in (None, "") else str(hours_val))
-        if pay_val is not _WORKHOUR_UNSET:
-            work_sheet.update_cell(rownum, COL_PAY + 1, "" if pay_val in (None, "") else str(pay_val))
-    else:
-        new_row = [
-            username,
-            date_str,
-            "" if cin in (_WORKHOUR_UNSET, None, "") else cin,
-            "" if cout in (_WORKHOUR_UNSET, None, "") else cout,
-            "" if hours_val in (_WORKHOUR_UNSET, None, "") else str(hours_val),
-            "" if pay_val in (_WORKHOUR_UNSET, None, "") else str(pay_val),
-        ]
-        if headers and "Workplace_ID" in headers:
-            wp_idx = headers.index("Workplace_ID")
-            if len(new_row) <= wp_idx:
-                new_row += [""] * (wp_idx + 1 - len(new_row))
-            new_row[wp_idx] = wp
-        if headers and len(new_row) < len(headers):
-            new_row += [""] * (len(headers) - len(new_row))
-        work_sheet.append_row(new_row, value_input_option="USER_ENTERED")
-        vals = work_sheet.get_all_values()
-        headers = vals[0] if vals else []
-        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
-
-    if extras and rownum:
-        def _col(name):
-            return headers.index(name) + 1 if name in headers else None
-
-        updates = []
-        for key, value in extras.items():
-            sheet_key = {
-                "in_lat": "InLat",
-                "in_lon": "InLon",
-                "in_acc": "InAcc",
-                "in_site": "InSite",
-                "in_dist_m": "InDistM",
-                "in_selfie_url": "InSelfieURL",
-                "out_lat": "OutLat",
-                "out_lon": "OutLon",
-                "out_acc": "OutAcc",
-                "out_site": "OutSite",
-                "out_dist_m": "OutDistM",
-                "out_selfie_url": "OutSelfieURL",
-                "workplace_id": "Workplace_ID",
-            }.get(key)
-            c = _col(sheet_key) if sheet_key else None
-            if c:
-                updates.append(
-                    {"range": gspread.utils.rowcol_to_a1(rownum, c), "values": [["" if value is None else value]]})
-        if updates:
-            import copy
-            _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
-    return rownum
-
-
 def get_payroll_rows():
     if not DB_MIGRATION_MODE:
         return payroll_sheet.get_all_values()
@@ -860,14 +744,11 @@ def db_test():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
 
     try:
-        tables = db.engine.table_names() if hasattr(db.engine, "table_names") else []
-        resp = jsonify({"database": "connected", "tables": tables})
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        with app.app_context():
+            tables = db.inspect(db.engine).get_table_names()
+        return {"database": "connected", "tables": tables}
     except Exception as e:
         return {"database": "error", "message": str(e)}, 500
 
@@ -877,14 +758,11 @@ def db_view_employees():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
+    if not _is_sensitive_debug_export_enabled():
+        abort(404)
 
     try:
-        resp = jsonify(_rows_to_dicts(Employee))
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        return jsonify(_rows_to_dicts(Employee, allowed_columns=_DB_DEBUG_ALLOWED_COLUMNS["employees"]))
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
@@ -894,14 +772,11 @@ def db_view_workhours():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
+    if not _is_sensitive_debug_export_enabled():
+        abort(404)
 
     try:
-        resp = jsonify(_rows_to_dicts(WorkHour))
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        return jsonify(_rows_to_dicts(WorkHour, allowed_columns=_DB_DEBUG_ALLOWED_COLUMNS["workhours"]))
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
@@ -911,14 +786,11 @@ def db_view_audit():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
+    if not _is_sensitive_debug_export_enabled():
+        abort(404)
 
     try:
-        resp = jsonify(_rows_to_dicts(AuditLog))
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        return jsonify(_rows_to_dicts(AuditLog, allowed_columns=_DB_DEBUG_ALLOWED_COLUMNS["audit_logs"]))
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
@@ -928,14 +800,11 @@ def db_view_payroll():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
+    if not _is_sensitive_debug_export_enabled():
+        abort(404)
 
     try:
-        resp = jsonify(_rows_to_dicts(PayrollReport))
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        return jsonify(_rows_to_dicts(PayrollReport, allowed_columns=_DB_DEBUG_ALLOWED_COLUMNS["payroll_reports"]))
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
@@ -945,14 +814,12 @@ def db_view_onboarding():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
+    if not _is_sensitive_debug_export_enabled():
+        abort(404)
 
     try:
-        resp = jsonify(_rows_to_dicts(OnboardingRecord))
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        return jsonify(
+            _rows_to_dicts(OnboardingRecord, allowed_columns=_DB_DEBUG_ALLOWED_COLUMNS["onboarding_records"]))
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
@@ -962,14 +829,11 @@ def db_view_locations():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
+    if not _is_sensitive_debug_export_enabled():
+        abort(404)
 
     try:
-        resp = jsonify(_rows_to_dicts(Location))
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        return jsonify(_rows_to_dicts(Location, allowed_columns=_DB_DEBUG_ALLOWED_COLUMNS["locations"]))
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
@@ -979,27 +843,21 @@ def db_view_settings():
     gate = require_sensitive_tools_admin()
     if gate:
         return gate
-
-    if not SENSITIVE_DEBUG_EXPORTS_ENABLED:
-        return {"status": "error", "message": "debug export disabled"}, 404
+    if not _is_sensitive_debug_export_enabled():
+        abort(404)
 
     try:
-        resp = jsonify(_rows_to_dicts(WorkplaceSetting))
-        resp.headers["Cache-Control"] = "no-store"
-        return resp
+        return jsonify(
+            _rows_to_dicts(WorkplaceSetting, allowed_columns=_DB_DEBUG_ALLOWED_COLUMNS["workplace_settings"]))
     except Exception as e:
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/db/upgrade-employees-table", methods=["GET", "POST"])
+@app.post("/db/upgrade-employees-table")
 def db_upgrade_employees_table():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("db_upgrade_employees_table")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Apply employee table upgrade", "/db/upgrade-employees-table")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1044,15 +902,11 @@ def db_upgrade_employees_table():
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/db/upgrade-onboarding-table", methods=["GET", "POST"])
+@app.post("/db/upgrade-onboarding-table")
 def db_upgrade_onboarding_table():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("db_upgrade_onboarding_table")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Apply onboarding table upgrade", "/db/upgrade-onboarding-table")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1113,15 +967,11 @@ def db_upgrade_onboarding_table():
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/import-employees", methods=["GET", "POST"])
+@app.post("/import-employees")
 def import_employees():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("import_employees")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Replace employees table from Google Sheets", "/import-employees")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1131,7 +981,7 @@ def import_employees():
     try:
         Employee.query.delete(synchronize_session=False)
 
-        records = employees_sheet.get_all_records()
+        records = _get_import_sheet("employees").get_all_records()
         count = 0
 
         for rec in records:
@@ -1271,15 +1121,11 @@ def _to_datetime(v):
         return None
 
 
-@app.route("/import-locations", methods=["GET", "POST"])
+@app.post("/import-locations")
 def import_locations():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("import_locations")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Replace locations table from Google Sheets", "/import-locations")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1316,15 +1162,11 @@ def import_locations():
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/import-settings", methods=["GET", "POST"])
+@app.post("/import-settings")
 def import_settings():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("import_settings")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Replace settings table from Google Sheets", "/import-settings")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1334,7 +1176,7 @@ def import_settings():
     try:
         WorkplaceSetting.query.delete(synchronize_session=False)
 
-        records = settings_sheet.get_all_records()
+        records = _get_import_sheet("settings").get_all_records()
         count = 0
 
         for rec in records:
@@ -1359,15 +1201,11 @@ def import_settings():
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/import-audit", methods=["GET", "POST"])
+@app.post("/import-audit")
 def import_audit():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("import_audit")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Replace audit table from Google Sheets", "/import-audit")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1377,7 +1215,7 @@ def import_audit():
     try:
         AuditLog.query.delete(synchronize_session=False)
 
-        records = audit_sheet.get_all_records()
+        records = _get_import_sheet("audit").get_all_records()
         count = 0
 
         for rec in records:
@@ -1403,15 +1241,11 @@ def import_audit():
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/import-payroll", methods=["GET", "POST"])
+@app.post("/import-payroll")
 def import_payroll():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("import_payroll")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Replace payroll table from Google Sheets", "/import-payroll")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1421,7 +1255,7 @@ def import_payroll():
     try:
         PayrollReport.query.delete(synchronize_session=False)
 
-        records = payroll_sheet.get_all_records()
+        records = _get_import_sheet("payroll").get_all_records()
         count = 0
 
         for rec in records:
@@ -1452,15 +1286,11 @@ def import_payroll():
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/import-onboarding", methods=["GET", "POST"])
+@app.post("/import-onboarding")
 def import_onboarding():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("import_onboarding")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Replace onboarding table from Google Sheets", "/import-onboarding")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1470,7 +1300,7 @@ def import_onboarding():
     try:
         OnboardingRecord.query.delete(synchronize_session=False)
 
-        records = onboarding_sheet.get_all_records()
+        records = _get_import_sheet("onboarding").get_all_records()
         count = 0
 
         for rec in records:
@@ -1562,15 +1392,11 @@ def import_onboarding():
         return {"status": "error", "message": str(e)}, 500
 
 
-@app.route("/import-workhours", methods=["GET", "POST"])
+@app.post("/import-workhours")
 def import_workhours():
-    gate = require_sensitive_tools_admin()
+    gate = require_destructive_admin_post("import_workhours")
     if gate:
         return gate
-
-    if request.method == "GET":
-        return _confirm_sensitive_action_page("Replace workhours table from Google Sheets", "/import-workhours")
-    require_csrf()
 
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
@@ -1580,7 +1406,7 @@ def import_workhours():
     try:
         WorkHour.query.delete(synchronize_session=False)
 
-        records = work_sheet.get_all_records()
+        records = _get_import_sheet("workhours").get_all_records()
         count = 0
 
         for rec in records:
@@ -1655,6 +1481,13 @@ onboarding_sheet = None
 settings_sheet = None
 audit_sheet = None
 locations_sheet = None
+raw_employees_sheet = None
+raw_work_sheet = None
+raw_payroll_sheet = None
+raw_onboarding_sheet = None
+raw_settings_sheet = None
+raw_audit_sheet = None
+raw_locations_sheet = None
 
 if ENABLE_GOOGLE_SHEETS:
     if gspread is None or SACredentials is None:
@@ -1788,28 +1621,25 @@ def _save_drive_token(token_dict: dict):
     _ensure_instance_dir()
     payload = json.dumps(token_dict).encode("utf-8")
     f = _fernet()
-    try:
-        if f:
-            payload = f.encrypt(payload)
-        with open(DRIVE_TOKEN_STORE_PATH, "wb") as fp:
-            fp.write(payload)
-    except Exception:
-        # Don't crash app on token write failure; uploads will fail until fixed.
-        pass
+    if not f:
+        raise RuntimeError(
+            "Encrypted Drive token storage is unavailable. Install cryptography and configure token encryption.")
+    with open(DRIVE_TOKEN_STORE_PATH, "wb") as fp:
+        fp.write(f.encrypt(payload))
 
 
 def _load_drive_token() -> dict | None:
-    # 1) Encrypted/plain file
+    # 1) Encrypted file only
     try:
         if os.path.exists(DRIVE_TOKEN_STORE_PATH):
-            blob = open(DRIVE_TOKEN_STORE_PATH, "rb").read()
             f = _fernet()
-            if f:
-                try:
-                    blob = f.decrypt(blob)
-                except InvalidToken:
-                    # Wrong key / corrupted file
-                    return None
+            if not f:
+                return None
+            blob = open(DRIVE_TOKEN_STORE_PATH, "rb").read()
+            try:
+                blob = f.decrypt(blob)
+            except InvalidToken:
+                return None
             return json.loads(blob.decode("utf-8"))
     except Exception:
         pass
@@ -5322,7 +5152,7 @@ def user_in_same_workplace(username: str) -> bool:
     # IMPORTANT: do NOT return on the first match.
     # If usernames exist in multiple workplaces, check ALL matches.
     try:
-        for rec in employees_sheet.get_all_records():
+        for rec in _get_import_sheet("employees").get_all_records():
             rec_user = (rec.get("Username") or "").strip()
             if rec_user != target:
                 continue
@@ -5439,23 +5269,21 @@ def parse_bool(v) -> bool:
 
 
 def escape(s: str) -> str:
-    return ((s or "")
-            .replace("&", "&amp;")
-            .replace("<", "&lt;")
-            .replace(">", "&gt;")
-            .replace('"', "&quot;")
-            .replace("'", "&#x27;"))
+    return html.escape(str(s or ""), quote=True)
 
 
 def linkify(url: str) -> str:
-    u = (url or "").strip()
+    u = str(url or "").strip()
     if not u:
         return ""
     p = urlparse(u)
     if p.scheme not in ("http", "https"):
         return ""
     uesc = escape(u)
-    return f"<a href='{uesc}' target='_blank' rel='noopener noreferrer' style='color:var(--navy);font-weight:600;'>Open</a>"
+    return (
+        f'<a href="{uesc}" target="_blank" rel="noopener noreferrer" '
+        f'style="color:var(--navy);font-weight:600;">Open</a>'
+    )
 
 
 # ================= GEOLOCATION (GEOFENCE) =================
@@ -5473,8 +5301,6 @@ WORKHOURS_GEO_HEADERS = [
 
 
 def _ensure_workhours_geo_headers():
-    if not SHEETS_RUNTIME_ENABLED or work_sheet is None:
-        return
     try:
         vals = work_sheet.get_all_values()
         if not vals:
@@ -5665,14 +5491,47 @@ def _get_site_config(site_name: str) -> dict | None:
     return sites[0] if sites else None
 
 
+def _sanitize_clock_geo(lat_v, lon_v, acc_v):
+    if lat_v is None or lon_v is None:
+        return lat_v, lon_v, acc_v
+    lat_v = float(lat_v)
+    lon_v = float(lon_v)
+    if not (-90.0 <= lat_v <= 90.0) or not (-180.0 <= lon_v <= 180.0):
+        raise RuntimeError("Invalid location coordinates.")
+    if acc_v is not None:
+        acc_v = float(acc_v)
+        if acc_v < 0:
+            raise RuntimeError("Invalid location accuracy.")
+        if acc_v > MAX_CLOCK_LOCATION_ACCURACY_M:
+            raise RuntimeError(
+                f"Location accuracy is too low ({int(acc_v)}m). Move to an open area and try again."
+            )
+        acc_v = round(acc_v, 2)
+    return round(lat_v, 8), round(lon_v, 8), acc_v
+
+
+def _validate_recent_clock_capture(captured_at_raw: str, now_dt: datetime):
+    raw = (captured_at_raw or "").strip()
+    if not raw:
+        raise RuntimeError("Fresh location capture is required. Please try again.")
+    try:
+        ts = float(raw)
+    except Exception as exc:
+        raise RuntimeError("Invalid location capture timestamp.") from exc
+    if ts > 1e12:
+        ts = ts / 1000.0
+    age = abs(now_dt.timestamp() - ts)
+    if age > MAX_CLOCK_LOCATION_AGE_S:
+        raise RuntimeError("Location capture expired. Please try again.")
+
+
 def _validate_user_location(username: str, lat: float | None, lon: float | None, acc_m: float | None = None) -> tuple[
     bool, dict, float]:
     """Returns (ok, site_cfg, distance_m).
 
     Behavior:
-      - If employee has assigned site(s): validate against those sites (passes if inside ANY site radius).
-      - Fallback (no assigned site): validate against ANY active site (passes if inside ANY active site radius),
-        choosing the nearest site as the 'matched' one.
+      - If employee has assigned site(s): validate against those sites (passes if inside ANY assigned site radius).
+      - If no assigned site exists: fail closed. Clocking requires an explicit site assignment.
     """
     sites = _get_employee_sites(username)
     active_sites = _get_active_locations()
@@ -5687,6 +5546,8 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None,
         return False, cfg, 0.0
 
     latf, lonf = float(lat), float(lon)
+    if not (-90.0 <= latf <= 90.0 and -180.0 <= lonf <= 180.0):
+        raise RuntimeError("Invalid location data received. Please refresh and try again.")
 
     # GPS accuracy can be noisy (especially desktop / Wi‑Fi positioning).
     # If provided, allow a small uncertainty buffer so users don't get falsely blocked.
@@ -5694,6 +5555,11 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None,
         acc_buf = float(acc_m) if acc_m is not None else 0.0
         if acc_buf < 0:
             acc_buf = 0.0
+        if acc_buf > MAX_CLOCK_LOCATION_ACCURACY_M:
+            raise RuntimeError(
+                "Location accuracy is too low to verify this clock action. Move closer to the site and try again.")
+    except RuntimeError:
+        raise
     except Exception:
         acc_buf = 0.0
 
@@ -5707,20 +5573,20 @@ def _validate_user_location(username: str, lat: float | None, lon: float | None,
         pref = sites[0] if sites else "Unknown"
         return False, {"name": pref, "lat": 0.0, "lon": 0.0, "radius": 0.0}, 0.0
 
-    # Build candidate list
+    # Build candidate list from explicitly assigned sites only.
+    if not sites:
+        cfg = active_sites[0] if active_sites else {"name": "Unknown", "lat": 0.0, "lon": 0.0, "radius": 0.0}
+        return False, cfg, 0.0
+
     candidates = []
-    if sites:
-        # only those sites (if found/active)
-        for sname in sites:
-            cfg = _get_site_config(sname)
-            if cfg:
-                candidates.append(cfg)
-        # If assigned sites exist but none are active/found, fall back to all active
-        if not candidates:
-            candidates = active_sites[:]
-    else:
-        # fallback: any active site
-        candidates = active_sites[:]
+    for sname in sites:
+        cfg = _get_site_config(sname)
+        if cfg:
+            candidates.append(cfg)
+
+    if not candidates:
+        pref = sites[0] if sites else "Unknown"
+        return False, {"name": pref, "lat": 0.0, "lon": 0.0, "radius": 0.0}, 0.0
 
     best_cfg = candidates[0]
     best_dist = _haversine_m(latf, lonf, best_cfg["lat"], best_cfg["lon"])
@@ -5784,26 +5650,73 @@ def _get_employee_db_row(username: str, workplace_id: str | None = None):
     return rec
 
 
+def _ensure_employee_security_headers():
+    if DB_MIGRATION_MODE or not employees_sheet:
+        return
+    try:
+        vals = employees_sheet.get_all_values()
+        if not vals:
+            return
+        headers = vals[0]
+        missing = [h for h in ["ActiveSessionToken"] if h not in headers]
+        if not missing:
+            return
+        new_headers = headers + missing
+        end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
+        employees_sheet.update(f"A1:{end_col}1", [new_headers])
+    except Exception:
+        return
+
+
+def _sheet_employee_row_info(username: str, workplace_id: str | None = None):
+    _ensure_employee_security_headers()
+    target_user = (username or "").strip()
+    target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    vals = employees_sheet.get_all_values() if employees_sheet else []
+    if not vals:
+        return None, None, None, None
+    headers = vals[0]
+    if "Username" not in headers:
+        return vals, headers, None, None
+    ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+    tok_col = headers.index("ActiveSessionToken") if "ActiveSessionToken" in headers else None
+    info = {"ucol": ucol, "wp_col": wp_col, "tok_col": tok_col}
+    for i in range(1, len(vals)):
+        row = vals[i]
+        row_user = (row[ucol] if len(row) > ucol else "").strip()
+        row_wp = ((row[wp_col] if (wp_col is not None and len(row) > wp_col) else "").strip() or "default")
+        if row_user == target_user and row_wp == target_wp:
+            return vals, headers, i + 1, info
+    return vals, headers, None, info
+
+
 def _issue_active_session_token(username: str, workplace_id: str | None = None):
     target_user = (username or "").strip()
     target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
     token = secrets.token_urlsafe(32)
 
-    if not DATABASE_ENABLED:
-        return token
+    if DB_MIGRATION_MODE:
+        rec = _get_employee_db_row(target_user, target_wp)
+        if not rec:
+            return None
+        try:
+            rec.active_session_token = token
+            rec.workplace = target_wp
+            rec.workplace_id = target_wp
+            db.session.commit()
+            return token
+        except Exception:
+            db.session.rollback()
+            return None
 
-    rec = _get_employee_db_row(target_user, target_wp)
-    if not rec:
+    vals, headers, rownum, info = _sheet_employee_row_info(target_user, target_wp)
+    if not rownum or not info or info.get("tok_col") is None:
         return None
-
     try:
-        rec.active_session_token = token
-        rec.workplace = target_wp
-        rec.workplace_id = target_wp
-        db.session.commit()
+        employees_sheet.update_cell(rownum, info["tok_col"] + 1, token)
         return token
     except Exception:
-        db.session.rollback()
         return None
 
 
@@ -5811,23 +5724,38 @@ def _clear_active_session_token(username: str, workplace_id: str | None = None, 
     target_user = (username or "").strip()
     target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
 
-    if not target_user or not DATABASE_ENABLED:
+    if not target_user:
         return False
 
-    rec = _get_employee_db_row(target_user, target_wp)
-    if not rec:
-        return False
+    if DB_MIGRATION_MODE:
+        rec = _get_employee_db_row(target_user, target_wp)
+        if not rec:
+            return False
+        current = str(getattr(rec, "active_session_token", "") or "")
+        if expected_token and current and current != expected_token:
+            return False
+        try:
+            rec.active_session_token = None
+            db.session.commit()
+            return True
+        except Exception:
+            db.session.rollback()
+            return False
 
-    current = str(getattr(rec, "active_session_token", "") or "")
+    vals, headers, rownum, info = _sheet_employee_row_info(target_user, target_wp)
+    if not rownum or not info or info.get("tok_col") is None:
+        return False
+    current = ""
+    if vals and len(vals) >= rownum:
+        row = vals[rownum - 1]
+        tok_col = info["tok_col"]
+        current = (row[tok_col] if len(row) > tok_col else "").strip()
     if expected_token and current and current != expected_token:
         return False
-
     try:
-        rec.active_session_token = None
-        db.session.commit()
+        employees_sheet.update_cell(rownum, info["tok_col"] + 1, "")
         return True
     except Exception:
-        db.session.rollback()
         return False
 
 
@@ -5843,24 +5771,37 @@ def _validate_active_session():
     if not username:
         return False, ""
 
-    if not DATABASE_ENABLED:
-        return True, ""
-
     workplace_id = (session.get("workplace_id") or "default").strip() or "default"
     session_token = str(session.get("active_session_token") or "")
     if not session_token:
         return False, "Your session has expired. Please log in again."
 
-    rec = _get_employee_db_row(username, workplace_id)
-    if not rec:
+    if DB_MIGRATION_MODE:
+        rec = _get_employee_db_row(username, workplace_id)
+        if not rec:
+            return False, "Your account is no longer available. Please log in again."
+        active_raw = str(getattr(rec, "active", "TRUE") or "TRUE").strip().lower()
+        if active_raw in ("false", "0", "no", "n", "off"):
+            return False, "Your account is inactive. Please log in again."
+        db_token = str(getattr(rec, "active_session_token", "") or "")
+        if not db_token or db_token != session_token:
+            return False, "Your account was signed in on another device. Please log in again."
+        return True, ""
+
+    vals, headers, rownum, info = _sheet_employee_row_info(username, workplace_id)
+    if not rownum:
         return False, "Your account is no longer available. Please log in again."
 
-    active_raw = str(getattr(rec, "active", "TRUE") or "TRUE").strip().lower()
+    row = vals[rownum - 1] if vals and len(vals) >= rownum else []
+    active_col = headers.index("Active") if headers and "Active" in headers else None
+    active_raw = ((row[active_col] if active_col is not None and len(
+        row) > active_col else "TRUE") or "TRUE").strip().lower()
     if active_raw in ("false", "0", "no", "n", "off"):
         return False, "Your account is inactive. Please log in again."
 
-    db_token = str(getattr(rec, "active_session_token", "") or "")
-    if not db_token or db_token != session_token:
+    tok_col = info.get("tok_col") if info else None
+    sheet_token = ((row[tok_col] if tok_col is not None and len(row) > tok_col else "") or "").strip()
+    if not sheet_token or sheet_token != session_token:
         return False, "Your account was signed in on another device. Please log in again."
 
     return True, ""
@@ -5902,21 +5843,19 @@ def require_sensitive_tools_admin():
     return None
 
 
-def _confirm_sensitive_action_page(action_title: str, action_path: str, details: str = ""):
-    csrf = get_csrf()
-    detail_html = f"<p class='sub'>{escape(details)}</p>" if details else ""
-    content = f"""
-      <div class="card" style="padding:16px; max-width:720px;">
-        <h2>{escape(action_title)}</h2>
-        {detail_html}
-        <form method="POST" action="{escape(action_path)}">
-          <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <button class="btnSoft" type="submit">Confirm</button>
-        </form>
-      </div>
-    """
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", session.get("role", "master_admin"), content))
+def require_destructive_admin_post(action_name: str):
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+    require_csrf()
+    confirm = (request.form.get("confirm") or "").strip()
+    if confirm != DESTRUCTIVE_ADMIN_CONFIRM_VALUE:
+        return {
+            "status": "error",
+            "message": f"Confirmation required. Submit the POST form field confirm={DESTRUCTIVE_ADMIN_CONFIRM_VALUE!r}.",
+            "action": action_name,
+        }, 400
+    return None
 
 
 def normalized_clock_in_time(now_dt: datetime, early_access: bool) -> str:
@@ -6115,6 +6054,42 @@ def get_employee_display_name(username: str) -> str:
 
 
 def set_employee_field(username: str, field: str, value: str):
+    current_wp = _session_workplace_id()
+
+    if DB_MIGRATION_MODE:
+        try:
+            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
+            if not db_row:
+                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+            if not db_row:
+                return False
+
+            if field == "Site" and hasattr(db_row, "site"):
+                db_row.site = value
+            elif field == "Role" and hasattr(db_row, "role"):
+                db_row.role = value
+            elif field == "Rate" and hasattr(db_row, "rate"):
+                db_row.rate = Decimal(str(value)) if str(value).strip() != "" else None
+            elif field == "EarlyAccess" and hasattr(db_row, "early_access"):
+                db_row.early_access = value
+            elif field == "Active" and hasattr(db_row, "active"):
+                db_row.active = value
+            elif field == "Workplace_ID":
+                if hasattr(db_row, "workplace_id"):
+                    db_row.workplace_id = value
+                if hasattr(db_row, "workplace"):
+                    db_row.workplace = value
+            elif field == "OnboardingCompleted" and hasattr(db_row, "onboarding_completed"):
+                db_row.onboarding_completed = value
+            else:
+                return False
+
+            db.session.commit()
+            return True
+        except Exception:
+            db.session.rollback()
+            return False
+
     vals = employees_sheet.get_all_values()
     if not vals:
         return False
@@ -6126,13 +6101,11 @@ def set_employee_field(username: str, field: str, value: str):
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     fcol = headers.index(field) + 1
     rownum = None
-    current_wp = _session_workplace_id()
 
     for i in range(1, len(vals)):
         row = vals[i]
         row_user = (row[ucol] if len(row) > ucol else "").strip()
         row_wp = ((row[wp_col] if (wp_col is not None and len(row) > wp_col) else "").strip() or "default")
-
         if row_user == username and row_wp == current_wp:
             rownum = i + 1
             break
@@ -6141,43 +6114,31 @@ def set_employee_field(username: str, field: str, value: str):
         return False
 
     employees_sheet.update_cell(rownum, fcol, value)
+    return True
+
+
+def set_employee_first_last(username: str, first: str, last: str):
+    current_wp = _session_workplace_id()
 
     if DB_MIGRATION_MODE:
         try:
             db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
             if not db_row:
                 db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
-
-            if db_row:
-                if field == "Site" and hasattr(db_row, "site"):
-                    db_row.site = value
-                elif field == "Role" and hasattr(db_row, "role"):
-                    db_row.role = value
-                elif field == "Rate" and hasattr(db_row, "rate"):
-                    try:
-                        db_row.rate = Decimal(str(value)) if str(value).strip() != "" else None
-                    except Exception:
-                        pass
-                elif field == "EarlyAccess" and hasattr(db_row, "early_access"):
-                    db_row.early_access = value
-                elif field == "Active" and hasattr(db_row, "active"):
-                    db_row.active = value
-                elif field == "Workplace_ID":
-                    if hasattr(db_row, "workplace_id"):
-                        db_row.workplace_id = value
-                    if hasattr(db_row, "workplace"):
-                        db_row.workplace = value
-                elif field == "OnboardingCompleted" and hasattr(db_row, "onboarding_completed"):
-                    db_row.onboarding_completed = value
-
-                db.session.commit()
+            if not db_row:
+                return
+            db_row.first_name = first or ""
+            db_row.last_name = last or ""
+            full_name = (" ".join([first or "", last or ""])).strip()
+            if full_name:
+                db_row.name = full_name
+            db_row.workplace = current_wp
+            db_row.workplace_id = current_wp
+            db.session.commit()
         except Exception:
             db.session.rollback()
+        return
 
-    return True
-
-
-def set_employee_first_last(username: str, first: str, last: str):
     vals = employees_sheet.get_all_values()
     if not vals:
         return
@@ -6187,21 +6148,16 @@ def set_employee_first_last(username: str, first: str, last: str):
 
     ucol = headers.index("Username")
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-
     fn_col = headers.index("FirstName") + 1 if "FirstName" in headers else None
     ln_col = headers.index("LastName") + 1 if "LastName" in headers else None
     if not fn_col and not ln_col:
         return
 
-    current_wp = _session_workplace_id()
-
     rownum = None
     for i in range(1, len(vals)):
         row = vals[i]
-
         row_user = row[ucol].strip() if len(row) > ucol else ""
         row_wp = (row[wp_col].strip() if (wp_col is not None and len(row) > wp_col) else "") or "default"
-
         if row_user == username and row_wp == current_wp:
             rownum = i + 1
             break
@@ -6212,23 +6168,22 @@ def set_employee_first_last(username: str, first: str, last: str):
         if ln_col:
             employees_sheet.update_cell(rownum, ln_col, last or "")
 
-    if DB_MIGRATION_MODE:
-        try:
-            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
-            if not db_row:
-                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
 
-            if db_row:
-                db_row.first_name = first or ""
-                db_row.last_name = last or ""
-                full_name = (" ".join([first or "", last or ""])).strip()
-                if full_name:
-                    db_row.name = full_name
-                db_row.workplace = current_wp
-                db_row.workplace_id = current_wp
-                db.session.commit()
-        except Exception:
-            db.session.rollback()
+def _allowed_assignable_roles_for_actor(actor_role: str) -> set[str]:
+    actor = (actor_role or "").strip().lower()
+    if actor == "master_admin":
+        return {"employee", "admin"}
+    if actor == "admin":
+        return {"employee"}
+    return {"employee"}
+
+
+def _sanitize_requested_role(raw_role: str, actor_role: str) -> str | None:
+    role = (raw_role or "").strip().lower()
+    if not role:
+        return None
+    allowed = _allowed_assignable_roles_for_actor(actor_role)
+    return role if role in allowed else None
 
 
 def update_employee_password(username: str, new_password: str, workplace_id: str | None = None) -> bool:
@@ -6239,46 +6194,44 @@ def update_employee_password(username: str, new_password: str, workplace_id: str
     if not target_user:
         return False
 
-    sheet_ok = False
-    try:
-        vals = employees_sheet.get_all_values() if employees_sheet else []
-        if vals:
-            headers = vals[0]
-            if "Username" in headers and "Password" in headers:
-                ucol = headers.index("Username")
-                wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-                pcol = headers.index("Password") + 1
-
-                for i in range(1, len(vals)):
-                    row = vals[i]
-                    row_user = row[ucol].strip() if len(row) > ucol else ""
-                    row_wp = (row[wp_col].strip() if (wp_col is not None and len(row) > wp_col) else "") or "default"
-
-                    if row_user == target_user and row_wp == current_wp:
-                        employees_sheet.update_cell(i + 1, pcol, hashed)
-                        sheet_ok = True
-                        break
-    except Exception:
-        sheet_ok = False
-
-    db_ok = False
-    try:
-        db_row = Employee.query.filter_by(username=target_user, workplace_id=current_wp).first()
-        if not db_row:
-            db_row = Employee.query.filter_by(email=target_user, workplace_id=current_wp).first()
-
-        if db_row:
+    if DB_MIGRATION_MODE:
+        try:
+            db_row = Employee.query.filter_by(username=target_user, workplace_id=current_wp).first()
+            if not db_row:
+                db_row = Employee.query.filter_by(email=target_user, workplace_id=current_wp).first()
+            if not db_row:
+                return False
             db_row.password = hashed
             db_row.active_session_token = None
             db_row.workplace = current_wp
             db_row.workplace_id = current_wp
             db.session.commit()
-            db_ok = True
-    except Exception:
-        db.session.rollback()
-        db_ok = False
+            return True
+        except Exception:
+            db.session.rollback()
+            return False
 
-    return sheet_ok or db_ok
+    vals = employees_sheet.get_all_values() if employees_sheet else []
+    if not vals:
+        return False
+    headers = vals[0]
+    if "Username" not in headers or "Password" not in headers:
+        return False
+    ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+    pcol = headers.index("Password") + 1
+    tok_col = headers.index("ActiveSessionToken") + 1 if "ActiveSessionToken" in headers else None
+
+    for i in range(1, len(vals)):
+        row = vals[i]
+        row_user = row[ucol].strip() if len(row) > ucol else ""
+        row_wp = (row[wp_col].strip() if (wp_col is not None and len(row) > wp_col) else "") or "default"
+        if row_user == target_user and row_wp == current_wp:
+            employees_sheet.update_cell(i + 1, pcol, hashed)
+            if tok_col:
+                employees_sheet.update_cell(i + 1, tok_col, "")
+            return True
+    return False
 
 
 @app.post("/admin/employees/reset-password")
@@ -6746,37 +6699,40 @@ def onboarding_details_block(username: str) -> str:
     fields = [
         ("First name", "FirstName"),
         ("Last name", "LastName"),
-        ("Birth date", "BirthDate"),
         ("Phone", "PhoneNumber"),
         ("Email", "Email"),
-        ("Street address", "StreetAddress"),
-        ("City", "City"),
-        ("Postcode", "Postcode"),
         ("Emergency contact", "EmergencyContactName"),
         ("Emergency phone", "EmergencyContactPhoneNumber"),
-        ("Medical condition", "MedicalCondition"),
-        ("Medical details", "MedicalDetails"),
         ("Position", "Position"),
         ("CSCS number", "CSCSNumber"),
         ("CSCS expiry", "CSCSExpiryDate"),
         ("Employment type", "EmploymentType"),
         ("Right to work UK", "RightToWorkUK"),
-        ("National Insurance", "NationalInsurance"),
-        ("UTR", "UTR"),
         ("Start date", "StartDate"),
-        ("Bank account", "BankAccountNumber"),
-        ("Sort code", "SortCode"),
         ("Account holder", "AccountHolderName"),
         ("Company trading name", "CompanyTradingName"),
         ("Company reg no.", "CompanyRegistrationNo"),
         ("Date of contract", "DateOfContract"),
-        ("Site address", "SiteAddress"),
         ("Last saved", "SubmittedAt"),
     ]
 
+    def _masked_value(key: str, raw: str) -> str:
+        val = (raw or "").strip()
+        if not val:
+            return ""
+        sensitive_full = {"BirthDate", "StreetAddress", "City", "Postcode", "MedicalCondition", "MedicalDetails",
+                          "SiteAddress"}
+        sensitive_last4 = {"NationalInsurance", "UTR", "BankAccountNumber", "SortCode"}
+        if key in sensitive_full:
+            return "[Hidden]"
+        if key in sensitive_last4:
+            tail = val[-4:] if len(val) >= 4 else val
+            return f"••••{tail}"
+        return val
+
     rows = []
     for label, key in fields:
-        val = (rec.get(key, "") or "").strip()
+        val = _masked_value(key, rec.get(key, ""))
         if val:
             rows.append(f"<tr><th style='width:260px;'>{escape(label)}</th><td>{escape(val)}</td></tr>")
 
@@ -6815,7 +6771,7 @@ _login_attempts = {}  # ip -> [timestamps]
 
 
 def _client_ip():
-    # ProxyFix already normalizes request.remote_addr from trusted upstreams.
+    # ProxyFix has already normalized the trusted upstream address into remote_addr.
     return (request.remote_addr or "").strip() or "unknown"
 
 
@@ -7259,14 +7215,14 @@ def login():
                     _login_rate_limit_hit(ip)
                     log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="",
                               details="Inactive account login attempt")
-                    msg = "Account is inactive. Ask admin to reactivate it."
+                    msg = "Invalid login"
                 else:
                     _login_rate_limit_clear(ip)
 
                     migrate_password_if_plain(username, ok_user.get("Password", ""), password,
                                               workplace_id=workplace_id)
                     active_session_token = _issue_active_session_token(username, workplace_id)
-                    if DB_MIGRATION_MODE and not active_session_token:
+                    if not active_session_token:
                         log_audit("LOGIN_SESSION_FAIL", actor=ip, username=username, date_str="",
                                   details=f"Could not start active session workplace={workplace_id}")
                         msg = "Could not start secure session. Please try again."
@@ -7826,6 +7782,9 @@ def clock_page():
             acc_v = _read_float("acc")
 
             try:
+                if lat_v is not None and lon_v is not None:
+                    _validate_recent_clock_capture(request.form.get("geo_ts"), now)
+                    lat_v, lon_v, acc_v = _sanitize_clock_geo(lat_v, lon_v, acc_v)
                 ok_loc, cfg, dist_m = _validate_user_location(username, lat_v, lon_v, acc_v)
 
                 if not ok_loc:
@@ -7837,7 +7796,7 @@ def clock_page():
                         msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
                     msg_class = "message error"
                 else:
-                    rows = _runtime_workhour_rows()
+                    rows = work_sheet.get_all_values()
 
                     if action == "in":
                         open_shift = find_open_shift(rows, username)
@@ -7855,23 +7814,79 @@ def clock_page():
                                                              now) if CLOCK_SELFIE_REQUIRED else ""
                             cin = normalized_clock_in_time(now, early_access)
 
-                            _runtime_save_workhour_row(
-                                username,
-                                today_str,
-                                cin=cin,
-                                cout="",
-                                hours_val=None,
-                                pay_val=None,
-                                extras={
-                                    "in_lat": lat_v,
-                                    "in_lon": lon_v,
-                                    "in_acc": acc_v,
-                                    "in_site": cfg.get("name", ""),
-                                    "in_dist_m": int(dist_m),
-                                    "in_selfie_url": selfie_url,
-                                    "workplace_id": _session_workplace_id(),
-                                },
-                            )
+                            headers_now = work_sheet.row_values(1)
+                            new_row = [username, today_str, cin, "", "", ""]
+
+                            if headers_now and "Workplace_ID" in headers_now:
+                                wp_idx = headers_now.index("Workplace_ID")
+                                if len(new_row) <= wp_idx:
+                                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                                new_row[wp_idx] = _session_workplace_id()
+
+                            if headers_now and len(new_row) < len(headers_now):
+                                new_row += [""] * (len(headers_now) - len(new_row))
+
+                            _gs_write_with_retry(
+                                lambda: work_sheet.append_row(new_row, value_input_option="USER_ENTERED"))
+
+                            vals = work_sheet.get_all_values()
+                            rownum = _find_workhours_row_by_user_date(vals, username, today_str)
+                            if rownum:
+                                headers = vals[0] if vals else []
+
+                                def _col(name):
+                                    return headers.index(name) + 1 if name in headers else None
+
+                                import copy
+
+                                updates = []
+                                for k, v in [
+                                    ("InLat", lat_v), ("InLon", lon_v), ("InAcc", acc_v),
+                                    ("InSite", cfg.get("name", "")), ("InDistM", int(dist_m)),
+                                    ("InSelfieURL", selfie_url), ("Workplace_ID", _session_workplace_id()),
+                                ]:
+                                    c = _col(k)
+                                    if c:
+                                        updates.append({
+                                            "range": gspread.utils.rowcol_to_a1(rownum, c),
+                                            "values": [["" if v is None else v]],
+                                        })
+
+                                if updates:
+                                    _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+
+                                if DB_MIGRATION_MODE:
+                                    try:
+                                        shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
+                                        clock_in_dt = datetime.strptime(f"{today_str} {cin}", "%Y-%m-%d %H:%M:%S")
+
+                                        db_row = WorkHour.query.filter(
+                                            WorkHour.employee_email == username,
+                                            WorkHour.date == shift_date,
+                                            or_(WorkHour.workplace_id == _session_workplace_id(),
+                                                WorkHour.workplace == _session_workplace_id()),
+                                        ).order_by(WorkHour.id.desc()).first()
+
+                                        if db_row:
+                                            db_row.clock_in = clock_in_dt
+                                            db_row.clock_out = None
+                                            db_row.in_selfie_url = selfie_url
+                                        else:
+                                            db.session.add(
+                                                WorkHour(
+                                                    employee_email=username,
+                                                    date=shift_date,
+                                                    clock_in=clock_in_dt,
+                                                    clock_out=None,
+                                                    workplace=_session_workplace_id(),
+                                                    workplace_id=_session_workplace_id(),
+                                                    in_selfie_url=selfie_url,
+                                                )
+                                            )
+
+                                        db.session.commit()
+                                    except Exception:
+                                        db.session.rollback()
 
                             if (not early_access) and (now.time() < CLOCKIN_EARLIEST):
                                 msg = f"Clocked in successfully (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
@@ -7896,25 +7911,74 @@ def clock_page():
                             raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
                             hours_rounded = round(_apply_unpaid_break(raw_hours), 2)
                             pay = round(hours_rounded * float(rate), 2)
+
+                            sheet_row = i + 1
                             cout = now.strftime("%H:%M:%S")
 
-                            _runtime_save_workhour_row(
-                                username,
-                                d,
-                                cin=t,
-                                cout=cout,
-                                hours_val=hours_rounded,
-                                pay_val=pay,
-                                extras={
-                                    "out_lat": lat_v,
-                                    "out_lon": lon_v,
-                                    "out_acc": acc_v,
-                                    "out_site": cfg.get("name", ""),
-                                    "out_dist_m": int(dist_m),
-                                    "out_selfie_url": selfie_url,
-                                    "workplace_id": _session_workplace_id(),
-                                },
-                            )
+                            updates = [
+                                {
+                                    "range": f"{gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1)}:{gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1)}",
+                                    "values": [[cout, hours_rounded, pay]],
+                                }
+                            ]
+
+                            vals = work_sheet.get_all_values()
+                            headers = vals[0] if vals else []
+
+                            def _col(name):
+                                return headers.index(name) + 1 if name in headers else None
+
+                            for k, v in [
+                                ("OutLat", lat_v), ("OutLon", lon_v), ("OutAcc", acc_v),
+                                ("OutSite", cfg.get("name", "")), ("OutDistM", int(dist_m)),
+                                ("OutSelfieURL", selfie_url),
+                            ]:
+                                c = _col(k)
+                                if c:
+                                    updates.append({
+                                        "range": gspread.utils.rowcol_to_a1(sheet_row, c),
+                                        "values": [["" if v is None else str(v)]],
+                                    })
+
+                            import copy
+                            if updates:
+                                _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+
+                            if DB_MIGRATION_MODE:
+                                try:
+                                    shift_date = datetime.strptime(d, "%Y-%m-%d").date()
+                                    clock_out_dt = datetime.strptime(f"{d} {cout}", "%Y-%m-%d %H:%M:%S")
+                                    clock_in_dt_check = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+
+                                    if clock_out_dt < clock_in_dt_check:
+                                        clock_out_dt = clock_out_dt + timedelta(days=1)
+
+                                    db_row = WorkHour.query.filter(
+                                        WorkHour.employee_email == username,
+                                        WorkHour.date == shift_date,
+                                        or_(WorkHour.workplace_id == _session_workplace_id(),
+                                            WorkHour.workplace == _session_workplace_id()),
+                                    ).order_by(WorkHour.id.desc()).first()
+
+                                    if db_row:
+                                        db_row.clock_out = clock_out_dt
+                                        db_row.out_selfie_url = selfie_url
+                                    else:
+                                        db.session.add(
+                                            WorkHour(
+                                                employee_email=username,
+                                                date=shift_date,
+                                                clock_in=None,
+                                                clock_out=clock_out_dt,
+                                                workplace=_session_workplace_id(),
+                                                workplace_id=_session_workplace_id(),
+                                                out_selfie_url=selfie_url,
+                                            )
+                                        )
+
+                                    db.session.commit()
+                                except Exception:
+                                    db.session.rollback()
 
                             msg = f"Clocked out successfully • {cfg['name']} ({int(dist_m)}m) • Total today: {hours_rounded:.2f}h"
 
@@ -7931,7 +7995,7 @@ def clock_page():
                     msg_class = "message error"
 
     # Active shift timer
-    rows2 = _runtime_workhour_rows()
+    rows2 = work_sheet.get_all_values()
     osf2 = find_open_shift(rows2, username)
     active_start_iso = ""
     active_start_label = ""
@@ -8054,6 +8118,7 @@ def clock_page():
   <input type="hidden" name="lat" id="geoLat" value="">
   <input type="hidden" name="lon" id="geoLon" value="">
   <input type="hidden" name="acc" id="geoAcc" value="">
+  <input type="hidden" name="geo_ts" id="geoTs" value="">
   <input type="hidden" name="selfie_data" id="selfieData" value="">
 
   <button class="btn btnIn" id="btnClockIn" type="button">Clock In</button>
@@ -8075,6 +8140,7 @@ def clock_page():
           const latEl = document.getElementById("geoLat");
           const lonEl = document.getElementById("geoLon");
           const accEl = document.getElementById("geoAcc");
+          const geoTsEl = document.getElementById("geoTs");
 
           const btnIn = document.getElementById("btnClockIn");
           const btnOut = document.getElementById("btnClockOut");
@@ -8238,6 +8304,7 @@ def clock_page():
               latEl.value = lat;
               lonEl.value = lon;
               accEl.value = acc;
+              geoTsEl.value = String(Date.now());
 
               updateStatus(lat, lon, acc);
               updateYouMarker(lat, lon);
@@ -8326,7 +8393,7 @@ def my_times():
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
 
-    rows = _runtime_workhour_rows()
+    rows = work_sheet.get_all_values()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
@@ -10010,6 +10077,88 @@ def admin_save_shift():
     hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
     pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
 
+    auto_calc = recalc or (cin and cout and hours_in == "" and pay_in == "")
+    if cin and cout and auto_calc:
+        computed = _compute_hours_from_times(date_str, cin, cout)
+        if computed is not None:
+            hours_val = computed
+            pay_val = round(computed * rate, 2)
+
+    if hours_in != "" and pay_in == "":
+        pay_val = round(safe_float(hours_in, 0.0) * rate, 2)
+
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            db_row = WorkHour.query.filter_by(
+                employee_email=username,
+                date=shift_date,
+                workplace=_session_workplace_id(),
+            ).order_by(WorkHour.id.desc()).first()
+            if not db_row:
+                db_row = WorkHour(
+                    employee_email=username,
+                    date=shift_date,
+                    workplace=_session_workplace_id(),
+                    workplace_id=_session_workplace_id(),
+                )
+                db.session.add(db_row)
+
+            clock_in_dt = None
+            clock_out_dt = None
+            if cin:
+                if len(cin.split(":")) == 2:
+                    cin = cin + ":00"
+                clock_in_dt = datetime.strptime(f"{date_str} {cin}", "%Y-%m-%d %H:%M:%S")
+            if cout:
+                if len(cout.split(":")) == 2:
+                    cout = cout + ":00"
+                clock_out_dt = datetime.strptime(f"{date_str} {cout}", "%Y-%m-%d %H:%M:%S")
+                if clock_in_dt and clock_out_dt < clock_in_dt:
+                    clock_out_dt = clock_out_dt + timedelta(days=1)
+
+            db_row.clock_in = clock_in_dt
+            db_row.clock_out = clock_out_dt
+            db_row.workplace = _session_workplace_id()
+            db_row.workplace_id = _session_workplace_id()
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return make_response(f"Could not save shift: {e}", 500)
+        return redirect(request.referrer or "/admin/payroll")
+
+    hours_cell = "" if hours_val is None else str(hours_val)
+    pay_cell = "" if pay_val is None else str(pay_val)
+
+    try:
+        vals = work_sheet.get_all_values()
+        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+        if rownum:
+            work_sheet.update_cell(rownum, COL_IN + 1, cin)
+            work_sheet.update_cell(rownum, COL_OUT + 1, cout)
+            work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
+            work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
+        else:
+            headers = vals[0] if vals else []
+            new_row = [username, date_str, cin, cout, hours_cell, pay_cell]
+            if headers and "Workplace_ID" in headers:
+                wp_idx = headers.index("Workplace_ID")
+                if len(new_row) <= wp_idx:
+                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                new_row[wp_idx] = _session_workplace_id()
+            if headers and len(new_row) < len(headers):
+                new_row += [""] * (len(headers) - len(new_row))
+            work_sheet.append_row(new_row)
+    except Exception as e:
+        return make_response(f"Could not save shift: {e}", 500)
+
+    return redirect(request.referrer or "/admin/payroll")
+
+    rate = _get_user_rate(username)
+
+    hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
+    pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
+
     # Auto-calc when:
     # - admin ticks "Recalculate", OR
     # - admin enters Clock In/Out and leaves Hours+Pay blank
@@ -10030,17 +10179,30 @@ def admin_save_shift():
     pay_cell = "" if pay_val is None else str(pay_val)
 
     try:
-        _runtime_save_workhour_row(
-            username,
-            date_str,
-            cin=cin,
-            cout=cout,
-            hours_val=hours_val,
-            pay_val=pay_val,
-            extras={"workplace_id": _session_workplace_id()},
-        )
+        vals = work_sheet.get_all_values()
+        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+        if rownum:
+            work_sheet.update_cell(rownum, COL_IN + 1, cin)
+            work_sheet.update_cell(rownum, COL_OUT + 1, cout)
+            work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
+            work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
+        else:
+            headers = vals[0] if vals else []
+            new_row = [username, date_str, cin, cout, hours_cell, pay_cell]
+
+            if headers and "Workplace_ID" in headers:
+                wp_idx = headers.index("Workplace_ID")
+                if len(new_row) <= wp_idx:
+                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                new_row[wp_idx] = _session_workplace_id()
+
+            # Pad to header width (prevents misaligned rows if sheet has extra columns)
+            if headers and len(new_row) < len(headers):
+                new_row += [""] * (len(headers) - len(new_row))
+
+            work_sheet.append_row(new_row)
     except Exception as e:
-        return {"status": "error", "message": str(e) or "save shift failed"}, 500
+        return make_response(f"Could not mark payroll row as paid: {e}", 500)
 
     return redirect(request.referrer or "/admin/payroll")
 
@@ -10053,32 +10215,143 @@ def admin_force_clockin():
     require_csrf()
 
     username = (request.form.get("user") or "").strip()
-    in_time = (request.form.get("in_time") or "").strip()  # HH:MM or HH:MM:SS
+    in_time = (request.form.get("in_time") or "").strip()
     dates = [(d or "").strip() for d in request.form.getlist("date")]
     dates = [d for d in dates if d]
     date_str = dates[-1] if dates else datetime.now(TZ).strftime("%Y-%m-%d")
     if not username or not in_time:
         return redirect(request.referrer or "/admin")
 
+    if len(in_time.split(":")) == 2:
+        in_time = in_time + ":00"
+
+    rows = get_workhours_rows()
+    if find_open_shift(rows, username):
+        return redirect(request.referrer or "/admin")
+
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
+            db_row = WorkHour.query.filter_by(
+                employee_email=username,
+                date=shift_date,
+                workplace=_session_workplace_id(),
+            ).order_by(WorkHour.id.desc()).first()
+            if db_row:
+                db_row.clock_in = clock_in_dt
+                db_row.clock_out = None
+            else:
+                db.session.add(
+                    WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        clock_in=clock_in_dt,
+                        clock_out=None,
+                        workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
+                    )
+                )
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return make_response(f"Could not force clock in: {e}", 500)
+    else:
+        try:
+            vals = work_sheet.get_all_values()
+            headers = vals[0] if vals else []
+            rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+            wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
+            if rownum:
+                work_sheet.update_cell(rownum, COL_IN + 1, in_time)
+                if wp_col:
+                    work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
+            else:
+                new_row = [username, date_str, in_time, "", "", ""]
+                if "Workplace_ID" in headers:
+                    wp_idx = headers.index("Workplace_ID")
+                    if len(new_row) <= wp_idx:
+                        new_row += [""] * (wp_idx + 1 - len(new_row))
+                    new_row[wp_idx] = _session_workplace_id()
+                if headers and len(new_row) < len(headers):
+                    new_row += [""] * (len(headers) - len(new_row))
+                work_sheet.append_row(new_row)
+        except Exception as e:
+            return make_response(f"Could not force clock in: {e}", 500)
+
+    actor = session.get("username", "admin")
+    log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
+    return redirect(request.referrer or "/admin")
+
     # normalize to HH:MM:SS
     if len(in_time.split(":")) == 2:
         in_time = in_time + ":00"
 
     try:
-        rows = _runtime_workhour_rows()
-        if find_open_shift(rows, username):
+        vals = work_sheet.get_all_values()
+        headers = vals[0] if vals else []
+
+        # If an open shift already exists, do nothing (avoid duplicates)
+        if find_open_shift(vals, username):
             return redirect(request.referrer or "/admin")
-        _runtime_save_workhour_row(
-            username,
-            date_str,
-            cin=in_time,
-            cout="",
-            hours_val=None,
-            pay_val=None,
-            extras={"workplace_id": _session_workplace_id()},
-        )
-    except Exception as e:
-        return {"status": "error", "message": str(e) or "force clock-in failed"}, 500
+
+        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+
+        wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
+
+        if rownum:
+            # Update today's row
+            work_sheet.update_cell(rownum, COL_IN + 1, in_time)
+            if wp_col:
+                work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
+        else:
+            # Create a new row for today
+            new_row = [username, date_str, in_time, "", "", ""]
+
+            if "Workplace_ID" in headers:
+                wp_idx = headers.index("Workplace_ID")
+                if len(new_row) <= wp_idx:
+                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                new_row[wp_idx] = _session_workplace_id()
+
+            # Pad to header width (prevents misaligned rows if sheet has extra columns)
+            if headers and len(new_row) < len(headers):
+                new_row += [""] * (len(headers) - len(new_row))
+
+            work_sheet.append_row(new_row)
+
+    except Exception:
+        pass
+
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
+
+            db_row = WorkHour.query.filter_by(
+                employee_email=username,
+                date=shift_date,
+                workplace=_session_workplace_id(),
+            ).order_by(WorkHour.id.desc()).first()
+
+            if db_row:
+                db_row.clock_in = clock_in_dt
+                db_row.clock_out = None
+            else:
+                db.session.add(
+                    WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        clock_in=clock_in_dt,
+                        clock_out=None,
+                        workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
+                    )
+                )
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
@@ -10093,10 +10366,82 @@ def admin_force_clockout():
     require_csrf()
 
     username = (request.form.get("user") or "").strip()
-    out_time = (request.form.get("out_time") or "").strip()  # HH:MM or HH:MM:SS
+    out_time = (request.form.get("out_time") or "").strip()
 
     if not username or not out_time:
         return redirect(request.referrer or "/admin")
+
+    rows = get_workhours_rows()
+    osf = find_open_shift(rows, username)
+    if not osf:
+        return redirect(request.referrer or "/admin")
+
+    idx, d, cin = osf
+    rate = _get_user_rate(username)
+
+    if len(out_time.split(":")) == 2:
+        out_time = out_time + ":00"
+
+    computed_hours = _compute_hours_from_times(d, cin, out_time)
+    if computed_hours is None:
+        return redirect(request.referrer or "/admin")
+
+    pay = round(computed_hours * rate, 2)
+
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(d, "%Y-%m-%d").date()
+            clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
+            clock_in_dt_check = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S")
+            if clock_out_dt < clock_in_dt_check:
+                clock_out_dt = clock_out_dt + timedelta(days=1)
+
+            db_row = WorkHour.query.filter_by(
+                employee_email=username,
+                date=shift_date,
+                workplace=_session_workplace_id(),
+            ).order_by(WorkHour.id.desc()).first()
+
+            if db_row:
+                db_row.clock_out = clock_out_dt
+            else:
+                db.session.add(
+                    WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        clock_in=None,
+                        clock_out=clock_out_dt,
+                        workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
+                    )
+                )
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return make_response(f"Could not force clock out: {e}", 500)
+    else:
+        sheet_row = idx + 1
+        try:
+            vals = work_sheet.get_all_values()
+            headers = vals[0] if vals else []
+            updates = [
+                {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1), "values": [[out_time]]},
+                {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_HOURS + 1), "values": [[str(computed_hours)]]},
+                {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1), "values": [[str(pay)]]},
+            ]
+            if headers and "Workplace_ID" in headers:
+                wp_col = headers.index("Workplace_ID") + 1
+                updates.append(
+                    {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
+            import copy
+            _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+        except Exception as e:
+            return make_response(f"Could not force clock out: {e}", 500)
+
+    actor = session.get("username", "admin")
+    log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
+              details=f"out={out_time} hours={computed_hours} pay={pay}")
+    return redirect(request.referrer or "/admin")
 
     rows = get_workhours_rows()
     osf = find_open_shift(rows, username)
@@ -10116,18 +10461,62 @@ def admin_force_clockout():
 
     pay = round(computed_hours * rate, 2)
 
+    sheet_row = idx + 1
+
     try:
-        _runtime_save_workhour_row(
-            username,
-            d,
-            cin=cin,
-            cout=out_time,
-            hours_val=computed_hours,
-            pay_val=pay,
-            extras={"workplace_id": _session_workplace_id()},
-        )
-    except Exception as e:
-        return {"status": "error", "message": str(e) or "force clock-out failed"}, 500
+        vals = work_sheet.get_all_values()
+        headers = vals[0] if vals else []
+
+        updates = [
+            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1), "values": [[out_time]]},
+            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_HOURS + 1), "values": [[str(computed_hours)]]},
+            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1), "values": [[str(pay)]]},
+        ]
+
+        # Ensure Workplace_ID is set (if column exists)
+        if headers and "Workplace_ID" in headers:
+            wp_col = headers.index("Workplace_ID") + 1
+            updates.append(
+                {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]}
+            )
+
+        import copy
+        _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+    except Exception:
+        pass
+
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(d, "%Y-%m-%d").date()
+            clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
+            clock_in_dt_check = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S")
+
+            if clock_out_dt < clock_in_dt_check:
+                clock_out_dt = clock_out_dt + timedelta(days=1)
+
+            db_row = WorkHour.query.filter_by(
+                employee_email=username,
+                date=shift_date,
+                workplace=_session_workplace_id(),
+            ).order_by(WorkHour.id.desc()).first()
+
+            if db_row:
+                db_row.clock_out = clock_out_dt
+            else:
+                db.session.add(
+                    WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        clock_in=None,
+                        clock_out=clock_out_dt,
+                        workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
+                    )
+                )
+
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
@@ -10159,8 +10548,8 @@ def admin_mark_paid():
 
         if week_start and week_end and username:
             _append_paid_record_safe(week_start, week_end, username, gross, tax, net, paid_by)
-    except Exception as e:
-        return {"status": "error", "message": str(e) or "mark paid failed"}, 500
+    except Exception:
+        pass
 
     return redirect(request.referrer or "/admin/payroll")
 
@@ -10188,14 +10577,18 @@ def admin_payroll():
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
+
+    employee_records = []
     try:
-        active_usernames = {
-            (rec.get("Username") or "").strip()
-            for rec in _list_employee_records_for_workplace(include_inactive=False)
-            if (rec.get("Username") or "").strip()
-        }
+        employee_records = _list_employee_records_for_workplace(include_inactive=True)
     except Exception:
-        active_usernames = set()
+        employee_records = []
+    current_users = [
+        (rec.get("Username") or "").strip()
+        for rec in employee_records
+        if (rec.get("Username") or "").strip()
+    ]
+    current_usernames = set(current_users)
 
     today = datetime.now(TZ).date()
     wk_offset_raw = (request.args.get("wk", "0") or "0").strip()
@@ -10209,8 +10602,6 @@ def admin_payroll():
     week_end = week_start + timedelta(days=6)
     week_start_str = week_start.strftime("%Y-%m-%d")
     week_end_str = week_end.strftime("%Y-%m-%d")
-    summary_from = date_from or week_start_str
-    summary_to = date_to or week_end_str
 
     def week_label(d0):
         iso = d0.isocalendar()
@@ -10219,9 +10610,9 @@ def admin_payroll():
     def in_range(d: str) -> bool:
         if not d:
             return False
-        if summary_from and d < summary_from:
+        if date_from and d < date_from:
             return False
-        if summary_to and d > summary_to:
+        if date_to and d > date_to:
             return False
         return True
 
@@ -10230,6 +10621,8 @@ def admin_payroll():
         if len(r) <= COL_PAY:
             continue
         user = (r[COL_USER] or "").strip()
+        if not user or user not in current_usernames:
+            continue
 
         # Workplace filter: prefer WorkHours row Workplace_ID (tenant-safe)
         if wp_idx is not None:
@@ -10241,8 +10634,6 @@ def admin_payroll():
             if not user_in_same_workplace(user):
                 continue
         d = (r[COL_DATE] or "").strip()
-        if active_usernames and user not in active_usernames:
-            continue
         if not in_range(d):
             continue
         if q and q not in user.lower():
@@ -10281,7 +10672,7 @@ def admin_payroll():
             continue
         user = (r[COL_USER] or "").strip()
         d = (r[COL_DATE] or "").strip()
-        if not user or not d:
+        if not user or not d or user not in current_usernames:
             continue
         # Workplace filter for weekly tables (tenant-safe)
         if wp_idx is not None:
@@ -10291,8 +10682,6 @@ def admin_payroll():
         else:
             if not user_in_same_workplace(user):
                 continue
-        if active_usernames and user not in active_usernames:
-            continue
         if d < week_start_str or d > week_end_str:
             continue
         week_lookup.setdefault(user, {})
@@ -10303,16 +10692,8 @@ def admin_payroll():
             "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
         }
 
-    # All users from DB-aware employee records
-    all_users = []
-    try:
-        all_users = [
-            (rec.get("Username") or "").strip()
-            for rec in _list_employee_records_for_workplace(include_inactive=False)
-            if (rec.get("Username") or "").strip()
-        ]
-    except Exception:
-        all_users = list(by_user.keys())
+    # All users from current employee records only
+    all_users = list(current_users)
 
     if q:
         all_users = [u for u in all_users if q in u.lower() or q in (get_employee_display_name(u) or "").lower()]
@@ -10980,17 +11361,19 @@ def admin_payroll_report_csv():
         except ValueError:
             use_range = False
 
-    rows = _runtime_workhour_rows()
+    rows = get_workhours_rows()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    employee_records = []
     try:
-        active_usernames = {
-            (rec.get("Username") or "").strip()
-            for rec in _list_employee_records_for_workplace(include_inactive=False)
-            if (rec.get("Username") or "").strip()
-        }
+        employee_records = _list_employee_records_for_workplace(include_inactive=True)
     except Exception:
-        active_usernames = set()
+        employee_records = []
+    current_usernames = {
+        (rec.get("Username") or "").strip()
+        for rec in employee_records
+        if (rec.get("Username") or "").strip()
+    }
 
     totals_by_user = {}
 
@@ -11001,9 +11384,7 @@ def admin_payroll_report_csv():
         user = (r[COL_USER] or "").strip()
         d_str = (r[COL_DATE] or "").strip()
 
-        if not user or not d_str:
-            continue
-        if active_usernames and user not in active_usernames:
+        if not user or not d_str or user not in current_usernames:
             continue
 
         if wp_idx is not None:
@@ -11787,9 +12168,18 @@ def admin_employees():
 
         if action == "update":
             edit_username = (request.form.get("edit_username") or "").strip()
-            edit_role = (request.form.get("edit_role") or "").strip()
+            raw_edit_role = (request.form.get("edit_role") or "").strip()
+            edit_role = raw_edit_role
             edit_rate_raw = (request.form.get("edit_rate") or "").strip()
             edit_early_access = (request.form.get("edit_early_access") or "").strip()
+            actor_role = (session.get("role") or "employee").strip().lower()
+            if raw_edit_role:
+                sanitized_role = _sanitize_requested_role(raw_edit_role, actor_role)
+                if not sanitized_role:
+                    ok = False
+                    msg = "You are not allowed to assign that role."
+                else:
+                    edit_role = sanitized_role
 
             if not edit_username:
                 ok = False
@@ -12025,8 +12415,13 @@ def admin_employees():
         elif action == "create":
             first = (request.form.get("first") or "").strip()
             last = (request.form.get("last") or "").strip()
-            role_new = (request.form.get("role") or "employee").strip() or "employee"
+            actor_role = (session.get("role") or "employee").strip().lower()
+            raw_role_new = (request.form.get("role") or "employee").strip() or "employee"
+            role_new = _sanitize_requested_role(raw_role_new, actor_role)
             rate_raw = (request.form.get("rate") or "").strip()
+
+            if not role_new:
+                return make_response("You are not allowed to create a user with that role.", 403)
 
             try:
                 rate_val = float(rate_raw) if rate_raw != "" else 0.0
@@ -12511,7 +12906,7 @@ def admin_employees():
 
 @app.route("/admin/workplaces", methods=["GET", "POST"])
 def admin_workplaces():
-    gate = require_admin()
+    gate = require_master_admin()
     if gate:
         return gate
 
