@@ -7898,6 +7898,9 @@ def clock_page():
               selfieStatus.textContent = "Selfie required before clocking in or out.";
               return;
             }}
+            
+            stopSelfieCamera();
+            
             if(!navigator.geolocation){{
               alert("Geolocation is not supported on this device/browser.");
               return;
@@ -7933,7 +7936,7 @@ def clock_page():
             }});
           }}
 
-          initMap();
+                    initMap();
 
           // Try to show status + marker before pressing buttons
           if(navigator.geolocation){{
@@ -7950,12 +7953,30 @@ def clock_page():
           }}
 
           takeSelfieBtn.addEventListener("click", ()=> captureSelfieFrame());
-          retakeSelfieBtn.addEventListener("click", ()=> {{ setSelfieData(""); startSelfieCamera(); }});
+
+          retakeSelfieBtn.addEventListener("click", ()=> {{
+            setSelfieData("");
+            startSelfieCamera();
+          }});
 
           if(!selfieTriedAutostart){{
             selfieTriedAutostart = true;
             startSelfieCamera();
           }}
+
+          window.addEventListener("pagehide", ()=> {{
+            stopSelfieCamera();
+          }});
+
+          window.addEventListener("beforeunload", ()=> {{
+            stopSelfieCamera();
+          }});
+
+          document.addEventListener("visibilitychange", ()=> {{
+            if(document.hidden){{
+              stopSelfieCamera();
+            }}
+          }});
 
           btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
