@@ -770,6 +770,7 @@ def db_upgrade_employees_table():
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS early_access VARCHAR(10)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS active VARCHAR(10)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS active_session_token VARCHAR(255)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS site VARCHAR(255)",
         ]
 
@@ -1572,7 +1573,8 @@ _ALLOWED_UPLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 _ALLOWED_UPLOAD_MIMES = {"application/pdf", "image/jpeg", "image/png", "image/webp", "application/octet-stream"}
 
 # Clock selfie settings
-CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true", "yes", "on")
+CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true",
+                                                                                                           "yes", "on")
 CLOCK_SELFIE_MAX_BYTES = int(os.environ.get("CLOCK_SELFIE_MAX_BYTES", str(3 * 1024 * 1024)) or str(3 * 1024 * 1024))
 CLOCK_SELFIE_DIR = os.path.join(BASE_DIR, "instance", "clock_selfies")
 _ALLOWED_CLOCK_SELFIE_MIMES = {"image/jpeg", "image/png", "image/webp"}
@@ -1772,7 +1774,8 @@ def view_clock_selfie(filename):
         abort(404)
 
     ext = os.path.splitext(safe_filename)[1].lower()
-    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}.get(ext, "application/octet-stream")
+    mime = {".jpg": "image/jpeg", ".jpeg": "image/jpeg", ".png": "image/png", ".webp": "image/webp"}.get(ext,
+                                                                                                         "application/octet-stream")
     return send_file(full_path, mimetype=mime)
 
 
@@ -5485,9 +5488,107 @@ def role_label(role: str) -> str:
     return r.upper() if r else ""
 
 
+def _get_employee_db_row(username: str, workplace_id: str | None = None):
+    target_user = (username or "").strip()
+    target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    if not target_user or not DB_MIGRATION_MODE:
+        return None
+    rec = Employee.query.filter_by(username=target_user, workplace_id=target_wp).first()
+    if not rec:
+        rec = Employee.query.filter_by(email=target_user, workplace_id=target_wp).first()
+    return rec
+
+
+def _issue_active_session_token(username: str, workplace_id: str | None = None):
+    target_user = (username or "").strip()
+    target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    token = secrets.token_urlsafe(32)
+
+    if not DB_MIGRATION_MODE:
+        return token
+
+    rec = _get_employee_db_row(target_user, target_wp)
+    if not rec:
+        return None
+
+    try:
+        rec.active_session_token = token
+        rec.workplace = target_wp
+        rec.workplace_id = target_wp
+        db.session.commit()
+        return token
+    except Exception:
+        db.session.rollback()
+        return None
+
+
+def _clear_active_session_token(username: str, workplace_id: str | None = None, expected_token: str | None = None):
+    target_user = (username or "").strip()
+    target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+
+    if not target_user or not DB_MIGRATION_MODE:
+        return False
+
+    rec = _get_employee_db_row(target_user, target_wp)
+    if not rec:
+        return False
+
+    current = str(getattr(rec, "active_session_token", "") or "")
+    if expected_token and current and current != expected_token:
+        return False
+
+    try:
+        rec.active_session_token = None
+        db.session.commit()
+        return True
+    except Exception:
+        db.session.rollback()
+        return False
+
+
+def _logout_to_login(login_notice: str = ""):
+    session.clear()
+    if login_notice:
+        session["_login_notice"] = login_notice
+    return redirect(url_for("login"))
+
+
+def _validate_active_session():
+    username = (session.get("username") or "").strip()
+    if not username:
+        return False, ""
+
+    if not DB_MIGRATION_MODE:
+        return True, ""
+
+    workplace_id = (session.get("workplace_id") or "default").strip() or "default"
+    session_token = str(session.get("active_session_token") or "")
+    if not session_token:
+        return False, "Your session has expired. Please log in again."
+
+    rec = _get_employee_db_row(username, workplace_id)
+    if not rec:
+        return False, "Your account is no longer available. Please log in again."
+
+    active_raw = str(getattr(rec, "active", "TRUE") or "TRUE").strip().lower()
+    if active_raw in ("false", "0", "no", "n", "off"):
+        return False, "Your account is inactive. Please log in again."
+
+    db_token = str(getattr(rec, "active_session_token", "") or "")
+    if not db_token or db_token != session_token:
+        return False, "Your account was signed in on another device. Please log in again."
+
+    return True, ""
+
+
 def require_login():
     if "username" not in session:
         return redirect(url_for("login"))
+
+    ok, login_notice = _validate_active_session()
+    if not ok:
+        return _logout_to_login(login_notice)
+
     return None
 
 
@@ -5866,6 +5967,7 @@ def update_employee_password(username: str, new_password: str, workplace_id: str
 
         if db_row:
             db_row.password = hashed
+            db_row.active_session_token = None
             db_row.workplace = current_wp
             db_row.workplace_id = current_wp
             db.session.commit()
@@ -5875,6 +5977,7 @@ def update_employee_password(username: str, new_password: str, workplace_id: str
         db_ok = False
 
     return sheet_ok or db_ok
+
 
 @app.post("/admin/employees/reset-password")
 def admin_employee_reset_password():
@@ -5911,7 +6014,9 @@ def admin_employee_reset_password():
 
     return redirect("/admin/employees")
 
+
 from sqlalchemy import or_, and_
+
 
 @app.post("/admin/employees/clear-history")
 def admin_clear_employee_history():
@@ -6060,6 +6165,7 @@ def admin_delete_employee():
         session["_emp_ok"] = False
 
     return redirect("/admin/employees")
+
 
 def get_reset_user_options_html() -> str:
     current_wp = (_session_workplace_id() or "default").strip() or "default"
@@ -6457,7 +6563,8 @@ def _ensure_audit_headers():
         return
 
 
-def _legacy_log_audit_before_db_patch(action: str, actor: str = "", username: str = "", date_str: str = "", details: str = ""):
+def _legacy_log_audit_before_db_patch(action: str, actor: str = "", username: str = "", date_str: str = "",
+                                      details: str = ""):
     """Legacy pre-DB-patch audit logger kept only for reference; runtime uses the later log_audit()."""
     ts = datetime.now(TZ).strftime("%Y-%m-%d %H:%M:%S")
 
@@ -6526,8 +6633,9 @@ def _ensure_payroll_headers():
         return
 
 
-def _legacy_append_paid_record_safe_before_db_patch(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float,
-                             paid_by: str):
+def _legacy_append_paid_record_safe_before_db_patch(week_start: str, week_end: str, username: str, gross: float,
+                                                    tax: float, net: float,
+                                                    paid_by: str):
     """Legacy pre-DB-patch payroll appender kept only for reference; runtime uses the later _append_paid_record_safe()."""
     try:
         _ensure_payroll_headers()
@@ -6797,7 +6905,7 @@ def oauth2callback():
 # ---------- LOGIN ----------
 @app.route("/login", methods=["GET", "POST"])
 def login():
-    msg = ""
+    msg = session.pop("_login_notice", "") if request.method == "GET" else ""
     csrf = get_csrf()
 
     if request.method == "POST":
@@ -6855,15 +6963,23 @@ def login():
                 else:
                     _login_rate_limit_clear(ip)
 
-                    migrate_password_if_plain(username, ok_user.get("Password", ""), password, workplace_id=workplace_id)
-                    session.clear()
-                    session["csrf"] = csrf
-                    session["username"] = username
-                    session["workplace_id"] = workplace_id
-                    session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
-                    session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
-                    session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
-                    return redirect(url_for("home"))
+                    migrate_password_if_plain(username, ok_user.get("Password", ""), password,
+                                              workplace_id=workplace_id)
+                    active_session_token = _issue_active_session_token(username, workplace_id)
+                    if DB_MIGRATION_MODE and not active_session_token:
+                        log_audit("LOGIN_SESSION_FAIL", actor=ip, username=username, date_str="",
+                                  details=f"Could not start active session workplace={workplace_id}")
+                        msg = "Could not start secure session. Please try again."
+                    else:
+                        session.clear()
+                        session["csrf"] = csrf
+                        session["username"] = username
+                        session["workplace_id"] = workplace_id
+                        session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
+                        session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
+                        session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
+                        session["active_session_token"] = active_session_token
+                        return redirect(url_for("home"))
             else:
                 _login_rate_limit_hit(ip)
                 log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
@@ -6936,6 +7052,11 @@ def logout_confirm():
 @app.post("/logout")
 def logout():
     require_csrf()
+    username = (session.get("username") or "").strip()
+    workplace_id = (session.get("workplace_id") or "default").strip() or "default"
+    active_session_token = str(session.get("active_session_token") or "")
+    if username and active_session_token:
+        _clear_active_session_token(username, workplace_id, expected_token=active_session_token)
     session.clear()
     return redirect(url_for("login"))
 
@@ -7430,7 +7551,8 @@ def clock_page():
                             msg_class = "message error"
 
                         else:
-                            selfie_url = _store_clock_selfie(selfie_data, username, "clock_in", now) if CLOCK_SELFIE_REQUIRED else ""
+                            selfie_url = _store_clock_selfie(selfie_data, username, "clock_in",
+                                                             now) if CLOCK_SELFIE_REQUIRED else ""
                             cin = normalized_clock_in_time(now, early_access)
 
                             headers_now = work_sheet.row_values(1)
@@ -7445,7 +7567,8 @@ def clock_page():
                             if headers_now and len(new_row) < len(headers_now):
                                 new_row += [""] * (len(headers_now) - len(new_row))
 
-                            _gs_write_with_retry(lambda: work_sheet.append_row(new_row, value_input_option="USER_ENTERED"))
+                            _gs_write_with_retry(
+                                lambda: work_sheet.append_row(new_row, value_input_option="USER_ENTERED"))
 
                             vals = work_sheet.get_all_values()
                             rownum = _find_workhours_row_by_user_date(vals, username, today_str)
@@ -7481,7 +7604,8 @@ def clock_page():
                                         db_row = WorkHour.query.filter(
                                             WorkHour.employee_email == username,
                                             WorkHour.date == shift_date,
-                                            or_(WorkHour.workplace_id == _session_workplace_id(), WorkHour.workplace == _session_workplace_id()),
+                                            or_(WorkHour.workplace_id == _session_workplace_id(),
+                                                WorkHour.workplace == _session_workplace_id()),
                                         ).order_by(WorkHour.id.desc()).first()
 
                                         if db_row:
@@ -7521,7 +7645,8 @@ def clock_page():
                             msg_class = "message error"
 
                         else:
-                            selfie_url = _store_clock_selfie(selfie_data, username, "clock_out", now) if CLOCK_SELFIE_REQUIRED else ""
+                            selfie_url = _store_clock_selfie(selfie_data, username, "clock_out",
+                                                             now) if CLOCK_SELFIE_REQUIRED else ""
                             i, d, t = osf
                             cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                             raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
@@ -7572,7 +7697,8 @@ def clock_page():
                                     db_row = WorkHour.query.filter(
                                         WorkHour.employee_email == username,
                                         WorkHour.date == shift_date,
-                                        or_(WorkHour.workplace_id == _session_workplace_id(), WorkHour.workplace == _session_workplace_id()),
+                                        or_(WorkHour.workplace_id == _session_workplace_id(),
+                                            WorkHour.workplace == _session_workplace_id()),
                                     ).order_by(WorkHour.id.desc()).first()
 
                                     if db_row:
@@ -7686,8 +7812,8 @@ def clock_page():
       {leaflet_tags}
 
 {f'''
-<div class="statusCard {'statusCardError' if msg_class=='message error' else 'statusCardOk'}">
-  <div class="statusCardTitle">{'Attention needed' if msg_class=='message error' else 'Status'}</div>
+<div class="statusCard {'statusCardError' if msg_class == 'message error' else 'statusCardOk'}">
+  <div class="statusCardTitle">{'Attention needed' if msg_class == 'message error' else 'Status'}</div>
   <div class="statusCardText">{escape(msg)}</div>
 </div>
 ''' if msg else ""}
@@ -7898,9 +8024,9 @@ def clock_page():
               selfieStatus.textContent = "Selfie required before clocking in or out.";
               return;
             }}
-            
+
             stopSelfieCamera();
-            
+
             if(!navigator.geolocation){{
               alert("Geolocation is not supported on this device/browser.");
               return;
@@ -8729,7 +8855,8 @@ def onboarding():
                     emergency_phone_full = " ".join([x for x in [ec_cc, ec_phone] if x]).strip()
                     address_full = ", ".join([x for x in [street, city, postcode] if x]).strip()
 
-                    db_row = OnboardingRecord.query.filter_by(username=username, workplace_id=_session_workplace_id()).first()
+                    db_row = OnboardingRecord.query.filter_by(username=username,
+                                                              workplace_id=_session_workplace_id()).first()
 
                     if db_row:
                         db_row.first_name = first
@@ -11630,9 +11757,11 @@ def admin_employees():
                                             except Exception:
                                                 rate_db = None
 
-                                        db_row = Employee.query.filter_by(username=username_db, workplace_id=workplace_id_db).first()
+                                        db_row = Employee.query.filter_by(username=username_db,
+                                                                          workplace_id=workplace_id_db).first()
                                         if not db_row:
-                                            db_row = Employee.query.filter_by(email=username_db, workplace_id=workplace_id_db).first()
+                                            db_row = Employee.query.filter_by(email=username_db,
+                                                                              workplace_id=workplace_id_db).first()
 
                                         if db_row:
                                             db_row.email = username_db
@@ -11721,12 +11850,16 @@ def admin_employees():
 
                         if DB_MIGRATION_MODE:
                             try:
-                                db_row = Employee.query.filter_by(username=edit_username, workplace_id=_session_workplace_id()).first()
+                                db_row = Employee.query.filter_by(username=edit_username,
+                                                                  workplace_id=_session_workplace_id()).first()
                                 if not db_row:
-                                    db_row = Employee.query.filter_by(email=edit_username, workplace_id=_session_workplace_id()).first()
+                                    db_row = Employee.query.filter_by(email=edit_username,
+                                                                      workplace_id=_session_workplace_id()).first()
 
                                 if db_row:
                                     db_row.active = val
+                                    if action == "deactivate":
+                                        db_row.active_session_token = None
                                     db_row.workplace = _session_workplace_id()
                                     db_row.workplace_id = _session_workplace_id()
                                     db.session.commit()
@@ -12700,6 +12833,7 @@ class Employee(db.Model):
     early_access = db.Column(db.String(10))
     active = db.Column(db.String(10))
     workplace_id = db.Column(db.String(255), index=True)
+    active_session_token = db.Column(db.String(255), index=True)
     site = db.Column(db.String(255))
     site2 = db.Column(db.String(255))
     onboarding_completed = db.Column(db.String(20))
@@ -13150,7 +13284,8 @@ class _LocationsProxy(_ProxySheetBase):
 
 class _WorkHoursProxy(_ProxySheetBase):
     headers = ["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay", "InLat", "InLon", "InAcc", "InSite",
-               "InDistM", "InSelfieURL", "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM", "OutSelfieURL", "Workplace_ID"]
+               "InDistM", "InSelfieURL", "OutLat", "OutLon", "OutAcc", "OutSite", "OutDistM", "OutSelfieURL",
+               "Workplace_ID"]
     model = WorkHour
 
     def _records(self):
@@ -13463,6 +13598,7 @@ def _ensure_database_schema():
         statements = [
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS onboarding_completed VARCHAR(20)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS site2 VARCHAR(255)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS active_session_token VARCHAR(255)",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS hours NUMERIC(10,2)",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS pay NUMERIC(10,2)",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS in_lat NUMERIC(12,8)",
