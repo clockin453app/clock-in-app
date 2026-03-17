@@ -7982,6 +7982,7 @@ def clock_page():
               stopSelfieCamera();
             }}
           }});
+          selfieStatus.textContent = "Tap Take selfie to open the camera.";
 
           btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
           btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
