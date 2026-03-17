@@ -546,8 +546,8 @@ def get_workhours_rows():
             continue
 
         row_wp = str(
-            getattr(rec, "workplace", None)
-            or getattr(rec, "workplace_id", None)
+            getattr(rec, "workplace_id", None)
+            or getattr(rec, "workplace", None)
             or "default"
         ).strip() or "default"
         if row_wp != current_wp:
@@ -644,6 +644,10 @@ def get_payroll_rows():
 
 @app.route("/db-test")
 def db_test():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         with app.app_context():
             tables = db.inspect(db.engine).get_table_names()
@@ -654,6 +658,10 @@ def db_test():
 
 @app.route("/db/employees")
 def db_view_employees():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         return jsonify(_rows_to_dicts(Employee))
     except Exception as e:
@@ -662,6 +670,10 @@ def db_view_employees():
 
 @app.route("/db/workhours")
 def db_view_workhours():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         return jsonify(_rows_to_dicts(WorkHour))
     except Exception as e:
@@ -670,6 +682,10 @@ def db_view_workhours():
 
 @app.route("/db/audit")
 def db_view_audit():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         return jsonify(_rows_to_dicts(AuditLog))
     except Exception as e:
@@ -678,6 +694,10 @@ def db_view_audit():
 
 @app.route("/db/payroll")
 def db_view_payroll():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         return jsonify(_rows_to_dicts(PayrollReport))
     except Exception as e:
@@ -686,6 +706,10 @@ def db_view_payroll():
 
 @app.route("/db/onboarding")
 def db_view_onboarding():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         return jsonify(_rows_to_dicts(OnboardingRecord))
     except Exception as e:
@@ -694,6 +718,10 @@ def db_view_onboarding():
 
 @app.route("/db/locations")
 def db_view_locations():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         return jsonify(_rows_to_dicts(Location))
     except Exception as e:
@@ -702,6 +730,10 @@ def db_view_locations():
 
 @app.route("/db/settings")
 def db_view_settings():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     try:
         return jsonify(_rows_to_dicts(WorkplaceSetting))
     except Exception as e:
@@ -710,7 +742,7 @@ def db_view_settings():
 
 @app.route("/db/upgrade-employees-table")
 def db_upgrade_employees_table():
-    gate = require_admin()
+    gate = require_sensitive_tools_admin()
     if gate:
         return gate
 
@@ -758,7 +790,7 @@ def db_upgrade_employees_table():
 
 @app.route("/db/upgrade-onboarding-table")
 def db_upgrade_onboarding_table():
-    gate = require_admin()
+    gate = require_sensitive_tools_admin()
     if gate:
         return gate
 
@@ -823,8 +855,14 @@ def db_upgrade_onboarding_table():
 
 @app.route("/import-employees")
 def import_employees():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
+    if not ENABLE_GOOGLE_SHEETS or not SHEETS_IMPORT_ENABLED:
+        return {"error": "Google Sheets import disabled"}, 403
 
     try:
         Employee.query.delete()
@@ -972,8 +1010,14 @@ def _to_datetime(v):
 
 @app.route("/import-locations")
 def import_locations():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
+    if not ENABLE_GOOGLE_SHEETS or not SHEETS_IMPORT_ENABLED:
+        return {"error": "Google Sheets import disabled"}, 403
 
     try:
         Location.query.delete()
@@ -1008,8 +1052,14 @@ def import_locations():
 
 @app.route("/import-settings")
 def import_settings():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
+    if not ENABLE_GOOGLE_SHEETS or not SHEETS_IMPORT_ENABLED:
+        return {"error": "Google Sheets import disabled"}, 403
 
     try:
         WorkplaceSetting.query.delete()
@@ -1042,8 +1092,14 @@ def import_settings():
 
 @app.route("/import-audit")
 def import_audit():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
+    if not ENABLE_GOOGLE_SHEETS or not SHEETS_IMPORT_ENABLED:
+        return {"error": "Google Sheets import disabled"}, 403
 
     try:
         AuditLog.query.delete()
@@ -1077,8 +1133,14 @@ def import_audit():
 
 @app.route("/import-payroll")
 def import_payroll():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
+    if not ENABLE_GOOGLE_SHEETS or not SHEETS_IMPORT_ENABLED:
+        return {"error": "Google Sheets import disabled"}, 403
 
     try:
         PayrollReport.query.delete()
@@ -1117,8 +1179,14 @@ def import_payroll():
 
 @app.route("/import-onboarding")
 def import_onboarding():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
+    if not ENABLE_GOOGLE_SHEETS or not SHEETS_IMPORT_ENABLED:
+        return {"error": "Google Sheets import disabled"}, 403
 
     try:
         OnboardingRecord.query.delete()
@@ -1218,8 +1286,14 @@ def import_onboarding():
 
 @app.route("/import-workhours")
 def import_workhours():
+    gate = require_sensitive_tools_admin()
+    if gate:
+        return gate
+
     if not DB_MIGRATION_MODE:
         return {"error": "migration mode disabled"}, 403
+    if not ENABLE_GOOGLE_SHEETS or not SHEETS_IMPORT_ENABLED:
+        return {"error": "Google Sheets import disabled"}, 403
 
     try:
         WorkHour.query.delete()
@@ -1258,12 +1332,15 @@ def import_workhours():
                     except Exception:
                         pass
 
+            _workplace_id = _to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")) or "default"
+
             row = WorkHour(
                 employee_email=username,
                 date=shift_date,
                 clock_in=clock_in_val,
                 clock_out=clock_out_val,
-                workplace=_to_str(_pick(rec, "Workplace_ID", "workplace_id", default="default")),
+                workplace=_workplace_id,
+                workplace_id=_workplace_id,
             )
             db.session.add(row)
             count += 1
@@ -5219,13 +5296,6 @@ def money(x: float) -> str:
 
 def fmt_hours(x) -> str:
     try:
-        return f"{float(x):.2f}".rstrip("0").rstrip(".")
-    except Exception:
-        return "0"
-
-
-def fmt_hours(x) -> str:
-    try:
         n = round(float(x or 0), 1)
         return f"{n:.1f}".rstrip("0").rstrip(".")
     except Exception:
@@ -5264,6 +5334,13 @@ def require_master_admin():
         return gate
     if session.get("role") != "master_admin":
         return redirect(url_for("home"))
+    return None
+
+
+def require_sensitive_tools_admin():
+    gate = require_master_admin()
+    if gate:
+        return gate
     return None
 
 
@@ -5629,7 +5706,7 @@ def update_employee_password(username: str, new_password: str) -> bool:
 
 @app.post("/admin/employees/reset-password")
 def admin_employee_reset_password():
-    gate = require_admin()
+    gate = require_master_admin()
     if gate:
         return gate
     require_csrf()
@@ -5644,9 +5721,9 @@ def admin_employee_reset_password():
         session.pop("_pwreset_password", None)
         return redirect("/admin/employees")
 
-    ok = update_employee_password(username, new_password)
+    ok = update_employee_password(username, new_password, workplace_id=_session_workplace_id())
 
-    actor = session.get("username", "admin")
+    actor = session.get("username", "master_admin")
     if ok:
         log_audit("RESET_PASSWORD", actor=actor, username=username, date_str="", details="current workplace")
         session["_pwreset_ok"] = True
@@ -5666,7 +5743,7 @@ from sqlalchemy import or_, and_
 
 @app.post("/admin/employees/clear-history")
 def admin_clear_employee_history():
-    gate = require_admin()
+    gate = require_master_admin()
     if gate:
         return gate
     require_csrf()
@@ -5719,7 +5796,7 @@ def admin_clear_employee_history():
 
 @app.post("/admin/employees/delete")
 def admin_delete_employee():
-    gate = require_admin()
+    gate = require_master_admin()
     if gate:
         return gate
     require_csrf()
@@ -5737,8 +5814,14 @@ def admin_delete_employee():
         session["_emp_ok"] = False
         return redirect("/admin/employees")
     target_employee = Employee.query.filter(
-        Employee.username == username,
-        Employee.workplace_id == wp,
+        and_(
+            or_(Employee.username == username, Employee.email == username),
+            or_(
+                Employee.workplace_id == wp,
+                and_(Employee.workplace_id.is_(None), Employee.workplace == wp),
+                Employee.workplace == wp,
+            ),
+        )
     ).first()
 
     if target_employee and (target_employee.role or "").strip().lower() == "master_admin":
@@ -7213,6 +7296,7 @@ def clock_page():
                                                 clock_in=clock_in_dt,
                                                 clock_out=None,
                                                 workplace=_session_workplace_id(),
+                                                workplace_id=_session_workplace_id(),
                                             )
                                         )
 
@@ -7298,6 +7382,7 @@ def clock_page():
                                             clock_in=None,
                                             clock_out=clock_out_dt,
                                             workplace=_session_workplace_id(),
+                                            workplace_id=_session_workplace_id(),
                                         )
                                     )
 
@@ -9385,6 +9470,7 @@ def admin_force_clockin():
                         clock_in=clock_in_dt,
                         clock_out=None,
                         workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
                     )
                 )
 
@@ -9477,6 +9563,7 @@ def admin_force_clockout():
                         clock_in=None,
                         clock_out=clock_out_dt,
                         workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
                     )
                 )
 
@@ -11645,30 +11732,29 @@ def admin_employees():
     reset_password = session.pop("_pwreset_password", "")
     reset_msg = session.pop("_pwreset_msg", "")
     reset_ok = session.pop("_pwreset_ok", None)
+    emp_msg = session.pop("_emp_msg", "")
+    emp_ok = session.pop("_emp_ok", None)
 
     if reset_ok is not None:
         msg = reset_msg
         ok = bool(reset_ok)
-        emp_msg = session.pop("_emp_msg", "")
-        emp_ok = session.pop("_emp_ok", None)
 
-        if emp_ok is not None:
-            msg = emp_msg
-            ok = bool(emp_ok)
+    if emp_ok is not None:
+        msg = emp_msg
+        ok = bool(emp_ok)
 
     reset_card = ""
-    if session.get("role") in ("admin", "master_admin"):
+    if session.get("role") == "master_admin":
         reset_card = f"""
           <div class="card" style="padding:12px; margin-top:12px;">
             <h2>Reset Password</h2>
-            <p class="sub">Admins can reset passwords only for users in the current workplace.</p>
+            <p class="sub">Master admin can reset passwords only for users in the current workplace.</p>
 
             <form method="POST" action="/admin/employees/reset-password" style="margin-top:12px;">
               <input type="hidden" name="csrf" value="{escape(csrf)}">
 
               <label class="sub">Username</label>
               <select class="input" name="username" required>
-                <option value="">Select employee</option>
                 {employee_options_html}
               </select>
 
@@ -11689,7 +11775,9 @@ def admin_employees():
             <div style="font-size:18px; font-weight:800; margin-top:6px;">{escape(reset_password)}</div>
           </div>
         """
-    danger_card = f"""
+    danger_card = ""
+    if session.get("role") == "master_admin":
+        danger_card = f"""
       <div class="card" style="padding:12px; margin-top:12px; border:1px solid rgba(239,68,68,.25);">
         <h2>Clear / Delete Employee</h2>
         <p class="sub">Clear timesheet + payroll history, or delete the employee completely.</p>
