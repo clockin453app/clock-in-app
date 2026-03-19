@@ -1,0 +1,14 @@
+{% extends 'layouts/base.html' %}
+{% block body %}
+<div class="shell{% if shell_class %} {{ shell_class }}{% endif %}">
+  {{ sidebar_html|safe }}
+  <div class="main">
+    <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+      <span class="badge" style="background: var(--navy); color:#fff; border-color: rgba(255,255,255,.12);">{{ company_name }}</span>
+    </div>
+    {{ body_html|safe }}
+    <div class="safeBottom"></div>
+  </div>
+</div>
+{{ bottom_nav_html|safe }}
+{% endblock %}
