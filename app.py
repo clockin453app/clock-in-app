@@ -660,7 +660,7 @@ def get_workhours_rows():
         if cin and cout:
             try:
                 raw_hours = max(0.0, (cout - cin).total_seconds() / 3600.0)
-                hours_num = round(_apply_unpaid_break(raw_hours), 2)
+                hours_num = _round_to_half_hour(_apply_unpaid_break(raw_hours))
                 pay_num = round(hours_num * float(_get_user_rate(username)), 2)
                 hours_val = str(hours_num)
                 pay_val = str(pay_num)
@@ -5123,6 +5123,14 @@ def _same_workplace(row):
     return _row_workplace_id(row) == _session_workplace_id()
 
 
+def _round_to_half_hour(value: float) -> float:
+    try:
+        n = max(0.0, float(value or 0.0))
+    except Exception:
+        return 0.0
+    return math.floor((n * 2.0) + 0.5) / 2.0
+
+
 def _apply_unpaid_break(raw_hours: float) -> float:
     """Return payable hours after applying unpaid break policy."""
     try:
@@ -5251,7 +5259,7 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
         # Apply your unpaid break policy
         payable = _apply_unpaid_break(raw_hours)
 
-        return round(payable, 2)
+        return _round_to_half_hour(payable)
     except Exception:
         return None
 
@@ -5622,7 +5630,7 @@ def money(x: float) -> str:
 
 def fmt_hours(x) -> str:
     try:
-        n = round(float(x or 0), 1)
+        n = _round_to_half_hour(float(x or 0))
         return f"{n:.1f}".rstrip("0").rstrip(".")
     except Exception:
         return ""
@@ -7909,7 +7917,7 @@ def clock_page():
                             i, d, t = osf
                             cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                             raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-                            hours_rounded = round(_apply_unpaid_break(raw_hours), 2)
+                            hours_rounded = _round_to_half_hour(_apply_unpaid_break(raw_hours))
                             pay = round(hours_rounded * float(rate), 2)
 
                             sheet_row = i + 1
@@ -10074,7 +10082,7 @@ def admin_save_shift():
 
     rate = _get_user_rate(username)
 
-    hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
+    hours_val = None if hours_in == "" else _round_to_half_hour(safe_float(hours_in, 0.0))
     pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
 
     auto_calc = recalc or (cin and cout and hours_in == "" and pay_in == "")
@@ -10085,7 +10093,7 @@ def admin_save_shift():
             pay_val = round(computed * rate, 2)
 
     if hours_in != "" and pay_in == "":
-        pay_val = round(safe_float(hours_in, 0.0) * rate, 2)
+        pay_val = round((hours_val or 0.0) * rate, 2)
 
     if DB_MIGRATION_MODE:
         try:
@@ -10655,7 +10663,7 @@ def admin_payroll():
         u = row["user"] or "Unknown"
         by_user.setdefault(u, {"hours": 0.0, "gross": 0.0})
         if row["hours"] != "":
-            h = safe_float(row["hours"], 0.0)
+            h = _round_to_half_hour(safe_float(row["hours"], 0.0))
             g = safe_float(row["pay"], 0.0)
             by_user[u]["hours"] += h
             by_user[u]["gross"] += g
@@ -10876,7 +10884,8 @@ def admin_payroll():
 
             cin = ((rec.get("cin", "") if isinstance(rec, dict) else "") or "").strip()
             cout = ((rec.get("cout", "") if isinstance(rec, dict) else "") or "").strip()
-            hrs = safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0)
+            hrs = _round_to_half_hour(
+                safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0))
             pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), default=0.0)
 
             total_hours += hrs
@@ -10898,7 +10907,7 @@ def admin_payroll():
                            name="cin"
                            value="{escape(cin[:5])}"
                            form="{form_id}"
-                           onchange="document.getElementById('{form_id}').submit()">
+                           data-autosave="1">
                        </div>
                        <div class="payrollDayLine">
                          <input
@@ -10908,7 +10917,7 @@ def admin_payroll():
                            name="cout"
                            value="{escape(cout[:5])}"
                            form="{form_id}"
-                           onchange="document.getElementById('{form_id}').submit()">
+                           data-autosave="1">
                        </div>
                        <div class="payrollDayHours">{escape(hrs_txt)}</div>
                      </div>
@@ -10995,7 +11004,7 @@ def admin_payroll():
             d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
             rec = user_days.get(d_str)
             if rec and rec.get("hours"):
-                h = safe_float(rec.get("hours", "0"), 0.0)
+                h = _round_to_half_hour(safe_float(rec.get("hours", "0"), 0.0))
                 wk_hours += h
                 if h > OVERTIME_HOURS:
                     wk_overtime_days += 1
@@ -11021,7 +11030,7 @@ def admin_payroll():
             hrs = rec["hours"] if rec else ""
             pay = rec["pay"] if rec else ""
 
-            h_val = safe_float(hrs, 0.0) if str(hrs).strip() != "" else 0.0
+            h_val = _round_to_half_hour(safe_float(hrs, 0.0)) if str(hrs).strip() != "" else 0.0
             overtime_row_class = "overtimeRow" if (str(hrs).strip() != "" and h_val > OVERTIME_HOURS) else ""
 
             if rec:
@@ -11057,7 +11066,7 @@ def admin_payroll():
 
             hrs_txt = ""
             if has_row:
-                hrs_txt = f"{safe_float(hrs, 0.0):.2f}".rstrip("0").rstrip(".")
+                hrs_txt = fmt_hours(hrs)
 
             pay_txt = ""
             if has_row:
@@ -11131,11 +11140,12 @@ def admin_payroll():
         <div class="v">{escape(currency)}{money(wk_net)}</div>
     </div>
 
-    <div class="payrollSummaryItem paidat">
+        <div class="payrollSummaryItem paidat">
         <div class="k">Paid at</div>
         <div class="v">{escape(paid_at) if paid and paid_at else "—"}</div>
     </div>
 </div>
+          </div>
         """)
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
@@ -11244,6 +11254,53 @@ def admin_payroll():
       </div>
 
       {''.join(blocks)}
+
+<script>
+(function(){{
+  const timers = new WeakMap();
+
+  function submitLater(input, delay){{
+    const formId = input.getAttribute("form");
+    if (!formId) return;
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    if (timers.has(input)) {{
+      clearTimeout(timers.get(input));
+    }}
+
+    const t = setTimeout(function(){{
+      if (!document.body.contains(input)) return;
+      form.submit();
+    }}, delay);
+
+    timers.set(input, t);
+  }}
+
+  document.querySelectorAll('.payrollTimeInput[data-autosave="1"]').forEach(function(input){{
+    input.addEventListener("input", function(){{
+      const v = (input.value || "").trim();
+      if (v.length >= 4) {{
+        submitLater(input, 700);
+      }}
+    }});
+
+    input.addEventListener("change", function(){{
+      const v = (input.value || "").trim();
+      if (v.length >= 4) {{
+        submitLater(input, 250);
+      }}
+    }});
+
+    input.addEventListener("blur", function(){{
+      const v = (input.value || "").trim();
+      if (v.length >= 4) {{
+        submitLater(input, 150);
+      }}
+    }});
+  }});
+}})();
+</script>
 
 <script>
 (function(){{
@@ -13525,7 +13582,7 @@ def _db_workhour_metrics(rec):
     if hours_txt == "" and rec.clock_in and rec.clock_out:
         try:
             raw_hours = max(0.0, (rec.clock_out - rec.clock_in).total_seconds() / 3600.0)
-            computed_hours = round(_apply_unpaid_break(raw_hours), 2)
+            computed_hours = _round_to_half_hour(_apply_unpaid_break(raw_hours))
             hours_txt = str(computed_hours)
             if pay_txt == "":
                 pay_txt = str(round(computed_hours * float(_get_user_rate(rec.employee_email or "")), 2))
