@@ -10076,6 +10076,14 @@ def admin_save_shift():
     hours_in = (request.form.get("hours") or "").strip()
     pay_in = (request.form.get("pay") or "").strip()
     recalc = (request.form.get("recalc") == "yes")
+    # Treat deleted time inputs as blank instead of midnight placeholders
+    if cin in ("00:00", "00:00:00") and hours_in == "" and pay_in == "":
+        cin = ""
+    if cout in ("00:00", "00:00:00") and hours_in == "" and pay_in == "":
+        cout = ""
+    if cin == "" and cout == "":
+        hours_in = ""
+        pay_in = ""
 
     if not username or not date_str:
         return redirect(request.referrer or "/admin/payroll")
