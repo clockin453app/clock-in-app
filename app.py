@@ -7500,7 +7500,43 @@ def home():
         except Exception:
             pass
 
-    is_clocked_in = bool(find_open_shift(rows, username))
+    latest_user_date = None
+    latest_user_open = False
+
+    for r in rows[1:]:
+        if len(r) <= COL_OUT or len(r) <= COL_USER or len(r) <= COL_DATE:
+            continue
+
+        row_user = (r[COL_USER] or "").strip()
+        if row_user != username:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp != current_wp:
+                continue
+        else:
+            if not user_in_same_workplace(row_user):
+                continue
+
+        d_str = (r[COL_DATE] or "").strip()
+        if not d_str:
+            continue
+
+        try:
+            d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        row_has_in = bool((r[COL_IN] or "").strip())
+        row_has_out = bool((r[COL_OUT] or "").strip())
+        row_is_open = row_has_in and not row_has_out
+
+        if latest_user_date is None or d_obj >= latest_user_date:
+            latest_user_date = d_obj
+            latest_user_open = row_is_open
+
+    is_clocked_in = latest_user_open
     status_text = "Clocked In" if is_clocked_in else "Clocked Out"
     status_class = "ok" if is_clocked_in else "warn"
     employee_count = 0
@@ -10749,13 +10785,23 @@ def admin_payroll():
     ]
 
     chart_rows = []
-    for u, vals_u in by_user.items():
-        gross_u = round(vals_u.get("gross", 0.0), 2)
+    for u in current_users:
+        display_name = get_employee_display_name(u)
+
+        if q and q not in u.lower() and q not in display_name.lower():
+            continue
+
+        gross_u = 0.0
+        for rec in (week_lookup.get(u, {}) or {}).values():
+            gross_u += safe_float(rec.get("pay", "0"), 0.0)
+
+        gross_u = round(gross_u, 2)
         if gross_u <= 0:
             continue
+
         chart_rows.append({
             "user": u,
-            "name": get_employee_display_name(u),
+            "name": display_name,
             "gross": gross_u,
         })
 
