@@ -11309,52 +11309,7 @@ def admin_payroll():
 
       {''.join(blocks)}
 
-<script>
-(function(){{
-  const timers = new WeakMap();
 
-  function submitLater(input, delay){{
-    const formId = input.getAttribute("form");
-    if (!formId) return;
-    const form = document.getElementById(formId);
-    if (!form) return;
-
-    if (timers.has(input)) {{
-      clearTimeout(timers.get(input));
-    }}
-
-    const t = setTimeout(function(){{
-      if (!document.body.contains(input)) return;
-      form.submit();
-    }}, delay);
-
-    timers.set(input, t);
-  }}
-
-  document.querySelectorAll('.payrollTimeInput[data-autosave="1"]').forEach(function(input){{
-    input.addEventListener("input", function(){{
-      const v = (input.value || "").trim();
-      if (v.length >= 4) {{
-        submitLater(input, 700);
-      }}
-    }});
-
-    input.addEventListener("change", function(){{
-      const v = (input.value || "").trim();
-      if (v.length >= 4) {{
-        submitLater(input, 250);
-      }}
-    }});
-
-    input.addEventListener("blur", function(){{
-      const v = (input.value || "").trim();
-      if (v.length >= 4) {{
-        submitLater(input, 150);
-      }}
-    }});
-  }});
-}})();
-</script>
 
 <script>
 (function(){{
@@ -11383,6 +11338,63 @@ def admin_payroll():
 }})();
 </script>
 
+<script>
+(function(){{
+  const timers = new WeakMap();
+
+  function clearTimer(input){{
+    if (timers.has(input)) {{
+      clearTimeout(timers.get(input));
+      timers.delete(input);
+    }}
+  }}
+
+  function submitLater(input, delay){{
+    const formId = input.getAttribute("form");
+    if (!formId) return;
+    const form = document.getElementById(formId);
+    if (!form) return;
+
+    clearTimer(input);
+
+    const t = setTimeout(function(){{
+      if (!document.body.contains(input)) return;
+      if (document.activeElement === input) return;
+      form.submit();
+    }}, delay);
+
+    timers.set(input, t);
+  }}
+
+  document.querySelectorAll('.payrollTimeInput[data-autosave="1"]').forEach(function(input){{
+    input.addEventListener("focus", function(){{
+      clearTimer(input);
+    }});
+
+    input.addEventListener("input", function(){{
+      clearTimer(input);
+    }});
+
+    input.addEventListener("change", function(){{
+      clearTimer(input);
+    }});
+
+    input.addEventListener("keydown", function(e){{
+      if (e.key === "Enter") {{
+        e.preventDefault();
+        submitLater(input, 80);
+      }}
+    }});
+
+    input.addEventListener("blur", function(){{
+      const v = (input.value || "").trim();
+      if (v === "" || v.length >= 4) {{
+        submitLater(input, 120);
+      }}
+    }});
+  }});
+}})();
+</script>
 
 <script>
 (function(){{
