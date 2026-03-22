@@ -11542,172 +11542,91 @@ def admin_company():
         layout_shell("admin", session.get("role", "admin"), content)
     )
 
+    @app.post("/admin/save-shift")
+    def admin_save_shift():
+        gate = require_admin()
+        if gate:
+            return gate
+        require_csrf()
 
-@app.post("/admin/save-shift")
-def admin_save_shift():
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
+        username = (request.form.get("username") or "").strip()
+        date_str = (request.form.get("date") or "").strip()
+        in_time = (request.form.get("clock_in") or "").strip()
+        out_time = (request.form.get("clock_out") or "").strip()
+        hours = (request.form.get("hours") or "").strip()
+        pay = (request.form.get("pay") or "").strip()
 
-    username = (request.form.get("user") or "").strip()
-    date_str = (request.form.get("date") or "").strip()
-    cin = (request.form.get("cin") or "").strip()
-    cout = (request.form.get("cout") or "").strip()
-    hours_in = (request.form.get("hours") or "").strip()
-    pay_in = (request.form.get("pay") or "").strip()
-    recalc = (request.form.get("recalc") == "yes")
-    # Treat deleted time inputs as blank instead of midnight placeholders
-    if cin in ("00:00", "00:00:00") and hours_in == "" and pay_in == "":
-        cin = ""
-    if cout in ("00:00", "00:00:00") and hours_in == "" and pay_in == "":
-        cout = ""
-    if cin == "" and cout == "":
-        hours_in = ""
-        pay_in = ""
+        if not username or not date_str:
+            return redirect(request.referrer or "/admin/payroll")
 
-    if not username or not date_str:
-        return redirect(request.referrer or "/admin/payroll")
-
-    rate = _get_user_rate(username)
-
-    hours_val = None if hours_in == "" else _round_to_half_hour(safe_float(hours_in, 0.0))
-    pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
-
-    auto_calc = recalc or (cin and cout and hours_in == "" and pay_in == "")
-    if cin and cout and auto_calc:
-        computed = _compute_hours_from_times(date_str, cin, cout)
-        if computed is not None:
-            hours_val = computed
-            pay_val = round(computed * rate, 2)
-
-    if hours_in != "" and pay_in == "":
-        pay_val = round((hours_val or 0.0) * rate, 2)
-
-    if DB_MIGRATION_MODE:
-        try:
-            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            db_row = WorkHour.query.filter_by(
-                employee_email=username,
-                date=shift_date,
-                workplace=_session_workplace_id(),
-            ).order_by(WorkHour.id.desc()).first()
-            if not db_row:
-                db_row = WorkHour(
+        if DB_MIGRATION_MODE:
+            try:
+                shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                db_row = WorkHour.query.filter_by(
                     employee_email=username,
                     date=shift_date,
                     workplace=_session_workplace_id(),
-                    workplace_id=_session_workplace_id(),
-                )
-                db.session.add(db_row)
+                ).order_by(WorkHour.id.desc()).first()
 
-            clock_in_dt = None
-            clock_out_dt = None
-            if cin:
-                if len(cin.split(":")) == 2:
-                    cin = cin + ":00"
-                clock_in_dt = datetime.strptime(f"{date_str} {cin}", "%Y-%m-%d %H:%M:%S")
-            if cout:
-                if len(cout.split(":")) == 2:
-                    cout = cout + ":00"
-                clock_out_dt = datetime.strptime(f"{date_str} {cout}", "%Y-%m-%d %H:%M:%S")
-                if clock_in_dt and clock_out_dt < clock_in_dt:
-                    clock_out_dt = clock_out_dt + timedelta(days=1)
+                if not db_row:
+                    db_row = WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
+                    )
+                    db.session.add(db_row)
 
-            db_row.clock_in = clock_in_dt
-            db_row.clock_out = clock_out_dt
-            db_row.workplace = _session_workplace_id()
-            db_row.workplace_id = _session_workplace_id()
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return make_response(f"Could not save shift: {e}", 500)
+                db_row.clock_in = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S") if in_time else None
+                db_row.clock_out = datetime.strptime(f"{date_str} {out_time}",
+                                                     "%Y-%m-%d %H:%M:%S") if out_time else None
+                db_row.hours = float(hours) if str(hours).strip() else None
+                db_row.pay = float(pay) if str(pay).strip() else None
+
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                return make_response(f"Could not save shift: {e}", 500)
+        else:
+            try:
+                vals = work_sheet.get_all_values()
+                headers = vals[0] if vals else []
+                rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+
+                if not rownum:
+                    new_row = [username, date_str, in_time, out_time, hours, pay]
+                    if headers and "Workplace_ID" in headers:
+                        wp_idx = headers.index("Workplace_ID")
+                        if len(new_row) <= wp_idx:
+                            new_row += [""] * (wp_idx + 1 - len(new_row))
+                        new_row[wp_idx] = _session_workplace_id()
+
+                    if headers and len(new_row) < len(headers):
+                        new_row += [""] * (len(headers) - len(new_row))
+
+                    work_sheet.append_row(new_row)
+                else:
+                    updates = []
+                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_IN + 1), "values": [[in_time]]})
+                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_OUT + 1), "values": [[out_time]]})
+                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_HOURS + 1), "values": [[hours]]})
+                    updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_PAY + 1), "values": [[pay]]})
+
+                    if headers and "Workplace_ID" in headers:
+                        wp_col = headers.index("Workplace_ID") + 1
+                        updates.append({
+                            "range": gspread.utils.rowcol_to_a1(rownum, wp_col),
+                            "values": [[_session_workplace_id()]]
+                        })
+
+                    work_sheet.batch_update(updates)
+            except Exception as e:
+                return make_response(f"Could not mark payroll row as paid: {e}", 500)
+
         return redirect(request.referrer or "/admin/payroll")
 
-    hours_cell = "" if hours_val is None else str(hours_val)
-    pay_cell = "" if pay_val is None else str(pay_val)
-
-    try:
-        vals = work_sheet.get_all_values()
-        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
-        if rownum:
-            work_sheet.update_cell(rownum, COL_IN + 1, cin)
-            work_sheet.update_cell(rownum, COL_OUT + 1, cout)
-            work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
-            work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
-        else:
-            headers = vals[0] if vals else []
-            new_row = [username, date_str, cin, cout, hours_cell, pay_cell]
-            if headers and "Workplace_ID" in headers:
-                wp_idx = headers.index("Workplace_ID")
-                if len(new_row) <= wp_idx:
-                    new_row += [""] * (wp_idx + 1 - len(new_row))
-                new_row[wp_idx] = _session_workplace_id()
-            if headers and len(new_row) < len(headers):
-                new_row += [""] * (len(headers) - len(new_row))
-            work_sheet.append_row(new_row)
-    except Exception as e:
-        return make_response(f"Could not save shift: {e}", 500)
-
-    return redirect(request.referrer or "/admin/payroll")
-
-    rate = _get_user_rate(username)
-
-    hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
-    pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
-
-    # Auto-calc when:
-    # - admin ticks "Recalculate", OR
-    # - admin enters Clock In/Out and leaves Hours+Pay blank
-    auto_calc = recalc or (cin and cout and hours_in == "" and pay_in == "")
-
-    if cin and cout and auto_calc:
-        computed = _compute_hours_from_times(date_str, cin, cout)
-        if computed is not None:
-            hours_val = computed
-            pay_val = round(computed * rate, 2)
-
-    # Manual hours edit: if Hours is entered but Pay is blank,
-    # automatically refresh Pay from the employee rate.
-    if hours_in != "" and pay_in == "":
-        pay_val = round(safe_float(hours_in, 0.0) * rate, 2)
-
-    hours_cell = "" if hours_val is None else str(hours_val)
-    pay_cell = "" if pay_val is None else str(pay_val)
-
-    try:
-        vals = work_sheet.get_all_values()
-        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
-        if rownum:
-            work_sheet.update_cell(rownum, COL_IN + 1, cin)
-            work_sheet.update_cell(rownum, COL_OUT + 1, cout)
-            work_sheet.update_cell(rownum, COL_HOURS + 1, hours_cell)
-            work_sheet.update_cell(rownum, COL_PAY + 1, pay_cell)
-        else:
-            headers = vals[0] if vals else []
-            new_row = [username, date_str, cin, cout, hours_cell, pay_cell]
-
-            if headers and "Workplace_ID" in headers:
-                wp_idx = headers.index("Workplace_ID")
-                if len(new_row) <= wp_idx:
-                    new_row += [""] * (wp_idx + 1 - len(new_row))
-                new_row[wp_idx] = _session_workplace_id()
-
-            # Pad to header width (prevents misaligned rows if sheet has extra columns)
-            if headers and len(new_row) < len(headers):
-                new_row += [""] * (len(headers) - len(new_row))
-
-            work_sheet.append_row(new_row)
-    except Exception as e:
-        return make_response(f"Could not mark payroll row as paid: {e}", 500)
-
-    return redirect(request.referrer or "/admin/payroll")
-
-    @app.route("/admin/force-clockin", methods=["GET", "POST"])
-    def admin_force_clockin():
-        if request.method == "GET":
-            return redirect("/admin")
-
+@app.post("/admin/force-clockin")
+def admin_force_clockin():
         gate = require_admin()
         if gate:
             return gate
@@ -11715,10 +11634,9 @@ def admin_save_shift():
 
         username = (request.form.get("user") or "").strip()
         in_time = (request.form.get("in_time") or "").strip()
-        dates = [(d or "").strip() for d in request.form.getlist("date")]
-        dates = [d for d in dates if d]
-        date_str = dates[-1] if dates else datetime.now(TZ).strftime("%Y-%m-%d")
-        if not username or not in_time:
+        date_str = (request.form.get("date") or "").strip()
+
+        if not username or not in_time or not date_str:
             return redirect(request.referrer or "/admin")
 
         if len(in_time.split(":")) == 2:
@@ -11732,11 +11650,13 @@ def admin_save_shift():
             try:
                 shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
                 clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
+
                 db_row = WorkHour.query.filter_by(
                     employee_email=username,
                     date=shift_date,
                     workplace=_session_workplace_id(),
                 ).order_by(WorkHour.id.desc()).first()
+
                 if db_row:
                     db_row.clock_in = clock_in_dt
                     db_row.clock_out = None
@@ -11761,6 +11681,7 @@ def admin_save_shift():
                 headers = vals[0] if vals else []
                 rownum = _find_workhours_row_by_user_date(vals, username, date_str)
                 wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
+
                 if rownum:
                     work_sheet.update_cell(rownum, COL_IN + 1, in_time)
                     if wp_col:
@@ -11781,7 +11702,6 @@ def admin_save_shift():
         actor = session.get("username", "admin")
         log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
         return redirect(request.referrer or "/admin")
-
 
 @app.post("/admin/force-clockout")
 def admin_force_clockout():
