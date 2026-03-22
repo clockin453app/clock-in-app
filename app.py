@@ -6504,19 +6504,42 @@ def set_employee_first_last(username: str, first: str, last: str):
 
 def _allowed_assignable_roles_for_actor(actor_role: str) -> set[str]:
     actor = (actor_role or "").strip().lower()
+
+    # These are only DEFAULT SUGGESTIONS in the UI, not a hard limit.
+    default_worker_roles = {
+        "employee",
+        "bricklayer",
+        "fixer",
+        "labourer",
+        "supervisor/foreman",
+        "manager",
+    }
+
     if actor == "master_admin":
-        return {"employee", "admin"}
+        return default_worker_roles | {"admin"}
     if actor == "admin":
-        return {"employee"}
+        return default_worker_roles
     return {"employee"}
 
 
 def _sanitize_requested_role(raw_role: str, actor_role: str) -> str | None:
-    role = (raw_role or "").strip().lower()
+    role = (raw_role or "").strip()
     if not role:
         return None
-    allowed = _allowed_assignable_roles_for_actor(actor_role)
-    return role if role in allowed else None
+
+    role_l = role.lower()
+    actor = (actor_role or "").strip().lower()
+
+    # Never allow creating master_admin from this screen
+    if role_l == "master_admin":
+        return None
+
+    # Only master_admin can create admin
+    if role_l == "admin":
+        return "admin" if actor == "master_admin" else None
+
+    # Any other non-empty role is allowed as typed
+    return role
 
 
 def update_employee_password(username: str, new_password: str, workplace_id: str | None = None) -> bool:
@@ -14089,69 +14112,13 @@ def admin_employees():
 
     # List employees in this workplace
     wp = _session_workplace_id()
-    allowed_wps = set(_workplace_ids_for_read(wp))
     rows_html = []
     try:
-        records = []
+        table_records = _list_employee_records_for_workplace(wp, include_inactive=True)
 
-        if DB_MIGRATION_MODE:
-            for rec in Employee.query.all():
-                username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
-                first_name = str(getattr(rec, "first_name", "") or "").strip()
-                last_name = str(getattr(rec, "last_name", "") or "").strip()
-                full_name = str(getattr(rec, "name", "") or "").strip()
-                role = str(getattr(rec, "role", "") or "").strip()
-
-                rate_val = getattr(rec, "rate", None)
-                rate = "" if rate_val is None else str(rate_val).strip()
-
-                early_access = str(getattr(rec, "early_access", "") or "").strip()
-                workplace_id = str(
-                    getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
-                ).strip() or "default"
-
-                if (not first_name and not last_name) and full_name:
-                    parts = [p for p in full_name.split() if p]
-                    if parts:
-                        first_name = parts[0]
-                        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-
-                if not username:
-                    continue
-
-                records.append({
-                    "Username": username,
-                    "FirstName": first_name,
-                    "LastName": last_name,
-                    "Role": role,
-                    "Rate": rate,
-                    "EarlyAccess": early_access,
-                    "Workplace_ID": workplace_id,
-                })
-        else:
-            records = get_employees_compat()
-
-        headers = ["Username", "FirstName", "LastName", "Role", "Rate", "EarlyAccess", "Workplace_ID"]
-        vals = [headers] + [
-            [
-                rec.get("Username", ""),
-                rec.get("FirstName", ""),
-                rec.get("LastName", ""),
-                rec.get("Role", ""),
-                rec.get("Rate", ""),
-                rec.get("EarlyAccess", ""),
-                rec.get("Workplace_ID", ""),
-            ]
-            for rec in records
-        ]
-
-        for rec in records:
+        for rec in table_records:
             u = (rec.get("Username") or "").strip()
             if not u:
-                continue
-
-            row_wp = (rec.get("Workplace_ID") or "default").strip() or "default"
-            if row_wp not in allowed_wps:
                 continue
 
             fn = (rec.get("FirstName") or "").strip()
@@ -14159,35 +14126,51 @@ def admin_employees():
             rr = (rec.get("Role") or "").strip()
             rate = str(rec.get("Rate") or "").strip()
             early = str(rec.get("EarlyAccess") or "").strip()
-            early_label = "Yes" if early.lower() in ("true", "1", "yes") else "No"
-            disp = (fn + " " + ln).strip() or u
+            active = str(rec.get("Active") or "TRUE").strip().lower()
+
+            early_label = "Yes" if early in ("true", "1", "yes") else "No"
+            inactive_tag = " (inactive)" if active in ("false", "0", "no", "n", "off") else ""
+            disp = ((fn + " " + ln).strip() or u) + inactive_tag
 
             rows_html.append(
                 f"<tr><td>{escape(disp)}</td><td>{escape(u)}</td><td>{escape(rr)}</td><td>{escape(early_label)}</td><td class='num'>{escape(rate)}</td></tr>"
             )
     except Exception:
         rows_html = []
-    # Role suggestions from Employees sheet (this workplace)
-    role_suggestions = ["employee", "manager", "admin"]
+
+    # Roles allowed for the logged-in actor
+    actor_role_page = (session.get("role") or "employee").strip().lower()
+
+    role_suggestions = set(_allowed_assignable_roles_for_actor(actor_role_page))
+
     try:
-        found = set()
-        # reuse vals/headers from above if they exist
-        if "vals" in locals() and "headers" in locals() and headers and "Role" in headers:
-            i_role2 = headers.index("Role")
-            i_wp2 = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-            for r in (vals[1:] if len(vals) > 1 else []):
-                if i_wp2 is not None:
-                    row_wp = (r[i_wp2] if i_wp2 < len(r) else "").strip() or "default"
-                    if row_wp not in allowed_wps:
-                        continue
-                rr = (r[i_role2] if i_role2 < len(r) else "").strip()
-                if rr:
-                    found.add(rr)
-        role_suggestions = sorted(set(role_suggestions) | found, key=lambda x: x.lower())
+        for rec in get_employees_compat():
+            row_wp = (rec.get("Workplace_ID") or "default").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+
+            rr = (rec.get("Role") or "").strip()
+            if not rr:
+                continue
+
+            # Do not suggest master_admin in the create form
+            if rr.lower() == "master_admin":
+                continue
+
+            # Normal admins should not get "admin" suggested
+            if rr.lower() == "admin" and actor_role_page != "master_admin":
+                continue
+
+            role_suggestions.add(rr)
     except Exception:
         pass
 
-    role_options_html = "".join(f"<option value='{escape(r)}'></option>" for r in role_suggestions)
+    role_suggestions = sorted(role_suggestions, key=lambda x: x.lower())
+
+    role_options_html = "".join(
+        f"<option value='{escape(r)}'></option>"
+        for r in role_suggestions
+    )
     table = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No employees found.</td></tr>"
 
     created_card = ""
@@ -14203,67 +14186,29 @@ def admin_employees():
           </div>
         </div>
         """
-        # Build employee dropdown options (this workplace)
+
+    # Build employee dropdown options (this workplace)
     employee_options_html = "<option value='' selected disabled>Select employee</option>"
     delete_employee_options_html = "<option value='' selected disabled>Select employee</option>"
     try:
         wp_now = _session_workplace_id()
-        records = []
+        dropdown_records = _list_employee_records_for_workplace(wp_now, include_inactive=False)
 
-        if DB_MIGRATION_MODE:
-            for rec in Employee.query.all():
-                username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
-                first_name = str(getattr(rec, "first_name", "") or "").strip()
-                last_name = str(getattr(rec, "last_name", "") or "").strip()
-                full_name = str(getattr(rec, "name", "") or "").strip()
-                active = str(getattr(rec, "active", "TRUE") or "TRUE").strip()
-                workplace_id = str(
-                    getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
-                ).strip() or "default"
-
-                if (not first_name and not last_name) and full_name:
-                    parts = [p for p in full_name.split() if p]
-                    if parts:
-                        first_name = parts[0]
-                        last_name = " ".join(parts[1:]) if len(parts) > 1 else ""
-
-                if not username:
-                    continue
-
-                role = str(getattr(rec, "role", "") or "").strip()
-
-                records.append({
-                    "Username": username,
-                    "FirstName": first_name,
-                    "LastName": last_name,
-                    "Role": role,
-                    "Active": active,
-                    "Workplace_ID": workplace_id,
-                })
-        else:
-            records = get_employees_compat()
-
-        for rec in records:
+        for rec in dropdown_records:
             u = str(rec.get("Username") or "").strip()
             if not u:
                 continue
-
-            r_wp = str(rec.get("Workplace_ID") or "default").strip() or "default"
-            if r_wp != wp_now:
-                continue
-
-            a = str(rec.get("Active") or "TRUE").strip().lower()
-            inactive_tag = " (inactive)" if a in ("false", "0", "no") else ""
 
             fn = str(rec.get("FirstName") or "").strip()
             ln = str(rec.get("LastName") or "").strip()
             disp = (fn + " " + ln).strip() or u
 
             role_raw = str(rec.get("Role") or "").strip().lower()
-            label = f"{disp}{inactive_tag} ({u})"
+            label = f"{disp} ({u})"
 
             employee_options_html += f"<option value='{escape(u)}'>{escape(label)}</option>"
 
+            # keep master_admin out of the delete dropdown only
             if role_raw != "master_admin":
                 delete_employee_options_html += f"<option value='{escape(u)}'>{escape(label)}</option>"
     except Exception:
@@ -14385,10 +14330,10 @@ def admin_employees():
           <div class="row2">
             <div>
               <label class="sub">Role</label>
-              <input class="input" name="role" list="role_list" value="employee">
-              <datalist id="role_list">
-                {role_options_html}
-              </datalist>
+<input class="input" name="role" list="role_list" value="employee">
+<datalist id="role_list">
+  {role_options_html}
+</datalist>
             </div>
             <div>
               <label class="sub">Hourly rate</label>
