@@ -1694,6 +1694,67 @@ def _workplace_ids_for_read(workplace_id: str | None = None):
     return ids
 
 
+def _allowed_workplace_ids_for_admin_write(workplace_id: str | None = None):
+    wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    return list(dict.fromkeys(_workplace_ids_for_read(wp)))
+
+
+def _employee_query_for_write(username: str, workplace_id: str | None = None):
+    target_user = (username or "").strip()
+    allowed_wps = _allowed_workplace_ids_for_admin_write(workplace_id)
+
+    return Employee.query.filter(
+        and_(
+            or_(Employee.username == target_user, Employee.email == target_user),
+            or_(
+                Employee.workplace_id.in_(allowed_wps),
+                and_(Employee.workplace_id.is_(None), Employee.workplace.in_(allowed_wps)),
+                Employee.workplace.in_(allowed_wps),
+            ),
+        )
+    )
+
+
+def _workhour_query_for_user(username: str, workplace_id: str | None = None):
+    target_user = (username or "").strip()
+    allowed_wps = _allowed_workplace_ids_for_admin_write(workplace_id)
+
+    return WorkHour.query.filter(
+        and_(
+            WorkHour.employee_email == target_user,
+            or_(
+                WorkHour.workplace_id.in_(allowed_wps),
+                and_(WorkHour.workplace_id.is_(None), WorkHour.workplace.in_(allowed_wps)),
+                WorkHour.workplace.in_(allowed_wps),
+            ),
+        )
+    )
+
+
+def _payroll_query_for_user(username: str, workplace_id: str | None = None):
+    target_user = (username or "").strip()
+    allowed_wps = _allowed_workplace_ids_for_admin_write(workplace_id)
+
+    return PayrollReport.query.filter(
+        and_(
+            PayrollReport.username == target_user,
+            PayrollReport.workplace_id.in_(allowed_wps),
+        )
+    )
+
+
+def _onboarding_query_for_user(username: str, workplace_id: str | None = None):
+    target_user = (username or "").strip()
+    allowed_wps = _allowed_workplace_ids_for_admin_write(workplace_id)
+
+    return OnboardingRecord.query.filter(
+        and_(
+            OnboardingRecord.username == target_user,
+            OnboardingRecord.workplace_id.in_(allowed_wps),
+        )
+    )
+
+
 # Clock selfie settings
 CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true",
                                                                                                            "yes", "on")
@@ -6390,9 +6451,7 @@ def set_employee_field(username: str, field: str, value: str):
 
     if DB_MIGRATION_MODE:
         try:
-            db_row = Employee.query.filter_by(username=username, workplace_id=current_wp).first()
-            if not db_row:
-                db_row = Employee.query.filter_by(email=username, workplace_id=current_wp).first()
+            db_row = _employee_query_for_write(username, current_wp).first()
             if not db_row:
                 return False
 
@@ -6406,6 +6465,8 @@ def set_employee_field(username: str, field: str, value: str):
                 db_row.early_access = value
             elif field == "Active" and hasattr(db_row, "active"):
                 db_row.active = value
+                if value == "FALSE" and hasattr(db_row, "active_session_token"):
+                    db_row.active_session_token = None
             elif field == "Workplace_ID":
                 if hasattr(db_row, "workplace_id"):
                     db_row.workplace_id = value
@@ -6552,15 +6613,11 @@ def update_employee_password(username: str, new_password: str, workplace_id: str
 
     if DB_MIGRATION_MODE:
         try:
-            db_row = Employee.query.filter_by(username=target_user, workplace_id=current_wp).first()
-            if not db_row:
-                db_row = Employee.query.filter_by(email=target_user, workplace_id=current_wp).first()
+            db_row = _employee_query_for_write(target_user, current_wp).first()
             if not db_row:
                 return False
             db_row.password = hashed
             db_row.active_session_token = None
-            db_row.workplace = current_wp
-            db_row.workplace_id = current_wp
             db.session.commit()
             return True
         except Exception:
@@ -6645,25 +6702,8 @@ def admin_clear_employee_history():
         return redirect("/admin/employees")
 
     try:
-        workhours_deleted = WorkHour.query.filter(
-            and_(
-                or_(
-                    WorkHour.employee_email == username,
-                ),
-                or_(
-                    WorkHour.workplace_id == wp,
-                    and_(WorkHour.workplace_id.is_(None), WorkHour.workplace == wp),
-                    WorkHour.workplace == wp,
-                ),
-            )
-        ).delete(synchronize_session=False)
-
-        payroll_deleted = PayrollReport.query.filter(
-            and_(
-                PayrollReport.username == username,
-                PayrollReport.workplace_id == wp,
-            )
-        ).delete(synchronize_session=False)
+        workhours_deleted = _workhour_query_for_user(username, wp).delete(synchronize_session=False)
+        payroll_deleted = _payroll_query_for_user(username, wp).delete(synchronize_session=False)
 
         db.session.commit()
 
@@ -6701,16 +6741,7 @@ def admin_delete_employee():
         session["_emp_msg"] = "You cannot delete your own account."
         session["_emp_ok"] = False
         return redirect("/admin/employees")
-    target_employee = Employee.query.filter(
-        and_(
-            or_(Employee.username == username, Employee.email == username),
-            or_(
-                Employee.workplace_id == wp,
-                and_(Employee.workplace_id.is_(None), Employee.workplace == wp),
-                Employee.workplace == wp,
-            ),
-        )
-    ).first()
+    target_employee = _employee_query_for_write(username, wp).first()
 
     if target_employee and (target_employee.role or "").strip().lower() == "master_admin":
         session["_emp_msg"] = "Master admin account cannot be deleted."
@@ -6718,46 +6749,10 @@ def admin_delete_employee():
         return redirect("/admin/employees")
 
     try:
-        workhours_deleted = WorkHour.query.filter(
-            and_(
-                or_(
-                    WorkHour.employee_email == username,
-                ),
-                or_(
-                    WorkHour.workplace_id == wp,
-                    and_(WorkHour.workplace_id.is_(None), WorkHour.workplace == wp),
-                    WorkHour.workplace == wp,
-                ),
-            )
-        ).delete(synchronize_session=False)
-
-        payroll_deleted = PayrollReport.query.filter(
-            and_(
-                PayrollReport.username == username,
-                PayrollReport.workplace_id == wp,
-            )
-        ).delete(synchronize_session=False)
-
-        onboarding_deleted = OnboardingRecord.query.filter(
-            and_(
-                OnboardingRecord.username == username,
-                OnboardingRecord.workplace_id == wp,
-            )
-        ).delete(synchronize_session=False)
-
-        employees_deleted = Employee.query.filter(
-            and_(
-                or_(
-                    Employee.username == username,
-                    Employee.email == username,
-                ),
-                or_(
-                    Employee.workplace_id == wp,
-                    and_(Employee.workplace_id.is_(None), Employee.workplace == wp),
-                    Employee.workplace == wp,
-                ),
-            )
-        ).delete(synchronize_session=False)
+        workhours_deleted = _workhour_query_for_user(username, wp).delete(synchronize_session=False)
+        payroll_deleted = _payroll_query_for_user(username, wp).delete(synchronize_session=False)
+        onboarding_deleted = _onboarding_query_for_user(username, wp).delete(synchronize_session=False)
+        employees_deleted = _employee_query_for_write(username, wp).delete(synchronize_session=False)
 
         db.session.commit()
 
@@ -9201,7 +9196,7 @@ def my_reports():
         margin-top:12px;
         padding:12px;
       }
-      
+
       .myReportsActions{
   display:flex;
   gap:8px;
@@ -9325,7 +9320,7 @@ def my_reports():
   .myReportsTopGrid{
     grid-template-columns: 1fr;
   }
-  
+
     .myReportsActions{
     width:100%;
     display:grid;
@@ -9461,7 +9456,7 @@ def my_reports():
   </div>
 </div>
 
-           
+
   <div class="headerTop">
   <div>
     <h1>Timesheets</h1>
@@ -10002,8 +9997,6 @@ def my_reports_print():
     """
 
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
-
-
 
 
 @app.get("/my-reports.pdf")
@@ -13781,7 +13774,50 @@ def admin_employees():
                 headers = get_sheet_headers(employees_sheet)
 
                 rownum = find_row_by_username(employees_sheet, edit_username)  # tenant-safe
-                if not rownum:
+                if not rownum and DB_MIGRATION_MODE:
+                    new_rate_str = None
+                    if edit_rate_raw != "":
+                        try:
+                            new_rate_str = str(float(edit_rate_raw))
+                        except Exception:
+                            ok = False
+                            msg = "Hourly rate must be a number."
+
+                    changed = []
+                    if not msg:
+                        try:
+                            db_row = _employee_query_for_write(edit_username, _session_workplace_id()).first()
+                            if not db_row:
+                                ok = False
+                                msg = "Employee not found in this workplace."
+                            else:
+                                if edit_role != "" and hasattr(db_row, "role"):
+                                    db_row.role = edit_role
+                                    changed.append(f"role={edit_role}")
+
+                                if new_rate_str is not None and hasattr(db_row, "rate"):
+                                    db_row.rate = Decimal(new_rate_str)
+                                    changed.append(f"rate={new_rate_str}")
+
+                                if edit_early_access in ("TRUE", "FALSE") and hasattr(db_row, "early_access"):
+                                    db_row.early_access = edit_early_access
+                                    changed.append(f"early_access={edit_early_access}")
+
+                                if not changed:
+                                    ok = False
+                                    msg = "Nothing to update (enter a new role, rate, and/or early access change)."
+                                else:
+                                    db.session.commit()
+                                    actor = session.get("username", "admin")
+                                    log_audit("EMPLOYEE_UPDATE", actor=actor, username=edit_username, date_str="",
+                                              details=" ".join(changed))
+                                    ok = True
+                                    msg = "Employee updated."
+                        except Exception:
+                            db.session.rollback()
+                            ok = False
+                            msg = "Could not update employee."
+                elif not rownum:
                     ok = False
                     msg = "Employee not found in this workplace."
                 else:
@@ -13851,17 +13887,12 @@ def admin_employees():
                                             except Exception:
                                                 rate_db = None
 
-                                        db_row = Employee.query.filter_by(username=username_db,
-                                                                          workplace_id=workplace_id_db).first()
-                                        if not db_row:
-                                            db_row = Employee.query.filter_by(email=username_db,
-                                                                              workplace_id=workplace_id_db).first()
+                                        db_row = _employee_query_for_write(username_db, workplace_id_db).first()
 
                                         if db_row:
                                             db_row.email = username_db
                                             db_row.name = full_name_db or username_db
                                             db_row.role = role_db
-                                            db_row.workplace = workplace_id_db
                                             db_row.username = username_db
                                             db_row.first_name = first_name_db
                                             db_row.last_name = last_name_db
@@ -13869,8 +13900,8 @@ def admin_employees():
                                             db_row.rate = rate_db
                                             db_row.early_access = early_access_db
                                             db_row.active = active_db
-                                            db_row.workplace_id = workplace_id_db
-                                            db_row.site = site_db
+                                            if hasattr(db_row, "site"):
+                                                db_row.site = site_db
                                         else:
                                             db.session.add(
                                                 Employee(
@@ -13918,7 +13949,33 @@ def admin_employees():
                     headers = headers2
 
                 rownum = find_row_by_username(employees_sheet, edit_username)  # tenant-safe
-                if not rownum:
+                if not rownum and DB_MIGRATION_MODE:
+                    val = "FALSE" if action == "deactivate" else "TRUE"
+                    try:
+                        db_row = _employee_query_for_write(edit_username, _session_workplace_id()).first()
+                        if not db_row:
+                            ok = False
+                            msg = "Employee not found in this workplace."
+                        else:
+                            db_row.active = val
+                            if action == "deactivate" and hasattr(db_row, "active_session_token"):
+                                db_row.active_session_token = None
+                            db.session.commit()
+                            actor = session.get("username", "admin")
+                            if action == "deactivate":
+                                log_audit("EMPLOYEE_DEACTIVATE", actor=actor, username=edit_username, date_str="",
+                                          details="active=FALSE")
+                                msg = "Employee deactivated."
+                            else:
+                                log_audit("EMPLOYEE_REACTIVATE", actor=actor, username=edit_username, date_str="",
+                                          details="active=TRUE")
+                                msg = "Employee reactivated."
+                            ok = True
+                    except Exception:
+                        db.session.rollback()
+                        ok = False
+                        msg = "Could not update employee."
+                elif not rownum:
                     ok = False
                     msg = "Employee not found in this workplace."
                 else:
@@ -13944,18 +14001,11 @@ def admin_employees():
 
                         if DB_MIGRATION_MODE:
                             try:
-                                db_row = Employee.query.filter_by(username=edit_username,
-                                                                  workplace_id=_session_workplace_id()).first()
-                                if not db_row:
-                                    db_row = Employee.query.filter_by(email=edit_username,
-                                                                      workplace_id=_session_workplace_id()).first()
-
+                                db_row = _employee_query_for_write(edit_username, _session_workplace_id()).first()
                                 if db_row:
                                     db_row.active = val
-                                    if action == "deactivate":
+                                    if action == "deactivate" and hasattr(db_row, "active_session_token"):
                                         db_row.active_session_token = None
-                                    db_row.workplace = _session_workplace_id()
-                                    db_row.workplace_id = _session_workplace_id()
                                     db.session.commit()
                             except Exception:
                                 db.session.rollback()
@@ -14187,28 +14237,40 @@ def admin_employees():
         </div>
         """
 
-    # Build employee dropdown options (this workplace)
     employee_options_html = "<option value='' selected disabled>Select employee</option>"
     delete_employee_options_html = "<option value='' selected disabled>Select employee</option>"
     try:
         wp_now = _session_workplace_id()
-        dropdown_records = _list_employee_records_for_workplace(wp_now, include_inactive=False)
+        allowed_wps_for_dropdown = set(_workplace_ids_for_read(wp_now))
+        records = _list_employee_records_for_workplace(wp_now, include_inactive=True)
+        seen_usernames = set()
 
-        for rec in dropdown_records:
+        def _record_sort_key(rec):
+            rec_wp = str(rec.get("Workplace_ID") or "default").strip() or "default"
+            return (0 if rec_wp == wp_now else 1, str(rec.get("Username") or "").strip().lower())
+
+        for rec in sorted(records, key=_record_sort_key):
             u = str(rec.get("Username") or "").strip()
-            if not u:
+            if not u or u in seen_usernames:
                 continue
+
+            r_wp = str(rec.get("Workplace_ID") or "default").strip() or "default"
+            if r_wp not in allowed_wps_for_dropdown:
+                continue
+
+            a = str(rec.get("Active") or "TRUE").strip().lower()
+            inactive_tag = " (inactive)" if a in ("false", "0", "no", "n", "off") else ""
 
             fn = str(rec.get("FirstName") or "").strip()
             ln = str(rec.get("LastName") or "").strip()
             disp = (fn + " " + ln).strip() or u
 
             role_raw = str(rec.get("Role") or "").strip().lower()
-            label = f"{disp} ({u})"
+            label = f"{disp}{inactive_tag} ({u})"
 
             employee_options_html += f"<option value='{escape(u)}'>{escape(label)}</option>"
+            seen_usernames.add(u)
 
-            # keep master_admin out of the delete dropdown only
             if role_raw != "master_admin":
                 delete_employee_options_html += f"<option value='{escape(u)}'>{escape(label)}</option>"
     except Exception:
