@@ -523,6 +523,7 @@ def _employee_record_from_model(rec):
 def _find_employee_record(username: str, workplace_id: str | None = None):
     target_user = (username or "").strip()
     target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    allowed_wps = set(_workplace_ids_for_read(target_wp))
 
     if not target_user:
         return None
@@ -535,7 +536,8 @@ def _find_employee_record(username: str, workplace_id: str | None = None):
                     continue
                 if (row.get("Username", "") or "").strip() != target_user:
                     continue
-                if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
+                row_wp = (row.get("Workplace_ID", "") or "default").strip()
+                if row_wp not in allowed_wps:
                     continue
                 stored_pw = str(row.get("Password", "") or "").strip()
                 if stored_pw and not _password_is_hashed(stored_pw):
@@ -549,7 +551,7 @@ def _find_employee_record(username: str, workplace_id: str | None = None):
         for user in _get_import_sheet("employees").get_all_records():
             row_user = (user.get("Username") or "").strip()
             row_wp = (user.get("Workplace_ID") or "").strip() or "default"
-            if row_user == target_user and row_wp == target_wp:
+            if row_user == target_user and row_wp in allowed_wps:
                 stored_pw = str(user.get("Password", "") or "").strip()
                 if stored_pw and not _password_is_hashed(stored_pw):
                     user = dict(user)
@@ -563,6 +565,7 @@ def _find_employee_record(username: str, workplace_id: str | None = None):
 
 def _list_employee_records_for_workplace(workplace_id: str | None = None, include_inactive: bool = True):
     target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    allowed_wps = set(_workplace_ids_for_read(target_wp))
     out = []
 
     if DB_MIGRATION_MODE:
@@ -571,7 +574,8 @@ def _list_employee_records_for_workplace(workplace_id: str | None = None, includ
                 row = _employee_record_from_model(rec)
                 if not row:
                     continue
-                if (row.get("Workplace_ID", "") or "default").strip() != target_wp:
+                row_wp = (row.get("Workplace_ID", "") or "default").strip()
+                if row_wp not in allowed_wps:
                     continue
 
                 if not include_inactive:
@@ -587,7 +591,7 @@ def _list_employee_records_for_workplace(workplace_id: str | None = None, includ
     try:
         for user in _get_import_sheet("employees").get_all_records():
             row_wp = (user.get("Workplace_ID") or "").strip() or "default"
-            if row_wp != target_wp:
+            if row_wp not in allowed_wps:
                 continue
 
             if not include_inactive:
@@ -608,7 +612,7 @@ def get_workhours_rows():
 
     headers = ["Username", "Date", "ClockIn", "ClockOut", "Hours", "Pay", "Workplace_ID"]
     out = [headers]
-    current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read())
 
     try:
         rows = WorkHour.query.all()
@@ -647,7 +651,9 @@ def get_workhours_rows():
             or getattr(rec, "workplace", None)
             or "default"
         ).strip() or "default"
-        if row_wp != current_wp:
+
+        allowed_wps = set(_workplace_ids_for_read())
+        if row_wp not in allowed_wps:
             continue
 
         d = getattr(rec, "date", None)
@@ -689,7 +695,7 @@ def get_payroll_rows():
 
     headers = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "PaidAt", "PaidBy", "Paid", "Workplace_ID"]
     out = [headers]
-    current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read())
 
     try:
         rows = PayrollReport.query.all()
@@ -718,7 +724,9 @@ def get_payroll_rows():
     items = []
     for rec in rows:
         row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
-        if row_wp != current_wp:
+
+        allowed_wps = set(_workplace_ids_for_read())
+        if row_wp not in allowed_wps:
             continue
 
         items.append([
@@ -979,8 +987,6 @@ def import_employees():
         return {"error": "Google Sheets import disabled"}, 403
 
     try:
-        Employee.query.delete(synchronize_session=False)
-
         records = _get_import_sheet("employees").get_all_records()
         count = 0
 
@@ -1253,8 +1259,6 @@ def import_payroll():
         return {"error": "Google Sheets import disabled"}, 403
 
     try:
-        PayrollReport.query.delete(synchronize_session=False)
-
         records = _get_import_sheet("payroll").get_all_records()
         count = 0
 
@@ -1404,8 +1408,6 @@ def import_workhours():
         return {"error": "Google Sheets import disabled"}, 403
 
     try:
-        WorkHour.query.delete(synchronize_session=False)
-
         records = _get_import_sheet("workhours").get_all_records()
         count = 0
 
@@ -1682,6 +1684,15 @@ _ALLOWED_UPLOAD_MIMES = {"application/pdf", "image/jpeg", "image/png", "image/we
 
 WORKPLACE_ID_MIGRATION_FROM = "default"
 WORKPLACE_ID_MIGRATION_TO = "newera"
+
+
+def _workplace_ids_for_read(workplace_id: str | None = None):
+    wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    ids = [wp]
+    if wp == WORKPLACE_ID_MIGRATION_TO and WORKPLACE_ID_MIGRATION_FROM not in ids:
+        ids.append(WORKPLACE_ID_MIGRATION_FROM)
+    return ids
+
 
 # Clock selfie settings
 CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true",
@@ -5147,6 +5158,7 @@ def _session_workplace_id():
 
     return WORKPLACE_ID_MIGRATION_OLD
 
+
 def _migrate_workplace_id_in_sheet(ws, old_wp: str, new_wp: str) -> int:
     if not ws:
         return 0
@@ -5186,6 +5198,7 @@ def _migrate_workplace_id_in_sheet(ws, old_wp: str, new_wp: str) -> int:
         _gs_write_with_retry(lambda: ws.update(f"A1:{end_a1}", vals))
 
     return changed
+
 
 WORKPLACE_ID_MIGRATION_OLD = "default"
 WORKPLACE_ID_MIGRATION_NEW = "newera"
@@ -5400,6 +5413,7 @@ def _run_workplace_id_migration(old_wp: str | None = None, new_wp: str | None = 
 
     return report
 
+
 def _row_workplace_id(row):
     return (row.get("Workplace_ID") or "").strip() or "default"
 
@@ -5442,6 +5456,8 @@ def user_in_same_workplace(username: str) -> bool:
 
     current_wp = _session_workplace_id()
 
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
     # IMPORTANT: do NOT return on the first match.
     # If usernames exist in multiple workplaces, check ALL matches.
     try:
@@ -5469,13 +5485,15 @@ def get_company_settings() -> dict:
 
     current_wp = _session_workplace_id()
 
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
     try:
         records = WorkplaceSetting.query.all() if DB_MIGRATION_MODE else (get_settings() or [])
 
         for rec in records:
             if isinstance(rec, dict):
                 row_wp = str(rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
                 tax_raw = str(rec.get("Tax_Rate") or rec.get("tax_rate") or "").strip()
@@ -5487,7 +5505,7 @@ def get_company_settings() -> dict:
                 logo = str(rec.get("Company_Logo_URL") or rec.get("company_logo_url") or "").strip()
             else:
                 row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
                 tax_val = getattr(rec, "tax_rate", None)
@@ -5632,6 +5650,7 @@ def _haversine_m(lat1, lon1, lat2, lon2) -> float:
 
 def _get_employee_sites(username: str) -> list[str]:
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     def _normalize_sites(raw_values):
         sites = []
@@ -5682,7 +5701,7 @@ def _get_employee_sites(username: str) -> list[str]:
             if len(row) > ucol and (row[ucol] or "").strip() == username:
                 if wp_col is not None:
                     row_wp = (row[wp_col] if len(row) > wp_col else "").strip() or "default"
-                    if row_wp != current_wp:
+                    if row_wp not in allowed_wps:
                         continue
 
                 raw1 = (row[scol] or "").strip() if scol is not None and scol < len(row) else ""
@@ -5703,12 +5722,13 @@ def _get_employee_site(username: str) -> str:
 def _get_active_locations() -> list[dict]:
     out = []
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     if DB_MIGRATION_MODE:
         try:
             for rec in Location.query.all():
                 row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
                 name = str(getattr(rec, "site_name", "") or "").strip()
@@ -5751,7 +5771,7 @@ def _get_active_locations() -> list[dict]:
         for r in vals[1:]:
             if i_wp is not None:
                 row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
             name = (r[i_name] if i_name is not None and i_name < len(r) else "").strip()
@@ -6166,6 +6186,7 @@ def has_any_row_today(rows, username: str, today_str: str) -> bool:
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     for r in rows[1:]:
         if len(r) <= COL_DATE or len(r) <= COL_USER:
@@ -6178,7 +6199,7 @@ def has_any_row_today(rows, username: str, today_str: str) -> bool:
         # Prefer WorkHours row workplace if the column exists
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             # Backward compat (older sheets)
@@ -6199,6 +6220,7 @@ def find_open_shift(rows, username: str):
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     for i in range(len(rows) - 1, 0, -1):
         r = rows[i]
@@ -6212,7 +6234,7 @@ def find_open_shift(rows, username: str):
         # Prefer WorkHours row workplace if the column exists
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             # Backward-compat fallback (older sheets)
@@ -6237,6 +6259,7 @@ def _find_workhours_row_by_user_date(vals, username: str, date_str: str):
     headers = vals[0]
     wp_idx = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
     try:
         uidx = headers.index("Username")
     except Exception:
@@ -6273,6 +6296,7 @@ def find_row_by_username(sheet, username: str):
     ucol = headers.index("Username")
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
     target = (username or "").strip()
 
     for i in range(1, len(vals)):
@@ -6284,7 +6308,7 @@ def find_row_by_username(sheet, username: str):
         # If the sheet has Workplace_ID, require it to match the session workplace
         if wp_col is not None:
             row_wp = (row[wp_col] if len(row) > wp_col else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
 
         return i + 1  # gspread row number (1-based)
@@ -6299,11 +6323,20 @@ def get_employee_display_name(username: str) -> str:
 
     current_wp = _session_workplace_id()
 
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
     if DB_MIGRATION_MODE:
         try:
-            rec = Employee.query.filter_by(username=u, workplace_id=current_wp).first()
+            rec = Employee.query.filter(
+                Employee.username == u,
+                Employee.workplace_id.in_(list(allowed_wps))
+            ).first()
             if not rec:
-                rec = Employee.query.filter_by(email=u, workplace_id=current_wp).first()
+                rec = Employee.query.filter(
+                    Employee.email == u,
+                    Employee.workplace_id.in_(list(allowed_wps))
+                ).first()
 
             if rec:
                 first_name = str(getattr(rec, "first_name", "") or "").strip()
@@ -6337,7 +6370,7 @@ def get_employee_display_name(username: str) -> str:
 
             if wp_col is not None:
                 row_wp = ((row[wp_col] if len(row) > wp_col else "").strip() or "default")
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
             fn = row[fn_col] if fn_col is not None and fn_col < len(row) else ""
@@ -6352,6 +6385,7 @@ def get_employee_display_name(username: str) -> str:
 
 def set_employee_field(username: str, field: str, value: str):
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     if DB_MIGRATION_MODE:
         try:
@@ -6416,6 +6450,7 @@ def set_employee_field(username: str, field: str, value: str):
 
 def set_employee_first_last(username: str, first: str, last: str):
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     if DB_MIGRATION_MODE:
         try:
@@ -6718,6 +6753,7 @@ def admin_delete_employee():
 
     return redirect("/admin/employees")
 
+
 @app.route("/admin/migrate-workplace-id", methods=["GET", "POST"])
 def admin_migrate_workplace_id():
     gate = require_master_admin()
@@ -6885,6 +6921,7 @@ def admin_migrate_workplace_id():
         layout_shell("admin", session.get("role", "admin"), content)
     )
 
+
 def get_reset_user_options_html() -> str:
     current_wp = (_session_workplace_id() or "default").strip() or "default"
     options = []
@@ -6981,6 +7018,7 @@ def update_or_append_onboarding(username: str, data: dict):
     ucol = headers.index("Username")
     wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     rownum = None
     for i in range(1, len(vals)):
@@ -6991,7 +7029,7 @@ def update_or_append_onboarding(username: str, data: dict):
 
         if wp_col is not None:
             row_wp = (row[wp_col] if wp_col < len(row) else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
 
         rownum = i + 1
@@ -7075,6 +7113,7 @@ def update_or_append_onboarding(username: str, data: dict):
 
 def get_onboarding_record(username: str):
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     if DB_MIGRATION_MODE:
         try:
@@ -7143,7 +7182,7 @@ def get_onboarding_record(username: str):
 
         if wp_col is not None:
             row_wp = (row[wp_col] if wp_col < len(row) else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
 
         rec = {}
@@ -7371,6 +7410,7 @@ def _legacy_append_paid_record_safe_before_db_patch(week_start: str, week_end: s
         if DB_MIGRATION_MODE:
             try:
                 wp = _session_workplace_id()
+                allowed_wps = set(_workplace_ids_for_read(wp))
                 ws_date = datetime.strptime(week_start, "%Y-%m-%d").date()
                 we_date = datetime.strptime(week_end, "%Y-%m-%d").date()
                 paid_at_dt = datetime.strptime(paid_at, "%Y-%m-%d %H:%M:%S")
@@ -7439,6 +7479,7 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
         i_wp = idx("Workplace_ID")
         paid_at = ""
         current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
         for r in vals[1:]:
             ws = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
@@ -7648,7 +7689,8 @@ def login():
         if workplace_id:
             allowed, retry_after = _login_rate_limit_check(ip)
             if not allowed:
-                log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="", details=f"RetryAfter={retry_after}s")
+                log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="",
+                          details=f"RetryAfter={retry_after}s")
                 mins = max(1, int(math.ceil(retry_after / 60)))
                 msg = f"Too many login attempts. Try again in {mins} minute(s)."
             else:
@@ -7799,6 +7841,7 @@ def home():
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     monday = today - timedelta(days=today.weekday())
 
@@ -7826,7 +7869,7 @@ def home():
         # Workplace filter (prefer WorkHours row Workplace_ID)
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             # Backward compat if WorkHours has no Workplace_ID column
@@ -7880,7 +7923,7 @@ def home():
 
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             if not user_in_same_workplace(row_user):
@@ -7932,7 +7975,7 @@ def home():
 
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             if not user_in_same_workplace(row_user):
@@ -7968,7 +8011,7 @@ def home():
 
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             if not user_in_same_workplace(row_user):
@@ -8016,7 +8059,7 @@ def home():
 
                 if i_wp is not None:
                     row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
-                    if row_wp != current_wp:
+                    if row_wp not in allowed_wps:
                         continue
 
                 employee_count += 1
@@ -8896,6 +8939,7 @@ def my_times():
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
     body = []
     for r in rows[1:]:
         if len(r) <= COL_PAY:
@@ -8909,7 +8953,7 @@ def my_times():
         # Workplace filter (only if WorkHours has Workplace_ID column)
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             # Backward compat if sheet has no Workplace_ID column
@@ -8983,6 +9027,7 @@ def my_reports():
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     daily_hours = 0.0
     daily_pay = 0.0
@@ -9019,7 +9064,7 @@ def my_reports():
 
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
 
         d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
@@ -9315,7 +9360,7 @@ def my_reports():
   #payrollMenuToggle{
     display:none !important;
   }
-  
+
     .headerTop,
   .myReportsTopGrid,
   .myReportsMonthCard,
@@ -9351,8 +9396,8 @@ def my_reports():
 
     content = f"""
       {page_css}
-      
-        
+
+
       <div class="card payrollEmployeeCard" style="padding:14px; margin-bottom:12px;">
   <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
     {f'''
@@ -9461,7 +9506,7 @@ def my_reports():
           </div>
         </div>
       </div>
-        
+
     """
 
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
@@ -10031,6 +10076,7 @@ def change_password():
 def _get_user_rate(username: str) -> float:
     """Fetch hourly rate for a username; prefer DB in migration mode, then fall back to sheet/session."""
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
     u = (username or "").strip()
 
     if DB_MIGRATION_MODE:
@@ -10067,7 +10113,7 @@ def _get_user_rate(username: str) -> float:
 
             if wpcol is not None:
                 row_wp = (r[wpcol] if len(r) > wpcol else "").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
             if rcol is not None and rcol < len(r):
@@ -10097,6 +10143,7 @@ def _get_open_shifts() -> list[dict]:
         i_out = hidx("ClockOut", COL_OUT)
         i_wp = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
         current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
         for r in rows[1:]:
             if len(r) <= max(i_user, i_date, i_in, i_out):
@@ -10105,7 +10152,7 @@ def _get_open_shifts() -> list[dict]:
             # Tenant-safe: only show open shifts for this workplace
             if i_wp is not None:
                 row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
             else:
                 # Backward compat: if WorkHours has no Workplace_ID column
@@ -10173,6 +10220,7 @@ def admin():
 
     try:
         current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
         if DB_MIGRATION_MODE:
             onboarding_total = sum(
                 1
@@ -10193,7 +10241,7 @@ def admin():
                         continue
                     if wp_col_onb is not None:
                         row_wp = (r[wp_col_onb] if wp_col_onb < len(r) else "").strip() or "default"
-                        if row_wp != current_wp:
+                        if row_wp not in allowed_wps:
                             continue
                     onboarding_total += 1
     except Exception:
@@ -10321,6 +10369,7 @@ def admin():
         ucol = headers_emp.index("Username") if "Username" in headers_emp else 0
         wp_col = headers_emp.index("Workplace_ID") if "Workplace_ID" in headers_emp else None
         current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
         for r in vals_emp[1:]:
             u = (r[ucol] if ucol < len(r) else "").strip()
@@ -10330,7 +10379,7 @@ def admin():
             # Tenant-safe: filter by Employees row Workplace_ID
             if wp_col is not None:
                 row_wp = (r[wp_col] if wp_col < len(r) else "").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
             employee_options += f"<option value='{escape(u)}'>{escape(u)}</option>"
@@ -10506,6 +10555,7 @@ def admin_company():
     csrf = get_csrf()
     role = session.get("role", "admin")
     wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(wp))
 
     settings = get_company_settings()
     current_name = (settings.get("Company_Name") or "").strip() or "Main"
@@ -10644,7 +10694,7 @@ def admin_company():
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <label class="sub">Company name</label>
           <input class="input" name="company_name" value="{escape(current_name)}" required>
-          
+
           <label class="sub" style="margin-top:10px;">Company logo URL</label>
           <input class="input" name="company_logo_url" value="{escape(current_logo)}" placeholder="https://.../logo.png">
 
@@ -11191,6 +11241,7 @@ def admin_payroll():
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     employee_records = []
     try:
@@ -11241,7 +11292,7 @@ def admin_payroll():
         # Workplace filter: prefer WorkHours row Workplace_ID (tenant-safe)
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             # Backward compat if WorkHours has no Workplace_ID column
@@ -11286,12 +11337,12 @@ def admin_payroll():
             continue
         user = (r[COL_USER] or "").strip()
         d = (r[COL_DATE] or "").strip()
-        if not user or not d or user not in current_usernames:
+        if not user or not d:
             continue
         # Workplace filter for weekly tables (tenant-safe)
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != current_wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             if not user_in_same_workplace(user):
@@ -11306,11 +11357,12 @@ def admin_payroll():
             "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
         }
 
-    # All users from current employee records only
-    all_users = list(current_users)
+    # Include both current employee records and any users that have week rows
+    all_users = sorted(set(current_users) | set(week_lookup.keys()), key=lambda s: s.lower())
 
     if q:
         all_users = [u for u in all_users if q in u.lower() or q in (get_employee_display_name(u) or "").lower()]
+
     employee_options = ["<option value=''>All employees</option>"]
     for u in sorted(all_users, key=lambda s: get_employee_display_name(s).lower()):
         display = get_employee_display_name(u)
@@ -12032,6 +12084,9 @@ def admin_payroll_report_csv():
         tax_rate = 0.20
 
     wp = _session_workplace_id()
+
+    allowed_wps = set(_workplace_ids_for_read(wp))
+    allowed_wps = set(_workplace_ids_for_read(wp))
     week_start, week_end = _get_week_range(wk_offset)
 
     use_range = False
@@ -12074,7 +12129,7 @@ def admin_payroll_report_csv():
 
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-            if row_wp != wp:
+            if row_wp not in allowed_wps:
                 continue
         else:
             if not user_in_same_workplace(user):
@@ -12193,6 +12248,7 @@ def admin_onboarding_list():
         i_sub = idx("SubmittedAt")
         i_wp = idx("Workplace_ID")
         current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
         rows_html = []
         for r in vals[1:]:
@@ -12202,7 +12258,7 @@ def admin_onboarding_list():
             # Tenant-safe: filter by Onboarding row Workplace_ID (if column exists)
             if i_wp is not None:
                 row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
             else:
                 # Backward compat if Onboarding has no Workplace_ID column
@@ -12330,12 +12386,13 @@ def admin_locations():
     all_rows = []
     try:
         current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
         records = Location.query.all() if DB_MIGRATION_MODE else (get_locations() or [])
         for rec in records:
             if isinstance(rec, dict):
                 row_wp = (rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip()
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
                 name = str(rec.get("SiteName") or rec.get("site_name") or rec.get("Site") or "").strip()
@@ -12345,7 +12402,7 @@ def admin_locations():
                 act = str(rec.get("Active") or rec.get("active") or "TRUE").strip()
             else:
                 row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip()
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
                 name = str(getattr(rec, "site_name", "") or "").strip()
@@ -12516,6 +12573,7 @@ def _find_location_row_by_name(name: str):
 
         wp_idx = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
         current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
         target = (name or "").strip().lower()
         if not target:
@@ -12530,7 +12588,7 @@ def _find_location_row_by_name(name: str):
             # If Workplace_ID exists, require it to match current workplace
             if wp_idx is not None:
                 row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
-                if row_wp != current_wp:
+                if row_wp not in allowed_wps:
                     continue
 
             return i + 1
@@ -12578,6 +12636,7 @@ def admin_locations_save():
     if DB_MIGRATION_MODE:
         try:
             wp = _session_workplace_id()
+            allowed_wps = set(_workplace_ids_for_read(wp))
 
             db_row = Location.query.filter_by(
                 workplace_id=wp,
@@ -12637,6 +12696,7 @@ def admin_locations_deactivate():
             if DB_MIGRATION_MODE:
                 try:
                     wp = _session_workplace_id()
+                    allowed_wps = set(_workplace_ids_for_read(wp))
                     db_row = Location.query.filter_by(workplace_id=wp, site_name=name).first()
                     if db_row:
                         db_row.active = "FALSE"
@@ -12686,13 +12746,15 @@ def admin_employee_sites():
 
     current_wp = _session_workplace_id()
 
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
     for user in employee_rows:
         u = (user.get("Username") or "").strip()
         if not u:
             continue
 
         row_wp = (user.get("Workplace_ID") or "default").strip() or "default"
-        if row_wp != current_wp:
+        if row_wp not in allowed_wps:
             continue
 
         fn = (user.get("FirstName") or "").strip()
@@ -12819,6 +12881,7 @@ def admin_employee_sites_save():
         if DB_MIGRATION_MODE:
             try:
                 wp = _session_workplace_id()
+                allowed_wps = set(_workplace_ids_for_read(wp))
                 db_row = Employee.query.filter_by(username=u, workplace_id=wp).first()
                 if not db_row:
                     db_row = Employee.query.filter_by(email=u, workplace_id=wp).first()
@@ -13115,6 +13178,8 @@ def admin_employees():
 
             wp = _session_workplace_id()
 
+            allowed_wps = set(_workplace_ids_for_read(wp))
+
             _ensure_employees_columns()
             headers = get_sheet_headers(employees_sheet)
 
@@ -13203,6 +13268,7 @@ def admin_employees():
 
     # List employees in this workplace
     wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(wp))
     rows_html = []
     try:
         records = []
@@ -13264,7 +13330,7 @@ def admin_employees():
                 continue
 
             row_wp = (rec.get("Workplace_ID") or "default").strip() or "default"
-            if row_wp != wp:
+            if row_wp not in allowed_wps:
                 continue
 
             fn = (rec.get("FirstName") or "").strip()
@@ -13291,7 +13357,7 @@ def admin_employees():
             for r in (vals[1:] if len(vals) > 1 else []):
                 if i_wp2 is not None:
                     row_wp = (r[i_wp2] if i_wp2 < len(r) else "").strip() or "default"
-                    if row_wp != wp:
+                    if row_wp not in allowed_wps:
                         continue
                 rr = (r[i_role2] if i_role2 < len(r) else "").strip()
                 if rr:
@@ -13859,6 +13925,8 @@ def admin_workplaces():
         i_name = idx("Company_Name")
 
         current_wp = _session_workplace_id()
+
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
         for r in (vals[1:] if len(vals) > 1 else []):
             wp = (r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip()
