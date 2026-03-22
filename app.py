@@ -1680,6 +1680,9 @@ UPLOAD_MAX_BYTES = int(os.environ.get("UPLOAD_MAX_BYTES", str(10 * 1024 * 1024))
 _ALLOWED_UPLOAD_EXTS = {".pdf", ".jpg", ".jpeg", ".png", ".webp"}
 _ALLOWED_UPLOAD_MIMES = {"application/pdf", "image/jpeg", "image/png", "image/webp", "application/octet-stream"}
 
+WORKPLACE_ID_MIGRATION_FROM = "default"
+WORKPLACE_ID_MIGRATION_TO = "newera"
+
 # Clock selfie settings
 CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true",
                                                                                                            "yes", "on")
@@ -5112,8 +5115,290 @@ UNPAID_BREAK_MINUTES = 30
 
 
 def _session_workplace_id():
-    return (session.get("workplace_id") or "").strip() or "default"
+    wp = (session.get("workplace_id") or "").strip()
+    if wp:
+        return wp
 
+    try:
+        if DB_MIGRATION_MODE:
+            has_old = WorkplaceSetting.query.filter_by(workplace_id=WORKPLACE_ID_MIGRATION_OLD).first() is not None
+            has_new = WorkplaceSetting.query.filter_by(workplace_id=WORKPLACE_ID_MIGRATION_NEW).first() is not None
+            if has_new and not has_old:
+                return WORKPLACE_ID_MIGRATION_NEW
+        else:
+            vals = settings_sheet.get_all_values() if settings_sheet else []
+            headers = vals[0] if vals else []
+            i_wp = headers.index("Workplace_ID") if headers and "Workplace_ID" in headers else None
+
+            if i_wp is not None:
+                has_old = False
+                has_new = False
+                for r in (vals[1:] if len(vals) > 1 else []):
+                    row_wp = (r[i_wp] if i_wp < len(r) else "").strip()
+                    if row_wp == WORKPLACE_ID_MIGRATION_OLD:
+                        has_old = True
+                    elif row_wp == WORKPLACE_ID_MIGRATION_NEW:
+                        has_new = True
+
+                if has_new and not has_old:
+                    return WORKPLACE_ID_MIGRATION_NEW
+    except Exception:
+        pass
+
+    return WORKPLACE_ID_MIGRATION_OLD
+
+def _migrate_workplace_id_in_sheet(ws, old_wp: str, new_wp: str) -> int:
+    if not ws:
+        return 0
+
+    try:
+        vals = ws.get_all_values()
+    except Exception:
+        return 0
+
+    if not vals:
+        return 0
+
+    hdr = vals[0] if vals else []
+    if not hdr:
+        return 0
+
+    wp_cols = [i for i, h in enumerate(hdr) if str(h or "").strip() in ("Workplace_ID", "workplace_id")]
+    if not wp_cols:
+        return 0
+
+    max_cols = max(len(r) for r in vals) if vals else len(hdr)
+    for r in vals:
+        if len(r) < max_cols:
+            r.extend([""] * (max_cols - len(r)))
+
+    changed = 0
+    for r_idx in range(1, len(vals)):
+        for c_idx in wp_cols:
+            raw = vals[r_idx][c_idx] if c_idx < len(vals[r_idx]) else ""
+            current = (str(raw or "").strip() or "default")
+            if current == old_wp:
+                vals[r_idx][c_idx] = new_wp
+                changed += 1
+
+    if changed:
+        end_a1 = gspread.utils.rowcol_to_a1(len(vals), max_cols)
+        _gs_write_with_retry(lambda: ws.update(f"A1:{end_a1}", vals))
+
+    return changed
+
+WORKPLACE_ID_MIGRATION_OLD = "default"
+WORKPLACE_ID_MIGRATION_NEW = "newera"
+WORKPLACE_ID_MIGRATION_CONFIRM = "MIGRATE"
+
+
+def _normalize_workplace_id_value(value):
+    return (str(value or "").strip() or "default")
+
+
+def _migrate_workplace_id_in_model(model, field_names, old_wp: str, new_wp: str):
+    valid_fields = [field_name for field_name in field_names if hasattr(model, field_name)]
+    if not valid_fields:
+        return {
+            "rows_updated": 0,
+            "field_updates": 0,
+        }
+
+    row_ids = set()
+
+    if hasattr(model, "id"):
+        for field_name in valid_fields:
+            col = getattr(model, field_name)
+            flt = (col == old_wp)
+            if old_wp == WORKPLACE_ID_MIGRATION_OLD:
+                flt = flt | (col == "") | col.is_(None)
+
+            for row_id, in model.query.with_entities(model.id).filter(flt).all():
+                row_ids.add(row_id)
+
+    field_updates = 0
+
+    for field_name in valid_fields:
+        col = getattr(model, field_name)
+        flt = (col == old_wp)
+        if old_wp == WORKPLACE_ID_MIGRATION_OLD:
+            flt = flt | (col == "") | col.is_(None)
+
+        count = model.query.filter(flt).update(
+            {field_name: new_wp},
+            synchronize_session=False,
+        )
+        field_updates += int(count or 0)
+
+    return {
+        "rows_updated": len(row_ids),
+        "field_updates": field_updates,
+    }
+
+
+def _run_workplace_id_migration(old_wp: str | None = None, new_wp: str | None = None):
+    old_wp = _normalize_workplace_id_value(old_wp or WORKPLACE_ID_MIGRATION_OLD)
+    new_wp = _normalize_workplace_id_value(new_wp or WORKPLACE_ID_MIGRATION_NEW)
+
+    report = {
+        "ok": True,
+        "old_workplace_id": old_wp,
+        "new_workplace_id": new_wp,
+        "sheets": {},
+        "db": {},
+    }
+
+    if DB_MIGRATION_MODE:
+        try:
+            db.session.rollback()
+        except Exception:
+            pass
+
+        try:
+            existing_old = WorkplaceSetting.query.filter_by(workplace_id=old_wp).first()
+            existing_new = WorkplaceSetting.query.filter_by(workplace_id=new_wp).first()
+            if existing_old and existing_new and existing_old.id != existing_new.id:
+                report["db"]["WorkplaceSetting"] = {
+                    "rows_updated": 0,
+                    "field_updates": 0,
+                    "error": f"Target workplace_id {new_wp!r} already exists in workplace_settings.",
+                }
+                report["ok"] = False
+                return report
+        except Exception as e:
+            try:
+                db.session.rollback()
+            except Exception:
+                pass
+            report["db"]["_error"] = str(e)
+            report["ok"] = False
+            return report
+
+    sheet_targets = [
+        ("settings_sheet", settings_sheet),
+        ("employees_sheet", employees_sheet),
+        ("work_sheet", work_sheet),
+        ("payroll_sheet", payroll_sheet),
+        ("onboarding_sheet", onboarding_sheet),
+        ("locations_sheet", locations_sheet),
+        ("audit_sheet", audit_sheet),
+    ]
+
+    for label, ws in sheet_targets:
+        try:
+            report["sheets"][label] = {
+                "updated": _migrate_workplace_id_in_sheet(ws, old_wp, new_wp)
+            }
+        except Exception as e:
+            report["sheets"][label] = {
+                "updated": 0,
+                "error": str(e),
+            }
+            report["ok"] = False
+
+    if DB_MIGRATION_MODE:
+        try:
+            db.session.rollback()
+
+            db_targets = [
+                ("WorkplaceSetting", WorkplaceSetting, ("workplace_id",)),
+                ("Employee", Employee, ("workplace_id", "workplace")),
+                ("WorkHour", WorkHour, ("workplace_id", "workplace")),
+                ("PayrollReport", PayrollReport, ("workplace_id",)),
+                ("OnboardingRecord", OnboardingRecord, ("workplace_id",)),
+                ("Location", Location, ("workplace_id",)),
+                ("AuditLog", AuditLog, ("workplace_id",)),
+            ]
+
+            for label, model, field_names in db_targets:
+                report["db"][label] = _migrate_workplace_id_in_model(model, field_names, old_wp, new_wp)
+
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            report["db"]["_error"] = str(e)
+            report["ok"] = False
+    else:
+        report["db"]["_skipped"] = "DB_MIGRATION_MODE is off"
+
+    return report
+
+
+def _run_workplace_id_migration(old_wp: str | None = None, new_wp: str | None = None):
+    old_wp = _normalize_workplace_id_value(old_wp or WORKPLACE_ID_MIGRATION_OLD)
+    new_wp = _normalize_workplace_id_value(new_wp or WORKPLACE_ID_MIGRATION_NEW)
+
+    report = {
+        "ok": True,
+        "old_workplace_id": old_wp,
+        "new_workplace_id": new_wp,
+        "sheets": {},
+        "db": {},
+    }
+
+    if DB_MIGRATION_MODE:
+        try:
+            existing_old = WorkplaceSetting.query.filter_by(workplace_id=old_wp).first()
+            existing_new = WorkplaceSetting.query.filter_by(workplace_id=new_wp).first()
+            if existing_old and existing_new and existing_old.id != existing_new.id:
+                report["db"]["WorkplaceSetting"] = {
+                    "rows_updated": 0,
+                    "field_updates": 0,
+                    "error": f"Target workplace_id {new_wp!r} already exists in workplace_settings.",
+                }
+                report["ok"] = False
+                return report
+        except Exception as e:
+            report["db"]["_error"] = str(e)
+            report["ok"] = False
+            return report
+
+    sheet_targets = [
+        ("settings_sheet", settings_sheet),
+        ("employees_sheet", employees_sheet),
+        ("work_sheet", work_sheet),
+        ("payroll_sheet", payroll_sheet),
+        ("onboarding_sheet", onboarding_sheet),
+        ("locations_sheet", locations_sheet),
+        ("audit_sheet", audit_sheet),
+    ]
+
+    for label, ws in sheet_targets:
+        try:
+            report["sheets"][label] = {
+                "updated": _migrate_workplace_id_in_sheet(ws, old_wp, new_wp)
+            }
+        except Exception as e:
+            report["sheets"][label] = {
+                "updated": 0,
+                "error": str(e),
+            }
+            report["ok"] = False
+
+    if DB_MIGRATION_MODE:
+        try:
+            db_targets = [
+                ("WorkplaceSetting", WorkplaceSetting, ("workplace_id",)),
+                ("Employee", Employee, ("workplace_id", "workplace")),
+                ("WorkHour", WorkHour, ("workplace_id", "workplace")),
+                ("PayrollReport", PayrollReport, ("workplace_id",)),
+                ("OnboardingRecord", OnboardingRecord, ("workplace_id",)),
+                ("Location", Location, ("workplace_id",)),
+                ("AuditLog", AuditLog, ("workplace_id",)),
+            ]
+
+            for label, model, field_names in db_targets:
+                report["db"][label] = _migrate_workplace_id_in_model(model, field_names, old_wp, new_wp)
+
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            report["db"]["_error"] = str(e)
+            report["ok"] = False
+    else:
+        report["db"]["_skipped"] = "DB_MIGRATION_MODE is off"
+
+    return report
 
 def _row_workplace_id(row):
     return (row.get("Workplace_ID") or "").strip() or "default"
@@ -5179,6 +5464,7 @@ def get_company_settings() -> dict:
         "Tax_Rate": 20.0,
         "Currency_Symbol": "£",
         "Company_Name": "Main",
+        "Company_Logo_URL": "",
     }
 
     current_wp = _session_workplace_id()
@@ -5198,6 +5484,7 @@ def get_company_settings() -> dict:
                       defaults["Currency_Symbol"]
                 name = str(rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]).strip() or \
                        defaults["Company_Name"]
+                logo = str(rec.get("Company_Logo_URL") or rec.get("company_logo_url") or "").strip()
             else:
                 row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
                 if row_wp != current_wp:
@@ -5210,6 +5497,7 @@ def get_company_settings() -> dict:
                 name = str(
                     getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]).strip() or \
                        defaults["Company_Name"]
+                logo = str(getattr(rec, "company_logo_url", "") or "").strip()
 
             try:
                 tax = float(tax_raw) if tax_raw != "" else defaults["Tax_Rate"]
@@ -5221,6 +5509,7 @@ def get_company_settings() -> dict:
                 "Tax_Rate": tax,
                 "Currency_Symbol": cur,
                 "Company_Name": name,
+                "Company_Logo_URL": logo,
             }
 
         return defaults
@@ -5779,7 +6068,7 @@ def _validate_active_session():
     if not username:
         return False, ""
 
-    workplace_id = (session.get("workplace_id") or "default").strip() or "default"
+    workplace_id = _session_workplace_id()
     session_token = str(session.get("active_session_token") or "")
     if not session_token:
         return False, "Your session has expired. Please log in again."
@@ -6429,6 +6718,172 @@ def admin_delete_employee():
 
     return redirect("/admin/employees")
 
+@app.route("/admin/migrate-workplace-id", methods=["GET", "POST"])
+def admin_migrate_workplace_id():
+    gate = require_master_admin()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    ok = None
+    msg = ""
+    report = None
+
+    if request.method == "POST":
+        require_csrf()
+        confirm_text = (request.form.get("confirm_text") or "").strip()
+
+        if confirm_text != WORKPLACE_ID_MIGRATION_CONFIRM:
+            ok = False
+            msg = f'Type "{WORKPLACE_ID_MIGRATION_CONFIRM}" to confirm the migration.'
+        else:
+            report = _run_workplace_id_migration(
+                old_wp=WORKPLACE_ID_MIGRATION_OLD,
+                new_wp=WORKPLACE_ID_MIGRATION_NEW,
+            )
+            ok = bool(report.get("ok"))
+            if ok:
+                session["workplace_id"] = WORKPLACE_ID_MIGRATION_NEW
+
+            actor = session.get("username", "master_admin")
+            try:
+                log_audit(
+                    "WORKPLACE_ID_MIGRATION",
+                    actor=actor,
+                    username="",
+                    date_str="",
+                    details=f"{WORKPLACE_ID_MIGRATION_OLD} -> {WORKPLACE_ID_MIGRATION_NEW}",
+                )
+            except Exception:
+                pass
+
+            if ok:
+                msg = (
+                    f"Migration completed: "
+                    f"{WORKPLACE_ID_MIGRATION_OLD} → {WORKPLACE_ID_MIGRATION_NEW}"
+                )
+            else:
+                msg = "Migration completed with errors. Review the report below."
+
+    sheet_rows = []
+    if report:
+        for label, data in (report.get("sheets") or {}).items():
+            updated = int((data or {}).get("updated") or 0)
+            err = str((data or {}).get("error") or "").strip()
+            sheet_rows.append(f"""
+              <tr>
+                <td>{escape(label)}</td>
+                <td class="num">{updated}</td>
+                <td>{escape(err)}</td>
+              </tr>
+            """)
+
+    db_rows = []
+    if report:
+        for label, data in (report.get("db") or {}).items():
+            if isinstance(data, dict):
+                rows_updated = int(data.get("rows_updated") or 0)
+                field_updates = int(data.get("field_updates") or 0)
+                err = str(data.get("error") or "").strip()
+            else:
+                rows_updated = 0
+                field_updates = 0
+                err = str(data or "").strip()
+
+            db_rows.append(f"""
+              <tr>
+                <td>{escape(label)}</td>
+                <td class="num">{rows_updated}</td>
+                <td class="num">{field_updates}</td>
+                <td>{escape(err)}</td>
+              </tr>
+            """)
+
+    report_card = ""
+    if report:
+        report_card = f"""
+          <div class="card" style="padding:12px; margin-top:12px;">
+            <h2>Migration Report</h2>
+            <div class="sub" style="margin-top:4px;">
+              Old workplace ID: <strong>{escape(report.get("old_workplace_id", ""))}</strong><br>
+              New workplace ID: <strong>{escape(report.get("new_workplace_id", ""))}</strong>
+            </div>
+
+            <div class="tablewrap" style="margin-top:12px;">
+              <table style="min-width:720px;">
+                <thead>
+                  <tr>
+                    <th>Sheet</th>
+                    <th class="num">Updated</th>
+                    <th>Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {''.join(sheet_rows) or "<tr><td colspan='3' class='sub'>No sheet updates recorded.</td></tr>"}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="tablewrap" style="margin-top:12px;">
+              <table style="min-width:840px;">
+                <thead>
+                  <tr>
+                    <th>DB store</th>
+                    <th class="num">Rows updated</th>
+                    <th class="num">Field updates</th>
+                    <th>Error</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {''.join(db_rows) or "<tr><td colspan='4' class='sub'>No DB updates recorded.</td></tr>"}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        """
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>Workplace ID Migration</h1>
+          <p class="sub">One-time migration from <strong>{escape(WORKPLACE_ID_MIGRATION_OLD)}</strong> to <strong>{escape(WORKPLACE_ID_MIGRATION_NEW)}</strong></p>
+        </div>
+        <div class="badge admin">MASTER ADMIN</div>
+      </div>
+
+      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
+      {("<div class='message error'>" + escape(msg) + "</div>") if (msg and ok is False) else ""}
+
+      <div class="card" style="padding:12px;">
+        <h2>Run Migration</h2>
+        <p class="sub">This updates workplace ID values across configured sheets and database tables.</p>
+
+        <form method="POST" style="margin-top:12px;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+          <label class="sub">Old workplace ID</label>
+          <input class="input" value="{escape(WORKPLACE_ID_MIGRATION_OLD)}" readonly>
+
+          <label class="sub" style="margin-top:12px;">New workplace ID</label>
+          <input class="input" value="{escape(WORKPLACE_ID_MIGRATION_NEW)}" readonly>
+
+          <label class="sub" style="margin-top:12px;">Type {escape(WORKPLACE_ID_MIGRATION_CONFIRM)} to confirm</label>
+          <input class="input" name="confirm_text" autocomplete="off" required>
+
+          <button class="btnSoft" type="submit" style="margin-top:12px; background:#7f1d1d; border-color:#7f1d1d;"
+                  onclick="return confirm('Run workplace ID migration now? This should only be done once.');">
+            Run migration
+          </button>
+        </form>
+      </div>
+
+      {report_card}
+    """
+
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("admin", session.get("role", "admin"), content)
+    )
 
 def get_reset_user_options_html() -> str:
     current_wp = (_session_workplace_id() or "default").strip() or "default"
@@ -7176,79 +7631,79 @@ def login():
         require_csrf()
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
-        workplace_id = (request.form.get("workplace_id", "") or "").strip() or "default"
-        # Allow entering Company_Name instead of Workplace_ID
-        try:
-            if settings_sheet and workplace_id:
-                svals = settings_sheet.get_all_values()
-                if svals and len(svals) > 1:
-                    sh = svals[0]
-                    i_wp = sh.index("Workplace_ID") if "Workplace_ID" in sh else None
-                    i_name = sh.index("Company_Name") if "Company_Name" in sh else None
-                    if i_wp is not None and i_name is not None:
-                        typed = workplace_id.strip().lower()
-                        for rr in svals[1:]:
-                            nm = (rr[i_name] if i_name < len(rr) else "").strip().lower()
-                            if nm and nm == typed:
-                                workplace_id = ((rr[i_wp] if i_wp < len(rr) else "").strip() or workplace_id)
-                                break
-        except Exception:
-            pass
+        workplace_id = (request.form.get("workplace_id", "") or "").strip()
 
-        ip = _client_ip()
+        login_usernames = [username]
+        if username.lower() == "masteradmin":
+            login_usernames = ["masteradmin", "master_admin"]
+        elif username.lower() == "master_admin":
+            login_usernames = ["master_admin", "masteradmin"]
 
-        allowed, retry_after = _login_rate_limit_check(ip)
-        if not allowed:
-            log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="", details=f"RetryAfter={retry_after}s")
-            mins = max(1, int(math.ceil(retry_after / 60)))
-            msg = f"Too many login attempts. Try again in {mins} minute(s)."
+        if not workplace_id:
+            msg = "Workplace ID is required."
+            ip = _client_ip()
         else:
-            ok_user = None
-            if not DB_MIGRATION_MODE:
-                try:
-                    sid = getattr(spreadsheet, "id", None)
-                    wid = getattr(employees_sheet, "id", None)
-                    if sid and wid:
-                        _cache_invalidate_prefix((sid, wid))
-                except Exception:
-                    pass
+            ip = _client_ip()
 
-            ok_user = _find_employee_record(username, workplace_id)
-
-            if ok_user and is_password_valid(ok_user.get("Password", ""), password):
-                active_raw = str(ok_user.get("Active", "") or "").strip().lower()
-                is_active = active_raw not in ("false", "0", "no", "n", "off")
-
-                if not is_active:
-                    _login_rate_limit_hit(ip)
-                    log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="",
-                              details="Inactive account login attempt")
-                    msg = "Invalid login"
-                else:
-                    _login_rate_limit_clear(ip)
-
-                    migrate_password_if_plain(username, ok_user.get("Password", ""), password,
-                                              workplace_id=workplace_id)
-                    active_session_token = _issue_active_session_token(username, workplace_id)
-                    if not active_session_token:
-                        log_audit("LOGIN_SESSION_FAIL", actor=ip, username=username, date_str="",
-                                  details=f"Could not start active session workplace={workplace_id}")
-                        msg = "Could not start secure session. Please try again."
-                    else:
-                        session.clear()
-                        session["csrf"] = csrf
-                        session["username"] = username
-                        session["workplace_id"] = workplace_id
-                        session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
-                        session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
-                        session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
-                        session["active_session_token"] = active_session_token
-                        return redirect(url_for("home"))
+        if workplace_id:
+            allowed, retry_after = _login_rate_limit_check(ip)
+            if not allowed:
+                log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="", details=f"RetryAfter={retry_after}s")
+                mins = max(1, int(math.ceil(retry_after / 60)))
+                msg = f"Too many login attempts. Try again in {mins} minute(s)."
             else:
-                _login_rate_limit_hit(ip)
-                log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
-                          details="Invalid username or password")
-                msg = "Invalid login"
+                ok_user = None
+                if not DB_MIGRATION_MODE:
+                    try:
+                        sid = getattr(spreadsheet, "id", None)
+                        wid = getattr(employees_sheet, "id", None)
+                        if sid and wid:
+                            _cache_invalidate_prefix((sid, wid))
+                    except Exception:
+                        pass
+
+                ok_user = None
+                matched_username = username
+                for candidate_username in login_usernames:
+                    ok_user = _find_employee_record(candidate_username, workplace_id)
+                    if ok_user:
+                        matched_username = candidate_username
+                        break
+
+                if ok_user and is_password_valid(ok_user.get("Password", ""), password):
+                    active_raw = str(ok_user.get("Active", "") or "").strip().lower()
+                    is_active = active_raw not in ("false", "0", "no", "n", "off")
+
+                    if not is_active:
+                        _login_rate_limit_hit(ip)
+                        log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="",
+                                  details="Inactive account login attempt")
+                        msg = "Invalid login"
+                    else:
+                        _login_rate_limit_clear(ip)
+
+                        migrate_password_if_plain(matched_username, ok_user.get("Password", ""), password,
+                                                  workplace_id=workplace_id)
+                        active_session_token = _issue_active_session_token(matched_username, workplace_id)
+                        if not active_session_token:
+                            log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_username, date_str="",
+                                      details=f"Could not start active session workplace={workplace_id}")
+                            msg = "Could not start secure session. Please try again."
+                        else:
+                            session.clear()
+                            session["csrf"] = csrf
+                            session["username"] = matched_username
+                            session["workplace_id"] = workplace_id
+                            session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
+                            session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
+                            session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
+                            session["active_session_token"] = active_session_token
+                            return redirect(url_for("home"))
+                else:
+                    _login_rate_limit_hit(ip)
+                    log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
+                              details="Invalid username or password")
+                    msg = "Invalid login"
 
     html = f"""
     <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
@@ -7267,7 +7722,7 @@ def login():
             <label class="sub">User</label>
             <input class="input" name="username" required>
             <label class="sub" style="margin-top:10px; display:block;">Workplace ID</label>
-            <input class="input" name="workplace_id" value="" placeholder="e.g. default" required>
+            <input class="input" name="workplace_id" value="" placeholder="e.g. newera" required>
             <label class="sub" style="margin-top:10px; display:block;">Password</label>
             <input class="input" type="password" name="password" required>
             <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
@@ -7317,7 +7772,7 @@ def logout_confirm():
 def logout():
     require_csrf()
     username = (session.get("username") or "").strip()
-    workplace_id = (session.get("workplace_id") or "default").strip() or "default"
+    workplace_id = _session_workplace_id()
     active_session_token = str(session.get("active_session_token") or "")
     if username and active_session_token:
         _clear_active_session_token(username, workplace_id, expected_token=active_session_token)
@@ -8503,6 +8958,8 @@ def my_reports():
 
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
+    company_name = str(settings.get("Company_Name") or "Main").strip() or "Main"
+    company_logo = str(settings.get("Company_Logo_URL") or "").strip()
 
     try:
         tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
@@ -8849,6 +9306,43 @@ def my_reports():
     font-size:16px;
   }
 }
+@media print{
+  .sidebar,
+  .topbar,
+  .mobileNav,
+  .noPrint,
+  #payrollMenuBackdrop,
+  #payrollMenuToggle{
+    display:none !important;
+  }
+  
+    .headerTop,
+  .myReportsTopGrid,
+  .myReportsMonthCard,
+  .myReportsWeekPicker{
+    display:none !important;
+  }
+
+  .shell,
+  .content,
+  .page,
+  .main{
+    margin:0 !important;
+    padding:0 !important;
+    width:100% !important;
+    max-width:none !important;
+  }
+
+  .card{
+    box-shadow:none !important;
+    border:1px solid #dbe5f1 !important;
+    break-inside:avoid;
+  }
+
+  body{
+    background:#fff !important;
+  }
+}
 
     </style>
     """
@@ -8857,14 +9351,31 @@ def my_reports():
 
     content = f"""
       {page_css}
+      
+        
+      <div class="card payrollEmployeeCard" style="padding:14px; margin-bottom:12px;">
+  <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+    {f'''
+    <img src="{escape(company_logo)}" alt="Company logo"
+         style="max-height:64px; max-width:150px; object-fit:contain; border:1px solid #dbe5f1; border-radius:12px; padding:6px; background:#fff;">
+    ''' if company_logo else ""}
+    <div>
+      <div style="font-size:26px; font-weight:800; line-height:1.1;">{escape(company_name)}</div>
+      <div class="sub" style="margin-top:4px;">Payslip / Timesheet</div>
+      <div class="sub"><strong>{escape(display_name)}</strong> • {escape(week_label)}</div>
+    </div>
+  </div>
+</div>
 
       <div class="headerTop">
-        <div>
-          <h1>Timesheets</h1>
-          <p class="sub">{escape(display_name)} • Totals + tax + net</p>
-        </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
-      </div>
+  <div>
+    <h1>Timesheets</h1>
+    <p class="sub">{escape(display_name)} • Totals + tax + net</p>
+  </div>
+  <div>
+    <button class="btnSoft noPrint" type="button" onclick="window.print()">Download / Print Payslip</button>
+  </div>
+</div>
 
       <div class="myReportsTopGrid">
         <div class="card kpi">
@@ -8896,12 +9407,9 @@ def my_reports():
       </div>
 
       <div class="card myReportsWeekTable">
-        <div style="margin-bottom:12px;">
-          <div style="font-size:30px; font-weight:800; line-height:1.1; color:rgba(15,23,42,.96);">
-            {escape(display_name)}
-          </div>
-          <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
-        </div>
+  <div style="margin-bottom:12px;">
+    <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
+  </div>
 
         <div class="tablewrap">
           <table class="weeklyEditTable">
@@ -8953,6 +9461,7 @@ def my_reports():
           </div>
         </div>
       </div>
+        
     """
 
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
@@ -9919,7 +10428,20 @@ def admin():
             <div class="adminToolTitle">Employees</div>
             <div class="adminToolSub">Create employees, update rates and manage access.</div>
           </a>
-
+                     {
+    f'''
+              <a class="adminToolCard settings" href="/admin/migrate-workplace-id">
+                <div class="adminToolTop">
+                  <div class="adminToolIcon">{_svg_grid()}</div>
+                  <div class="chev">›</div>
+                </div>
+                <div class="adminToolTitle">Workplace Migration</div>
+                <div class="adminToolSub">Run the one-time workplace ID migration from default to newera.</div>
+              </a>
+            '''
+    if session.get("role") == "master_admin"
+    else ""
+    }  
                     {
     f'''
               <a class="adminToolCard drive" href="/connect-drive">
@@ -9987,6 +10509,7 @@ def admin_company():
 
     settings = get_company_settings()
     current_name = (settings.get("Company_Name") or "").strip() or "Main"
+    current_logo = (settings.get("Company_Logo_URL") or "").strip()
 
     msg = ""
     ok = False
@@ -9994,6 +10517,7 @@ def admin_company():
     if request.method == "POST":
         require_csrf()
         new_name = (request.form.get("company_name") or "").strip()
+        new_logo = (request.form.get("company_logo_url") or "").strip()
 
         if not new_name:
             msg = "Company name required."
@@ -10002,16 +10526,22 @@ def admin_company():
         else:
             vals = settings_sheet.get_all_values()
             if not vals:
-                settings_sheet.append_row(["Workplace_ID", "Tax_Rate", "Currency_Symbol", "Company_Name"])
+                settings_sheet.append_row(
+                    ["Workplace_ID", "Tax_Rate", "Currency_Symbol", "Company_Name", "Company_Logo_URL"])
                 vals = settings_sheet.get_all_values()
 
             hdr = vals[0] if vals else []
+            if "Company_Logo_URL" not in hdr:
+                settings_sheet.update_cell(1, len(hdr) + 1, "Company_Logo_URL")
+                vals = settings_sheet.get_all_values()
+                hdr = vals[0] if vals else []
 
             def idx(n):
                 return hdr.index(n) if n in hdr else None
 
             i_wp = idx("Workplace_ID")
             i_name = idx("Company_Name")
+            i_logo = idx("Company_Logo_URL")
             i_tax = idx("Tax_Rate")
             i_cur = idx("Currency_Symbol")
 
@@ -10028,10 +10558,33 @@ def admin_company():
 
                 if rownum:
                     settings_sheet.update_cell(rownum, i_name + 1, new_name)
+                    if i_logo is not None:
+                        settings_sheet.update_cell(rownum, i_logo + 1, new_logo)
+                        if DB_MIGRATION_MODE:
+                            try:
+                                tax_value = settings.get("Tax_Rate", 20.0)
+                                try:
+                                    tax_value = float(tax_value)
+                                except Exception:
+                                    tax_value = 20.0
+
+                                currency_value = str(settings.get("Currency_Symbol", "£") or "£")
+
+                                db_row = WorkplaceSetting.query.filter_by(workplace_id=wp).first()
+                                if db_row:
+                                    db_row.company_name = new_name
+                                    db_row.company_logo_url = new_logo
+                                    db_row.tax_rate = tax_value
+                                    db_row.currency_symbol = currency_value
+                                    db.session.commit()
+                            except Exception:
+                                db.session.rollback()
                 else:
                     row = [""] * len(hdr)
                     row[i_wp] = wp
                     row[i_name] = new_name
+                    if i_logo is not None:
+                        row[i_logo] = new_logo
                     if i_tax is not None:
                         row[i_tax] = str(settings.get("Tax_Rate", 20.0))
                     if i_cur is not None:
@@ -10050,6 +10603,7 @@ def admin_company():
                             db_row = WorkplaceSetting.query.filter_by(workplace_id=wp).first()
                             if db_row:
                                 db_row.company_name = new_name
+                                db_row.company_logo_url = new_logo
                                 db_row.tax_rate = tax_value
                                 db_row.currency_symbol = currency_value
                             else:
@@ -10059,6 +10613,7 @@ def admin_company():
                                         tax_rate=tax_value,
                                         currency_symbol=currency_value,
                                         company_name=new_name,
+                                        company_logo_url=new_logo,
                                     )
                                 )
 
@@ -10070,6 +10625,7 @@ def admin_company():
                 ok = True
                 msg = "Saved."
                 current_name = new_name
+                current_logo = new_logo
 
     content = f"""
       <div class="headerTop">
@@ -10088,6 +10644,10 @@ def admin_company():
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <label class="sub">Company name</label>
           <input class="input" name="company_name" value="{escape(current_name)}" required>
+          
+          <label class="sub" style="margin-top:10px;">Company logo URL</label>
+          <input class="input" name="company_logo_url" value="{escape(current_logo)}" placeholder="https://.../logo.png">
+
           <button class="btnSoft" type="submit" style="margin-top:12px;">Save</button>
         </form>
       </div>
@@ -10616,6 +11176,8 @@ def admin_payroll():
     _ensure_workhours_geo_headers()
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
+    company_name = str(settings.get("Company_Name") or "Main").strip() or "Main"
+    company_logo = str(settings.get("Company_Logo_URL") or "").strip()
     try:
         tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
     except Exception:
@@ -12749,7 +13311,7 @@ def admin_employees():
           <p class="sub">Give these login details to the employee (they can change password in Profile).</p>
           <div class="card" style="padding:12px; background:rgba(56,189,248,.18); border:1px solid rgba(56,189,248,.35); color:rgba(2,6,23,.95);">
             <div><b>Username:</b> {escape(created["u"])}</div>
-            <div><b>Company:</b> {escape(get_company_settings().get("Company_Name") or created["wp"])}</div>
+            <div><b>Workplace ID:</b> {escape(created["wp"])}</div>
             <div><b>Temp password:</b> {escape(created["p"])}</div>
           </div>
         </div>
@@ -13600,6 +14162,7 @@ class WorkplaceSetting(db.Model):
     tax_rate = db.Column(db.Numeric(10, 2))
     currency_symbol = db.Column(db.String(20))
     company_name = db.Column(db.String(255))
+    company_logo_url = db.Column(db.Text)
 
 
 def _db_parse_date(value):
@@ -14250,6 +14813,7 @@ def _ensure_database_schema():
             "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT",
             "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
             "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_datetime VARCHAR(100)",
+            "ALTER TABLE workplace_settings ADD COLUMN IF NOT EXISTS company_logo_url TEXT",
         ]
         try:
             with db.engine.begin() as conn:
