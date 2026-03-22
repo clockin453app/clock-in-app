@@ -8556,7 +8556,7 @@ def clock_page():
                     msg_class = "message error"
 
     # Active shift timer
-    rows2 = work_sheet.get_all_values()
+    rows2 = get_workhours_rows()
     osf2 = find_open_shift(rows2, username)
     active_start_iso = ""
     active_start_label = ""
@@ -11201,25 +11201,23 @@ def admin():
         """
     employee_options = ""
     try:
-        vals_emp = employees_sheet.get_all_values()
-        headers_emp = vals_emp[0] if vals_emp else []
-        ucol = headers_emp.index("Username") if "Username" in headers_emp else 0
-        wp_col = headers_emp.index("Workplace_ID") if "Workplace_ID" in headers_emp else None
         current_wp = _session_workplace_id()
         allowed_wps = set(_workplace_ids_for_read(current_wp))
 
-        for r in vals_emp[1:]:
-            u = (r[ucol] if ucol < len(r) else "").strip()
+        for rec in get_employees_compat():
+            u = str(rec.get("Username") or "").strip()
             if not u:
                 continue
 
-            # Tenant-safe: filter by Employees row Workplace_ID
-            if wp_col is not None:
-                row_wp = (r[wp_col] if wp_col < len(r) else "").strip() or "default"
-                if row_wp not in allowed_wps:
-                    continue
+            row_wp = str(rec.get("Workplace_ID") or "default").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
 
-            employee_options += f"<option value='{escape(u)}'>{escape(u)}</option>"
+            fn = str(rec.get("FirstName") or "").strip()
+            ln = str(rec.get("LastName") or "").strip()
+            disp = (fn + " " + ln).strip() or u
+
+            employee_options += f"<option value='{escape(u)}'>{escape(disp)} ({escape(u)})</option>"
     except Exception:
         employee_options = ""
 
@@ -11721,45 +11719,13 @@ def admin_save_shift():
         if not username or not in_time:
             return redirect(request.referrer or "/admin")
 
-        # normalize to HH:MM:SS
         if len(in_time.split(":")) == 2:
             in_time = in_time + ":00"
 
-        # IMPORTANT:
-        # keep sheet write first because the employee /clock page still reads
-        # active shifts from work_sheet, not only from DB
-        rows = work_sheet.get_all_values()
+        rows = get_workhours_rows()
         if find_open_shift(rows, username):
             return redirect(request.referrer or "/admin")
 
-        try:
-            headers = rows[0] if rows else []
-            rownum = _find_workhours_row_by_user_date(rows, username, date_str)
-            wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
-
-            if rownum:
-                work_sheet.update_cell(rownum, COL_IN + 1, in_time)
-                work_sheet.update_cell(rownum, COL_OUT + 1, "")
-                work_sheet.update_cell(rownum, COL_HOURS + 1, "")
-                work_sheet.update_cell(rownum, COL_PAY + 1, "")
-                if wp_col:
-                    work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
-            else:
-                new_row = [username, date_str, in_time, "", "", ""]
-                if headers and "Workplace_ID" in headers:
-                    wp_idx = headers.index("Workplace_ID")
-                    if len(new_row) <= wp_idx:
-                        new_row += [""] * (wp_idx + 1 - len(new_row))
-                    new_row[wp_idx] = _session_workplace_id()
-
-                if headers and len(new_row) < len(headers):
-                    new_row += [""] * (len(headers) - len(new_row))
-
-                work_sheet.append_row(new_row, value_input_option="USER_ENTERED")
-        except Exception as e:
-            return make_response(f"Could not force clock in: {e}", 500)
-
-        # DB mirror stays, but only after sheet write succeeds
         if DB_MIGRATION_MODE:
             try:
                 shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
@@ -11794,84 +11760,43 @@ def admin_save_shift():
                 db.session.commit()
             except Exception:
                 db.session.rollback()
+        else:
+            try:
+                vals = work_sheet.get_all_values()
+                headers = vals[0] if vals else []
+
+                if find_open_shift(vals, username):
+                    return redirect(request.referrer or "/admin")
+
+                rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+                wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
+
+                if rownum:
+                    work_sheet.update_cell(rownum, COL_IN + 1, in_time)
+                    work_sheet.update_cell(rownum, COL_OUT + 1, "")
+                    work_sheet.update_cell(rownum, COL_HOURS + 1, "")
+                    work_sheet.update_cell(rownum, COL_PAY + 1, "")
+                    if wp_col:
+                        work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
+                else:
+                    new_row = [username, date_str, in_time, "", "", ""]
+
+                    if "Workplace_ID" in headers:
+                        wp_idx = headers.index("Workplace_ID")
+                        if len(new_row) <= wp_idx:
+                            new_row += [""] * (wp_idx + 1 - len(new_row))
+                        new_row[wp_idx] = _session_workplace_id()
+
+                    if headers and len(new_row) < len(headers):
+                        new_row += [""] * (len(headers) - len(new_row))
+
+                    work_sheet.append_row(new_row)
+            except Exception:
+                pass
 
         actor = session.get("username", "admin")
         log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
         return redirect(request.referrer or "/admin")
-
-    # normalize to HH:MM:SS
-    if len(in_time.split(":")) == 2:
-        in_time = in_time + ":00"
-
-    try:
-        vals = work_sheet.get_all_values()
-        headers = vals[0] if vals else []
-
-        # If an open shift already exists, do nothing (avoid duplicates)
-        if find_open_shift(vals, username):
-            return redirect(request.referrer or "/admin")
-
-        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
-
-        wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
-
-        if rownum:
-            # Update today's row
-            work_sheet.update_cell(rownum, COL_IN + 1, in_time)
-            if wp_col:
-                work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
-        else:
-            # Create a new row for today
-            new_row = [username, date_str, in_time, "", "", ""]
-
-            if "Workplace_ID" in headers:
-                wp_idx = headers.index("Workplace_ID")
-                if len(new_row) <= wp_idx:
-                    new_row += [""] * (wp_idx + 1 - len(new_row))
-                new_row[wp_idx] = _session_workplace_id()
-
-            # Pad to header width (prevents misaligned rows if sheet has extra columns)
-            if headers and len(new_row) < len(headers):
-                new_row += [""] * (len(headers) - len(new_row))
-
-            work_sheet.append_row(new_row)
-
-    except Exception:
-        pass
-
-    if DB_MIGRATION_MODE:
-        try:
-            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
-
-            db_row = WorkHour.query.filter_by(
-                employee_email=username,
-                date=shift_date,
-                workplace=_session_workplace_id(),
-            ).order_by(WorkHour.id.desc()).first()
-
-            if db_row:
-                db_row.clock_in = clock_in_dt
-                db_row.clock_out = None
-            else:
-                db.session.add(
-                    WorkHour(
-                        employee_email=username,
-                        date=shift_date,
-                        clock_in=clock_in_dt,
-                        clock_out=None,
-                        workplace=_session_workplace_id(),
-                        workplace_id=_session_workplace_id(),
-                    )
-                )
-
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-    actor = session.get("username", "admin")
-    log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
-    return redirect(request.referrer or "/admin")
 
 
 @app.post("/admin/force-clockout")
