@@ -9445,9 +9445,8 @@ def my_reports():
     <p class="sub">{escape(display_name)} • Totals + tax + net</p>
   </div>
   <div class="myReportsActions noPrint">
-    <a class="btnSoft" href="/my-reports.pdf?wk={wk_offset}" download>Download Payslip PDF</a>
-    <button class="btnSoft" type="button" onclick="window.print()">Print Payslip</button>
-  </div>
+  <a class="btnSoft" href="/my-reports-print?wk={wk_offset}">Open Payslip</a>
+</div>
 </div>
 
       <div class="myReportsTopGrid">
@@ -9538,6 +9537,451 @@ def my_reports():
     """
 
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
+
+
+@app.get("/my-reports-print")
+def my_reports_print():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    role = session.get("role", "employee")
+    display_name = get_employee_display_name(username)
+
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
+    company_name = str(settings.get("Company_Name") or "Main").strip() or "Main"
+    company_logo = str(settings.get("Company_Logo_URL") or "").strip()
+
+    try:
+        tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
+    except Exception:
+        tax_rate = 0.20
+
+    now = datetime.now(TZ)
+    today = now.date()
+
+    try:
+        wk_offset = max(0, int((request.args.get("wk", "0") or "0").strip()))
+    except Exception:
+        wk_offset = 0
+
+    this_monday = today - timedelta(days=today.weekday())
+    selected_week_start = this_monday - timedelta(days=7 * wk_offset)
+    selected_week_end = selected_week_start + timedelta(days=6)
+
+    rows = get_workhours_rows()
+    headers = rows[0] if rows else []
+    wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
+    selected_week_hours = 0.0
+    selected_week_pay = 0.0
+
+    week_map = {}
+    day_labels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+
+    for i in range(7):
+        d = selected_week_start + timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        d_display = d.strftime("%y-%m-%d")
+        week_map[d_str] = {
+            "day": day_labels[i],
+            "date": d_str,
+            "display_date": d_display,
+            "first_in": "",
+            "last_out": "",
+            "hours": 0.0,
+            "gross": 0.0,
+        }
+
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+
+        row_user = (r[COL_USER] or "").strip()
+        if row_user != username:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        if not d_str:
+            continue
+
+        try:
+            d = datetime.strptime(d_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        cin = ((r[COL_IN] if len(r) > COL_IN else "") or "").strip()
+        cout = ((r[COL_OUT] if len(r) > COL_OUT else "") or "").strip()
+        hrs = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        pay = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
+
+        if selected_week_start <= d <= selected_week_end:
+            selected_week_hours += hrs
+            selected_week_pay += pay
+
+            item = week_map.get(d_str)
+            if item is not None:
+                item["hours"] += hrs
+                item["gross"] += pay
+
+                cin_short = cin[:5] if cin else ""
+                cout_short = cout[:5] if cout else ""
+
+                if cin_short:
+                    if not item["first_in"] or cin_short < item["first_in"]:
+                        item["first_in"] = cin_short
+
+                if cout_short:
+                    if not item["last_out"] or cout_short > item["last_out"]:
+                        item["last_out"] = cout_short
+
+    def gross_tax_net(gross):
+        gross = round(gross, 2)
+        tax = round(gross * tax_rate, 2)
+        net = round(gross - tax, 2)
+        return gross, tax, net
+
+    w_g, w_t, w_n = gross_tax_net(selected_week_pay)
+
+    week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
+
+    rows_html = []
+    for i in range(7):
+        d = selected_week_start + timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        item = week_map[d_str]
+
+        hours_val = round(item["hours"], 2)
+        gross_val = round(item["gross"], 2)
+        net_val = round(gross_val - (gross_val * tax_rate), 2)
+
+        row_class = "overtimeRow" if hours_val > OVERTIME_HOURS else ""
+
+        cin_txt = item["first_in"] if item["first_in"] else ""
+        cout_txt = item["last_out"] if item["last_out"] else ""
+        hrs_txt = fmt_hours(hours_val) if hours_val > 0 else ""
+        gross_txt = money(gross_val) if gross_val > 0 else ""
+        net_txt = money(net_val) if net_val > 0 else ""
+
+        rows_html.append(f"""
+          <tr class="{row_class}">
+            <td><b>{escape(item['day'])}</b></td>
+            <td>{escape(item['display_date'])}</td>
+            <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
+            <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
+            <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
+            <td class="num" style="font-weight:700;">{escape(gross_txt)}</td>
+            <td class="num" style="font-weight:800; color:rgba(15,23,42,.92);">{escape(net_txt)}</td>
+          </tr>
+        """)
+
+    page_css = """
+    <style>
+      .myReportsActions{
+        display:flex;
+        gap:8px;
+        flex-wrap:wrap;
+        justify-content:flex-end;
+      }
+
+      .myReportsActions .btnSoft{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        text-decoration:none;
+      }
+
+      .myReportsWeekTable{
+        margin-top:12px;
+        padding:10px;
+      }
+
+      .myReportsWeekTable .tablewrap{
+        margin-top:10px;
+      }
+
+      .myReportsWeekTable .payrollSummaryBar{
+        margin-top:10px;
+        grid-template-columns:repeat(4, minmax(0, 1fr));
+        gap:6px;
+      }
+
+      .myReportsWeekTable .payrollSummaryItem{
+        padding:6px 8px;
+        border-radius:12px;
+      }
+
+      .myReportsWeekTable .payrollSummaryItem .k{
+        font-size:10px;
+      }
+
+      .myReportsWeekTable .payrollSummaryItem .v{
+        font-size:14px;
+        line-height:1.1;
+      }
+
+      .myReportsWeekTable .weeklyEditTable{
+        table-layout:fixed;
+        width:100%;
+        min-width:0;
+      }
+
+      .myReportsWeekTable .weeklyEditTable thead th,
+      .myReportsWeekTable .weeklyEditTable tbody td{
+        padding:7px 3px;
+        font-size:12px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable thead th{
+        white-space:nowrap;
+        letter-spacing:0;
+        font-size:10px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable tbody td{
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(1),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(1){
+        width:38px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(2),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(2){
+        width:78px;
+        text-align:center;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(3),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(3),
+      .myReportsWeekTable .weeklyEditTable th:nth-child(4),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(4){
+        width:56px;
+        text-align:center;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(5),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(5){
+        width:46px;
+      }
+
+      .myReportsWeekTable .weeklyEditTable th:nth-child(6),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(6),
+      .myReportsWeekTable .weeklyEditTable th:nth-child(7),
+      .myReportsWeekTable .weeklyEditTable td:nth-child(7){
+        width:64px;
+      }
+
+      @media (max-width: 780px){
+        .myReportsActions{
+          width:100%;
+          display:grid;
+          grid-template-columns:1fr;
+          gap:8px;
+        }
+
+        .myReportsActions .btnSoft{
+          width:100%;
+        }
+
+        .myReportsWeekTable{
+          padding:6px;
+        }
+
+        .myReportsWeekTable .tablewrap{
+          margin-top:8px;
+          border-radius:14px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable thead th,
+        .myReportsWeekTable .weeklyEditTable tbody td{
+          padding:7px 3px;
+          font-size:11px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(1),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(1){
+          width:32px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(2),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(2){
+          width:68px;
+          text-align:center;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(3),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(3),
+        .myReportsWeekTable .weeklyEditTable th:nth-child(4),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(4){
+          width:48px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(5),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(5){
+          width:38px;
+        }
+
+        .myReportsWeekTable .weeklyEditTable th:nth-child(6),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(6),
+        .myReportsWeekTable .weeklyEditTable th:nth-child(7),
+        .myReportsWeekTable .weeklyEditTable td:nth-child(7){
+          width:54px;
+        }
+
+        .payrollSummaryBar{
+          grid-template-columns:1fr 1fr;
+          gap:8px;
+        }
+
+        .payrollSummaryItem{
+          padding:8px 10px;
+          border-radius:14px;
+        }
+
+        .payrollSummaryItem .k{
+          font-size:11px;
+        }
+
+        .payrollSummaryItem .v{
+          font-size:16px;
+        }
+      }
+
+      @media print{
+        .sidebar,
+        .topbar,
+        .mobileNav,
+        .noPrint,
+        #payrollMenuBackdrop,
+        #payrollMenuToggle{
+          display:none !important;
+        }
+
+        .shell,
+        .content,
+        .page,
+        .main{
+          margin:0 !important;
+          padding:0 !important;
+          width:100% !important;
+          max-width:none !important;
+        }
+
+        .card{
+          box-shadow:none !important;
+          border:1px solid #dbe5f1 !important;
+          break-inside:avoid;
+        }
+
+        body{
+          background:#fff !important;
+        }
+      }
+    </style>
+    """
+
+    content = f"""
+      {page_css}
+
+      <div class="card payrollEmployeeCard" style="padding:14px; margin-bottom:12px;">
+        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+          {f'''
+          <img src="{escape(company_logo)}" alt="Company logo"
+               style="max-height:64px; max-width:150px; object-fit:contain; border:1px solid #dbe5f1; border-radius:12px; padding:6px; background:#fff;">
+          ''' if company_logo else ""}
+          <div>
+            <div style="font-size:26px; font-weight:800; line-height:1.1;">{escape(company_name)}</div>
+            <div class="sub" style="margin-top:4px;">Payslip / Timesheet</div>
+            <div class="sub"><strong>{escape(display_name)}</strong> • {escape(week_label)}</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="headerTop noPrint">
+        <div>
+          <h1>Payslip</h1>
+          <p class="sub">{escape(display_name)} • {escape(week_label)}</p>
+        </div>
+        <div class="myReportsActions">
+          <a class="btnSoft" href="/my-reports?wk={wk_offset}">← Back to Timesheets</a>
+          <button class="btnSoft" type="button" onclick="window.print()">Save / Print Payslip</button>
+        </div>
+      </div>
+
+      <div class="card myReportsWeekTable">
+        <div style="margin-bottom:12px;">
+          <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
+        </div>
+
+        <div class="tablewrap">
+          <table class="weeklyEditTable">
+            <colgroup>
+              <col style="width:38px;">
+              <col style="width:78px;">
+              <col style="width:56px;">
+              <col style="width:56px;">
+              <col style="width:46px;">
+              <col style="width:64px;">
+              <col style="width:64px;">
+            </colgroup>
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Date</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th class="num">Hours</th>
+                <th class="num">Gross</th>
+                <th class="num">Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              {''.join(rows_html)}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="payrollSummaryBar">
+          <div class="payrollSummaryItem">
+            <div class="k">Hours</div>
+            <div class="v">{escape(fmt_hours(selected_week_hours))}</div>
+          </div>
+
+          <div class="payrollSummaryItem">
+            <div class="k">Gross</div>
+            <div class="v">{escape(currency)}{money(w_g)}</div>
+          </div>
+
+          <div class="payrollSummaryItem">
+            <div class="k">Tax</div>
+            <div class="v">{escape(currency)}{money(w_t)}</div>
+          </div>
+
+          <div class="payrollSummaryItem net">
+            <div class="k">Net</div>
+            <div class="v">{escape(currency)}{money(w_n)}</div>
+          </div>
+        </div>
+      </div>
+    """
+
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
+
+
+
 
 @app.get("/my-reports.pdf")
 def my_reports_pdf():
