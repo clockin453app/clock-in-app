@@ -11624,8 +11624,8 @@ def admin_save_shift():
 
     return redirect(request.referrer or "/admin/payroll")
 
-@app.post("/admin/force-clockin")
-def admin_force_clockin():
+    @app.post("/admin/force-clockin")
+    def admin_force_clockin():
         gate = require_admin()
         if gate:
             return gate
