@@ -11705,82 +11705,99 @@ def admin_save_shift():
 
     return redirect(request.referrer or "/admin/payroll")
 
+    @app.post("/admin/force-clockin")
+    def admin_force_clockin():
+        gate = require_admin()
+        if gate:
+            return gate
+        require_csrf()
 
-@app.post("/admin/force-clockin")
-def admin_force_clockin():
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
+        username = (request.form.get("user") or "").strip()
+        in_time = (request.form.get("in_time") or "").strip()
+        dates = [(d or "").strip() for d in request.form.getlist("date")]
+        dates = [d for d in dates if d]
+        date_str = dates[-1] if dates else datetime.now(TZ).strftime("%Y-%m-%d")
 
-    username = (request.form.get("user") or "").strip()
-    in_time = (request.form.get("in_time") or "").strip()
-    dates = [(d or "").strip() for d in request.form.getlist("date")]
-    dates = [d for d in dates if d]
-    date_str = dates[-1] if dates else datetime.now(TZ).strftime("%Y-%m-%d")
-    if not username or not in_time:
-        return redirect(request.referrer or "/admin")
+        if not username or not in_time:
+            return redirect(request.referrer or "/admin")
 
-    if len(in_time.split(":")) == 2:
-        in_time = in_time + ":00"
+        # normalize to HH:MM:SS
+        if len(in_time.split(":")) == 2:
+            in_time = in_time + ":00"
 
-    rows = get_workhours_rows()
-    if find_open_shift(rows, username):
-        return redirect(request.referrer or "/admin")
+        # IMPORTANT:
+        # keep sheet write first because the employee /clock page still reads
+        # active shifts from work_sheet, not only from DB
+        rows = work_sheet.get_all_values()
+        if find_open_shift(rows, username):
+            return redirect(request.referrer or "/admin")
 
-    if DB_MIGRATION_MODE:
         try:
-            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
-            db_row = WorkHour.query.filter_by(
-                employee_email=username,
-                date=shift_date,
-                workplace=_session_workplace_id(),
-            ).order_by(WorkHour.id.desc()).first()
-            if db_row:
-                db_row.clock_in = clock_in_dt
-                db_row.clock_out = None
-            else:
-                db.session.add(
-                    WorkHour(
-                        employee_email=username,
-                        date=shift_date,
-                        clock_in=clock_in_dt,
-                        clock_out=None,
-                        workplace=_session_workplace_id(),
-                        workplace_id=_session_workplace_id(),
-                    )
-                )
-            db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            return make_response(f"Could not force clock in: {e}", 500)
-    else:
-        try:
-            vals = work_sheet.get_all_values()
-            headers = vals[0] if vals else []
-            rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+            headers = rows[0] if rows else []
+            rownum = _find_workhours_row_by_user_date(rows, username, date_str)
             wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
+
             if rownum:
                 work_sheet.update_cell(rownum, COL_IN + 1, in_time)
+                work_sheet.update_cell(rownum, COL_OUT + 1, "")
+                work_sheet.update_cell(rownum, COL_HOURS + 1, "")
+                work_sheet.update_cell(rownum, COL_PAY + 1, "")
                 if wp_col:
                     work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
             else:
                 new_row = [username, date_str, in_time, "", "", ""]
-                if "Workplace_ID" in headers:
+                if headers and "Workplace_ID" in headers:
                     wp_idx = headers.index("Workplace_ID")
                     if len(new_row) <= wp_idx:
                         new_row += [""] * (wp_idx + 1 - len(new_row))
                     new_row[wp_idx] = _session_workplace_id()
+
                 if headers and len(new_row) < len(headers):
                     new_row += [""] * (len(headers) - len(new_row))
-                work_sheet.append_row(new_row)
+
+                work_sheet.append_row(new_row, value_input_option="USER_ENTERED")
         except Exception as e:
             return make_response(f"Could not force clock in: {e}", 500)
 
-    actor = session.get("username", "admin")
-    log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
-    return redirect(request.referrer or "/admin")
+        # DB mirror stays, but only after sheet write succeeds
+        if DB_MIGRATION_MODE:
+            try:
+                shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+                clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
+
+                db_row = WorkHour.query.filter(
+                    WorkHour.employee_email == username,
+                    WorkHour.date == shift_date,
+                    or_(
+                        WorkHour.workplace_id == _session_workplace_id(),
+                        WorkHour.workplace == _session_workplace_id(),
+                    ),
+                ).order_by(WorkHour.id.desc()).first()
+
+                if db_row:
+                    db_row.clock_in = clock_in_dt
+                    db_row.clock_out = None
+                    db_row.workplace = _session_workplace_id()
+                    db_row.workplace_id = _session_workplace_id()
+                else:
+                    db.session.add(
+                        WorkHour(
+                            employee_email=username,
+                            date=shift_date,
+                            clock_in=clock_in_dt,
+                            clock_out=None,
+                            workplace=_session_workplace_id(),
+                            workplace_id=_session_workplace_id(),
+                        )
+                    )
+
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+        actor = session.get("username", "admin")
+        log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
+        return redirect(request.referrer or "/admin")
 
     # normalize to HH:MM:SS
     if len(in_time.split(":")) == 2:
