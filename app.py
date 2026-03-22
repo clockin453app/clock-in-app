@@ -9445,7 +9445,7 @@ def my_reports():
     <p class="sub">{escape(display_name)} • Totals + tax + net</p>
   </div>
   <div class="myReportsActions noPrint">
-    <a class="btnSoft" href="/my-reports.pdf?wk={wk_offset}">Download Payslip PDF</a>
+    <a class="btnSoft" href="/my-reports.pdf?wk={wk_offset}" download>Download Payslip PDF</a>
     <button class="btnSoft" type="button" onclick="window.print()">Print Payslip</button>
   </div>
 </div>
@@ -9711,13 +9711,22 @@ def my_reports_pdf():
         f"{selected_week_start.isoformat()}_to_{selected_week_end.isoformat()}.pdf"
     )
 
-    return send_file(
+    response = send_file(
         buffer,
-        mimetype="application/pdf",
+        mimetype="application/octet-stream",
         as_attachment=True,
         download_name=filename,
         max_age=0,
+        conditional=False,
     )
+
+    response.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+
+    return response
 
 
 @app.get("/my-reports.csv")
