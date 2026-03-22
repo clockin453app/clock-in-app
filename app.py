@@ -11542,11 +11542,11 @@ def admin_company():
         layout_shell("admin", session.get("role", "admin"), content)
     )
 
-    @app.post("/admin/save-shift")
-    def admin_save_shift():
-        gate = require_admin()
-        if gate:
-            return gate
+@app.post("/admin/save-shift")
+def admin_save_shift():
+    gate = require_admin()
+    if gate:
+        return gate
         require_csrf()
 
         username = (request.form.get("username") or "").strip()
