@@ -10715,9 +10715,8 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth', 'BirthDate'))}">
 
           <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
-          <div class="row2">
-            <input class="input" name="phone_cc" value="{escape(val('phone_cc', 'PhoneCountryCode') or '+44')}">
-            <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num', 'PhoneNumber'))}">
+<input type="hidden" name="phone_cc" value="">
+<input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num', 'PhoneNumber'))}">
           </div>
 
           <h2 style="margin-top:14px;">Address</h2>
@@ -10739,9 +10738,8 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           </div>
 
           <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
-          <div class="row2">
-            <input class="input" name="ec_cc" value="{escape(val('ec_cc', 'EmergencyContactPhoneCountryCode') or '+44')}">
-            <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone', 'EmergencyContactPhoneNumber'))}">
+<input type="hidden" name="ec_cc" value="">
+<input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone', 'EmergencyContactPhoneNumber'))}">
           </div>
 
           <h2 style="margin-top:14px;">Medical</h2>
