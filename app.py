@@ -10717,7 +10717,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
           <input type="hidden" name="phone_cc" value="">
           <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num', 'PhoneNumber'))}">
-          </div>
+          
 
           <h2 style="margin-top:14px;">Address</h2>
           <input class="input" name="street" placeholder="Street Address" value="{escape(val('street', 'StreetAddress'))}">
@@ -10740,7 +10740,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
           <input type="hidden" name="ec_cc" value="">
           <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone', 'EmergencyContactPhoneNumber'))}">
-          </div>
+          
 
           <h2 style="margin-top:14px;">Medical</h2>
           <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
