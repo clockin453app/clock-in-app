@@ -1695,8 +1695,9 @@ def _workplace_ids_for_read(workplace_id: str | None = None):
 
 
 def _allowed_workplace_ids_for_admin_write(workplace_id: str | None = None):
+    """Exact workplace only for writes. Reads may remain migration-tolerant."""
     wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
-    return list(dict.fromkeys(_workplace_ids_for_read(wp)))
+    return [wp]
 
 
 def _employee_query_for_write(username: str, workplace_id: str | None = None):
@@ -5119,8 +5120,27 @@ def _ensure_employees_columns():
 
 
 def _employees_usernames_for_workplace(wp: str) -> set[str]:
-    """Return lowercase set of usernames in Employees for this workplace (if column exists)."""
+    """Return lowercase set of usernames in Employees for this workplace."""
     out = set()
+    target_wp = (wp or "").strip() or "default"
+
+    if DB_MIGRATION_MODE:
+        try:
+            rows = Employee.query.filter(
+                or_(
+                    Employee.workplace_id == target_wp,
+                    and_(Employee.workplace_id.is_(None), Employee.workplace == target_wp),
+                    Employee.workplace == target_wp,
+                )
+            ).all()
+            for rec in rows:
+                u = str(getattr(rec, "username", None) or getattr(rec, "email", None) or "").strip().lower()
+                if u:
+                    out.add(u)
+            return out
+        except Exception:
+            pass
+
     try:
         vals = employees_sheet.get_all_values()
         if not vals:
@@ -5130,7 +5150,6 @@ def _employees_usernames_for_workplace(wp: str) -> set[str]:
             return out
         ucol = headers.index("Username")
         wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
-        target_wp = (wp or "").strip() or "default"
 
         for r in vals[1:]:
             u = (r[ucol] if ucol < len(r) else "").strip()
@@ -6023,10 +6042,27 @@ def _get_employee_db_row(username: str, workplace_id: str | None = None):
     target_wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
     if not target_user or not DB_MIGRATION_MODE:
         return None
-    rec = Employee.query.filter_by(username=target_user, workplace_id=target_wp).first()
-    if not rec:
-        rec = Employee.query.filter_by(email=target_user, workplace_id=target_wp).first()
-    return rec
+
+    allowed_wps = _workplace_ids_for_read(target_wp)
+    candidates = Employee.query.filter(
+        and_(
+            or_(Employee.username == target_user, Employee.email == target_user),
+            or_(
+                Employee.workplace_id.in_(allowed_wps),
+                and_(Employee.workplace_id.is_(None), Employee.workplace.in_(allowed_wps)),
+                Employee.workplace.in_(allowed_wps),
+            ),
+        )
+    ).all()
+    if not candidates:
+        return None
+
+    def _score(rec):
+        row_wp = str(getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default")
+        exact = 1 if row_wp == target_wp else 0
+        return (exact, getattr(rec, "id", 0))
+
+    return sorted(candidates, key=_score, reverse=True)[0]
 
 
 def _ensure_employee_security_headers():
@@ -11549,23 +11585,39 @@ def admin_save_shift():
         return gate
     require_csrf()
 
-    username = (request.form.get("username") or "").strip()
+    username = (request.form.get("user") or request.form.get("username") or "").strip()
     date_str = (request.form.get("date") or "").strip()
-    in_time = (request.form.get("clock_in") or "").strip()
-    out_time = (request.form.get("clock_out") or "").strip()
-    hours = (request.form.get("hours") or "").strip()
-    pay = (request.form.get("pay") or "").strip()
+    cin = (request.form.get("cin") or request.form.get("clock_in") or "").strip()
+    cout = (request.form.get("cout") or request.form.get("clock_out") or "").strip()
+    hours_in = (request.form.get("hours") or "").strip()
+    pay_in = (request.form.get("pay") or "").strip()
+    recalc = (request.form.get("recalc") == "yes")
 
     if not username or not date_str:
         return redirect(request.referrer or "/admin/payroll")
 
+    rate = _get_user_rate(username)
+    hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
+    pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
+
+    auto_calc = recalc or (cin and cout and hours_in == "" and pay_in == "")
+    if cin and cout and auto_calc:
+        computed = _compute_hours_from_times(date_str, cin, cout)
+        if computed is not None:
+            hours_val = computed
+            pay_val = round(computed * rate, 2)
+
+    if hours_in != "" and pay_in == "":
+        pay_val = round(safe_float(hours_in, 0.0) * rate, 2)
+
+    hours_cell = "" if hours_val is None else str(hours_val)
+    pay_cell = "" if pay_val is None else str(pay_val)
+
     if DB_MIGRATION_MODE:
         try:
             shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            db_row = WorkHour.query.filter_by(
-                employee_email=username,
-                date=shift_date,
-                workplace=_session_workplace_id(),
+            db_row = _workhour_query_for_user(username, _session_workplace_id()).filter(
+                WorkHour.date == shift_date
             ).order_by(WorkHour.id.desc()).first()
 
             if not db_row:
@@ -11577,131 +11629,148 @@ def admin_save_shift():
                 )
                 db.session.add(db_row)
 
-            db_row.clock_in = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S") if in_time else None
-            db_row.clock_out = datetime.strptime(f"{date_str} {out_time}", "%Y-%m-%d %H:%M:%S") if out_time else None
-            db_row.hours = float(hours) if str(hours).strip() else None
-            db_row.pay = float(pay) if str(pay).strip() else None
+            clock_in_dt = None
+            clock_out_dt = None
+            cin_db = cin
+            cout_db = cout
 
+            if cin_db:
+                if len(cin_db.split(":")) == 2:
+                    cin_db = cin_db + ":00"
+                clock_in_dt = datetime.strptime(f"{date_str} {cin_db}", "%Y-%m-%d %H:%M:%S")
+
+            if cout_db:
+                if len(cout_db.split(":")) == 2:
+                    cout_db = cout_db + ":00"
+                clock_out_dt = datetime.strptime(f"{date_str} {cout_db}", "%Y-%m-%d %H:%M:%S")
+                if clock_in_dt and clock_out_dt < clock_in_dt:
+                    clock_out_dt = clock_out_dt + timedelta(days=1)
+
+            db_row.clock_in = clock_in_dt
+            db_row.clock_out = clock_out_dt
+            db_row.hours = float(hours_cell) if hours_cell != "" else None
+            db_row.pay = float(pay_cell) if pay_cell != "" else None
+            db_row.workplace = _session_workplace_id()
+            db_row.workplace_id = _session_workplace_id()
             db.session.commit()
         except Exception as e:
             db.session.rollback()
             return make_response(f"Could not save shift: {e}", 500)
+        return redirect(request.referrer or "/admin/payroll")
+
+    try:
+        vals = work_sheet.get_all_values()
+        headers = vals[0] if vals else []
+        rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+
+        if not rownum:
+            new_row = [username, date_str, cin, cout, hours_cell, pay_cell]
+            if headers and "Workplace_ID" in headers:
+                wp_idx = headers.index("Workplace_ID")
+                if len(new_row) <= wp_idx:
+                    new_row += [""] * (wp_idx + 1 - len(new_row))
+                new_row[wp_idx] = _session_workplace_id()
+            if headers and len(new_row) < len(headers):
+                new_row += [""] * (len(headers) - len(new_row))
+            work_sheet.append_row(new_row)
+        else:
+            updates = [
+                {"range": gspread.utils.rowcol_to_a1(rownum, COL_IN + 1), "values": [[cin]]},
+                {"range": gspread.utils.rowcol_to_a1(rownum, COL_OUT + 1), "values": [[cout]]},
+                {"range": gspread.utils.rowcol_to_a1(rownum, COL_HOURS + 1), "values": [[hours_cell]]},
+                {"range": gspread.utils.rowcol_to_a1(rownum, COL_PAY + 1), "values": [[pay_cell]]},
+            ]
+            if headers and "Workplace_ID" in headers:
+                wp_col = headers.index("Workplace_ID") + 1
+                updates.append({"range": gspread.utils.rowcol_to_a1(rownum, wp_col), "values": [[_session_workplace_id()]]})
+            _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
+    except Exception as e:
+        return make_response(f"Could not save shift: {e}", 500)
+
+    return redirect(request.referrer or "/admin/payroll")
+@app.post("/admin/force-clockin")
+def admin_force_clockin():
+    gate = require_admin()
+    if gate:
+        return gate
+    require_csrf()
+
+    username = (request.form.get("user") or "").strip()
+    in_time = (request.form.get("in_time") or "").strip()
+    date_str = (request.form.get("date") or "").strip()
+
+    if not username or not in_time or not date_str:
+        return redirect(request.referrer or "/admin")
+
+    if len(in_time.split(":")) == 2:
+        in_time = in_time + ":00"
+
+    rows = get_workhours_rows()
+    if find_open_shift(rows, username):
+        return redirect(request.referrer or "/admin")
+
+    if DB_MIGRATION_MODE:
+        try:
+            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+            clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
+            db_row = _workhour_query_for_user(username, _session_workplace_id()).filter(
+                WorkHour.date == shift_date
+            ).order_by(WorkHour.id.desc()).first()
+
+            if db_row:
+                db_row.clock_in = clock_in_dt
+                db_row.clock_out = None
+                db_row.hours = None
+                db_row.pay = None
+                db_row.workplace = _session_workplace_id()
+                db_row.workplace_id = _session_workplace_id()
+            else:
+                db.session.add(
+                    WorkHour(
+                        employee_email=username,
+                        date=shift_date,
+                        clock_in=clock_in_dt,
+                        clock_out=None,
+                        hours=None,
+                        pay=None,
+                        workplace=_session_workplace_id(),
+                        workplace_id=_session_workplace_id(),
+                    )
+                )
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            return make_response(f"Could not force clock in: {e}", 500)
     else:
         try:
             vals = work_sheet.get_all_values()
             headers = vals[0] if vals else []
             rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+            wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
 
-            if not rownum:
-                new_row = [username, date_str, in_time, out_time, hours, pay]
+            if rownum:
+                work_sheet.update_cell(rownum, COL_IN + 1, in_time)
+                work_sheet.update_cell(rownum, COL_OUT + 1, "")
+                work_sheet.update_cell(rownum, COL_HOURS + 1, "")
+                work_sheet.update_cell(rownum, COL_PAY + 1, "")
+                if wp_col:
+                    work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
+            else:
+                new_row = [username, date_str, in_time, "", "", ""]
                 if headers and "Workplace_ID" in headers:
                     wp_idx = headers.index("Workplace_ID")
                     if len(new_row) <= wp_idx:
                         new_row += [""] * (wp_idx + 1 - len(new_row))
                     new_row[wp_idx] = _session_workplace_id()
-
                 if headers and len(new_row) < len(headers):
                     new_row += [""] * (len(headers) - len(new_row))
-
                 work_sheet.append_row(new_row)
-            else:
-                updates = []
-                updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_IN + 1), "values": [[in_time]]})
-                updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_OUT + 1), "values": [[out_time]]})
-                updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_HOURS + 1), "values": [[hours]]})
-                updates.append({"range": gspread.utils.rowcol_to_a1(rownum, COL_PAY + 1), "values": [[pay]]})
-
-                if headers and "Workplace_ID" in headers:
-                    wp_col = headers.index("Workplace_ID") + 1
-                    updates.append({
-                        "range": gspread.utils.rowcol_to_a1(rownum, wp_col),
-                        "values": [[_session_workplace_id()]]
-                    })
-
-                work_sheet.batch_update(updates)
         except Exception as e:
-            return make_response(f"Could not mark payroll row as paid: {e}", 500)
+            return make_response(f"Could not force clock in: {e}", 500)
 
-    return redirect(request.referrer or "/admin/payroll")
-
-@app.post("/admin/force-clockin")
-def admin_force_clockin():
-        gate = require_admin()
-        if gate:
-            return gate
-        require_csrf()
-
-        username = (request.form.get("user") or "").strip()
-        in_time = (request.form.get("in_time") or "").strip()
-        date_str = (request.form.get("date") or "").strip()
-
-        if not username or not in_time or not date_str:
-            return redirect(request.referrer or "/admin")
-
-        if len(in_time.split(":")) == 2:
-            in_time = in_time + ":00"
-
-        rows = get_workhours_rows()
-        if find_open_shift(rows, username):
-            return redirect(request.referrer or "/admin")
-
-        if DB_MIGRATION_MODE:
-            try:
-                shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-                clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
-
-                db_row = WorkHour.query.filter_by(
-                    employee_email=username,
-                    date=shift_date,
-                    workplace=_session_workplace_id(),
-                ).order_by(WorkHour.id.desc()).first()
-
-                if db_row:
-                    db_row.clock_in = clock_in_dt
-                    db_row.clock_out = None
-                else:
-                    db.session.add(
-                        WorkHour(
-                            employee_email=username,
-                            date=shift_date,
-                            clock_in=clock_in_dt,
-                            clock_out=None,
-                            workplace=_session_workplace_id(),
-                            workplace_id=_session_workplace_id(),
-                        )
-                    )
-                db.session.commit()
-            except Exception as e:
-                db.session.rollback()
-                return make_response(f"Could not force clock in: {e}", 500)
-        else:
-            try:
-                vals = work_sheet.get_all_values()
-                headers = vals[0] if vals else []
-                rownum = _find_workhours_row_by_user_date(vals, username, date_str)
-                wp_col = (headers.index("Workplace_ID") + 1) if ("Workplace_ID" in headers) else None
-
-                if rownum:
-                    work_sheet.update_cell(rownum, COL_IN + 1, in_time)
-                    if wp_col:
-                        work_sheet.update_cell(rownum, wp_col, _session_workplace_id())
-                else:
-                    new_row = [username, date_str, in_time, "", "", ""]
-                    if "Workplace_ID" in headers:
-                        wp_idx = headers.index("Workplace_ID")
-                        if len(new_row) <= wp_idx:
-                            new_row += [""] * (wp_idx + 1 - len(new_row))
-                        new_row[wp_idx] = _session_workplace_id()
-                    if headers and len(new_row) < len(headers):
-                        new_row += [""] * (len(headers) - len(new_row))
-                    work_sheet.append_row(new_row)
-            except Exception as e:
-                return make_response(f"Could not force clock in: {e}", 500)
-
-        actor = session.get("username", "admin")
-        log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
-        return redirect(request.referrer or "/admin")
-
+    actor = session.get("username", "admin")
+    log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
+    return redirect(request.referrer or "/admin")
 @app.post("/admin/force-clockout")
 def admin_force_clockout():
     gate = require_admin()
@@ -11740,21 +11809,27 @@ def admin_force_clockout():
             if clock_out_dt < clock_in_dt_check:
                 clock_out_dt = clock_out_dt + timedelta(days=1)
 
-            db_row = WorkHour.query.filter_by(
-                employee_email=username,
-                date=shift_date,
-                workplace=_session_workplace_id(),
+            db_row = _workhour_query_for_user(username, _session_workplace_id()).filter(
+                WorkHour.date == shift_date
             ).order_by(WorkHour.id.desc()).first()
 
             if db_row:
+                if not getattr(db_row, "clock_in", None):
+                    db_row.clock_in = clock_in_dt_check
                 db_row.clock_out = clock_out_dt
+                db_row.hours = computed_hours
+                db_row.pay = pay
+                db_row.workplace = _session_workplace_id()
+                db_row.workplace_id = _session_workplace_id()
             else:
                 db.session.add(
                     WorkHour(
                         employee_email=username,
                         date=shift_date,
-                        clock_in=None,
+                        clock_in=clock_in_dt_check,
                         clock_out=clock_out_dt,
+                        hours=computed_hours,
+                        pay=pay,
                         workplace=_session_workplace_id(),
                         workplace_id=_session_workplace_id(),
                     )
@@ -11775,10 +11850,8 @@ def admin_force_clockout():
             ]
             if headers and "Workplace_ID" in headers:
                 wp_col = headers.index("Workplace_ID") + 1
-                updates.append(
-                    {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
-            import copy
-            _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
+            _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
         except Exception as e:
             return make_response(f"Could not force clock out: {e}", 500)
 
@@ -11786,89 +11859,6 @@ def admin_force_clockout():
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
               details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
-
-    rows = get_workhours_rows()
-    osf = find_open_shift(rows, username)
-    if not osf:
-        return redirect(request.referrer or "/admin")
-
-    idx, d, cin = osf  # idx is 0-based data index (within rows list)
-    rate = _get_user_rate(username)
-
-    # normalize to HH:MM:SS
-    if len(out_time.split(":")) == 2:
-        out_time = out_time + ":00"
-
-    computed_hours = _compute_hours_from_times(d, cin, out_time)
-    if computed_hours is None:
-        return redirect(request.referrer or "/admin")
-
-    pay = round(computed_hours * rate, 2)
-
-    sheet_row = idx + 1
-
-    try:
-        vals = work_sheet.get_all_values()
-        headers = vals[0] if vals else []
-
-        updates = [
-            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_OUT + 1), "values": [[out_time]]},
-            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_HOURS + 1), "values": [[str(computed_hours)]]},
-            {"range": gspread.utils.rowcol_to_a1(sheet_row, COL_PAY + 1), "values": [[str(pay)]]},
-        ]
-
-        # Ensure Workplace_ID is set (if column exists)
-        if headers and "Workplace_ID" in headers:
-            wp_col = headers.index("Workplace_ID") + 1
-            updates.append(
-                {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]}
-            )
-
-        import copy
-        _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
-    except Exception:
-        pass
-
-
-    if DB_MIGRATION_MODE:
-        try:
-            shift_date = datetime.strptime(d, "%Y-%m-%d").date()
-            clock_out_dt = datetime.strptime(f"{d} {out_time}", "%Y-%m-%d %H:%M:%S")
-            clock_in_dt_check = datetime.strptime(f"{d} {cin}", "%Y-%m-%d %H:%M:%S")
-
-            if clock_out_dt < clock_in_dt_check:
-                clock_out_dt = clock_out_dt + timedelta(days=1)
-
-            db_row = WorkHour.query.filter_by(
-                employee_email=username,
-                date=shift_date,
-                workplace=_session_workplace_id(),
-            ).order_by(WorkHour.id.desc()).first()
-
-            if db_row:
-                db_row.clock_out = clock_out_dt
-            else:
-                db.session.add(
-                    WorkHour(
-                        employee_email=username,
-                        date=shift_date,
-                        clock_in=None,
-                        clock_out=clock_out_dt,
-                        workplace=_session_workplace_id(),
-                        workplace_id=_session_workplace_id(),
-                    )
-                )
-
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-    actor = session.get("username", "admin")
-    log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
-              details=f"out={out_time} hours={computed_hours} pay={pay}")
-    return redirect(request.referrer or "/admin")
-
-
 @app.post("/admin/mark-paid")
 def admin_mark_paid():
     gate = require_admin()
