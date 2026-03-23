@@ -7072,53 +7072,16 @@ def migrate_password_if_plain(username: str, stored: str, provided: str, workpla
 
 
 def update_or_append_onboarding(username: str, data: dict):
-    _ensure_onboarding_workplace_header()
-    headers = get_sheet_headers(onboarding_sheet)
-    if not headers or "Username" not in headers:
-        raise RuntimeError("Onboarding sheet must have header row with 'Username'.")
-
-    vals = onboarding_sheet.get_all_values()
-    if not vals:
-        raise RuntimeError("Onboarding sheet is empty (missing headers).")
-
-    ucol = headers.index("Username")
-    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
     current_wp = _session_workplace_id()
-    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
-    rownum = None
-    for i in range(1, len(vals)):
-        row = vals[i]
-        row_u = (row[ucol] if ucol < len(row) else "").strip()
-        if row_u != (username or "").strip():
-            continue
-
-        if wp_col is not None:
-            row_wp = (row[wp_col] if wp_col < len(row) else "").strip() or "default"
-            if row_wp not in allowed_wps:
-                continue
-
-        rownum = i + 1
-        break
-
-    row_values = []
-    for h in headers:
-        if h == "Username":
-            row_values.append(username)
-        elif h == "Workplace_ID":
-            row_values.append(current_wp)
-        else:
-            row_values.append(str(data.get(h, "")))
-
-    end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
-    if rownum:
-        onboarding_sheet.update(f"A{rownum}:{end_col}{rownum}", [row_values])
-    else:
-        onboarding_sheet.append_row(row_values)
-
+    # DB-first path
     if DB_MIGRATION_MODE:
         try:
-            rec = OnboardingRecord.query.filter_by(username=username, workplace_id=current_wp).first()
+            rec = OnboardingRecord.query.filter_by(
+                username=username,
+                workplace_id=current_wp
+            ).first()
+
             if not rec:
                 rec = OnboardingRecord(username=username, workplace_id=current_wp)
                 db.session.add(rec)
@@ -7173,8 +7136,53 @@ def update_or_append_onboarding(username: str, data: dict):
                 rec.workplace_id = current_wp
 
             db.session.commit()
+            return
         except Exception:
             db.session.rollback()
+            raise
+
+    # Legacy sheet fallback only when DB mode is off
+    _ensure_onboarding_workplace_header()
+    headers = get_sheet_headers(onboarding_sheet)
+    if not headers or "Username" not in headers:
+        raise RuntimeError("Onboarding storage is not initialized.")
+
+    vals = onboarding_sheet.get_all_values()
+    if not vals:
+        raise RuntimeError("Onboarding storage is empty (missing headers).")
+
+    ucol = headers.index("Username")
+    wp_col = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+
+    rownum = None
+    for i in range(1, len(vals)):
+        row = vals[i]
+        row_u = (row[ucol] if ucol < len(row) else "").strip()
+        if row_u != (username or "").strip():
+            continue
+
+        if wp_col is not None:
+            row_wp = (row[wp_col] if wp_col < len(row) else "").strip() or current_wp
+            if row_wp != current_wp:
+                continue
+
+        rownum = i + 1
+        break
+
+    row_values = []
+    for h in headers:
+        if h == "Username":
+            row_values.append(username)
+        elif h == "Workplace_ID":
+            row_values.append(current_wp)
+        else:
+            row_values.append(str(data.get(h, "")))
+
+    end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
+    if rownum:
+        onboarding_sheet.update(f"A{rownum}:{end_col}{rownum}", [row_values])
+    else:
+        onboarding_sheet.append_row(row_values)
 
 
 def get_onboarding_record(username: str):
