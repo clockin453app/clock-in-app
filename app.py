@@ -5535,12 +5535,23 @@ def user_in_same_workplace(username: str) -> bool:
         return False
 
     current_wp = _session_workplace_id()
-    allowed_wps = set(_workplace_ids_for_read(current_wp))
 
-    allowed_wps = set(_workplace_ids_for_read(current_wp))
+    if DB_MIGRATION_MODE:
+        try:
+            rec = Employee.query.filter(
+                and_(
+                    or_(Employee.username == target, Employee.email == target),
+                    or_(
+                        Employee.workplace_id == current_wp,
+                        and_(Employee.workplace_id.is_(None), Employee.workplace == current_wp),
+                        Employee.workplace == current_wp,
+                    ),
+                )
+            ).first()
+            return rec is not None
+        except Exception:
+            return False
 
-    # IMPORTANT: do NOT return on the first match.
-    # If usernames exist in multiple workplaces, check ALL matches.
     try:
         for rec in _get_import_sheet("employees").get_all_records():
             rec_user = (rec.get("Username") or "").strip()
@@ -8385,8 +8396,10 @@ def clock_page():
                 ok_loc, cfg, dist_m = _validate_user_location(username, lat_v, lon_v, acc_v)
 
                 if not ok_loc:
-                    if not site_cfg and not cfg.get("radius"):
-                        msg = "Location system is not configured. Ask Admin to create Locations sheet and set your Site."
+                    if (not _get_employee_sites(username)) and _get_active_locations():
+                        msg = "No site is assigned to your account. Ask Admin to assign your site first."
+                    elif not site_cfg and not cfg.get("radius"):
+                        msg = "Location system is not configured. Ask Admin to create Locations and set your site."
                     elif lat_v is None or lon_v is None:
                         msg = "Location is required. Please allow location access and try again."
                     else:
@@ -13441,7 +13454,7 @@ def admin_employee_sites():
 
         chips = []
         if not assigned:
-            chips.append("<span class='chip warn'>No site (fallback to any active)</span>")
+            chips.append("<span class='chip warn'>No site assigned (clock-in blocked)</span>")
         else:
             for s in assigned[:2]:
                 if s and s in site_names:
@@ -13473,7 +13486,7 @@ def admin_employee_sites():
                 </select>
                 <button class='btnTiny' type='submit'>Save</button>
               </form>
-              <div class='sub' style='margin-top:6px;'>Tip: leave both blank to allow clock-in at any active site.</div>
+              <div class='sub' style='margin-top:6px;'>Tip: leaving both blank blocks employee clock-in until a site is assigned.</div>
             </td>
             <td class='sub'>{escape(raw_site) if raw_site else ''}</td>
           </tr>
@@ -13493,7 +13506,7 @@ def admin_employee_sites():
       <div class="card" style="padding:12px;">
         <p class="sub" style="margin-top:0;">
           This updates the <b>Employees → Site</b> column. You can save <b>two sites</b>; they will be stored as <b>Site1,Site2</b>.
-          If no site is set for an employee, the app falls back to <b>any active</b> location.
+          If no site is set for an employee, clock-in is <b>blocked</b> until a site is assigned.
         </p>
         <a href="/admin/locations" style="display:inline-block; margin-top:8px;">
           <button class="btnSoft" type="button">Manage Locations</button>
