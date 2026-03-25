@@ -11622,6 +11622,37 @@ def admin_save_shift():
     if not username or not date_str:
         return redirect(request.referrer or "/admin/payroll")
 
+    # If the admin clears all fields for a day, treat that as "delete this shift".
+    delete_shift = (cin == "" and cout == "" and hours_in == "" and pay_in == "")
+
+    if delete_shift:
+        if DB_MIGRATION_MODE:
+            try:
+                shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+
+                deleted = WorkHour.query.filter(
+                    WorkHour.employee_email == username,
+                    WorkHour.date == shift_date,
+                    WorkHour.workplace_id == _session_workplace_id(),
+                ).delete(synchronize_session=False)
+
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                return make_response(f"Could not delete shift: {e}", 500)
+
+            return redirect(request.referrer or "/admin/payroll")
+
+        try:
+            vals = work_sheet.get_all_values()
+            rownum = _find_workhours_row_by_user_date(vals, username, date_str)
+            if rownum:
+                work_sheet.delete_rows(rownum)
+        except Exception as e:
+            return make_response(f"Could not delete shift: {e}", 500)
+
+        return redirect(request.referrer or "/admin/payroll")
+
     rate = _get_user_rate(username)
     hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
     pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
