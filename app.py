@@ -8365,6 +8365,13 @@ def clock_page():
 
     rate = _get_user_rate(username)
     early_access = bool(session.get("early_access", False))
+    try:
+        live_user = _find_employee_record(username, _session_workplace_id())
+        if live_user:
+            early_access = parse_bool(live_user.get("EarlyAccess", early_access))
+            session["early_access"] = early_access
+    except Exception:
+        pass
 
     now = datetime.now(TZ)
     today_str = now.strftime("%Y-%m-%d")
