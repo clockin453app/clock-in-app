@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none"><defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/></filter></defs>
+    <path d="M24 86 L42 42 L63 52 L83 38 L104 86 L84 78 L63 87 L43 77 Z" fill="#FFFFFF" stroke="#1F2A44" stroke-width="7" stroke-linejoin="round" filter="url(#shadow)"/>
+    <path d="M63 87 V52" stroke="#CBD5E1" stroke-width="3"/>
+    <path d="M43 77 L42 42 M84 78 L83 38" stroke="#CBD5E1" stroke-width="3"/>
+    <path d="M74 66 C74 54 92 49 92 36 C92 27 85 20 76 20 C67 20 60 27 60 36 C60 49 78 54 78 66 Z" fill="#EF4444" filter="url(#shadow)"/>
+    <circle cx="76" cy="36" r="6" fill="#FFFFFF"/>
+    <circle cx="98" cy="83" r="12" fill="#FFFFFF" stroke="#1F2A44" stroke-width="3"/>
+    <line x1="90" y1="83" x2="106" y2="83" stroke="#1F2A44" stroke-width="3"/>
+    <line x1="98" y1="75" x2="98" y2="91" stroke="#1F2A44" stroke-width="3" opacity="0"/> # just a lens? no vertical
+    <circle cx="98" cy="83" r="5" fill="none" stroke="#2563EB" stroke-width="2" opacity="0.5"/>
+    <line x1="106" y1="91" x2="114" y2="99" stroke="#1F2A44" stroke-width="4" stroke-linecap="round"/>
+    </svg>

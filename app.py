@@ -2884,18 +2884,28 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:space-between;
   gap:10px;
 }
+
 .adminToolIcon{
-  width: 46px;
-  height: 46px;
+  width: 50px;
+  height: 50px;
   border-radius: 14px;
-  display:grid;
-  place-items:center;
+  display:flex;
+  align-items:center;
+  justify-content:center;
   border: 1px solid rgba(15,23,42,.08);
+  overflow:hidden;
 }
 .adminToolIcon svg{
   width: 22px;
   height: 22px;
 }
+.adminToolIcon img{
+  width: 26px;
+  height: 26px;
+  object-fit:contain;
+  display:block;
+}
+
 .adminToolTitle{
   font-size: 16px;
   font-weight: 800;
@@ -4126,14 +4136,27 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     .sideText{ font-weight:800; font-size: 14px; letter-spacing:.1px; }
 
   .sideIcon{
-    width: 36px; height: 36px;
-    border-radius: 12px;
-    background: linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
-    border: 1px solid rgba(30,64,175,.12);
-    display:grid; place-items:center;
-    color: var(--navy);
-  }
-  .sideIcon svg{ width:18px; height:18px; }
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
+  border: 1px solid rgba(30,64,175,.12);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--navy);
+  overflow:hidden;
+}
+.sideIcon svg{
+  width: 20px;
+  height: 20px;
+}
+.sideIcon img{
+  width: 22px;
+  height: 22px;
+  object-fit:contain;
+  display:block;
+}
 
     /* Different colors for each sidebar item */
   .sideItem.nav-home .sideIcon{
@@ -4997,6 +5020,32 @@ def _svg_shield():
 
 
 # ================= CONTRACT TEXT =================
+
+def _app_icon(file_name: str, size: int = 22, alt: str = ""):
+    return (
+        f'<img src="/static/modern_icons/{file_name}" '
+        f'alt="{escape(alt)}" '
+        f'width="{size}" height="{size}" '
+        f'style="width:{size}px;height:{size}px;object-fit:contain;display:block;">'
+    )
+
+
+def _icon_dashboard(size=22): return _app_icon("dashboard.png", size, "Dashboard")
+def _icon_clock(size=22): return _app_icon("clock.png", size, "Clock In & Out")
+def _icon_timelogs(size=22): return _app_icon("timelogs.png", size, "Time Logs")
+def _icon_timesheets(size=22): return _app_icon("timesheets.png", size, "Timesheets")
+def _icon_starter_form(size=22): return _app_icon("starter_form.png", size, "Starter Form")
+def _icon_admin(size=22): return _app_icon("admin.png", size, "Admin")
+def _icon_workplaces(size=22): return _app_icon("workplaces.png", size, "Workplaces")
+def _icon_profile(size=22): return _app_icon("profile.png", size, "Profile")
+def _icon_onboarding(size=22): return _app_icon("onboarding.png", size, "Onboarding")
+def _icon_payroll_report(size=22): return _app_icon("payroll_report.png", size, "Payroll Report")
+def _icon_company_settings(size=22): return _app_icon("company_settings.png", size, "Company Settings")
+def _icon_employee_sites(size=22): return _app_icon("employee_sites.png", size, "Employee Sites")
+def _icon_employees(size=22): return _app_icon("employees.png", size, "Employees")
+def _icon_connect_drive(size=22): return _app_icon("connect_drive.png", size, "Connect Drive")
+def _icon_locations(size=22): return _app_icon("locations.png", size, "Locations")
+
 CONTRACT_TEXT = """Contract
 
 By signing this agreement, you confirm that while carrying out bricklaying services (and related works) for us, you are acting as a self-employed subcontractor and not as an employee.
@@ -7576,21 +7625,21 @@ def bottom_nav(active: str, role: str) -> str:
 
     if role in ("admin", "master_admin"):
         extra_admin = f"""
-        <a class="navIcon nav-admin {'active' if active == 'admin' else ''}" href="/admin" title="Admin">{_svg_shield()}</a>
+        <a class="navIcon nav-admin {'active' if active == 'admin' else ''}" href="/admin" title="Admin">{_icon_admin(22)}</a>
         """
 
     if role == "master_admin":
         extra_workplaces = f"""
-        <a class="navIcon nav-workplaces {'active' if active == 'workplaces' else ''}" href="/admin/workplaces" title="Workplaces">{_svg_doc()}</a>
+        <a class="navIcon nav-workplaces {'active' if active == 'workplaces' else ''}" href="/admin/workplaces" title="Workplaces">{_icon_workplaces(22)}</a>
         """
 
     return f"""
     <div class="bottomNav">
       <div class="navInner">
-        <a class="navIcon nav-home {'active' if active == 'home' else ''}" href="/" title="Dashboard">{_svg_grid()}</a>
-        <a class="navIcon nav-clock {'active' if active == 'clock' else ''}" href="/clock" title="Clock">{_svg_clock()}</a>
-        <a class="navIcon nav-times {'active' if active == 'times' else ''}" href="/my-times" title="Time logs">{_svg_clipboard()}</a>
-        <a class="navIcon nav-reports {'active' if active == 'reports' else ''}" href="/my-reports" title="Reports">{_svg_chart()}</a>
+        <a class="navIcon nav-home {'active' if active == 'home' else ''}" href="/" title="Dashboard">{_icon_dashboard(22)}</a>
+        <a class="navIcon nav-clock {'active' if active == 'clock' else ''}" href="/clock" title="Clock">{_icon_clock(22)}</a>
+        <a class="navIcon nav-times {'active' if active == 'times' else ''}" href="/my-times" title="Time logs">{_icon_timelogs(22)}</a>
+        <a class="navIcon nav-reports {'active' if active == 'reports' else ''}" href="/my-reports" title="Reports">{_icon_timesheets(22)}</a>
         {extra_admin}
         {extra_workplaces}
         <a class="navIcon nav-logout" href="/logout" title="Logout">{_svg_logout()}</a>
@@ -7598,21 +7647,21 @@ def bottom_nav(active: str, role: str) -> str:
     </div>
     """
 
-
 def sidebar_html(active: str, role: str) -> str:
     items = [
-        ("home", "/", "Dashboard", _svg_grid()),
-        ("clock", "/clock", "Clock In & Out", _svg_clock()),
-        ("times", "/my-times", "Time logs", _svg_clipboard()),
-        ("reports", "/my-reports", "Timesheets", _svg_chart()),
-        ("agreements", "/onboarding", "Starter Form", _svg_doc()),
-        ("profile", "/password", "Profile", _svg_user()),
+        ("home", "/", "Dashboard", _icon_dashboard(45)),
+        ("clock", "/clock", "Clock In & Out", _icon_clock(45)),
+        ("times", "/my-times", "Time logs", _icon_timelogs(45)),
+        ("reports", "/my-reports", "Timesheets", _icon_timesheets(45)),
+        ("agreements", "/onboarding", "Starter Form", _icon_starter_form(45)),
+        ("profile", "/password", "Profile", _icon_profile(45)),
     ]
+
     if role in ("admin", "master_admin"):
-        items.insert(5, ("admin", "/admin", "Admin", _svg_grid()))
+        items.insert(5, ("admin", "/admin", "Admin", _icon_admin(45)))
 
     if role == "master_admin":
-        items.insert(6, ("workplaces", "/admin/workplaces", "Workplaces", _svg_grid()))
+        items.insert(6, ("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(45)))
 
     links = []
     for key, href, label, icon in items:
@@ -7638,11 +7687,9 @@ def sidebar_html(active: str, role: str) -> str:
     """
 
     return f"""
-      <div class="card sidebar">
-        <div class="sideTitle">Menu</div>
-        <div class="sideScroll">
-          {''.join(links)}
-        </div>
+      <div class="sidebar">
+        <div class="sideMenuTitle">Menu</div>
+        {''.join(links)}
         {logout_html}
       </div>
     """
@@ -7970,7 +8017,7 @@ def home():
     if role in ("admin", "master_admin"):
         admin_item = f"""
         <a class="menuItem nav-admin" href="/admin">
-          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Admin</div></div>
+          <div class="menuLeft"><div class="icoBox">{_icon_admin(22)}</div><div class="menuText">Admin</div></div>
           <div class="chev">›</div>
         </a>
         """
@@ -7979,7 +8026,7 @@ def home():
     if role == "master_admin":
         workplaces_item = f"""
         <a class="menuItem nav-home" href="/admin/workplaces">
-          <div class="menuLeft"><div class="icoBox">{_svg_grid()}</div><div class="menuText">Workplaces</div></div>
+          <div class="menuLeft"><div class="icoBox">{_icon_workplaces(22)}</div><div class="menuText">Workplaces</div></div>
           <div class="chev">›</div>
         </a>
         """
@@ -8325,25 +8372,25 @@ def home():
 
       <div class="card menu dashboardMainMenu">
   <a class="menuItem nav-clock" href="/clock">
-    <div class="menuLeft"><div class="icoBox">{_svg_clock()}</div><div class="menuText">Clock In & Out</div></div>
+    <div class="menuLeft"><div class="icoBox">{_icon_clock(22)}</div><div class="menuText">Clock In & Out</div></div>
     <div class="chev">›</div>
   </a>
   <a class="menuItem nav-times" href="/my-times">
-    <div class="menuLeft"><div class="icoBox">{_svg_clipboard()}</div><div class="menuText">Time logs</div></div>
+    <div class="menuLeft"><div class="icoBox">{_icon_timelogs(22)}</div><div class="menuText">Time logs</div></div>
     <div class="chev">›</div>
   </a>
   <a class="menuItem nav-reports" href="/my-reports">
-    <div class="menuLeft"><div class="icoBox">{_svg_chart()}</div><div class="menuText">Timesheets</div></div>
+    <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
     <div class="chev">›</div>
   </a>
   <a class="menuItem nav-agreements" href="/onboarding">
-    <div class="menuLeft"><div class="icoBox">{_svg_doc()}</div><div class="menuText">Starter Form</div></div>
+    <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
     <div class="chev">›</div>
   </a>
   {admin_item}
   {workplaces_item}
   <a class="menuItem nav-profile" href="/password">
-    <div class="menuLeft"><div class="icoBox">{_svg_user()}</div><div class="menuText">Profile</div></div>
+    <div class="menuLeft"><div class="icoBox">{_icon_profile(22)}</div><div class="menuText">Profile</div></div>
     <div class="chev">›</div>
   </a>
 </div>
@@ -11323,7 +11370,7 @@ def admin():
         <div class="adminGrid" style="margin-top:12px;">
           <a class="adminToolCard payroll" href="/admin/payroll">
             <div class="adminToolTop">
-              <div class="adminToolIcon">{_svg_chart()}</div>
+              <div class="adminToolIcon">{_icon_payroll_report(45)}</div>
               <div class="chev">›</div>
             </div>
             <div class="adminToolTitle">Payroll Report</div>
@@ -11332,7 +11379,7 @@ def admin():
 
           <a class="adminToolCard company" href="/admin/company">
             <div class="adminToolTop">
-              <div class="adminToolIcon">{_svg_doc()}</div>
+              <div class="adminToolIcon">{_icon_company_settings(45)}</div>
               <div class="chev">›</div>
             </div>
             <div class="adminToolTitle">Company Settings</div>
@@ -11341,7 +11388,7 @@ def admin():
 
           <a class="adminToolCard onboarding" href="/admin/onboarding">
             <div class="adminToolTop">
-              <div class="adminToolIcon">{_svg_doc()}</div>
+              <div class="adminToolIcon">{_icon_onboarding(45)}</div>
               <div class="chev">›</div>
             </div>
             <div class="adminToolTitle">Onboarding</div>
@@ -11350,7 +11397,7 @@ def admin():
 
           <a class="adminToolCard locations" href="/admin/locations">
             <div class="adminToolTop">
-              <div class="adminToolIcon">{_svg_grid()}</div>
+              <div class="adminToolIcon">{_icon_locations(45)}</div>
               <div class="chev">›</div>
             </div>
             <div class="adminToolTitle">Locations</div>
@@ -11359,7 +11406,7 @@ def admin():
 
           <a class="adminToolCard sites" href="/admin/employee-sites">
             <div class="adminToolTop">
-              <div class="adminToolIcon">{_svg_user()}</div>
+              <div class="adminToolIcon">{_icon_employee_sites(45)}</div>
               <div class="chev">›</div>
             </div>
             <div class="adminToolTitle">Employee Sites</div>
@@ -11368,7 +11415,7 @@ def admin():
 
           <a class="adminToolCard employees" href="/admin/employees">
             <div class="adminToolTop">
-              <div class="adminToolIcon">{_svg_user()}</div>
+              <div class="adminToolIcon">{_icon_employees(45)}</div>
               <div class="chev">›</div>
             </div>
             <div class="adminToolTitle">Employees</div>
@@ -11379,15 +11426,15 @@ def admin():
     f'''
               <a class="adminToolCard drive" href="/connect-drive">
                 <div class="adminToolTop">
-                  <div class="adminToolIcon">{_svg_grid()}</div>
-                  <div class="chev">›</div>
+                <div class="adminToolIcon">{_icon_connect_drive(45)}</div>
+                <div class="chev">›</div>
                 </div>
                 <div class="adminToolTitle">Connect Drive</div>
                 <div class="adminToolSub">Reconnect Google Drive for onboarding uploads.</div>
               </a>
             '''
-    if (session.get("role") == "master_admin" and OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI)
-    else ""
+    if session.get("role") == "master_admin"
+else ""
     }
         </div>
       </div>

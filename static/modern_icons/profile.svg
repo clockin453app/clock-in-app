@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128" fill="none"><defs><filter id="shadow" x="-20%" y="-20%" width="140%" height="140%"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#0f172a" flood-opacity="0.08"/></filter></defs>
+    <circle cx="64" cy="64" r="42" fill="#2563EB" opacity="0.92" filter="url(#shadow)"/>
+    <circle cx="64" cy="50" r="14" fill="#FFFFFF" opacity="0.92"/>
+    <path d="M36 94 C42 77 55 72 64 72 C73 72 86 77 92 94" fill="#FFFFFF" opacity="0.92"/>
+    </svg>
