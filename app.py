@@ -4976,42 +4976,90 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollShell.payrollMenuOpen .payrollMenuToggle{
   left: 300px !important;
 }
+  
+
+.timeLogsTable{
+  width: 100% !important;
+  min-width: 0 !important;
+  table-layout: fixed;
+}
+
+.timeLogsTable th,
+.timeLogsTable td{
+  padding: 12px 14px;
+  font-size: 16px;
+  line-height: 1.25;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+.timeLogsTable th{
+  font-size: 17px;
+  font-weight: 800;
+}
+
+.timeLogsTable th:nth-child(1),
+.timeLogsTable td:nth-child(1){
+  width: 24%;
+  text-align: left;
+}
+
+.timeLogsTable th:nth-child(2),
+.timeLogsTable td:nth-child(2),
+.timeLogsTable th:nth-child(3),
+.timeLogsTable td:nth-child(3){
+  width: 18%;
+  text-align: center;
+}
+
+.timeLogsTable th:nth-child(4),
+.timeLogsTable td:nth-child(4){
+  width: 14%;
+  text-align: center;
+}
+
+.timeLogsTable th:nth-child(5),
+.timeLogsTable td:nth-child(5){
+  width: 18%;
+  text-align: right;
+  padding-right: 18px;
+}
 
 @media (max-width: 700px){
-  .timeLogsTable{
-    min-width: 100% !important;
-    width: 100%;
-  }
-
   .timeLogsTable th,
   .timeLogsTable td{
-    padding: 8px 6px;
+    padding: 7px 6px;
     font-size: 12px;
+  }
+
+  .timeLogsTable th{
+    font-size: 13px;
   }
 
   .timeLogsTable th:nth-child(1),
   .timeLogsTable td:nth-child(1){
-    width: 88px;
+    width: 30%;
   }
 
   .timeLogsTable th:nth-child(2),
   .timeLogsTable td:nth-child(2),
   .timeLogsTable th:nth-child(3),
   .timeLogsTable td:nth-child(3){
-    width: 58px;
+    width: 18%;
     text-align: center;
   }
 
   .timeLogsTable th:nth-child(4),
   .timeLogsTable td:nth-child(4){
-    width: 48px;
+    width: 14%;
     text-align: center;
   }
 
   .timeLogsTable th:nth-child(5),
   .timeLogsTable td:nth-child(5){
-    width: 70px;
+    width: 20%;
     text-align: right;
+    padding-right: 10px;
   }
 }
 
