@@ -3902,23 +3902,27 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   left: 0;
   right: 0;
   bottom: 0;
-  inset: auto 0 0 0;
   width: 100%;
   margin: 0 !important;
-  background: rgba(255,255,255,.98);
+
+  background: #fff;
   border-top: 1px solid rgba(11,18,32,.10);
-  -webkit-backdrop-filter: blur(10px);
-  backdrop-filter: blur(10px);
-  padding: 6px 10px 4px 10px !important;
+
+  border-radius: 0 !important;   /* remove floating look */
+  box-shadow: none !important;   /* remove floating shadow */
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+
+  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
   z-index: 9999;
-  border-radius: 16px 16px 0 0;
-  box-shadow: 0 -4px 14px rgba(11,18,32,.08);
   transform: none !important;
 }
-@supports (padding-bottom: env(safe-area-inset-bottom)) {
-  .bottomNav{
-    padding-bottom: 4px !important;
-  }
+
+.safeBottom{
+  height: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+  min-height: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 
