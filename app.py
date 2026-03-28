@@ -4012,21 +4012,28 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 @media (max-width: 700px){
   .navInner{
-    gap: 4px;
+    gap: 6px;
     justify-content: space-between;
   }
 
   .navIcon{
-    width: 42px;
-    height: 42px;
-    border-radius: 14px;
-    flex: 0 0 auto;
-  }
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  flex: 0 0 auto;
+}
 
   .navIcon svg{
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
   }
+
+  .navIcon img{
+  width: 36px !important;
+  height: 36px !important;
+  object-fit: contain;
+  display: block;
+}
 }
 
 .navIcon.nav-home{ color:#1d4ed8; }
