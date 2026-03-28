@@ -3907,7 +3907,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border-top: 1px solid rgba(11,18,32,.10);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  padding: 8px 12px max(6px, env(safe-area-inset-bottom)) 12px;
+  padding: 8px 12px 8px 12px;
+  padding-bottom: max(6px, env(safe-area-inset-bottom));
   z-index: 9999;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 30px rgba(11,18,32,.12);
