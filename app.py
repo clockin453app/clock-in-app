@@ -5001,6 +5001,79 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 }
 
+@media (max-width: 979px){
+
+  /* use left menu on mobile */
+  .bottomNav{
+    display: none !important;
+  }
+
+  .safeBottom{
+    display: none !important;
+    height: 0 !important;
+    min-height: 0 !important;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* dashboard already has a mobile menu card; hide it to avoid duplication */
+  .dashboardMainMenu{
+    display: none !important;
+  }
+
+  /* keep layout full width on mobile */
+  .shell{
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+  }
+
+  /* show the existing sidebar as a left rail on mobile */
+  .sidebar{
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 84px !important;
+    padding: 10px 8px !important;
+    overflow-y: auto !important;
+    z-index: 1200 !important;
+    border-radius: 0 !important;
+  }
+
+  /* push page content right so it does not sit under the rail */
+  .main{
+    width: calc(100% - 84px) !important;
+    margin-left: 84px !important;
+    min-width: 0 !important;
+  }
+
+  /* compact mobile rail: icon-only */
+  .sideMenuTitle,
+  .sideText,
+  .chev{
+    display: none !important;
+  }
+
+  .sideItem{
+    justify-content: center !important;
+    padding: 10px 6px !important;
+  }
+
+  .sideLeft{
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .sideIcon{
+    margin: 0 auto !important;
+  }
+}
+
 </style>
 """
 
