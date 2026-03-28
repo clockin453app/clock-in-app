@@ -2128,9 +2128,16 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Graph */
 .graphCard{
   margin-top: 12px;
-  padding: 16px;
-  border-radius: 22px;
+  padding: 18px;
+  border-radius: 24px;
+  border: 1px solid rgba(56,189,248,.14);
+  background:
+    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+  box-shadow:
+    0 18px 40px rgba(2,6,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.04);
 }
+
 .graphTop{
   display:flex;
   align-items:flex-start;
@@ -2140,25 +2147,32 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .graphTitle{
   font-weight:800;
-  font-size: 18px;
-  color: rgba(15,23,42,.96);
+  font-size: 20px;
+  color: #f8fafc;
+}
+
+.graphCard .sub{
+  color: rgba(191,219,254,.78);
 }
 
 .graphRange{
-  color: var(--muted);
+  color: #93c5fd;
   font-size: 13px;
-  font-weight:600;
+  font-weight:700;
 }
 
 .graphShell{
   margin-top: 14px;
   padding: 14px 14px 10px 14px;
   border-radius: 22px;
-  border: 1px solid rgba(10,42,94,.10);
+  border: 1px solid rgba(56,189,248,.12);
   background:
-    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)),
-    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 45%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
+    linear-gradient(180deg, rgba(3,14,33,.72), rgba(5,23,48,.62)),
+    radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 38%),
+    radial-gradient(circle at top left, rgba(59,130,246,.12), transparent 42%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    inset 0 -20px 60px rgba(2,132,199,.05);
 }
 
 .bars{
@@ -2184,9 +2198,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .barValue{
   font-size: 12px;
   font-weight: 800;
-  color: rgba(30,64,175,.92);
+  color: #67e8f9;
   min-height: 16px;
   white-space: nowrap;
+  text-shadow: 0 0 10px rgba(34,211,238,.18);
 }
 
 .barTrack{
@@ -2196,7 +2211,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:flex-end;
   justify-content:center;
   border-radius: 18px;
-  background: linear-gradient(180deg, rgba(30,64,175,.03), rgba(30,64,175,0));
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)),
+    linear-gradient(180deg, rgba(14,165,233,.06), rgba(14,165,233,0));
+  box-shadow: inset 0 0 0 1px rgba(255,255,255,.02);
   position: relative;
 }
 
@@ -2204,8 +2222,10 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width: 72%;
   min-width: 24px;
   border-radius: 18px 18px 12px 12px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
-  box-shadow: 0 14px 26px rgba(30,64,175,.22);
+  background: linear-gradient(180deg, #155eef 0%, #22d3ee 100%);
+  box-shadow:
+    0 14px 26px rgba(8,145,178,.22),
+    0 0 18px rgba(34,211,238,.10);
 }
 
 .barLabels{
@@ -2213,7 +2233,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:space-between;
   gap:14px;
   margin-top: 8px;
-  color: var(--muted);
+  color: rgba(191,219,254,.88);
   font-weight:700;
   font-size: 13px;
 }
@@ -2255,6 +2275,50 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   font-weight:800;
   color: rgba(15,23,42,.95);
 }
+
+@media (max-width: 700px){
+  .graphCard{
+    padding: 12px;
+  }
+
+  .graphShell{
+    padding: 12px 10px 8px 10px;
+  }
+
+  .bars{
+    height: 200px;
+    gap: 8px;
+    padding: 4px 2px 0 2px;
+  }
+
+  .barTrack{
+    height: 150px;
+  }
+
+  .bar{
+    width: 82%;
+    min-width: 16px;
+  }
+
+  .barValue{
+    display: none;
+  }
+
+  .barLabels{
+    gap: 8px;
+    font-size: 12px;
+  }
+
+  .graphTop{
+    gap: 8px;
+  }
+
+  .graphRange{
+    font-size: 11px;
+    text-align: right;
+  }
+}  
+  
 .dashboardLower{
   margin-top: 12px;
   display: grid;
@@ -2680,177 +2744,6 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border-color: rgba(34,197,94,.18);
   background: rgba(34,197,94,.08);
 }
-.graphCard{
-  margin-top: 12px;
-  padding: 16px;
-  border-radius: 22px;
-}
-
-.graphTop{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-}
-
-.graphTitle{
-  font-weight:800;
-  font-size: 18px;
-  color: rgba(15,23,42,.96);
-}
-
-.graphRange{
-  color: var(--muted);
-  font-size: 13px;
-  font-weight:600;
-}
-
-.graphShell{
-  margin-top: 14px;
-  padding: 14px 14px 10px 14px;
-  border-radius: 22px;
-  border: 1px solid rgba(10,42,94,.10);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.92)),
-    radial-gradient(circle at top left, rgba(59,130,246,.10), transparent 45%);
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6);
-}
-
-.bars{
-  height: 240px;
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-  gap: 14px;
-  padding: 8px 6px 0 6px;
-  position: relative;
-}
-
-.barCol{
-  flex: 1 1 0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:flex-end;
-  gap:8px;
-  min-width: 0;
-}
-
-.barValue{
-  font-size: 12px;
-  font-weight: 800;
-  color: rgba(30,64,175,.92);
-  min-height: 16px;
-  white-space: nowrap;
-}
-
-.barTrack{
-  width: 100%;
-  height: 180px;
-  display:flex;
-  align-items:flex-end;
-  justify-content:center;
-  border-radius: 18px;
-  background: linear-gradient(180deg, rgba(30,64,175,.03), rgba(30,64,175,0));
-  position: relative;
-}
-
-.bar{
-  width: 72%;
-  min-width: 24px;
-  border-radius: 18px 18px 12px 12px;
-  background: linear-gradient(180deg, #1e3a8a 0%, #3b82f6 100%);
-  box-shadow: 0 14px 26px rgba(30,64,175,.22);
-}
-
-.barLabels{
-  display:flex;
-  justify-content:space-between;
-  gap:14px;
-  margin-top: 8px;
-  color: var(--muted);
-  font-weight:700;
-  font-size: 13px;
-}
-
-.barLabels div{
-  flex:1 1 0;
-  text-align:center;
-}
-@media (max-width: 700px){
-  .graphCard{
-    padding: 12px;
-  }
-
-  .graphShell{
-    padding: 12px 10px 8px 10px;
-  }
-
-  .bars{
-    height: 200px;
-    gap: 8px;
-    padding: 4px 2px 0 2px;
-  }
-
-  .barTrack{
-    height: 150px;
-  }
-
-  .bar{
-    width: 82%;
-    min-width: 16px;
-  }
-
-  .barValue{
-    display: none;
-  }
-
-  .barLabels{
-    gap: 8px;
-    font-size: 12px;
-  }
-
-  .graphTop{
-    gap: 8px;
-  }
-
-  .graphRange{
-    font-size: 11px;
-    text-align: right;
-  }
-}
-.graphMeta{
-  margin-top: 14px;
-  display:grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap:10px;
-}
-
-@media (max-width: 900px){
-  .graphMeta{
-    grid-template-columns: 1fr;
-  }
-}
-
-.graphStat{
-  padding: 10px 12px;
-  border-radius: 16px;
-  border: 1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.82);
-}
-
-.graphStat .k{
-  font-size: 12px;
-  color: var(--muted);
-  font-weight:700;
-}
-
-.graphStat .v{
-  margin-top: 4px;
-  font-size: 18px;
-  font-weight:800;
-  color: rgba(15,23,42,.95);
-}
 
 /* Menu */
 .menu{ margin-top: 14px; padding: 12px; }
@@ -2861,6 +2754,17 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   gap: 12px;
   margin-top: 6px;
 }
+
+.adminToolsShell{
+  background: linear-gradient(180deg, #08142f, #0b1b3f);
+  border: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 18px 40px rgba(15,23,42,.24);
+}
+
+.adminToolsShell .adminGrid{
+  margin-top: 0;
+}
+
 .adminGrid .menuItem{ margin-top: 0; height:100%; }
 .adminToolCard{
   padding: 16px;
@@ -11452,16 +11356,9 @@ def admin():
         </div>
       </div>
 
-            <div class="card menu" style="padding:14px;">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap;">
-          <div>
-            <h2>Admin tools</h2>
-            <p class="sub">Manage payroll, people, sites, onboarding and drive access.</p>
-          </div>
-          <div class="badge admin">Control Centre</div>
-        </div>
-
-        <div class="adminGrid" style="margin-top:12px;">
+            <div class="card menu adminToolsShell" style="padding:14px;">
+             <div class="adminGrid">
+  
           <a class="adminToolCard payroll" href="/admin/payroll">
             <div class="adminToolTop">
               <div class="adminToolIcon">{_icon_payroll_report(45)}</div>
@@ -11532,7 +11429,7 @@ else ""
     }
         </div>
       </div>
-            <div class="card adminSectionCard" style="margin-top:12px;">
+            <div class="card adminSectionCard" style="margin-top:12px; background:linear-gradient(180deg, #eef8ff 0%, #dff2ff 100%); border:1px solid #b9e3ff;">
         <div class="adminSectionHead">
           <div class="adminSectionHeadLeft">
             <div class="adminSectionIcon clockin">{_svg_clock()}</div>
