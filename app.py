@@ -2008,7 +2008,7 @@ def manifest():
     }, 200, {"Content-Type": "application/manifest+json"}
 
 
-VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 PWA_TAGS = """
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#ffffff">
@@ -3931,7 +3931,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .navIcon.active{ background: transparent; }
 .navIcon svg{ width: 22px; height: 22px; }
-.safeBottom{ height: calc(76px + env(safe-area-inset-bottom)); }
+.safeBottom{ height: 0 !important; }
 
 @media (max-width: 700px){
   .navInner{
