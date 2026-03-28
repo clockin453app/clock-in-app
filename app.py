@@ -3919,31 +3919,34 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   transform: none !important;
 }
 
+.safeBottom{
+  height: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+  min-height: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
 .navInner{
   width: 100% !important;
   max-width: none !important;
   margin: 0 !important;
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  display: flex !important;
+  align-items: flex-end !important;
+  justify-content: space-between !important;
 }
-.navInner{
-  max-width: 100%;
-  margin: 0 auto;
-  display:flex;
-  align-items:flex-end;
-  justify-content:space-between;
-}
+
 .navIcon{
-  width: 46px; height: 46px;
+  width: 46px;
+  height: 46px;
   border-radius: 16px;
-  display:grid; place-items:center;
+  display: grid;
+  place-items: center;
   color: var(--navy);
   transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
 }
+
 .navIcon.active{ background: transparent; }
 .navIcon svg{ width: 22px; height: 22px; }
-
 
 @media (max-width: 700px){
   .navInner{
@@ -3957,6 +3960,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     border-radius: 18px;
     flex: 0 0 auto;
   }
+}
 
   .navIcon svg{
     width: 24px;
