@@ -2008,7 +2008,7 @@ def manifest():
     }, 200, {"Content-Type": "application/manifest+json"}
 
 
-VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
 PWA_TAGS = """
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#ffffff">
@@ -2057,7 +2057,7 @@ body{
     linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,0) 45%),
     var(--bg);
   color: var(--text);
-  padding: 16px 14px 16px 14px !important;
+  padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
 }
 
 a{ color:inherit; text-decoration:none; }
@@ -3898,55 +3898,33 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 /* Bottom nav (mobile) */
 .bottomNav{
-  position: fixed !important;
-  left: 0 !important;
-  right: 0 !important;
-  bottom: 0 !important;
-  inset: auto 0 0 0 !important;
-  width: 100% !important;
-  margin: 0 !important;
-
-  background: #fff !important;
-  border-top: 1px solid rgba(11,18,32,.10) !important;
-
-  border-radius: 0 !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-
-  padding: 8px 10px calc(8px + env(safe-area-inset-bottom, 0px)) !important;
-  z-index: 9999 !important;
-  transform: none !important;
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,.92);
+  border-top: 1px solid rgba(11,18,32,.10);
+  backdrop-filter: blur(10px);
+  padding: 10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+  z-index: 99;
+  border-radius: 20px 20px 0 0;
+  box-shadow: 0 -8px 30px rgba(11,18,32,.12);
 }
-
-.safeBottom{
-  height: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
-  min-height: calc(74px + env(safe-area-inset-bottom, 0px)) !important;
-  padding: 0 !important;
-  margin: 0 !important;
-}
-
 .navInner{
-  width: 100% !important;
-  max-width: none !important;
-  margin: 0 !important;
-  display: flex !important;
-  align-items: flex-end !important;
-  justify-content: space-between !important;
+  max-width:560px;
+  margin: 0 auto;
+  display:flex;
+  align-items:center;
+  justify-content:space-around;
 }
-
 .navIcon{
-  width: 46px;
-  height: 46px;
+  width: 46px; height: 46px;
   border-radius: 16px;
-  display: grid;
-  place-items: center;
+  display:grid; place-items:center;
   color: var(--navy);
   transition: transform .16s ease, background .16s ease, box-shadow .16s ease;
 }
-
 .navIcon.active{ background: transparent; }
 .navIcon svg{ width: 22px; height: 22px; }
+.safeBottom{ height: calc(120px + env(safe-area-inset-bottom)); }
 
 @media (max-width: 700px){
   .navInner{
@@ -3955,11 +3933,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .navIcon{
-    width: 54px;
-    height: 54px;
-    border-radius: 18px;
-    flex: 0 0 auto;
-  }
+  width: 60px;
+  height: 60px;
+  border-radius: 20px;
+  flex: 0 0 auto;
+}
 
   .navIcon svg{
     width: 24px;
@@ -3967,11 +3945,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .navIcon img{
-    width: 32px !important;
-    height: 32px !important;
-    object-fit: contain;
-    display: block;
-  }
+  width: 36px !important;
+  height: 36px !important;
+  object-fit: contain;
+  display: block;
+}
 }
 
 .navIcon.nav-home{ color:#1d4ed8; }
@@ -5001,201 +4979,6 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 }
 
-@media (max-width: 979px){
-
-  /* use left menu on mobile */
-  .bottomNav{
-    display: none !important;
-  }
-
-  .safeBottom{
-    display: none !important;
-    height: 0 !important;
-    min-height: 0 !important;
-    padding: 0 !important;
-    margin: 0 !important;
-  }
-
-  /* dashboard already has a mobile menu card; hide it to avoid duplication */
-  .dashboardMainMenu{
-    display: none !important;
-  }
-
-  /* keep layout full width on mobile */
-  .shell{
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-  }
-
-  /* show the existing sidebar as a left rail on mobile */
-  .sidebar{
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 84px !important;
-    padding: 10px 8px !important;
-    overflow-y: auto !important;
-    z-index: 1200 !important;
-    border-radius: 0 !important;
-  }
-
-  /* push page content right so it does not sit under the rail */
-  .main{
-    width: calc(100% - 84px) !important;
-    margin-left: 84px !important;
-    min-width: 0 !important;
-  }
-
-  /* compact mobile rail: icon-only */
-  .sideMenuTitle,
-  .sideText,
-  .chev{
-    display: none !important;
-  }
-
-  .sideItem{
-    justify-content: center !important;
-    padding: 10px 6px !important;
-  }
-
-  .sideLeft{
-    width: 100% !important;
-    justify-content: center !important;
-  }
-
-  .sideIcon{
-    margin: 0 auto !important;
-  }
-}
-
-@media (max-width: 979px){
-
-  /* keep payroll page using its own existing drawer */
-  .shell.appShell:not(.payrollShell){
-    display: block !important;
-    width: 100% !important;
-    max-width: none !important;
-    margin: 0 !important;
-    position: relative !important;
-  }
-
-  .shell.appShell:not(.payrollShell) .sidebar{
-    display: flex !important;
-    flex-direction: column !important;
-    gap: 8px !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    bottom: 0 !important;
-    width: 84px !important;
-    padding: 10px 8px !important;
-    overflow-y: auto !important;
-    z-index: 1400 !important;
-    border-radius: 0 16px 16px 0 !important;
-    transform: translateX(-110%) !important;
-    opacity: 0 !important;
-    pointer-events: none !important;
-    transition: transform .22s ease, opacity .22s ease !important;
-  }
-
-  .shell.appShell:not(.payrollShell).mobileMenuOpen .sidebar{
-    transform: translateX(0) !important;
-    opacity: 1 !important;
-    pointer-events: auto !important;
-  }
-
-  .shell.appShell:not(.payrollShell) .main{
-    width: 100% !important;
-    margin-left: 0 !important;
-    min-width: 0 !important;
-  }
-
-  .shell.appShell:not(.payrollShell) .sideMenuTitle,
-  .shell.appShell:not(.payrollShell) .sideText,
-  .shell.appShell:not(.payrollShell) .chev{
-    display: none !important;
-  }
-
-  .shell.appShell:not(.payrollShell) .sideItem{
-    justify-content: center !important;
-    padding: 10px 6px !important;
-  }
-
-  .shell.appShell:not(.payrollShell) .sideLeft{
-    width: 100% !important;
-    justify-content: center !important;
-  }
-
-  .shell.appShell:not(.payrollShell) .sideIcon{
-    margin: 0 auto !important;
-  }
-
-  .appMenuBackdrop{
-    display: none;
-  }
-
-  .shell.appShell:not(.payrollShell).mobileMenuOpen .appMenuBackdrop{
-    display: block !important;
-    position: fixed !important;
-    inset: 0 !important;
-    background: rgba(2,6,23,.18) !important;
-    z-index: 1390 !important;
-  }
-
-  .appMenuToggle{
-    display: flex !important;
-    position: fixed !important;
-    left: 0 !important;
-    top: 50% !important;
-    transform: translateY(-50%) !important;
-    z-index: 1410 !important;
-    width: 18px !important;
-    height: 52px !important;
-    border-radius: 0 14px 14px 0 !important;
-    border: 1px solid rgba(96,165,250,.32) !important;
-    background: linear-gradient(180deg, #2563eb, #1d4ed8) !important;
-    box-shadow: 0 10px 24px rgba(37,99,235,.26) !important;
-    color: transparent !important;
-    font-size: 0 !important;
-    padding: 0 !important;
-    cursor: pointer !important;
-  }
-
-  .appMenuToggle::before{
-    content: "❯";
-    color: #ffffff !important;
-    font-size: 16px !important;
-    font-weight: 900 !important;
-    line-height: 1 !important;
-  }
-
-  .shell.appShell:not(.payrollShell).mobileMenuOpen .appMenuToggle{
-    left: 84px !important;
-  }
-
-  .shell.appShell:not(.payrollShell).mobileMenuOpen .appMenuToggle::before{
-    content: "❮";
-  }
-
-  .bottomNav,
-  .safeBottom,
-  .dashboardMainMenu{
-    display: none !important;
-  }
-}
-
-@media (min-width: 980px){
-  .appMenuToggle,
-  .appMenuBackdrop{
-    display: none !important;
-  }
-}
 </style>
 """
 
@@ -7933,71 +7716,21 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     company_bar = f"""
       <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
         <span class="badge" style="background: var(--navy); color:#fff; border-color: rgba(255,255,255,.12);">
-          {escape(company_name)}
-        </span>
+  {escape(company_name)}
+</span>
       </div>
     """
 
-    mobile_shell_script = """
-<script>
-(function(){
-  const shell = document.querySelector(".shell.appShell:not(.payrollShell)");
-  const btn = document.getElementById("appMenuToggle");
-  const backdrop = document.getElementById("appMenuBackdrop");
-
-  if (!shell || !btn) return;
-
-  function closeMenu(){
-    shell.classList.remove("mobileMenuOpen");
-    btn.setAttribute("aria-expanded", "false");
-  }
-
-  function toggleMenu(){
-    const open = shell.classList.toggle("mobileMenuOpen");
-    btn.setAttribute("aria-expanded", open ? "true" : "false");
-  }
-
-  btn.addEventListener("click", function(e){
-    e.preventDefault();
-    e.stopPropagation();
-    toggleMenu();
-  });
-
-  if (backdrop) {
-    backdrop.addEventListener("click", closeMenu);
-  }
-
-  shell.querySelectorAll(".sidebar a").forEach(function(link){
-    link.addEventListener("click", closeMenu);
-  });
-
-  document.addEventListener("keydown", function(e){
-    if (e.key === "Escape") closeMenu();
-  });
-
-  window.addEventListener("resize", function(){
-    if (window.innerWidth >= 980) closeMenu();
-  });
-})();
-</script>
-"""
-
     return f"""
-      <div class="shell appShell{extra}">
-        <div class="appMenuBackdrop" id="appMenuBackdrop"></div>
-        <button class="appMenuToggle" id="appMenuToggle" type="button" aria-label="Toggle menu" aria-expanded="false"></button>
-
+      <div class="shell{extra}">
         {sidebar_html(active, role)}
-
         <div class="main">
           {company_bar}
           {content_html}
           <div class="safeBottom"></div>
         </div>
       </div>
-
       {bottom_nav(active if active in ('home', 'clock', 'times', 'reports', 'profile', 'admin', 'workplaces') else 'home', role)}
-      {mobile_shell_script}
     """
 
 
