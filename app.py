@@ -3898,25 +3898,29 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 /* Bottom nav (mobile) */
 .bottomNav{
-  position: fixed;
+  position: fixed !important;
   left: 0;
   right: 0;
   bottom: 0;
+  inset: auto 0 0 0;
   width: 100%;
-  background: rgba(255,255,255,.96);
-  border-top: 1px solid rgba(11,18,32,.10);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  padding: 8px 12px 8px 12px;
-  padding-bottom: max(6px, env(safe-area-inset-bottom));
-  z-index: 9999;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 30px rgba(11,18,32,.12);
-  transform: translateY(0);
-}
-.bottomNav{
   margin: 0 !important;
+  background: rgba(255,255,255,.98);
+  border-top: 1px solid rgba(11,18,32,.10);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  padding: 6px 10px 4px 10px !important;
+  z-index: 9999;
+  border-radius: 16px 16px 0 0;
+  box-shadow: 0 -4px 14px rgba(11,18,32,.08);
+  transform: none !important;
 }
+@supports (padding-bottom: env(safe-area-inset-bottom)) {
+  .bottomNav{
+    padding-bottom: 4px !important;
+  }
+}
+
 
 .safeBottom{
   height: 0 !important;
@@ -3926,11 +3930,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .navInner{
-  max-width:560px;
+  max-width: 100%;
   margin: 0 auto;
   display:flex;
-  align-items:center;
-  justify-content:space-around;
+  align-items:flex-end;
+  justify-content:space-between;
 }
 .navIcon{
   width: 46px; height: 46px;
@@ -3950,11 +3954,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .navIcon{
-  width: 60px;
-  height: 60px;
-  border-radius: 20px;
-  flex: 0 0 auto;
-}
+    width: 54px;
+    height: 54px;
+    border-radius: 18px;
+    flex: 0 0 auto;
+  }
 
   .navIcon svg{
     width: 24px;
@@ -3962,11 +3966,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .navIcon img{
-  width: 36px !important;
-  height: 36px !important;
-  object-fit: contain;
-  display: block;
-}
+    width: 32px !important;
+    height: 32px !important;
+    object-fit: contain;
+    display: block;
+  }
 }
 
 .navIcon.nav-home{ color:#1d4ed8; }
