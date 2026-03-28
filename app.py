@@ -3911,6 +3911,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   z-index: 9999;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 30px rgba(11,18,32,.12);
+  transform: translateY(0);
 }
 
 .navInner{
@@ -3929,7 +3930,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .navIcon.active{ background: transparent; }
 .navIcon svg{ width: 22px; height: 22px; }
-.safeBottom{ height: calc(84px + env(safe-area-inset-bottom)); }
+.safeBottom{ height: calc(76px + env(safe-area-inset-bottom)); }
 
 @media (max-width: 700px){
   .navInner{
