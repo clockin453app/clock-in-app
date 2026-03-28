@@ -4012,7 +4012,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 @media (max-width: 700px){
   .navInner{
-    gap: 6px;
+    gap: 2px;
     justify-content: space-between;
   }
 
