@@ -5074,6 +5074,128 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 }
 
+@media (max-width: 979px){
+
+  /* keep payroll page using its own existing drawer */
+  .shell.appShell:not(.payrollShell){
+    display: block !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    position: relative !important;
+  }
+
+  .shell.appShell:not(.payrollShell) .sidebar{
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 8px !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    bottom: 0 !important;
+    width: 84px !important;
+    padding: 10px 8px !important;
+    overflow-y: auto !important;
+    z-index: 1400 !important;
+    border-radius: 0 16px 16px 0 !important;
+    transform: translateX(-110%) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+    transition: transform .22s ease, opacity .22s ease !important;
+  }
+
+  .shell.appShell:not(.payrollShell).mobileMenuOpen .sidebar{
+    transform: translateX(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+  }
+
+  .shell.appShell:not(.payrollShell) .main{
+    width: 100% !important;
+    margin-left: 0 !important;
+    min-width: 0 !important;
+  }
+
+  .shell.appShell:not(.payrollShell) .sideMenuTitle,
+  .shell.appShell:not(.payrollShell) .sideText,
+  .shell.appShell:not(.payrollShell) .chev{
+    display: none !important;
+  }
+
+  .shell.appShell:not(.payrollShell) .sideItem{
+    justify-content: center !important;
+    padding: 10px 6px !important;
+  }
+
+  .shell.appShell:not(.payrollShell) .sideLeft{
+    width: 100% !important;
+    justify-content: center !important;
+  }
+
+  .shell.appShell:not(.payrollShell) .sideIcon{
+    margin: 0 auto !important;
+  }
+
+  .appMenuBackdrop{
+    display: none;
+  }
+
+  .shell.appShell:not(.payrollShell).mobileMenuOpen .appMenuBackdrop{
+    display: block !important;
+    position: fixed !important;
+    inset: 0 !important;
+    background: rgba(2,6,23,.18) !important;
+    z-index: 1390 !important;
+  }
+
+  .appMenuToggle{
+    display: flex !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 1410 !important;
+    width: 18px !important;
+    height: 52px !important;
+    border-radius: 0 14px 14px 0 !important;
+    border: 1px solid rgba(96,165,250,.32) !important;
+    background: linear-gradient(180deg, #2563eb, #1d4ed8) !important;
+    box-shadow: 0 10px 24px rgba(37,99,235,.26) !important;
+    color: transparent !important;
+    font-size: 0 !important;
+    padding: 0 !important;
+    cursor: pointer !important;
+  }
+
+  .appMenuToggle::before{
+    content: "❯";
+    color: #ffffff !important;
+    font-size: 16px !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+  }
+
+  .shell.appShell:not(.payrollShell).mobileMenuOpen .appMenuToggle{
+    left: 84px !important;
+  }
+
+  .shell.appShell:not(.payrollShell).mobileMenuOpen .appMenuToggle::before{
+    content: "❮";
+  }
+
+  .bottomNav,
+  .safeBottom,
+  .dashboardMainMenu{
+    display: none !important;
+  }
+}
+
+@media (min-width: 980px){
+  .appMenuToggle,
+  .appMenuBackdrop{
+    display: none !important;
+  }
+}
 </style>
 """
 
@@ -7811,21 +7933,71 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     company_bar = f"""
       <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
         <span class="badge" style="background: var(--navy); color:#fff; border-color: rgba(255,255,255,.12);">
-  {escape(company_name)}
-</span>
+          {escape(company_name)}
+        </span>
       </div>
     """
 
+    mobile_shell_script = """
+<script>
+(function(){
+  const shell = document.querySelector(".shell.appShell:not(.payrollShell)");
+  const btn = document.getElementById("appMenuToggle");
+  const backdrop = document.getElementById("appMenuBackdrop");
+
+  if (!shell || !btn) return;
+
+  function closeMenu(){
+    shell.classList.remove("mobileMenuOpen");
+    btn.setAttribute("aria-expanded", "false");
+  }
+
+  function toggleMenu(){
+    const open = shell.classList.toggle("mobileMenuOpen");
+    btn.setAttribute("aria-expanded", open ? "true" : "false");
+  }
+
+  btn.addEventListener("click", function(e){
+    e.preventDefault();
+    e.stopPropagation();
+    toggleMenu();
+  });
+
+  if (backdrop) {
+    backdrop.addEventListener("click", closeMenu);
+  }
+
+  shell.querySelectorAll(".sidebar a").forEach(function(link){
+    link.addEventListener("click", closeMenu);
+  });
+
+  document.addEventListener("keydown", function(e){
+    if (e.key === "Escape") closeMenu();
+  });
+
+  window.addEventListener("resize", function(){
+    if (window.innerWidth >= 980) closeMenu();
+  });
+})();
+</script>
+"""
+
     return f"""
-      <div class="shell{extra}">
+      <div class="shell appShell{extra}">
+        <div class="appMenuBackdrop" id="appMenuBackdrop"></div>
+        <button class="appMenuToggle" id="appMenuToggle" type="button" aria-label="Toggle menu" aria-expanded="false"></button>
+
         {sidebar_html(active, role)}
+
         <div class="main">
           {company_bar}
           {content_html}
           <div class="safeBottom"></div>
         </div>
       </div>
+
       {bottom_nav(active if active in ('home', 'clock', 'times', 'reports', 'profile', 'admin', 'workplaces') else 'home', role)}
+      {mobile_shell_script}
     """
 
 
