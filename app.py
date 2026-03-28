@@ -3663,111 +3663,123 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border: 1px solid rgba(59,130,246,.14);
 }
 
-.payrollDonutWrap{
-  margin-top: 8px;
+.payrollPieSection{
+  margin-top: 10px;
   display:flex;
-  align-items:center;
   justify-content:center;
-  min-height: 250px;
+  align-items:center;
+  min-height: 360px;
 }
 
-.payrollDonut{
-  width: 230px;
-  height: 230px;
-  border-radius: 999px;
+.payrollPieWrap{
   position: relative;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.6), 0 12px 26px rgba(15,23,42,.08);
+  width: 330px;
+  height: 330px;
 }
 
-.payrollDonut::after{
-  content:"";
-  position:absolute;
-  inset: 38px;
+.payrollPie{
+  width: 330px;
+  height: 330px;
   border-radius: 999px;
-  background: white;
-  box-shadow: inset 0 1px 0 rgba(15,23,42,.04);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.25),
+    0 14px 28px rgba(15,23,42,.10);
+  border: 1px solid rgba(15,23,42,.08);
 }
 
-.payrollDonutCenter{
-  position:absolute;
-  inset:0;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:center;
-  z-index:2;
-  text-align:center;
-  pointer-events:none;
+.payrollPieLabel{
+  position: absolute;
+  transform: translate(-50%, -50%);
+  width: 82px;
+  text-align: center;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0,0,0,.45);
+  pointer-events: none;
+  line-height: 1.05;
 }
 
-.payrollDonutCenter .k{
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-}
-
-.payrollDonutCenter .v{
-  margin-top: 4px;
-  font-size: 20px;
+.payrollPieLabel .pct{
+  font-size: 15px;
   font-weight: 800;
-  color: rgba(15,23,42,.96);
 }
 
-.payrollLegend{
-  margin-top: 12px;
-  display:grid;
-  grid-template-columns: 1fr 1fr;
-  gap:8px;
-  align-items:start;
+.payrollPieLabel .amt{
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 800;
 }
 
-@media (max-width: 1100px){
-  .payrollLegend{
-    grid-template-columns: 1fr;
+.payrollPieLabel .name{
+  margin-top: 3px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+@media (max-width: 900px){
+  .payrollPieSection{
+    min-height: 300px;
   }
+
+  .payrollPieWrap{
+    width: 280px;
+    height: 280px;
+  }
+
+  .payrollPie{
+    width: 280px;
+    height: 280px;
+  }
+
+  .payrollPieLabel{
+  width: 74px;
 }
 
-.payrollLegendRow{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:8px;
-  padding:7px 9px;
-  border-radius: 12px;
-  border:1px solid rgba(11,18,32,.08);
-  background: rgba(255,255,255,.84);
-  min-width:0;
+.payrollPieLabel .pct{
+  font-size: 13px;
 }
 
-.payrollLegendLeft{
-  display:flex;
-  align-items:center;
-  gap:8px;
-  min-width:0;
+.payrollPieLabel .amt{
+  font-size: 11px;
 }
 
-.payrollLegendDot{
-  width:12px;
-  height:12px;
-  border-radius:999px;
-  flex:0 0 auto;
+.payrollPieLabel .name{
+  font-size: 9px;
+}
 }
 
-.payrollLegendName{
-  font-size:12px;
-  font-weight:700;
-  color: rgba(15,23,42,.88);
-  white-space:nowrap;
-  overflow:hidden;
-  text-overflow:ellipsis;
+@media (max-width: 600px){
+  .payrollPieSection{
+    min-height: 260px;
+  }
+
+  .payrollPieWrap{
+    width: 240px;
+    height: 240px;
+  }
+
+  .payrollPie{
+    width: 240px;
+    height: 240px;
+  }
+
+  .payrollPieLabel{
+  width: 64px;
 }
 
-.payrollLegendVal{
-  font-size:12px;
-  font-weight:800;
-  color: rgba(30,64,175,.95);
-  white-space:nowrap;
+.payrollPieLabel .pct{
+  font-size: 11px;
 }
+
+.payrollPieLabel .amt{
+  font-size: 10px;
+}
+
+.payrollPieLabel .name{
+  font-size: 8px;
+}
+}
+
+
 @media (max-width: 800px){
   .kpiStrip{ grid-template-columns: 1fr 1fr; }
 }
@@ -12196,31 +12208,43 @@ def admin_payroll():
     total_chart_value = round(sum(x["value"] for x in chart_segments), 2)
 
     donut_css = "#e5e7eb"
-    legend_html = "<div class='activityEmpty'>No payroll data for current filters.</div>"
+    pie_html = "<div class='activityEmpty'>No payroll data for current filters.</div>"
 
     if total_chart_value > 0:
         angle_acc = 0.0
         stops = []
+        label_parts = []
+
         for seg in chart_segments:
             pct = (seg["value"] / total_chart_value) * 100.0
             start = angle_acc
             end = angle_acc + pct
+            mid = (start + end) / 2.0
+
             stops.append(f"{seg['color']} {start:.2f}% {end:.2f}%")
             angle_acc = end
+
+            theta = math.radians((mid * 3.6) - 90.0)
+            x = 50.0 + math.cos(theta) * 28.0
+            y = 50.0 + math.sin(theta) * 28.0
+
+            label_parts.append(f'''
+                  <div class="payrollPieLabel" style="left:{x:.2f}%; top:{y:.2f}%;">
+                    <div class="pct">{pct:.0f}%</div>
+                    <div class="amt">{escape(currency)}{money(seg['value'])}</div>
+                    <div class="name">{escape(seg['label'])}</div>
+                  </div>
+                ''')
+
         donut_css = f"conic-gradient({', '.join(stops)})"
 
-        legend_parts = []
-        for seg in chart_segments:
-            legend_parts.append(f"""
-              <div class="payrollLegendRow">
-                <div class="payrollLegendLeft">
-                  <span class="payrollLegendDot" style="background:{seg['color']};"></span>
-                  <span class="payrollLegendName">{escape(seg['label'])}</span>
-                </div>
-                <div class="payrollLegendVal">{escape(currency)}{money(seg['value'])}</div>
+        pie_html = f'''
+              <div class="payrollPieWrap">
+                <div class="payrollPie" style="background:{donut_css};"></div>
+                {''.join(label_parts)}
               </div>
-            """)
-        legend_html = "".join(legend_parts)
+            '''
+
     # KPI strip (PRO)
     kpi_strip = f"""
       <div class="kpiStrip">
@@ -12635,17 +12659,8 @@ def admin_payroll():
             <div class="sectionBadge">{len(chart_segments)} segments</div>
           </div>
 
-          <div class="payrollDonutWrap">
-            <div class="payrollDonut" style="background:{donut_css};">
-              <div class="payrollDonutCenter">
-                <div class="k">Total Gross</div>
-                <div class="v">{escape(currency)}{money(total_chart_value)}</div>
-              </div>
-            </div>
-          </div>
-
-          <div class="payrollLegend">
-            {legend_html}
+          <div class="payrollPieSection">
+            {pie_html}
           </div>
         </div>
       </div>
