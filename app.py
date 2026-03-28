@@ -2057,7 +2057,7 @@ body{
     linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,0) 45%),
     var(--bg);
   color: var(--text);
-  padding: 16px 14px calc(58px + env(safe-area-inset-bottom)) 14px !important;
+  padding: 16px 14px 16px 14px !important;
 }
 
 a{ color:inherit; text-decoration:none; }
