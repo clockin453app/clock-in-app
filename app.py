@@ -2057,7 +2057,7 @@ body{
     linear-gradient(180deg, rgba(255,255,255,.90), rgba(255,255,255,0) 45%),
     var(--bg);
   color: var(--text);
-  padding: 16px 14px calc(90px + env(safe-area-inset-bottom)) 14px;
+  padding: 16px 14px calc(58px + env(safe-area-inset-bottom)) 14px !important;
 }
 
 a{ color:inherit; text-decoration:none; }
@@ -3913,6 +3913,16 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 30px rgba(11,18,32,.12);
   transform: translateY(0);
+}
+.bottomNav{
+  margin: 0 !important;
+}
+
+.safeBottom{
+  height: 0 !important;
+  min-height: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
 }
 
 .navInner{
