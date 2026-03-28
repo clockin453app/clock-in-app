@@ -3960,7 +3960,6 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     border-radius: 18px;
     flex: 0 0 auto;
   }
-}
 
   .navIcon svg{
     width: 24px;
