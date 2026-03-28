@@ -11374,20 +11374,7 @@ def admin():
             <div class="adminToolTitle">Employees</div>
             <div class="adminToolSub">Create employees, update rates and manage access.</div>
           </a>
-                     {
-    f'''
-              <a class="adminToolCard settings" href="/admin/migrate-workplace-id">
-                <div class="adminToolTop">
-                  <div class="adminToolIcon">{_svg_grid()}</div>
-                  <div class="chev">›</div>
-                </div>
-                <div class="adminToolTitle">Workplace Migration</div>
-                <div class="adminToolSub">Run the one-time workplace ID migration from default to newera.</div>
-              </a>
-            '''
-    if session.get("role") == "master_admin"
-    else ""
-    }  
+                     
                     {
     f'''
               <a class="adminToolCard drive" href="/connect-drive">
