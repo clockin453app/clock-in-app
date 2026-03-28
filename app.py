@@ -4415,7 +4415,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   font-size:13px;
   font-weight:800;
-  color:rgba(15,23,42,.68);
+  color:#7c3aed;
 }
 
 .payrollDayEmpty{
@@ -4976,6 +4976,45 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollShell.payrollMenuOpen .payrollMenuToggle{
   left: 300px !important;
 }
+
+@media (max-width: 700px){
+  .timeLogsTable{
+    min-width: 100% !important;
+    width: 100%;
+  }
+
+  .timeLogsTable th,
+  .timeLogsTable td{
+    padding: 8px 6px;
+    font-size: 12px;
+  }
+
+  .timeLogsTable th:nth-child(1),
+  .timeLogsTable td:nth-child(1){
+    width: 88px;
+  }
+
+  .timeLogsTable th:nth-child(2),
+  .timeLogsTable td:nth-child(2),
+  .timeLogsTable th:nth-child(3),
+  .timeLogsTable td:nth-child(3){
+    width: 58px;
+    text-align: center;
+  }
+
+  .timeLogsTable th:nth-child(4),
+  .timeLogsTable td:nth-child(4){
+    width: 48px;
+    text-align: center;
+  }
+
+  .timeLogsTable th:nth-child(5),
+  .timeLogsTable td:nth-child(5){
+    width: 70px;
+    text-align: right;
+  }
+}
+
 </style>
 """
 
@@ -9114,7 +9153,7 @@ def my_times():
 
       <div class="card payrollShell" style="padding:12px;">
         <div class="tablewrap">
-          <table style="min-width:640px;">
+          <table class="timeLogsTable">
             <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num" style="text-align:center;">Hours</th>
 <th class="num" style="text-align:center;">Pay</th>
 </tr></thead>
