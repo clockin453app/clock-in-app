@@ -3656,6 +3656,33 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollChartCard{
   padding: 14px;
 }
+
+.payrollFiltersCard{
+  overflow: hidden;
+}
+
+.payrollFiltersCard .input,
+.payrollFiltersCard .btnSoft,
+.payrollFiltersCard input,
+.payrollFiltersCard select{
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+@media (max-width: 600px){
+  .payrollFiltersCard{
+    padding: 12px;
+  }
+
+  .payrollFiltersCard .input,
+  .payrollFiltersCard input,
+  .payrollFiltersCard select{
+    font-size: 16px;
+  }
+}
+
 .payrollFiltersCard{
   border: 1px solid rgba(56,189,248,.14);
   background:
@@ -3830,6 +3857,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 @media (max-width: 800px){
   .kpiStrip{ grid-template-columns: 1fr 1fr; }
 }
+
+@media (max-width: 480px){
+  .kpiStrip{ grid-template-columns: 1fr; }
+}
+
 .kpiMini{
   padding: 12px;
   border-radius: 18px;
@@ -4966,6 +4998,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* when sidebar is open, keep toggle aligned just outside panel */
 .payrollShell.payrollMenuOpen .payrollMenuToggle{
   left: 300px !important;
+}
+@media (max-width: 979px){
+  .payrollMenuToggle{
+    display: none !important;
+  }
 }
   
 
