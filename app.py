@@ -2066,7 +2066,6 @@ STYLE = """
   --shadow: 0 10px 28px rgba(15,23,42,.06);
   --shadow2: 0 16px 46px rgba(15,23,42,.10);
   --radius: 18px;
-  --bottom-nav-offset: 0px;
 
   /* Brand (finance blue) */
   --navy:#1e40af;
@@ -4049,14 +4048,14 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   position: fixed;
   left: 0;
   right: 0;
-  bottom: var(--bottom-nav-offset);
-  background: rgba(255,255,255,.92);
+  bottom: 0;
+  background: #ffffff;
   border-top: 1px solid rgba(11,18,32,.10);
-  backdrop-filter: blur(10px);
-  padding: 10px 14px max(14px, env(safe-area-inset-bottom)) 14px;
+  backdrop-filter: none;
+  padding: 10px 14px calc(10px + env(safe-area-inset-bottom)) 14px;
   z-index: 99;
-  border-radius: 20px 20px 0 0;
-  box-shadow: 0 -8px 30px rgba(11,18,32,.12);
+  border-radius: 0;
+  box-shadow: none;
 }
 .navInner{
   max-width:560px;
