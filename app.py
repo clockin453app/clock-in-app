@@ -2091,6 +2091,68 @@ PWA_TAGS = """
       localStorage.setItem(storageKey, closed ? '0' : '1');
       sync();
     });
+    
+    <script>
+  var touchStartX = 0;
+  var touchLastX = 0;
+  var trackingSwipe = false;
+  var swipeMode = ""; // "open" or "close"
+
+  document.addEventListener("touchstart", function(e){
+    if (window.innerWidth > 979) return;
+
+    var t = e.touches && e.touches[0];
+    if (!t) return;
+
+    var target = e.target;
+    if (target && target.closest("input, select, textarea, button, a, .tablewrap")) return;
+
+    var closed = localStorage.getItem(storageKey) === "1";
+
+    if (closed) {
+      if (t.clientX <= 18) {
+        trackingSwipe = true;
+        swipeMode = "open";
+        touchStartX = t.clientX;
+        touchLastX = t.clientX;
+      }
+      return;
+    }
+
+    if (sidebar.contains(target) || t.clientX <= 90) {
+      trackingSwipe = true;
+      swipeMode = "close";
+      touchStartX = t.clientX;
+      touchLastX = t.clientX;
+    }
+  }, { passive: true });
+
+  document.addEventListener("touchmove", function(e){
+    if (!trackingSwipe || window.innerWidth > 979) return;
+    var t = e.touches && e.touches[0];
+    if (!t) return;
+    touchLastX = t.clientX;
+  }, { passive: true });
+
+  document.addEventListener("touchend", function(){
+    if (!trackingSwipe || window.innerWidth > 979) return;
+
+    var dx = touchLastX - touchStartX;
+
+    if (swipeMode === "open" && dx > 45) {
+      localStorage.setItem(storageKey, "0");
+      sync();
+    } else if (swipeMode === "close" && dx < -45) {
+      localStorage.setItem(storageKey, "1");
+      sync();
+    }
+
+    trackingSwipe = false;
+    swipeMode = "";
+    touchStartX = 0;
+    touchLastX = 0;
+  }, { passive: true });
+</script>
 
     sync();
   }
@@ -4231,6 +4293,23 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   cursor:pointer;
   box-shadow:0 10px 24px rgba(37,99,235,.26);
   transition:left .22s ease, box-shadow .18s ease, background .18s ease;
+}
+
+@media (max-width: 520px){
+  #mobileRailToggle{
+    width: 12px;
+    height: 42px;
+    border-radius: 0 10px 10px 0;
+    left: 0;
+  }
+
+  #mobileRailToggle::before{
+    font-size: 11px;
+  }
+
+  body:not(.mobileRailClosed) #mobileRailToggle{
+    left: 65px;
+  }
 }
 
   #mobileRailToggle::before{
