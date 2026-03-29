@@ -2008,7 +2008,7 @@ def manifest():
     }, 200, {"Content-Type": "application/manifest+json"}
 
 
-VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1">'
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 PWA_TAGS = """
 <link rel="manifest" href="/manifest.webmanifest">
 <meta name="theme-color" content="#ffffff">
@@ -3978,11 +3978,13 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Bottom nav (mobile) */
 .bottomNav{
   position: fixed;
-  left: 0; right: 0; bottom: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
   background: rgba(255,255,255,.92);
   border-top: 1px solid rgba(11,18,32,.10);
   backdrop-filter: blur(10px);
-  padding: 10px 14px calc(14px + env(safe-area-inset-bottom)) 14px;
+  padding: 10px 14px max(14px, env(safe-area-inset-bottom)) 14px;
   z-index: 99;
   border-radius: 20px 20px 0 0;
   box-shadow: 0 -8px 30px rgba(11,18,32,.12);
