@@ -8299,7 +8299,7 @@ def home():
               <div class="barCol">
                 <div class="barValue">{escape(currency)}{money(g)}</div>
                 <div class="barTrack">
-                  <div class="bar" style="height:{int((g / max_g) * 165)}px;"></div>
+                  <div class="bar" style="height:{int((g / max_g) * 130)}px;"></div>
                 </div>
               </div>
               """
