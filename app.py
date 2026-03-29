@@ -3671,9 +3671,23 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   box-sizing: border-box;
 }
 
+.payrollFiltersCard .row2{
+  display:grid;
+  grid-template-columns: 1fr 1fr;
+  gap:10px;
+}
+
+.payrollFiltersCard .row2 > *{
+  min-width:0;
+}
+
 @media (max-width: 600px){
   .payrollFiltersCard{
     padding: 12px;
+  }
+
+  .payrollFiltersCard .row2{
+    grid-template-columns: 1fr;
   }
 
   .payrollFiltersCard .input,
