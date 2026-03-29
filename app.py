@@ -2028,16 +2028,152 @@ PWA_TAGS = """
     document.documentElement.style.setProperty('--bottom-nav-offset', gap + 'px');
   }
 
-  window.addEventListener('load', syncBottomNav);
-  window.addEventListener('resize', syncBottomNav);
+  function initMobileRail(){
+    var shell = document.querySelector('.shell');
+    var sidebar = shell ? shell.querySelector('.sidebar') : null;
+    var oldBtn = document.getElementById('mobileRailToggle');
+
+    if (window.innerWidth > 979 || !shell || !sidebar) {
+      document.body.classList.remove('mobileRailClosed');
+      if (oldBtn) oldBtn.remove();
+      return;
+    }
+
+    var btn = oldBtn;
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'mobileRailToggle';
+      btn.setAttribute('aria-label', 'Toggle menu');
+      document.body.appendChild(btn);
+    }
+
+    var storageKey = 'mobileRailClosed';
+
+    function syncRail(){
+      var closed = localStorage.getItem(storageKey) === '1';
+      document.body.classList.toggle('mobileRailClosed', closed);
+    }
+
+    if (btn.dataset.bound !== '1') {
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var closed = localStorage.getItem(storageKey) === '1';
+        localStorage.setItem(storageKey, closed ? '0' : '1');
+        syncRail();
+      });
+    }
+
+    syncRail();
+  }
+
+  if (!window.__mobileRailSwipeBound) {
+    window.__mobileRailSwipeBound = true;
+
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var touchLastX = 0;
+    var trackingSwipe = false;
+    var swipeMode = '';
+
+    document.addEventListener('touchstart', function(e){
+      if (window.innerWidth > 979) return;
+
+      var shell = document.querySelector('.shell');
+      var sidebar = shell ? shell.querySelector('.sidebar') : null;
+      if (!shell || !sidebar) return;
+
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+
+      var target = e.target;
+      if (target && target.closest('input, select, textarea, button, a, .tablewrap')) return;
+
+      var closed = document.body.classList.contains('mobileRailClosed');
+
+      trackingSwipe = false;
+      swipeMode = '';
+      touchStartX = t.clientX;
+      touchStartY = t.clientY;
+      touchLastX = t.clientX;
+
+      if (closed) {
+        if (t.clientX <= 18) {
+          trackingSwipe = true;
+          swipeMode = 'open';
+        }
+        return;
+      }
+
+      if (sidebar.contains(target) || t.clientX <= 90) {
+        trackingSwipe = true;
+        swipeMode = 'close';
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e){
+      if (!trackingSwipe || window.innerWidth > 979) return;
+
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+
+      var dx = t.clientX - touchStartX;
+      var dy = t.clientY - touchStartY;
+
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+        e.preventDefault();
+      }
+
+      touchLastX = t.clientX;
+    }, { passive: false });
+
+    document.addEventListener('touchend', function(){
+      if (!trackingSwipe || window.innerWidth > 979) return;
+
+      var dx = touchLastX - touchStartX;
+
+      if (swipeMode === 'open' && dx > 45) {
+        localStorage.setItem('mobileRailClosed', '0');
+        document.body.classList.remove('mobileRailClosed');
+      } else if (swipeMode === 'close' && dx < -45) {
+        localStorage.setItem('mobileRailClosed', '1');
+        document.body.classList.add('mobileRailClosed');
+      }
+
+      trackingSwipe = false;
+      swipeMode = '';
+      touchStartX = 0;
+      touchStartY = 0;
+      touchLastX = 0;
+    }, { passive: true });
+  }
+
+  window.addEventListener('load', function(){
+    syncBottomNav();
+    initMobileRail();
+  });
+
+  window.addEventListener('resize', function(){
+    syncBottomNav();
+    initMobileRail();
+  });
+
   window.addEventListener('pageshow', function(){
     syncBottomNav();
+    initMobileRail();
     setTimeout(syncBottomNav, 120);
     setTimeout(syncBottomNav, 320);
   });
+
   window.addEventListener('orientationchange', function(){
-    setTimeout(syncBottomNav, 250);
+    setTimeout(function(){
+      syncBottomNav();
+      initMobileRail();
+    }, 250);
   });
+
   document.addEventListener('focusout', function(){
     setTimeout(syncBottomNav, 180);
   });
@@ -2048,123 +2184,10 @@ PWA_TAGS = """
   }
 
   syncBottomNav();
+  initMobileRail();
 })();
 </script>
-
-<script>
-(function(){
-  function initMobileRail(){
-    if (window.innerWidth > 979) {
-      document.body.classList.remove('mobileRailClosed');
-      var oldBtn = document.getElementById('mobileRailToggle');
-      if (oldBtn) oldBtn.remove();
-      return;
-    }
-
-    var shell = document.querySelector('.shell');
-    var sidebar = shell ? shell.querySelector('.sidebar') : null;
-    if (!shell || !sidebar) return;
-
-    var btn = document.getElementById('mobileRailToggle');
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.id = 'mobileRailToggle';
-      btn.setAttribute('aria-label', 'Toggle menu');
-      document.body.appendChild(btn);
-    }
-
-    if (btn.dataset.bound === '1') return;
-    btn.dataset.bound = '1';
-
-    var storageKey = 'mobileRailClosed';
-
-    function sync(){
-      var closed = localStorage.getItem(storageKey) === '1';
-      document.body.classList.toggle('mobileRailClosed', closed);
-    }
-
-    btn.addEventListener('click', function(e){
-      e.preventDefault();
-      e.stopPropagation();
-      var closed = localStorage.getItem(storageKey) === '1';
-      localStorage.setItem(storageKey, closed ? '0' : '1');
-      sync();
-    });
-    
-    <script>
-  var touchStartX = 0;
-  var touchLastX = 0;
-  var trackingSwipe = false;
-  var swipeMode = ""; // "open" or "close"
-
-  document.addEventListener("touchstart", function(e){
-    if (window.innerWidth > 979) return;
-
-    var t = e.touches && e.touches[0];
-    if (!t) return;
-
-    var target = e.target;
-    if (target && target.closest("input, select, textarea, button, a, .tablewrap")) return;
-
-    var closed = localStorage.getItem(storageKey) === "1";
-
-    if (closed) {
-      if (t.clientX <= 18) {
-        trackingSwipe = true;
-        swipeMode = "open";
-        touchStartX = t.clientX;
-        touchLastX = t.clientX;
-      }
-      return;
-    }
-
-    if (sidebar.contains(target) || t.clientX <= 90) {
-      trackingSwipe = true;
-      swipeMode = "close";
-      touchStartX = t.clientX;
-      touchLastX = t.clientX;
-    }
-  }, { passive: true });
-
-  document.addEventListener("touchmove", function(e){
-    if (!trackingSwipe || window.innerWidth > 979) return;
-    var t = e.touches && e.touches[0];
-    if (!t) return;
-    touchLastX = t.clientX;
-  }, { passive: true });
-
-  document.addEventListener("touchend", function(){
-    if (!trackingSwipe || window.innerWidth > 979) return;
-
-    var dx = touchLastX - touchStartX;
-
-    if (swipeMode === "open" && dx > 45) {
-      localStorage.setItem(storageKey, "0");
-      sync();
-    } else if (swipeMode === "close" && dx < -45) {
-      localStorage.setItem(storageKey, "1");
-      sync();
-    }
-
-    trackingSwipe = false;
-    swipeMode = "";
-    touchStartX = 0;
-    touchLastX = 0;
-  }, { passive: true });
-</script>
-
-    sync();
-  }
-
-  window.addEventListener('load', initMobileRail);
-  window.addEventListener('pageshow', initMobileRail);
-  window.addEventListener('resize', initMobileRail);
-})();
-</script>
-
 """
-
 # ================= PREMIUM UI (CLEAN + STABLE) =================
 STYLE = """
 <style>
