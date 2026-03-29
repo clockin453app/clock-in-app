@@ -3656,6 +3656,53 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollChartCard{
   padding: 14px;
 }
+.payrollFiltersCard{
+  border: 1px solid rgba(56,189,248,.14);
+  background:
+    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+  box-shadow:
+    0 18px 40px rgba(2,6,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+.payrollFiltersCard .sub{
+  color: rgba(191,219,254,.78);
+}
+
+.payrollFiltersCard .input{
+  background: rgba(248,250,252,.96);
+  border: 1px solid rgba(148,163,184,.16);
+}
+
+.payrollFiltersCard .btnSoft{
+  background:
+    linear-gradient(180deg, rgba(3,14,33,.72), rgba(5,23,48,.62)),
+    radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 38%),
+    radial-gradient(circle at top left, rgba(59,130,246,.12), transparent 42%);
+  border: 1px solid rgba(56,189,248,.12);
+  color: #60a5fa;
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    inset 0 -20px 60px rgba(2,132,199,.05);
+}
+
+.payrollFiltersCard .kpiMini{
+  border: 1px solid rgba(56,189,248,.12);
+  background:
+    linear-gradient(180deg, rgba(3,14,33,.72), rgba(5,23,48,.62)),
+    radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 38%),
+    radial-gradient(circle at top left, rgba(59,130,246,.12), transparent 42%);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.05),
+    inset 0 -20px 60px rgba(2,132,199,.05);
+}
+
+.payrollFiltersCard .kpiMini .k{
+  color: rgba(191,219,254,.72);
+}
+
+.payrollFiltersCard .kpiMini .v{
+  color: #f8fafc;
+}
 
 .payrollChartCard{
   background:
@@ -4589,6 +4636,34 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   .shell{ width:100% !important; max-width:none !important; grid-template-columns: 1fr !important; }
   .card{ box-shadow:none !important; }
 }
+
+.kpiFancy{
+  border: 1px solid rgba(56,189,248,.14);
+  background:
+    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+  box-shadow:
+    0 18px 40px rgba(2,6,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.kpiFancy .label{
+  color: rgba(191,219,254,.78);
+}
+
+.kpiFancy .value{
+  color: #f8fafc;
+}
+
+.kpiFancy .sub{
+  color: rgba(191,219,254,.78);
+}
+
+.kpiFancy .chip{
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(56,189,248,.18);
+  color: #93c5fd;
+}
+
 /* Dashboard page menu card:
    keep on mobile, hide on desktop because sidebar already exists */
 .dashboardMainMenu{
@@ -9332,6 +9407,33 @@ def my_reports():
   text-decoration:none;
 }
 
+.myReportsWeekPickerRow{
+  display:grid;
+  grid-template-columns:minmax(0, 1fr) auto;
+  gap:12px;
+  align-items:end;
+}
+
+.myReportsWeekPickerRow form{
+  margin:0;
+}
+
+.myReportsWeekPickerRow .btnPayslipGreen{
+  white-space:nowrap;
+  padding:12px 20px;
+  min-width:170px;
+}
+
+@media (max-width: 780px){
+  .myReportsWeekPickerRow{
+    grid-template-columns:1fr;
+  }
+
+  .myReportsWeekPickerRow .btnPayslipGreen{
+    width:100%;
+    min-width:0;
+  }
+}
       .myReportsWeekTable{
         margin-top:12px;
         padding:10px;
@@ -9359,6 +9461,47 @@ def my_reports():
 .myReportsWeekTable .payrollSummaryItem .v{
   font-size: 14px;
   line-height: 1.1;
+}
+
+.payrollEmployeeCard,
+.myReportsTopGrid .card.kpi,
+.myReportsMonthCard,
+.myReportsWeekPicker{
+  border: 1px solid rgba(56,189,248,.14);
+  background:
+    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+  box-shadow:
+    0 18px 40px rgba(2,6,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.04);
+}
+
+.payrollEmployeeCard,
+.myReportsTopGrid .card.kpi,
+.myReportsMonthCard,
+.myReportsWeekPicker,
+.payrollEmployeeCard .label,
+.myReportsTopGrid .card.kpi .label,
+.myReportsMonthCard .label,
+.myReportsWeekPicker .sub{
+  color: #f8fafc;
+}
+
+.payrollEmployeeCard .sub,
+.myReportsTopGrid .card.kpi .sub,
+.myReportsMonthCard .sub{
+  color: rgba(191,219,254,.78);
+}
+
+.payrollEmployeeCard strong,
+.myReportsTopGrid .card.kpi .value,
+.myReportsMonthCard .value{
+  color: #f8fafc;
+}
+
+.myReportsWeekPicker .input{
+  background: rgba(248,250,252,.96);
+  border: 1px solid rgba(148,163,184,.16);
+  color: #0f172a;
 }
 
 .myReportsWeekTable .payrollSummaryItem:nth-child(1),
@@ -9435,6 +9578,24 @@ def my_reports():
 .myReportsWeekTable .weeklyEditTable th:nth-child(7),
 .myReportsWeekTable .weeklyEditTable td:nth-child(7){
   width: 64px;
+}
+
+.btnPayslipGreen{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  padding:12px 16px;
+  border-radius:999px;
+  font-weight:800;
+  background:linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  color:#ffffff;
+  border:1px solid rgba(255,255,255,.10);
+  box-shadow:0 10px 24px rgba(22,163,74,.25);
+}
+
+.btnPayslipGreen:hover{
+  filter:brightness(1.04);
 }
 
       @media (max-width: 780px){
@@ -9577,17 +9738,6 @@ def my_reports():
   </div>
 </div>
 
-
-  <div class="headerTop">
-  <div>
-    <h1>Timesheets</h1>
-    <p class="sub">{escape(display_name)} • Totals + tax + net</p>
-  </div>
-  <div class="myReportsActions noPrint">
-  <a class="btnSoft" href="/my-reports-print?wk={wk_offset}">Open Payslip</a>
-</div>
-</div>
-
       <div class="myReportsTopGrid">
         <div class="card kpi">
           <p class="label">Today Gross</p>
@@ -9609,13 +9759,19 @@ def my_reports():
       </div>
 
       <div class="card myReportsWeekPicker">
-        <form method="GET">
-          <label class="sub" style="display:block; margin-bottom:6px;">Choose week</label>
-          <select class="input" name="wk" onchange="this.form.submit()">
-            {''.join(week_options)}
-          </select>
-        </form>
-      </div>
+  <div class="myReportsWeekPickerRow">
+    <form method="GET">
+      <label class="sub" style="display:block; margin-bottom:6px;">Choose week</label>
+      <select class="input" name="wk" onchange="this.form.submit()">
+        {''.join(week_options)}
+      </select>
+    </form>
+
+    <div class="noPrint">
+      <a class="btnPayslipGreen" href="/my-reports-print?wk={wk_offset}">Open Payslip</a>
+    </div>
+  </div>
+</div>
 
       <div class="card myReportsWeekTable">
   <div style="margin-bottom:12px;">
@@ -9922,6 +10078,7 @@ def my_reports_print():
       .myReportsWeekTable .weeklyEditTable td:nth-child(7){
         width:64px;
       }
+      
 
       @media (max-width: 780px){
         .myReportsActions{
