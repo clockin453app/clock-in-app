@@ -8037,7 +8037,7 @@ def login():
         </div>
 
         <div class="card" style="padding:14px;">
-          <form method="POST" onsubmit="var f=this,ae=document.activeElement;if(ae&&ae.blur)ae.blur();window.scrollTo(0,0);setTimeout(function(){f.submit();},180);return false;">
+          <form method="POST" onsubmit="var f=this,ae=document.activeElement;if(ae&&ae.blur)ae.blur();window.scrollTo(0,0);setTimeout(f.submit.bind(f),180);return false;">
             <input type="hidden" name="csrf" value="{escape(csrf)}">
             <label class="sub">User</label>
             <input class="input" name="username" required>
