@@ -4077,28 +4077,29 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 @media (max-width: 700px){
   .navInner{
-    gap: 2px;
+    max-width: 380px;
+    gap: 0;
     justify-content: space-between;
   }
 
   .navIcon{
-  width: 60px;
-  height: 60px;
-  border-radius: 20px;
-  flex: 0 0 auto;
-}
+    width: 46px;
+    height: 46px;
+    border-radius: 16px;
+    flex: 0 0 auto;
+  }
 
   .navIcon svg{
-    width: 24px;
-    height: 24px;
+    width: 20px;
+    height: 20px;
   }
 
   .navIcon img{
-  width: 36px !important;
-  height: 36px !important;
-  object-fit: contain;
-  display: block;
-}
+    width: 28px !important;
+    height: 28px !important;
+    object-fit: contain;
+    display: block;
+  }
 }
 
 .navIcon.nav-home{ color:#1d4ed8; }
