@@ -2015,6 +2015,41 @@ PWA_TAGS = """
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
+<script>
+(function(){
+  function syncBottomNav(){
+    var vv = window.visualViewport;
+    var gap = 0;
+
+    if (vv) {
+      gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    }
+
+    document.documentElement.style.setProperty('--bottom-nav-offset', gap + 'px');
+  }
+
+  window.addEventListener('load', syncBottomNav);
+  window.addEventListener('resize', syncBottomNav);
+  window.addEventListener('pageshow', function(){
+    syncBottomNav();
+    setTimeout(syncBottomNav, 120);
+    setTimeout(syncBottomNav, 320);
+  });
+  window.addEventListener('orientationchange', function(){
+    setTimeout(syncBottomNav, 250);
+  });
+  document.addEventListener('focusout', function(){
+    setTimeout(syncBottomNav, 180);
+  });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncBottomNav);
+    window.visualViewport.addEventListener('scroll', syncBottomNav);
+  }
+
+  syncBottomNav();
+})();
+</script>
 """
 
 # ================= PREMIUM UI (CLEAN + STABLE) =================
@@ -2031,6 +2066,7 @@ STYLE = """
   --shadow: 0 10px 28px rgba(15,23,42,.06);
   --shadow2: 0 16px 46px rgba(15,23,42,.10);
   --radius: 18px;
+  --bottom-nav-offset: 0px;
 
   /* Brand (finance blue) */
   --navy:#1e40af;
@@ -4013,7 +4049,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   position: fixed;
   left: 0;
   right: 0;
-  bottom: 0;
+  bottom: var(--bottom-nav-offset);
   background: rgba(255,255,255,.92);
   border-top: 1px solid rgba(11,18,32,.10);
   backdrop-filter: blur(10px);
