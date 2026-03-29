@@ -3680,6 +3680,25 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollFiltersCard .row2 > *{
   min-width:0;
 }
+.payrollDateRow > div{
+  min-width: 0;
+}
+
+.payrollDateRow input[type="date"]{
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+@media (max-width: 600px){
+  .payrollDateRow{
+    grid-template-columns: 1fr !important;
+  }
+}
 
 @media (max-width: 600px){
   .payrollFiltersCard{
@@ -12838,10 +12857,14 @@ def admin_payroll():
 
             <div style="margin-top:10px;">
               <label class="sub">Date range (summary table only)</label>
-              <div class="row2">
-                <input class="input" type="date" name="from" value="{escape(date_from)}">
-                <input class="input" type="date" name="to" value="{escape(date_to)}">
-              </div>
+              <div class="row2 payrollDateRow">
+  <div>
+    <input class="input" type="date" name="from" value="{escape(date_from)}">
+  </div>
+  <div>
+    <input class="input" type="date" name="to" value="{escape(date_to)}">
+  </div>
+</div>
             </div>
 
             <input type="hidden" name="wk" value="{wk_offset}">
