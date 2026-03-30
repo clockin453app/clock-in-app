@@ -2704,12 +2704,20 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border-collapse:separate;
   border-spacing:0;
   border-radius:18px;
-  background: rgba(255,255,255,.88);
-  border:1px solid rgba(11,18,32,.08);
+  background: rgba(255,255,255,.94);
+  border:1px solid rgba(96,165,250,.14);
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.92),
+    0 8px 18px rgba(15,23,42,.06);
 }
 .payrollEmployeeCard{
   width:100%;
   box-sizing:border-box;
+  border: 1px solid rgba(96,165,250,.16);
+  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(242,247,255,.98));
+  box-shadow:
+    0 20px 40px rgba(2,6,23,.16),
+    inset 0 1px 0 rgba(255,255,255,.88);
 }
 
 .payrollEmployeeCard .tablewrap{
@@ -2812,29 +2820,31 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .weeklyEditTable thead th{
-  background: linear-gradient(180deg, #2563eb, #1d4ed8);
-  color: white;
-  font-size:13px;
-  font-weight:800;
-  padding:12px 10px;
-  border-bottom:1px solid rgba(29,78,216,.35);
+  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98));
+  color: rgba(15,23,42,.88);
+  font-size:12px;
+  font-weight:900;
+  letter-spacing:.03em;
+  text-transform:uppercase;
+  padding:13px 10px;
+  border-bottom:1px solid rgba(148,163,184,.18);
 }
 
 .weeklyEditTable tbody td{
   padding:14px 10px;
-  border-bottom:1px solid rgba(11,18,32,.06);
+  border-bottom:1px solid rgba(191,219,254,.50);
   color: rgba(15,23,42,.92);
   font-size:14px;
-  background: rgba(255,255,255,.82);
+  background: rgba(255,255,255,.92);
   vertical-align:middle;
 }
 
 .weeklyEditTable tbody tr:nth-child(even) td{
-  background: rgba(248,250,252,.78);
+  background: rgba(248,251,255,.92);
 }
 
 .weeklyEditTable tbody tr:hover td{
-  background: rgba(239,246,255,.72);
+  background: rgba(239,246,255,.86);
 }
 
 .weeklyEditTable td.num,
@@ -3354,15 +3364,18 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   transition: transform .16s ease, box-shadow .16s ease;
 }
 .btnSoft:hover{ transform: translateY(-1px); box-shadow: var(--shadow2); }
-/* Download CSV button styled like week pills (btnTiny) */
+/* Download CSV button styled like light export action */
 .btnTiny.csvDownload{
-  background: #217346;
-  border-color: #1a5c37;
-  color: #fff;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96));
+  border-color: rgba(96,165,250,.18);
+  color: rgba(29,78,216,.96);
+  box-shadow:
+    0 8px 16px rgba(15,23,42,.06),
+    inset 0 1px 0 rgba(255,255,255,.85);
 }
 .btnTiny.csvDownload:hover{
-  background: #1b5f38;
-  border-color: #144a2b;
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(239,246,255,.98));
+  border-color: rgba(59,130,246,.24);
 }
 .btnTiny{
   border: 1px solid rgba(15,23,42,.14);
@@ -3847,7 +3860,95 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .payrollFiltersCard,
 .payrollChartCard{
-  padding: 14px;
+  padding: 16px;
+}
+
+.payrollWeekBar{
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(129,140,248,.32);
+  background:
+    radial-gradient(circle at top right, rgba(56,189,248,.16), transparent 34%),
+    linear-gradient(135deg, rgba(19,31,58,.96), rgba(34,44,79,.96));
+  box-shadow:
+    0 18px 34px rgba(2,6,23,.18),
+    inset 0 1px 0 rgba(255,255,255,.08);
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  flex-wrap:wrap;
+}
+
+.payrollWeekLead{
+  min-width: 0;
+  display:grid;
+  gap:6px;
+}
+
+.payrollWeekBadge{
+  display:inline-flex;
+  align-items:center;
+  width:max-content;
+  max-width:100%;
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(125,211,252,.26);
+  background: rgba(37,99,235,.18);
+  color:#dbeafe;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.payrollWeekHint{
+  color: rgba(226,232,240,.84);
+  font-size: 14px;
+  line-height:1.45;
+}
+
+.payrollWeekControl{
+  display:grid;
+  gap:6px;
+  min-width: 270px;
+  max-width: 360px;
+  flex:1 1 320px;
+}
+
+.payrollWeekLabel{
+  color:#f8fafc;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+}
+
+.payrollWeekBar .input{
+  margin-top:0;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(191,219,254,.22);
+  color:#f8fafc;
+  font-weight:700;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.payrollWeekBar .input:focus{
+  border-color: rgba(96,165,250,.7);
+  box-shadow: 0 0 0 4px rgba(37,99,235,.18);
+}
+
+
+@media (max-width: 860px){
+  .payrollWeekBar{
+    padding: 14px;
+  }
+
+  .payrollWeekControl{
+    min-width: 100%;
+    max-width: 100%;
+  }
 }
 
 .payrollFiltersCard{
@@ -3910,57 +4011,92 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .payrollFiltersCard{
-  border: 1px solid rgba(56,189,248,.14);
+  border: 1px solid rgba(96,165,250,.16);
   background:
-    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+    linear-gradient(180deg, rgba(248,251,255,.98) 0%, rgba(241,247,255,.98) 100%);
   box-shadow:
-    0 18px 40px rgba(2,6,23,.22),
-    inset 0 1px 0 rgba(255,255,255,.04);
+    0 18px 36px rgba(2,6,23,.16),
+    inset 0 1px 0 rgba(255,255,255,.78);
 }
 .payrollFiltersCard .sub{
-  color: rgba(191,219,254,.78);
+  color: rgba(71,85,105,.88);
 }
 
-.payrollFiltersCard .input{
-  background: rgba(248,250,252,.96);
-  border: 1px solid rgba(148,163,184,.16);
+.payrollFiltersCard .input,
+.payrollFiltersCard input[type="date"],
+.payrollFiltersCard select{
+  margin-top:0;
+  background: rgba(255,255,255,.12);
+  border: 1px solid rgba(191,219,254,.22);
+  color:#f8fafc;
+  font-weight:700;
+  box-shadow:none;
+}
+
+.payrollFiltersCard .input::placeholder,
+.payrollFiltersCard input[type="date"]::placeholder{
+  color: rgba(226,232,240,.72);
+}
+
+.payrollFiltersCard .input:focus,
+.payrollFiltersCard input[type="date"]:focus,
+.payrollFiltersCard select:focus{
+  border-color: rgba(96,165,250,.7);
+  box-shadow: 0 0 0 4px rgba(37,99,235,.18);
+}
+
+.payrollFiltersCard .input option,
+.payrollFiltersCard select option,
+.payrollWeekBar .input option{
+  background:#0f172a;
+  color:#f8fafc;
+}
+
+.payrollFiltersCard input[type="date"]::-webkit-calendar-picker-indicator{
+  filter: invert(1) brightness(1.05);
+  opacity:.92;
 }
 
 .payrollFiltersCard .btnSoft{
-  background:
-    linear-gradient(180deg, rgba(3,14,33,.72), rgba(5,23,48,.62)),
-    radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 38%),
-    radial-gradient(circle at top left, rgba(59,130,246,.12), transparent 42%);
-  border: 1px solid rgba(56,189,248,.12);
-  color: #60a5fa;
+  background: linear-gradient(180deg, #3b82f6 0%, #2563eb 100%);
+  border: 1px solid rgba(37,99,235,.24);
+  color: #fff;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
-    inset 0 -20px 60px rgba(2,132,199,.05);
+    0 12px 24px rgba(37,99,235,.20),
+    inset 0 1px 0 rgba(255,255,255,.18);
+}
+
+.payrollFiltersCard .btnSoft:hover{
+  filter: brightness(1.03);
+  box-shadow:
+    0 14px 28px rgba(37,99,235,.24),
+    inset 0 1px 0 rgba(255,255,255,.20);
 }
 
 .payrollFiltersCard .kpiMini{
-  border: 1px solid rgba(56,189,248,.12);
+  border: 1px solid rgba(191,219,254,.95);
   background:
-    linear-gradient(180deg, rgba(3,14,33,.72), rgba(5,23,48,.62)),
-    radial-gradient(circle at top right, rgba(34,211,238,.12), transparent 38%),
-    radial-gradient(circle at top left, rgba(59,130,246,.12), transparent 42%);
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96));
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.05),
-    inset 0 -20px 60px rgba(2,132,199,.05);
+    0 8px 18px rgba(15,23,42,.07),
+    inset 0 1px 0 rgba(255,255,255,.88);
 }
 
 .payrollFiltersCard .kpiMini .k{
-  color: rgba(191,219,254,.72);
+  color: rgba(71,85,105,.82);
 }
 
 .payrollFiltersCard .kpiMini .v{
-  color: #f8fafc;
+  color: rgba(15,23,42,.96);
 }
 
 .payrollChartCard{
   background:
-    linear-gradient(180deg, rgba(239,246,255,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(59,130,246,.14);
+    linear-gradient(180deg, rgba(248,251,255,.98), rgba(242,247,255,.98));
+  border: 1px solid rgba(96,165,250,.16);
+  box-shadow:
+    0 18px 36px rgba(2,6,23,.16),
+    inset 0 1px 0 rgba(255,255,255,.78);
 }
 
 .payrollPieSection{
@@ -3982,9 +4118,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   height: 330px;
   border-radius: 999px;
   box-shadow:
-    inset 0 1px 0 rgba(255,255,255,.25),
-    0 14px 28px rgba(15,23,42,.10);
-  border: 1px solid rgba(15,23,42,.08);
+    inset 0 1px 0 rgba(255,255,255,.28),
+    0 18px 34px rgba(37,99,235,.16);
+  border: 1px solid rgba(148,163,184,.14);
 }
 
 .payrollPieLabel{
@@ -3993,7 +4129,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width: 82px;
   text-align: center;
   color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0,0,0,.45);
+  text-shadow: 0 1px 2px rgba(15,23,42,.38);
   pointer-events: none;
   line-height: 1.05;
 }
@@ -4309,6 +4445,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
   .shell:has(.sidebar) .main{
     min-width:0 !important;
+    padding-right:clamp(12px, 1.3vw, 24px);
   }
 
   #mobileRailToggle{
@@ -4599,17 +4736,19 @@ body.mobileRailClosed #mobileRailToggle::before{
 
 /* ================= PAYROLL SHEET (condensed week design) ================= */
 .payrollWrap{
-  margin-top:14px;
+  margin-top:16px;
   width:100%;
   max-width:100%;
   min-width:0;
-  background:#fff;
-  border:1px solid rgba(15,23,42,.10);
-  border-radius:18px;
+  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99));
+  border:1px solid rgba(96,165,250,.16);
+  border-radius:22px;
   overflow-x:auto;
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
-  box-shadow:var(--shadow);
+  box-shadow:
+    0 20px 40px rgba(2,6,23,.18),
+    inset 0 1px 0 rgba(255,255,255,.86);
   padding-right:18px;
   box-sizing:border-box;
 }
@@ -4620,13 +4759,13 @@ body.mobileRailClosed #mobileRailToggle::before{
   table-layout:fixed;
   border-collapse:separate;
   border-spacing:0;
-  background:#fff;
+  background:transparent;
 }
 
 .payrollSheet th,
 .payrollSheet td{
   border:none;
-  border-bottom:1px solid rgba(15,23,42,.10);
+  border-bottom:1px solid rgba(191,219,254,.56);
   font-variant-numeric:tabular-nums;
   font-feature-settings:"tnum" 1;
 }
@@ -4635,13 +4774,15 @@ body.mobileRailClosed #mobileRailToggle::before{
   position:sticky;
   top:0;
   z-index:5;
-  background:#fff;
-  color:rgba(15,23,42,.84);
-  font-size:14px;
+  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98));
+  color:rgba(15,23,42,.86);
+  font-size:13px;
   font-weight:900;
-  padding:14px 12px;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+  padding:16px 12px;
   white-space:nowrap;
-  border-bottom:1px solid rgba(15,23,42,.12);
+  border-bottom:1px solid rgba(148,163,184,.22);
   text-align:left;
 }
 
@@ -4650,58 +4791,68 @@ body.mobileRailClosed #mobileRailToggle::before{
 }
 
 .payrollSheet tbody td{
-  padding:14px 12px;
+  padding:12px 10px;
   font-size:14px;
-  line-height:1.2;
+  line-height:1.35;
   vertical-align:top;
-  background:#fff;
+  background:rgba(255,255,255,.92);
   color:rgba(2,6,23,.92);
 }
 
+.payrollSheet tbody tr:nth-child(even) td{
+  background:rgba(248,251,255,.92);
+}
+
 .payrollSheet tbody tr:hover td{
-  background:rgba(248,250,252,.92);
+  background:rgba(239,246,255,.95);
 }
 
 .payrollSheet tbody tr.is-selected td{
-  background:rgba(239,246,255,.94);
+  background:rgba(224,242,254,.92);
 }
 
 .payrollSheet tbody tr:hover td:first-child,
 .payrollSheet tbody tr.is-selected td:first-child{
-  box-shadow:inset 3px 0 0 rgba(30,64,175,.30);
+  box-shadow:inset 3px 0 0 rgba(37,99,235,.34);
 }
 
 /* employee */
 .payrollEmpCell,
 .payrollSheet thead th:first-child,
 .payrollSheet tbody td:first-child{
-  width:170px;
-  min-width:170px;
-  max-width:170px;
+  width:156px;
+  min-width:156px;
+  max-width:156px;
 }
 
 .payrollSheet thead th:first-child{
   position: sticky;
   left: 0;
   z-index: 9;
-  background: #fff;
-  box-shadow: 6px 0 14px rgba(15,23,42,.08);
+  background: linear-gradient(180deg, rgba(226,236,254,.99), rgba(216,230,252,.99));
+  box-shadow: 10px 0 18px rgba(15,23,42,.08);
 }
 
 .payrollSheet tbody td:first-child{
   position: sticky;
   left: 0;
   z-index: 4;
-  background: #fff;
-  box-shadow: 6px 0 14px rgba(15,23,42,.08);
+  background: linear-gradient(180deg, rgba(247,250,255,.98), rgba(242,247,255,.98));
+  box-shadow: 10px 0 18px rgba(15,23,42,.08);
 }
 
 .payrollSheet tbody tr:hover td:first-child{
-  background: rgba(248,250,252,.92);
+  background: rgba(239,246,255,.98);
 }
 
 .payrollSheet tbody tr.is-selected td:first-child{
-  background: rgba(239,246,255,.94);
+  background: rgba(224,242,254,.96);
+}
+
+.payrollEmpCell .emp{
+  display:block;
+  font-weight:800;
+  line-height:1.2;
 }
 
 .payrollSheet .emp{
@@ -4710,18 +4861,19 @@ body.mobileRailClosed #mobileRailToggle::before{
   min-width:0;
   font-size:14px;
   font-weight:900;
-  line-height:1.15;
+  line-height:1.18;
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
+  color: rgba(15,23,42,.96);
 }
 
 .payrollSheet .empSub{
   display:block;
   margin-top:4px;
   font-size:12px;
-  font-weight:600;
-  color:rgba(15,23,42,.54);
+  font-weight:700;
+  color:rgba(71,85,105,.72);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -4729,9 +4881,9 @@ body.mobileRailClosed #mobileRailToggle::before{
 
 /* condensed day cells */
 .payrollDayCell{
-  width:118px;
-  min-width:118px;
-  max-width:118px;
+  width:92px;
+  min-width:92px;
+  max-width:92px;
   text-align:left;
 }
 .payrollDayStack{
@@ -4740,6 +4892,11 @@ body.mobileRailClosed #mobileRailToggle::before{
   gap:4px;
   min-height:74px;
   justify-content:flex-start;
+  padding:0;
+  border-radius:0;
+  background:transparent;
+  border:none;
+  box-shadow:none;
 }
 
 .payrollDayLine{
@@ -4748,13 +4905,20 @@ body.mobileRailClosed #mobileRailToggle::before{
   align-items:center;
 }
 
+.payrollDayLine + .payrollDayLine{
+  padding-top:0;
+  border-top:none;
+}
+
 .payrollDayHours{
   min-height:20px;
   display:flex;
   align-items:center;
+  margin-top:auto;
+  padding-top:4px;
   font-size:13px;
-  font-weight:800;
-  color:#7c3aed;
+  font-weight:900;
+  color:#0f766e;
 }
 
 .payrollDayEmpty{
@@ -4764,13 +4928,16 @@ body.mobileRailClosed #mobileRailToggle::before{
   justify-content:center;
   font-size:20px;
   font-weight:700;
-  color:rgba(15,23,42,.38);
+  color:rgba(100,116,139,.55);
+  border-radius:0;
+  border:none;
+  background:transparent;
 }
 
 .payrollDayCellOT{
-  background:rgba(245,158,11,.10) !important;
-  box-shadow:inset 0 0 0 1px rgba(245,158,11,.15);
-  border-radius:10px;
+  background:rgba(255,247,237,.92) !important;
+  box-shadow:inset 0 0 0 1px rgba(251,191,36,.20);
+  border-radius:12px;
 }
 
 .payrollSheet tbody tr:hover td.payrollDayCellOT,
@@ -4785,13 +4952,14 @@ body.mobileRailClosed #mobileRailToggle::before{
 }
 
 .payrollSheet input[type="time"]{
-  font-weight:800;
-  color:rgba(2,6,23,.98);
+  font-weight:900;
+  color:rgba(15,23,42,.98);
+  letter-spacing:.01em;
 }
 
 .payrollSheet input[type="time"]:disabled{
   opacity:1;
-  -webkit-text-fill-color:rgba(2,6,23,.98);
+  -webkit-text-fill-color:rgba(15,23,42,.98);
 }
 
 .payrollSheet input.payrollTimeInput,
@@ -4799,15 +4967,15 @@ body.mobileRailClosed #mobileRailToggle::before{
   width:100%;
   min-width:0;
   max-width:none;
-  height:20px;
-  line-height:20px;
-  padding:0 4px 0 0;
+  height:22px;
+  line-height:22px;
+  padding:0 2px 0 0;
   border:none;
   border-radius:8px;
   background:transparent;
   box-shadow:none;
-  font-size:14px;
-  font-weight:800;
+  font-size:13px;
+  font-weight:900;
   text-align:left;
   color:rgba(15,23,42,.94);
   outline:none;
@@ -4853,23 +5021,34 @@ body.mobileRailClosed #mobileRailToggle::before{
 }
 
 .payrollSummaryMoney{
-  width:112px;
-  min-width:112px;
-  max-width:112px;
+  width:106px;
+  min-width:106px;
+  max-width:106px;
   text-align:right !important;
 }
 
 .payrollSheet td.payrollSummaryTotal,
 .payrollSheet td.payrollSummaryMoney{
   vertical-align:middle;
-  font-weight:800;
+  font-weight:900;
+}
+
+.payrollSheet thead th.payrollSummaryTotal,
+.payrollSheet thead th.payrollSummaryMoney,
+.payrollSheet td.payrollSummaryTotal,
+.payrollSheet td.payrollSummaryMoney{
+  background-image: linear-gradient(180deg, rgba(240,247,255,.96), rgba(233,243,255,.96));
+}
+
+.payrollSheet td.payrollSummaryMoney{
+  color: rgba(15,23,42,.98);
 }
 
 /* states */
 .payrollSheet td.net{
   background:transparent;
   color:rgba(2,6,23,.92);
-  font-weight:800;
+  font-weight:900;
 }
 
 .payrollSheet tbody tr:hover td.net,
@@ -4894,16 +5073,18 @@ body.mobileRailClosed #mobileRailToggle::before{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:3px;
-  height:28px;
-  padding:0 10px;
-  border-radius:10px;
-  background:rgba(22,163,74,.14);
+  gap:6px;
+  min-height:34px;
+  padding:0 12px;
+  border-radius:12px;
+  background:linear-gradient(180deg, rgba(220,252,231,.96), rgba(209,250,229,.96));
+  border:1px solid rgba(34,197,94,.18);
   color:rgba(21,128,61,.98);
   font-size:11px;
   font-weight:900;
   line-height:1;
   white-space:nowrap;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.78);
 }
 /* pay button */
 .payCellForm{
@@ -4914,25 +5095,30 @@ body.mobileRailClosed #mobileRailToggle::before{
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:6px;
+  gap:8px;
   width:100%;
-  min-height:36px;
-  padding:6px 10px;
-  border:none;
+  min-height:38px;
+  padding:7px 12px;
+  border:1px solid rgba(251,191,36,.26);
   border-radius:12px;
-  background:rgba(250,204,21,.24);
-  color:rgba(2,6,23,.94);
+  background:linear-gradient(180deg, rgba(255,247,237,.98), rgba(254,243,199,.96));
+  color:rgba(15,23,42,.96);
   font-size:12px;
   font-weight:900;
   line-height:1;
   white-space:nowrap;
   cursor:pointer;
   transition:transform .12s ease, filter .12s ease, box-shadow .12s ease;
+  box-shadow:
+    0 8px 16px rgba(245,158,11,.10),
+    inset 0 1px 0 rgba(255,255,255,.78);
 }
 
 .payCellBtn:hover{
-  filter:brightness(.98);
-  box-shadow:inset 0 0 0 1px rgba(146,64,14,.18);
+  filter:brightness(.99);
+  box-shadow:
+    0 10px 18px rgba(245,158,11,.14),
+    inset 0 0 0 1px rgba(180,83,9,.12);
 }
 
 .payCellBtn:active{
@@ -4940,11 +5126,17 @@ body.mobileRailClosed #mobileRailToggle::before{
 }
 
 .payCellBtn .payLabel{
-  display:inline;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   margin:0;
+  min-height:20px;
+  padding:0 8px;
+  border-radius:999px;
   font-size:10px;
-  font-weight:800;
+  font-weight:900;
   color:rgba(146,64,14,.95);
+  background:rgba(251,191,36,.18);
 }
 
 /* mobile */
@@ -4956,36 +5148,36 @@ body.mobileRailClosed #mobileRailToggle::before{
   .payrollEmpCell,
   .payrollSheet thead th:first-child,
   .payrollSheet tbody td:first-child{
-    width:120px;
-    min-width:120px;
-    max-width:120px;
+    width:112px;
+    min-width:112px;
+    max-width:112px;
   }
 
   .payrollDayCell{
-    width:96px;
-    min-width:96px;
-    max-width:96px;
+    width:84px;
+    min-width:84px;
+    max-width:84px;
   }
 
   .payrollSummaryTotal{
-    width:64px;
-    min-width:64px;
-    max-width:64px;
+    width:60px;
+    min-width:60px;
+    max-width:60px;
   }
 
   .payrollSummaryMoney{
-    width:96px;
-    min-width:96px;
-    max-width:96px;
+    width:84px;
+    min-width:84px;
+    max-width:84px;
   }
 
   .payrollSheet thead th{
     font-size:12px;
-    padding:12px 8px;
+    padding:10px 7px;
   }
 
   .payrollSheet tbody td{
-    padding:12px 8px;
+    padding:10px 7px;
   }
 
   .payrollSheet .emp{
@@ -5678,68 +5870,72 @@ h2{
   color: #fee2e2 !important;
 }
 
-/* ===== FIX PAYROLL TEXT ON DARK THEME ===== */
+/* ===== PAYROLL LIGHT READABILITY OVERRIDES ===== */
 .payrollSheet{
-  background:#081a31 !important;
+  background: transparent !important;
 }
 
 .payrollSheet thead th{
-  background: linear-gradient(180deg, #0b2344, #102b52) !important;
-  color: #dbeafe !important;
-  border-bottom: 1px solid rgba(96,165,250,.20) !important;
+  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
+  color: rgba(15,23,42,.86) !important;
+  border-bottom: 1px solid rgba(148,163,184,.22) !important;
 }
 
 .payrollSheet tbody td{
-  background:#081a31 !important;
-  color:#e8f1ff !important;
-  border-bottom:1px solid rgba(96,165,250,.12) !important;
+  background: rgba(255,255,255,.92) !important;
+  color: rgba(15,23,42,.94) !important;
+  border-bottom:1px solid rgba(191,219,254,.56) !important;
+}
+
+.payrollSheet tbody tr:nth-child(even) td{
+  background: rgba(248,251,255,.92) !important;
 }
 
 .payrollSheet thead th:first-child{
-  background: linear-gradient(180deg, #0b2344, #102b52) !important;
-  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+  background: linear-gradient(180deg, rgba(226,236,254,.99), rgba(216,230,252,.99)) !important;
+  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
 }
 
 .payrollSheet tbody td:first-child{
-  background:#081a31 !important;
-  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+  background: linear-gradient(180deg, rgba(247,250,255,.98), rgba(242,247,255,.98)) !important;
+  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
 }
 
 .payrollSheet tbody tr:hover td{
-  background:#0c2342 !important;
+  background: rgba(239,246,255,.95) !important;
 }
 
 .payrollSheet tbody tr.is-selected td{
-  background:#112c4f !important;
+  background: rgba(224,242,254,.92) !important;
 }
 
 .payrollSheet tbody tr:hover td:first-child,
 .payrollSheet tbody tr.is-selected td:first-child{
-  background:inherit !important;
+  background: inherit !important;
 }
 
 .payrollSheet .emp{
-  color:#f8fbff !important;
+  color: rgba(15,23,42,.96) !important;
 }
 
 .payrollSheet .empSub{
-  color:#9fb3d1 !important;
+  color: rgba(71,85,105,.72) !important;
 }
 
 .payrollDayHours{
-  color:#67e8f9 !important;
+  color: #0f766e !important;
 }
 
 .payrollDayEmpty{
-  color:#7dd3fc !important;
+  color: rgba(100,116,139,.55) !important;
 }
 
 .payrollSheet input[type="time"],
 .payrollSheet input[type="time"]:disabled,
 .payrollSheet input.payrollTimeInput,
 .payrollTimeInput{
-  color:#e8f1ff !important;
-  -webkit-text-fill-color:#e8f1ff !important;
+  color: rgba(15,23,42,.98) !important;
+  -webkit-text-fill-color: rgba(15,23,42,.98) !important;
 }
 
 .payrollSheet input.payrollTimeInput[value=""]{
@@ -5748,7 +5944,7 @@ h2{
 
 .payrollWrap,
 .tablewrap{
-  background:#081a31 !important;
+  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99)) !important;
   border-color:rgba(96,165,250,.16) !important;
 }
 
@@ -5776,37 +5972,37 @@ h2{
 
 /* Payroll main sheet */
 .payrollSheet{
-  background:#081a31 !important;
+  background: transparent !important;
 }
 
 .payrollSheet thead th{
-  background: linear-gradient(180deg, #0b2344, #102b52) !important;
-  color: #dbeafe !important;
-  border-bottom: 1px solid rgba(96,165,250,.20) !important;
+  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
+  color: rgba(15,23,42,.86) !important;
+  border-bottom: 1px solid rgba(148,163,184,.22) !important;
 }
 
 .payrollSheet tbody td{
-  background:#081a31 !important;
-  color:#e8f1ff !important;
-  border-bottom:1px solid rgba(96,165,250,.12) !important;
+  background: rgba(255,255,255,.92) !important;
+  color: rgba(15,23,42,.94) !important;
+  border-bottom:1px solid rgba(191,219,254,.56) !important;
 }
 
 .payrollSheet thead th:first-child{
-  background: linear-gradient(180deg, #0b2344, #102b52) !important;
-  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+  background: linear-gradient(180deg, rgba(226,236,254,.99), rgba(216,230,252,.99)) !important;
+  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
 }
 
 .payrollSheet tbody td:first-child{
-  background:#081a31 !important;
-  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+  background: linear-gradient(180deg, rgba(247,250,255,.98), rgba(242,247,255,.98)) !important;
+  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
 }
 
 .payrollSheet tbody tr:hover td{
-  background:#0c2342 !important;
+  background: rgba(239,246,255,.95) !important;
 }
 
 .payrollSheet tbody tr.is-selected td{
-  background:#112c4f !important;
+  background: rgba(224,242,254,.92) !important;
 }
 
 .payrollSheet tbody tr:hover td:first-child,
@@ -5815,27 +6011,27 @@ h2{
 }
 
 .payrollSheet .emp{
-  color:#f8fbff !important;
+  color: rgba(15,23,42,.96) !important;
 }
 
 .payrollSheet .empSub{
-  color:#9fb3d1 !important;
+  color: rgba(71,85,105,.72) !important;
 }
 
 .payrollDayHours{
-  color:#67e8f9 !important;
+  color: #0f766e !important;
 }
 
 .payrollDayEmpty{
-  color:#7dd3fc !important;
+  color: rgba(100,116,139,.55) !important;
 }
 
 .payrollSheet input[type="time"],
 .payrollSheet input[type="time"]:disabled,
 .payrollSheet input.payrollTimeInput,
 .payrollTimeInput{
-  color:#e8f1ff !important;
-  -webkit-text-fill-color:#e8f1ff !important;
+  color: rgba(15,23,42,.98) !important;
+  -webkit-text-fill-color: rgba(15,23,42,.98) !important;
 }
 
 /* Payroll employee detail cards below */
@@ -5845,8 +6041,11 @@ h2{
 .payrollEmployeeCard .payrollSummaryItem:nth-child(3),
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4),
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5){
-  background: rgba(255,255,255,.03) !important;
-  border: 1px solid rgba(96,165,250,.14) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96)) !important;
+  border: 1px solid rgba(191,219,254,.95) !important;
+  box-shadow:
+    0 8px 18px rgba(15,23,42,.07),
+    inset 0 1px 0 rgba(255,255,255,.88) !important;
 }
 
 .payrollSummaryItem .k,
@@ -5856,7 +6055,7 @@ h2{
 .payrollEmployeeCard .payrollSummaryItem:nth-child(3) .k,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4) .k,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k{
-  color:#9fb3d1 !important;
+  color: rgba(71,85,105,.82) !important;
 }
 
 .payrollSummaryItem .v,
@@ -5867,7 +6066,41 @@ h2{
 .payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
-  color:#f8fbff !important;
+  color: rgba(15,23,42,.96) !important;
+}
+
+
+/* Payroll detail tables stay light even with global dark theme */
+.weeklyEditTable{
+  background: rgba(255,255,255,.94) !important;
+}
+
+.weeklyEditTable thead th{
+  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
+  color: rgba(15,23,42,.88) !important;
+  border-bottom: 1px solid rgba(148,163,184,.18) !important;
+}
+
+.weeklyEditTable tbody td{
+  background: rgba(255,255,255,.92) !important;
+  color: rgba(15,23,42,.92) !important;
+  border-bottom: 1px solid rgba(191,219,254,.50) !important;
+}
+
+.weeklyEditTable tbody tr:nth-child(even) td{
+  background: rgba(248,251,255,.92) !important;
+}
+
+.weeklyEditTable tbody tr:hover td{
+  background: rgba(239,246,255,.86) !important;
+}
+
+.payrollEmployeeCard{
+  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(242,247,255,.98)) !important;
+  border: 1px solid rgba(96,165,250,.16) !important;
+  box-shadow:
+    0 20px 40px rgba(2,6,23,.16),
+    inset 0 1px 0 rgba(255,255,255,.88) !important;
 }
 
 .weeklyEditTable{
@@ -5906,6 +6139,29 @@ h2{
 
 .payrollEmployeeCard .sub{
   color: #9fb3d1 !important;
+}
+
+.payrollEmployeeHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-bottom:14px;
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(148,163,184,.20);
+}
+
+.payrollEmployeeName{
+  font-size: clamp(28px, 3vw, 40px);
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: -.03em;
+  color: rgba(15,23,42,.96) !important;
+  text-shadow: none !important;
+}
+
+.payrollSheet .empSub{
+  display:none !important;
 }
 
 /* dashboard cards that are still light */
@@ -5966,6 +6222,706 @@ h2{
   background: rgba(255,255,255,.04) !important;
 }
 .dashboardMainMenu .icoBox{
+  border-color: rgba(96,165,250,.16) !important;
+}
+
+/* polished dashboard */
+.dashboardHero{
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:18px;
+  margin-bottom:18px;
+}
+.dashboardHeroMain{
+  max-width:720px;
+}
+.dashboardEyebrow{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:6px 10px;
+  border-radius:999px;
+  margin-bottom:10px;
+  font-size:12px;
+  font-weight:800;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:#93c5fd;
+  border:1px solid rgba(96,165,250,.18);
+  background:rgba(255,255,255,.03);
+}
+.dashboardHero h1{
+  margin:0;
+  font-size: clamp(38px, 4.1vw, 56px);
+  line-height:1.02;
+  letter-spacing:-.03em;
+}
+.dashboardHero .sub{
+  margin:10px 0 0 0;
+  max-width:60ch;
+  color:#b8c7dd !important;
+  font-size:15px;
+}
+.dashboardHeroMeta{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:10px;
+}
+.dashboardDateChip{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:36px;
+  padding:8px 14px;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:700;
+  color:#dbeafe;
+  border:1px solid rgba(96,165,250,.16);
+  background:rgba(255,255,255,.04);
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+.kpiRow{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:16px;
+  margin-top:0;
+}
+.kpiFancy{
+  position:relative;
+  overflow:hidden;
+  min-height:160px;
+  padding:20px !important;
+  border-radius:12px !important;
+  background:
+    radial-gradient(circle at top right, rgba(59,130,246,.18), transparent 36%),
+    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
+}
+.kpiFancy::before{
+  content:"";
+  position:absolute;
+  inset:0;
+  background:linear-gradient(180deg, rgba(255,255,255,.03), transparent 42%);
+  pointer-events:none;
+}
+.kpiTop{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:12px;
+}
+.kpiFancy .label{
+  margin:0;
+  font-size:13px;
+  font-weight:700;
+  color:#9fb3d1 !important;
+  letter-spacing:.02em;
+}
+.kpiFancy .value{
+  position:relative;
+  z-index:1;
+  margin:14px 0 0 0;
+  font-size:clamp(32px, 3vw, 46px);
+  font-weight:800;
+  letter-spacing:-.03em;
+  color:#f8fbff !important;
+}
+.kpiFancy .sub{
+  position:relative;
+  z-index:1;
+  margin:8px 0 0 0;
+  font-size:13px;
+  color:#9fb3d1 !important;
+}
+.kpiFancy .chip{
+  position:relative;
+  z-index:1;
+  background:rgba(59,130,246,.14) !important;
+  color:#dbeafe !important;
+  border:1px solid rgba(96,165,250,.18) !important;
+  box-shadow:none !important;
+}
+.kpiFancy.kpiPrimary{
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.16), transparent 34%),
+    linear-gradient(180deg, rgba(12,34,63,.98), rgba(9,42,79,.95)) !important;
+}
+.kpiFancy.kpiHours{
+  background:
+    radial-gradient(circle at top right, rgba(56,189,248,.16), transparent 34%),
+    linear-gradient(180deg, rgba(8,24,47,.98), rgba(10,36,68,.95)) !important;
+}
+.kpiMetaRow{
+  position:relative;
+  z-index:1;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin-top:12px;
+  font-size:12px;
+  font-weight:700;
+  color:#9fb3d1;
+}
+.kpiProgress{
+  position:relative;
+  z-index:1;
+  height:10px;
+  margin-top:12px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(148,163,184,.14);
+  border:1px solid rgba(96,165,250,.10);
+}
+.kpiProgress span{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg, #2563eb, #22d3ee);
+  box-shadow:0 0 20px rgba(34,211,238,.18);
+}
+
+.graphCard{
+  margin-top:18px !important;
+  padding:22px !important;
+  border-radius:12px !important;
+  background:
+    radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 34%),
+    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
+}
+.graphTitle{
+  font-size:28px;
+  letter-spacing:-.02em;
+}
+.graphCard .sub{
+  color:#9fb3d1 !important;
+}
+.graphRange{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:36px;
+  padding:8px 12px;
+  border-radius:8px;
+  border:1px solid rgba(96,165,250,.16);
+  background:rgba(255,255,255,.03);
+  color:#dbeafe !important;
+  font-weight:800;
+}
+.graphShell{
+  margin-top:18px !important;
+  padding:18px 18px 12px 18px !important;
+  border-radius:12px !important;
+  background:
+    linear-gradient(180deg, rgba(6,20,43,.92), rgba(9,28,54,.88)),
+    radial-gradient(circle at top right, rgba(34,211,238,.08), transparent 42%) !important;
+  border:1px solid rgba(96,165,250,.14) !important;
+}
+.bars{
+  height:260px;
+  gap:16px;
+  padding:10px 4px 0 4px;
+}
+.barCol{
+  gap:10px;
+}
+.barValue{
+  font-size:13px;
+  font-weight:800;
+  color:#67e8f9;
+  text-shadow:none;
+}
+.barTrack{
+  height:190px;
+  border-radius:20px;
+  background:
+    linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)),
+    linear-gradient(180deg, rgba(37,99,235,.08), rgba(14,165,233,0)) !important;
+  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
+}
+.bar{
+  width:68%;
+  border-radius:16px 16px 10px 10px;
+  background:linear-gradient(180deg, #2563eb 0%, #22d3ee 100%) !important;
+  box-shadow:0 18px 30px rgba(8,145,178,.18);
+}
+.barLabels{
+  margin-top:12px;
+  font-size:13px;
+  color:#bfd8ff;
+}
+.graphMeta{
+  margin-top:16px;
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:12px;
+}
+.graphStat{
+  padding:14px 16px;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.03) !important;
+  border:1px solid rgba(96,165,250,.14) !important;
+  box-shadow:none !important;
+}
+.graphStat .k{
+  color:#9fb3d1 !important;
+  font-size:12px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}
+.graphStat .v{
+  margin-top:8px;
+  color:#f8fbff !important;
+  font-size:24px;
+  letter-spacing:-.02em;
+}
+
+.dashboardLower,
+.dashboardBottom{
+  gap:16px;
+}
+.dashboardLower{
+  margin-top:18px !important;
+}
+.dashboardBottom{
+  margin-top:18px !important;
+  grid-template-columns:minmax(0, 1.25fr) minmax(280px, .75fr);
+}
+.quickCard,
+.activityCard,
+.sideInfoCard,
+.dashboardMainMenu{
+  padding:20px !important;
+  border-radius:12px !important;
+}
+.quickCard,
+.activityCard,
+.sideInfoCard{
+  background:
+    radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 34%),
+    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
+}
+.sectionHead{
+  margin-bottom:14px;
+}
+.sectionHeadLeft{
+  align-items:flex-start;
+}
+.sectionIcon{
+  width:40px;
+  height:40px;
+  border-radius:10px !important;
+  background:rgba(59,130,246,.12) !important;
+  border:1px solid rgba(96,165,250,.16) !important;
+  color:#dbeafe !important;
+  box-shadow:none !important;
+}
+.sectionBadge{
+  min-height:34px;
+  padding:7px 12px;
+  border-radius:8px !important;
+  background:rgba(255,255,255,.04) !important;
+  border:1px solid rgba(96,165,250,.14) !important;
+  color:#9fb3d1 !important;
+  box-shadow:none !important;
+}
+.quickGrid{
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:12px;
+  margin-top:0;
+}
+.quickMini{
+  padding:14px 16px !important;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.03) !important;
+  border:1px solid rgba(96,165,250,.14) !important;
+  box-shadow:none !important;
+}
+.quickMini:hover{
+  transform:translateY(-2px);
+  box-shadow:0 16px 34px rgba(2,6,23,.16) !important;
+}
+.quickMini .left{
+  align-items:center;
+}
+.quickMini .miniIcon{
+  width:38px;
+  height:38px;
+  border-radius:10px !important;
+  background:rgba(37,99,235,.14) !important;
+  border:1px solid rgba(96,165,250,.16) !important;
+  color:#dbeafe !important;
+}
+.quickMini .miniText{
+  color:#f8fbff !important;
+  font-size:15px;
+}
+.dashboardProgressRow{
+  margin-top:14px;
+  padding:14px 16px;
+  border-radius:10px;
+  border:1px solid rgba(96,165,250,.14);
+  background:rgba(255,255,255,.03);
+}
+.dashboardProgressMeta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  font-size:13px;
+  color:#9fb3d1;
+}
+.dashboardProgressMeta strong{
+  color:#f8fbff;
+  font-size:14px;
+}
+.dashboardProgressBar{
+  height:10px;
+  margin-top:12px;
+  border-radius:999px;
+  overflow:hidden;
+  background:rgba(148,163,184,.14);
+  border:1px solid rgba(96,165,250,.10);
+}
+.dashboardProgressBar span{
+  display:block;
+  height:100%;
+  border-radius:inherit;
+  background:linear-gradient(90deg, #2563eb, #22d3ee);
+}
+
+.activityList{
+  margin-top:2px;
+  gap:10px;
+}
+.activityRow{
+  grid-template-columns:1.2fr .7fr .7fr .7fr .9fr;
+  gap:10px;
+  padding:12px 14px;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.03) !important;
+  border:1px solid rgba(96,165,250,.12) !important;
+  color:#f8fbff !important;
+}
+.activityHead{
+  padding:0 4px 6px 4px;
+  background:transparent !important;
+  border:none !important;
+  color:#9fb3d1 !important;
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.activityEmpty{
+  padding:16px;
+  border-radius:10px !important;
+  border:1px dashed rgba(96,165,250,.20) !important;
+  background:rgba(255,255,255,.02) !important;
+  color:#9fb3d1 !important;
+}
+.sideInfoList{
+  margin-top:0;
+  gap:10px;
+}
+.sideInfoRow{
+  padding:14px 16px !important;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.03) !important;
+  border:1px solid rgba(96,165,250,.12) !important;
+}
+.sideInfoLabel{
+  color:#b8c7dd !important;
+  font-size:14px;
+  font-weight:700;
+}
+.sideInfoValue{
+  color:#f8fbff !important;
+  font-size:24px;
+  letter-spacing:-.02em;
+}
+.snapshotFoot{
+  margin-top:14px;
+  color:#9fb3d1;
+  font-size:12px;
+  line-height:1.5;
+}
+
+.dashboardMainMenu{
+  margin-top:18px !important;
+  background:
+    radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 34%),
+    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
+}
+.dashboardShortcutGrid{
+  display:grid;
+  grid-template-columns:repeat(3, minmax(0, 1fr));
+  gap:12px;
+}
+.dashboardMainMenu .menuItem{
+  margin-top:0 !important;
+  min-height:88px;
+  padding:16px !important;
+  background:rgba(255,255,255,.03) !important;
+  border:1px solid rgba(96,165,250,.14) !important;
+  border-radius:10px !important;
+  box-shadow:none !important;
+}
+.dashboardMainMenu .menuItem:hover{
+  transform:translateY(-2px);
+  box-shadow:0 16px 34px rgba(2,6,23,.16) !important;
+}
+.dashboardMainMenu .menuLeft{
+  gap:12px;
+}
+.dashboardMainMenu .icoBox{
+  width:46px;
+  height:46px;
+  border-radius:10px !important;
+  background:rgba(255,255,255,.05) !important;
+  border:1px solid rgba(96,165,250,.14) !important;
+}
+.dashboardMainMenu .menuText{
+  color:#f8fbff !important;
+  font-size:15px;
+  font-weight:800;
+}
+.dashboardMainMenu .chev{
+  color:#9fb3d1 !important;
+  font-size:28px;
+  line-height:1;
+}
+
+@media (max-width: 1200px){
+  .kpiRow{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+  .dashboardShortcutGrid,
+  .quickGrid{
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 860px){
+  .shell:has(.sidebar) .main{
+    padding-right:0 !important;
+  }
+  .dashboardHero{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .dashboardHeroMeta{
+    align-items:flex-start;
+  }
+  .kpiRow,
+  .graphMeta,
+  .quickGrid,
+  .dashboardShortcutGrid,
+  .dashboardBottom{
+    grid-template-columns:1fr !important;
+  }
+  .graphTop{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .bars{
+    height:220px;
+    gap:10px;
+  }
+  .barTrack{
+    height:160px;
+  }
+}
+
+@media (max-width: 640px){
+  .dashboardHero h1{
+    font-size:34px;
+  }
+  .dashboardHero .sub{
+    font-size:14px;
+  }
+  .kpiFancy{
+    min-height:auto;
+    padding:18px !important;
+  }
+  .kpiFancy .value{
+    font-size:32px;
+  }
+  .kpiMetaRow,
+  .dashboardProgressMeta{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+  .graphCard,
+  .quickCard,
+  .activityCard,
+  .sideInfoCard,
+  .dashboardMainMenu{
+    padding:16px !important;
+  }
+  .activityRow{
+    grid-template-columns:repeat(5, minmax(0, 1fr));
+    gap:6px;
+    padding:10px 8px;
+    font-size:11px;
+  }
+}
+
+
+
+/* ===== FINAL LIGHT TABLE SYSTEM (applies across all table pages) ===== */
+.tablewrap{
+  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99)) !important;
+  border:1px solid rgba(96,165,250,.16) !important;
+  box-shadow:0 18px 34px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.88) !important;
+  backdrop-filter:none !important;
+}
+
+.tablewrap table{
+  background:transparent !important;
+}
+
+.tablewrap th,
+.weeklyEditTable thead th,
+.payrollSheet thead th{
+  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
+  color: rgba(15,23,42,.88) !important;
+  border-bottom:1px solid rgba(148,163,184,.20) !important;
+  text-transform:uppercase;
+  letter-spacing:.02em;
+}
+
+.tablewrap td,
+.weeklyEditTable tbody td,
+.payrollSheet tbody td{
+  background: rgba(255,255,255,.92) !important;
+  color: rgba(15,23,42,.94) !important;
+  border-bottom:1px solid rgba(191,219,254,.56) !important;
+}
+
+.tablewrap table tbody tr:nth-child(even) td,
+.tablewrap table tbody tr:nth-child(even),
+.weeklyEditTable tbody tr:nth-child(even) td,
+.payrollSheet tbody tr:nth-child(even) td{
+  background: rgba(248,251,255,.92) !important;
+}
+
+.tablewrap table tbody tr:hover td,
+.tablewrap table tbody tr:hover,
+.weeklyEditTable tbody tr:hover td,
+.payrollSheet tbody tr:hover td{
+  background: rgba(239,246,255,.95) !important;
+}
+
+.tablewrap input.input,
+.tablewrap select.input,
+.tablewrap textarea.input,
+.tablewrap input,
+.tablewrap select,
+.tablewrap textarea,
+.weeklyEditTable input,
+.weeklyEditTable select,
+.weeklyEditTable textarea,
+.payrollSheet input,
+.payrollSheet select,
+.payrollSheet textarea{
+  color: rgba(15,23,42,.96) !important;
+  -webkit-text-fill-color: rgba(15,23,42,.96) !important;
+  caret-color: rgba(15,23,42,.96) !important;
+}
+
+.tablewrap input::placeholder,
+.tablewrap textarea::placeholder,
+.weeklyEditTable input::placeholder,
+.weeklyEditTable textarea::placeholder,
+.payrollSheet input::placeholder,
+.payrollSheet textarea::placeholder{
+  color: rgba(100,116,139,.72) !important;
+  -webkit-text-fill-color: rgba(100,116,139,.72) !important;
+}
+
+.tablewrap a,
+.weeklyEditTable a,
+.payrollSheet a{
+  color:#1d4ed8 !important;
+}
+
+.weeklyEditTable,
+.payrollSheet{
+  background:transparent !important;
+}
+
+.weeklyEditTable thead th{
+  position:sticky;
+  top:0;
+  z-index:3;
+}
+
+.weeklyEditTable tbody td:nth-child(2){
+  color: rgba(71,85,105,.86) !important;
+}
+
+.payrollSheet thead th:first-child{
+  background: linear-gradient(180deg, rgba(226,236,254,.99), rgba(216,230,252,.99)) !important;
+  color: rgba(15,23,42,.88) !important;
+  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
+}
+
+.payrollSheet tbody td:first-child{
+  background: linear-gradient(180deg, rgba(247,250,255,.98), rgba(242,247,255,.98)) !important;
+  color: rgba(15,23,42,.96) !important;
+  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
+}
+
+.payrollSheet tbody tr:hover td:first-child,
+.payrollSheet tbody tr.is-selected td:first-child{
+  background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(232,244,255,.98)) !important;
+}
+
+.payrollSheet .emp,
+.payrollEmployeeName{
+  color: rgba(15,23,42,.96) !important;
+  text-shadow:none !important;
+}
+
+.payrollSheet .empSub,
+.payrollSummaryItem .k,
+.payrollEmployeeCard .payrollSummaryItem .k{
+  color: rgba(71,85,105,.82) !important;
+}
+
+.payrollDayHours{
+  color:#0f766e !important;
+}
+
+.payrollDayEmpty{
+  color: rgba(100,116,139,.55) !important;
+}
+
+.payrollSummaryItem,
+.payrollEmployeeCard .payrollSummaryItem{
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96)) !important;
+  border:1px solid rgba(191,219,254,.95) !important;
+  box-shadow:0 8px 18px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.88) !important;
+}
+
+.payrollSummaryItem .v,
+.payrollSummaryItem.net .v,
+.payrollEmployeeCard .payrollSummaryItem .v{
+  color: rgba(15,23,42,.96) !important;
+}
+
+.payrollEmployeeCard .tablewrap,
+.payrollEmployeeCard .weeklyEditTable,
+.myReportsWeekTable .tablewrap,
+.myReportsWeekTable .weeklyEditTable{
+  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99)) !important;
   border-color: rgba(96,165,250,.16) !important;
 }
 
@@ -8896,34 +9852,294 @@ def login():
                               details="Invalid username or password")
                     msg = "Invalid login"
 
+    try:
+        company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
+    except Exception:
+        company_name = "Main"
+
+    entered_username = (request.form.get("username", "") or "").strip() if request.method == "POST" else ""
+    entered_workplace_id = (request.form.get("workplace_id", "") or "").strip() if request.method == "POST" else ""
+
+    login_page_style = """
+    <style>
+      .loginShellPro{
+        max-width:720px;
+      }
+      .loginTopBar{
+        display:flex;
+        justify-content:flex-end;
+        align-items:center;
+        margin-bottom:14px;
+      }
+      .loginCardPro{
+        padding:0;
+        overflow:hidden;
+        border-radius:30px;
+        border:1px solid rgba(96,165,250,.18);
+        background:
+          linear-gradient(180deg, rgba(3,14,33,.94), rgba(5,23,48,.90)),
+          radial-gradient(circle at top left, rgba(59,130,246,.14), transparent 34%),
+          radial-gradient(circle at bottom right, rgba(34,211,238,.08), transparent 30%);
+        box-shadow:
+          0 22px 54px rgba(2,6,23,.30),
+          inset 0 1px 0 rgba(255,255,255,.05);
+      }
+      .loginHeroPro{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:18px;
+        padding:28px 28px 18px 28px;
+        border-bottom:1px solid rgba(148,163,184,.10);
+      }
+      .loginEyebrow{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        padding:8px 12px;
+        border-radius:999px;
+        margin-bottom:14px;
+        font-size:12px;
+        font-weight:800;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        color:#bfdbfe;
+        background:rgba(29,78,216,.16);
+        border:1px solid rgba(96,165,250,.20);
+      }
+      .loginHeroPro h1{
+        margin:0;
+        font-size:52px;
+        line-height:1.02;
+        letter-spacing:-.03em;
+        color:#f8fafc;
+      }
+      .loginLead{
+        margin:12px 0 0 0;
+        max-width:480px;
+        color:rgba(191,219,254,.78);
+        font-size:16px;
+        line-height:1.65;
+      }
+      .loginHeroBadge{
+        flex:0 0 auto;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-height:40px;
+        padding:10px 14px;
+        border-radius:16px;
+        font-size:12px;
+        font-weight:800;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        color:#dbeafe;
+        background:rgba(15,23,42,.48);
+        border:1px solid rgba(96,165,250,.22);
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+      }
+      .loginFormWrap{
+        padding:24px 28px 28px 28px;
+      }
+      .loginSectionTitle{
+        font-size:15px;
+        font-weight:700;
+        color:#cbd5e1;
+        margin:0 0 16px 0;
+      }
+      .loginFormGrid{
+        display:grid;
+        gap:14px;
+      }
+      .loginFieldLabel{
+        display:block;
+        margin:0 0 8px 0;
+        color:#cbd5e1;
+        font-size:13px;
+        font-weight:700;
+        letter-spacing:.02em;
+      }
+      .loginInput{
+        height:56px;
+        margin-top:0;
+        border-radius:16px;
+        border:1px solid rgba(96,165,250,.16);
+        background:linear-gradient(180deg, rgba(2,12,30,.92), rgba(3,20,44,.88));
+        color:#f8fafc;
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+      }
+      .loginInput::placeholder{
+        color:rgba(148,163,184,.78);
+      }
+      .loginInput:focus{
+        border-color:rgba(96,165,250,.42);
+        box-shadow:0 0 0 4px rgba(37,99,235,.14);
+      }
+      .loginPrimaryBtn{
+        width:100%;
+        margin-top:4px;
+        border:none;
+        border-radius:18px;
+        height:58px;
+        padding:0 18px;
+        cursor:pointer;
+        font-size:17px;
+        font-weight:800;
+        letter-spacing:.01em;
+        color:#eff6ff;
+        background:linear-gradient(135deg, #2f6bff 0%, #4f83ff 55%, #5d92ff 100%);
+        box-shadow:
+          0 18px 34px rgba(37,99,235,.24),
+          inset 0 1px 0 rgba(255,255,255,.16);
+        transition:transform .16s ease, box-shadow .16s ease, filter .16s ease;
+      }
+      .loginPrimaryBtn:hover{
+        transform:translateY(-1px);
+        box-shadow:
+          0 22px 36px rgba(37,99,235,.28),
+          inset 0 1px 0 rgba(255,255,255,.18);
+        filter:brightness(1.02);
+      }
+      .loginPrimaryBtn:active{
+        transform:translateY(0);
+        filter:brightness(.99);
+      }
+      .loginMetaGrid{
+        display:grid;
+        grid-template-columns:repeat(3, minmax(0,1fr));
+        gap:10px;
+        margin-top:18px;
+      }
+      .loginMetaCard{
+        padding:12px 14px;
+        border-radius:18px;
+        border:1px solid rgba(96,165,250,.10);
+        background:linear-gradient(180deg, rgba(9,28,55,.88), rgba(6,22,46,.82));
+        box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
+      }
+      .loginMetaLabel{
+        display:block;
+        margin:0 0 4px 0;
+        color:rgba(148,163,184,.90);
+        font-size:11px;
+        font-weight:700;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+      }
+      .loginMetaValue{
+        display:block;
+        color:#f8fafc;
+        font-size:13px;
+        font-weight:700;
+        line-height:1.45;
+      }
+      .loginMessageWrap{
+        margin-top:14px;
+      }
+      .loginFooterNote{
+        margin-top:14px;
+        color:rgba(148,163,184,.94);
+        font-size:13px;
+        line-height:1.6;
+      }
+      @media (max-width: 760px){
+        .loginShellPro{
+          max-width:100%;
+        }
+        .loginHeroPro{
+          padding:24px 20px 16px 20px;
+          flex-direction:column;
+          align-items:flex-start;
+        }
+        .loginHeroPro h1{
+          font-size:42px;
+        }
+        .loginFormWrap{
+          padding:20px;
+        }
+      }
+      @media (max-width: 560px){
+        .loginTopBar{
+          margin-bottom:12px;
+        }
+        .loginHeroPro h1{
+          font-size:36px;
+        }
+        .loginLead{
+          font-size:15px;
+          line-height:1.58;
+        }
+        .loginMetaGrid{
+          grid-template-columns:1fr;
+        }
+      }
+    </style>
+    """
+
     html = f"""
-    <div class="shell" style="grid-template-columns:1fr; max-width:560px;">
+    <div class="shell loginShellPro" style="grid-template-columns:1fr;">
       <div class="main">
-        <div class="headerTop">
-          <div>
-            <h1>WorkHours</h1>
-            <p class="sub">Sign in</p>
-          </div>
-          <div class="badge">Secure</div>
+        <div class="loginTopBar">
+          <span class="topBrandBadge">{escape(company_name)}</span>
         </div>
 
-        <div class="card" style="padding:14px;">
-          <form method="POST" onsubmit="var f=this,ae=document.activeElement;if(ae&&ae.blur)ae.blur();window.scrollTo(0,0);setTimeout(f.submit.bind(f),180);return false;">
-            <input type="hidden" name="csrf" value="{escape(csrf)}">
-            <label class="sub">User</label>
-            <input class="input" name="username" required>
-            <label class="sub" style="margin-top:10px; display:block;">Workplace ID</label>
-            <input class="input" name="workplace_id" value="" placeholder="e.g. newera" required>
-            <label class="sub" style="margin-top:10px; display:block;">Password</label>
-            <input class="input" type="password" name="password" required>
-            <button class="btnSoft" type="submit" style="margin-top:12px;">Login</button>
-          </form>
-          {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
+        <div class="card loginCardPro">
+          <div class="loginHeroPro">
+            <div>
+              <div class="loginEyebrow">Secure workforce access</div>
+              <h1>WorkHours</h1>
+              <p class="sub loginLead">Payroll, attendance and site clock-in in one secure workspace.</p>
+            </div>
+            <div class="loginHeroBadge">Secure sign in</div>
+          </div>
+
+          <div class="loginFormWrap">
+            <div class="loginSectionTitle">Sign in to continue</div>
+            <form method="POST" class="loginFormGrid" onsubmit="var f=this,ae=document.activeElement;if(ae&&ae.blur)ae.blur();window.scrollTo(0,0);setTimeout(f.submit.bind(f),180);return false;">
+              <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+              <div>
+                <label class="loginFieldLabel" for="login-username">Username</label>
+                <input id="login-username" class="input loginInput" name="username" value="{escape(entered_username)}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username" required>
+              </div>
+
+              <div>
+                <label class="loginFieldLabel" for="login-workplace">Workplace ID</label>
+                <input id="login-workplace" class="input loginInput" name="workplace_id" value="{escape(entered_workplace_id)}" autocomplete="organization" autocapitalize="none" spellcheck="false" placeholder="e.g. newera" required>
+              </div>
+
+              <div>
+                <label class="loginFieldLabel" for="login-password">Password</label>
+                <input id="login-password" class="input loginInput" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
+              </div>
+
+              <button class="loginPrimaryBtn" type="submit">Sign in</button>
+            </form>
+
+            {("<div class='message error loginMessageWrap'>" + escape(msg) + "</div>") if msg else ""}
+
+            <div class="loginMetaGrid">
+              <div class="loginMetaCard">
+                <span class="loginMetaLabel">Platform</span>
+                <span class="loginMetaValue">Payroll and attendance workspace</span>
+              </div>
+              <div class="loginMetaCard">
+                <span class="loginMetaLabel">Access</span>
+                <span class="loginMetaValue">Role-based secure session</span>
+              </div>
+              <div class="loginMetaCard">
+                <span class="loginMetaLabel">Sign-in</span>
+                <span class="loginMetaValue">Use your workplace ID and password</span>
+              </div>
+            </div>
+
+            <div class="loginFooterNote">Use the same credentials provided by your administrator. After sign-in you can access clock-in, timesheets and payroll tools based on your role.</div>
+          </div>
         </div>
       </div>
     </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{html}")
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{login_page_style}{html}")
 
 
 @app.get("/logout")
@@ -9231,6 +10447,21 @@ def home():
     except Exception:
         active_locations_count = 0
 
+    best_week_gross = max(weekly_gross) if weekly_gross else 0.0
+    avg_weekly_gross = (sum(weekly_gross) / len(weekly_gross)) if weekly_gross else 0.0
+    week_target_hours = 40.0
+    week_progress_pct = 0
+    if week_target_hours > 0:
+        week_progress_pct = int(round(max(0.0, min(1.0, week_hours / week_target_hours)) * 100))
+    team_metric_label = "Clocked In Now" if role in ("admin", "master_admin") else "Active Locations"
+    team_metric_value = clocked_in_count if role in ("admin", "master_admin") else active_locations_count
+    if prev_gross > 0:
+        week_delta_pct = ((curr_gross - prev_gross) / prev_gross) * 100.0
+    elif curr_gross > 0:
+        week_delta_pct = 100.0
+    else:
+        week_delta_pct = 0.0
+
     snapshot_html = ""
     if role in ("admin", "master_admin"):
         snapshot_html = f"""
@@ -9240,7 +10471,7 @@ def home():
                 <div class="sectionIcon">{_svg_grid()}</div>
                 <div>
                   <h2 style="margin:0;">Business Snapshot</h2>
-                  <p class="sub" style="margin:4px 0 0 0;">Current workplace overview.</p>
+                  <p class="sub" style="margin:4px 0 0 0;">Live workforce and workplace setup overview.</p>
                 </div>
               </div>
               <div class="sectionBadge">Live</div>
@@ -9267,41 +10498,60 @@ def home():
                 <div class="sideInfoValue">{onboarding_pending_count}</div>
               </div>
             </div>
+
+            <div class="snapshotFoot">Monitor staffing, access setup and onboarding completion from one place.</div>
           </div>
         """
 
     content = f"""
-      <div class="headerTop">
-        <div>
+      <div class="dashboardHero">
+        <div class="dashboardHeroMain">
+          <div class="dashboardEyebrow">Workforce overview</div>
           <h1>Dashboard</h1>
-          <p class="sub">Welcome, {escape(display_name)}</p>
+          <p class="sub">Welcome back, {escape(display_name)}. Here is a clear view of hours, gross pay and recent activity.</p>
         </div>
-        <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
+        <div class="dashboardHeroMeta">
+          <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
+          <div class="dashboardDateChip">{escape(now.strftime("%A • %d %b %Y"))}</div>
+        </div>
       </div>
-<div class="kpiRow">
-  <div class="card kpi kpiFancy">
-    <div class="kpiTop">
-      <p class="label">Previous Gross</p>
-      <span class="chip">Week total</span>
-    </div>
-    <p class="value">{escape(currency)}{money(prev_gross)}</p>
-    <p class="sub">Previous week</p>
-  </div>
 
-  <div class="card kpi kpiFancy kpiPrimary">
-    <div class="kpiTop">
-      <p class="label">Current Gross</p>
-      <span class="chip {'ok' if curr_gross >= prev_gross else 'warn'}">
-        {'▲' if curr_gross >= prev_gross else '▼'}
-        {money(((curr_gross - prev_gross) / (prev_gross if prev_gross > 0 else 1.0)) * 100.0)}%
-      </span>
-    </div>
-    <p class="value">{escape(currency)}{money(curr_gross)}</p>
-    <p class="sub">This week (so far)</p>
-  </div>
-</div>
+      <div class="kpiRow">
+        <div class="card kpi kpiFancy">
+          <div class="kpiTop">
+            <p class="label">Previous Gross</p>
+            <span class="chip">Previous week</span>
+          </div>
+          <p class="value">{escape(currency)}{money(prev_gross)}</p>
+          <p class="sub">Closed weekly total</p>
+        </div>
 
-          <div class="card graphCard">
+        <div class="card kpi kpiFancy kpiPrimary">
+          <div class="kpiTop">
+            <p class="label">Current Gross</p>
+            <span class="chip {'ok' if curr_gross >= prev_gross else 'warn'}">
+              {'▲' if curr_gross >= prev_gross else '▼'} {money(abs(week_delta_pct))}%
+            </span>
+          </div>
+          <p class="value">{escape(currency)}{money(curr_gross)}</p>
+          <p class="sub">This week so far</p>
+        </div>
+
+        <div class="card kpi kpiFancy kpiHours">
+          <div class="kpiTop">
+            <p class="label">Week Hours</p>
+            <span class="chip">{len(week_days)} day{'s' if len(week_days) != 1 else ''}</span>
+          </div>
+          <p class="value">{fmt_hours(week_hours)}</p>
+          <div class="kpiMetaRow">
+            <span>{week_progress_pct}% of 40h target</span>
+            <span>{escape(currency)}{money(today_pay)} today</span>
+          </div>
+          <div class="kpiProgress"><span style="width:{week_progress_pct}%;"></span></div>
+        </div>
+      </div>
+
+      <div class="card graphCard">
         <div class="graphTop">
           <div>
             <div class="graphTitle">Weekly Gross</div>
@@ -9329,10 +10579,36 @@ def home():
             {''.join([f"<div>{escape(x)}</div>" for x in week_labels])}
           </div>
         </div>
+
+        <div class="graphMeta">
+          <div class="graphStat">
+            <div class="k">Best week</div>
+            <div class="v">{escape(currency)}{money(best_week_gross)}</div>
+          </div>
+          <div class="graphStat">
+            <div class="k">8-week average</div>
+            <div class="v">{escape(currency)}{money(avg_weekly_gross)}</div>
+          </div>
+          <div class="graphStat">
+            <div class="k">Days logged this week</div>
+            <div class="v">{len(week_days)}</div>
+          </div>
+        </div>
       </div>
 
       <div class="dashboardLower">
         <div class="card quickCard">
+          <div class="sectionHead">
+            <div class="sectionHeadLeft">
+              <div class="sectionIcon">{_svg_clock()}</div>
+              <div>
+                <h2 style="margin:0;">Today&apos;s Summary</h2>
+                <p class="sub" style="margin:4px 0 0 0;">Live attendance and pay summary for this workplace.</p>
+              </div>
+            </div>
+            <div class="sectionBadge">This week</div>
+          </div>
+
           <div class="quickGrid">
             <div class="quickMini">
               <div class="left">
@@ -9373,6 +10649,22 @@ def home():
               </div>
               <div class="miniText">{len(week_days)}</div>
             </div>
+
+            <div class="quickMini">
+              <div class="left">
+                <div class="miniIcon">{_svg_grid()}</div>
+                <div class="miniText">{team_metric_label}</div>
+              </div>
+              <div class="miniText">{team_metric_value}</div>
+            </div>
+          </div>
+
+          <div class="dashboardProgressRow">
+            <div class="dashboardProgressMeta">
+              <span>Weekly hours target progress</span>
+              <strong>{week_progress_pct}%</strong>
+            </div>
+            <div class="dashboardProgressBar"><span style="width:{week_progress_pct}%;"></span></div>
           </div>
         </div>
       </div>
@@ -9399,29 +10691,42 @@ def home():
       </div>
 
       <div class="card menu dashboardMainMenu">
-  <a class="menuItem nav-clock" href="/clock">
-    <div class="menuLeft"><div class="icoBox">{_icon_clock(22)}</div><div class="menuText">Clock In & Out</div></div>
-    <div class="chev">›</div>
-  </a>
-  <a class="menuItem nav-times" href="/my-times">
-    <div class="menuLeft"><div class="icoBox">{_icon_timelogs(22)}</div><div class="menuText">Time logs</div></div>
-    <div class="chev">›</div>
-  </a>
-  <a class="menuItem nav-reports" href="/my-reports">
-    <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
-    <div class="chev">›</div>
-  </a>
-  <a class="menuItem nav-agreements" href="/onboarding">
-    <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
-    <div class="chev">›</div>
-  </a>
-  {admin_item}
-  {workplaces_item}
-  <a class="menuItem nav-profile" href="/password">
-    <div class="menuLeft"><div class="icoBox">{_icon_profile(22)}</div><div class="menuText">Profile</div></div>
-    <div class="chev">›</div>
-  </a>
-</div>
+        <div class="sectionHead dashboardMenuHead">
+          <div class="sectionHeadLeft">
+            <div class="sectionIcon">{_svg_grid()}</div>
+            <div>
+              <h2 style="margin:0;">Workspace Shortcuts</h2>
+              <p class="sub" style="margin:4px 0 0 0;">Jump into the most-used areas of your payroll workspace.</p>
+            </div>
+          </div>
+          <div class="sectionBadge">Quick access</div>
+        </div>
+
+        <div class="dashboardShortcutGrid">
+          <a class="menuItem nav-clock" href="/clock">
+            <div class="menuLeft"><div class="icoBox">{_icon_clock(22)}</div><div class="menuText">Clock In & Out</div></div>
+            <div class="chev">›</div>
+          </a>
+          <a class="menuItem nav-times" href="/my-times">
+            <div class="menuLeft"><div class="icoBox">{_icon_timelogs(22)}</div><div class="menuText">Time logs</div></div>
+            <div class="chev">›</div>
+          </a>
+          <a class="menuItem nav-reports" href="/my-reports">
+            <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
+            <div class="chev">›</div>
+          </a>
+          <a class="menuItem nav-agreements" href="/onboarding">
+            <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
+            <div class="chev">›</div>
+          </a>
+          {admin_item}
+          {workplaces_item}
+          <a class="menuItem nav-profile" href="/password">
+            <div class="menuLeft"><div class="icoBox">{_icon_profile(22)}</div><div class="menuText">Profile</div></div>
+            <div class="chev">›</div>
+          </a>
+        </div>
+      </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content))
 
@@ -9778,11 +11083,11 @@ def clock_page():
       <style>
         .clockFlowWrap {{
           position: relative;
-          max-width: 760px;
+          max-width: 780px;
           margin: 0 auto;
-          padding: 18px 0 8px;
+          padding: 18px 0 10px;
         }}
-                .clockInlineMsg {{
+        .clockInlineMsg {{
           margin: 0 0 18px;
           padding: 14px 16px;
           border-radius: 18px;
@@ -9797,273 +11102,60 @@ def clock_page():
           color: #dcfce7;
         }}
         .clockStep {{
-          padding: 26px 20px 28px;
+          padding: 28px 22px 30px;
           border-radius: 30px;
-          border: 1px solid rgba(148,163,184,.14);
+          border: 1px solid rgba(96,165,250,.18);
           background:
-            radial-gradient(circle at top, rgba(59,130,246,.18), transparent 42%),
-            linear-gradient(180deg, rgba(2,6,23,.74), rgba(2,6,23,.88));
+            radial-gradient(circle at top right, rgba(59,130,246,.12), transparent 36%),
+            linear-gradient(180deg, #06142b 0%, #081b36 52%, #081428 100%);
           box-shadow:
-            0 26px 70px rgba(2,6,23,.36),
+            0 26px 64px rgba(2,6,23,.34),
             inset 0 1px 0 rgba(255,255,255,.04);
         }}
-        .clockStepLabel {{
-          text-align: center;
-          color: #94a3b8;
-          font-size: 18px;
-          font-weight: 600;
-          letter-spacing: .01em;
-          margin-bottom: 14px;
-        }}
-        .clockHeroTitle {{
-          margin: 0 0 28px;
-          text-align: center;
-          color: #e5e7eb;
-          font-size: clamp(32px, 5vw, 42px);
-          line-height: 1.08;
-          font-weight: 800;
-        }}
-        .clockStageCard {{
-          border-radius: 24px;
-          border: 1px solid rgba(96,165,250,.20);
-          overflow: hidden;
-          background: linear-gradient(180deg, rgba(15,23,42,.56), rgba(15,23,42,.82));
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-        }}
-        .clockSelfieStage {{
-          position: relative;
-          min-height: 320px;
-          display: grid;
-          place-items: center;
-          padding: 24px;
-          background:
-            radial-gradient(circle at center, rgba(30,64,175,.22), transparent 58%),
-            linear-gradient(180deg, rgba(15,23,42,.42), rgba(15,23,42,.82));
-        }}
-        .clockSelfiePlaceholder {{
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          justify-content: center;
-          gap: 10px;
-          color: #93c5fd;
-          opacity: .72;
-          text-align: center;
-        }}
-        .clockSelfiePlaceholderIcon {{
-          font-size: 76px;
-          line-height: 1;
-        }}
-        .clockSelfiePlaceholderText {{
-          font-size: 15px;
-          color: #cbd5e1;
-        }}
-        .clockSelfieVideo {{
-          display: none;
-          width: 100%;
-          min-height: 320px;
-          border-radius: 18px;
-          object-fit: cover;
-          background: #020617;
-          border: 1px solid rgba(148,163,184,.20);
-        }}
-        .clockCaptureBar {{
-          display: flex;
-          gap: 12px;
-          padding: 18px;
-          align-items: center;
-          background: linear-gradient(180deg, rgba(30,41,59,.34), rgba(15,23,42,.54));
-          border-top: 1px solid rgba(148,163,184,.08);
-        }}
-        .clockPrimaryBtn, .clockPrimaryAction, .clockSecondaryAction, .clockGhostBtn {{
-          border: 0;
-          border-radius: 18px;
-          font-weight: 800;
-          transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
-        }}
-        .clockPrimaryBtn, .clockPrimaryAction {{
-          background: linear-gradient(90deg, #3b82f6, #4f7cff);
-          color: white;
-          box-shadow: 0 16px 34px rgba(59,130,246,.26), inset 0 1px 0 rgba(255,255,255,.18);
-        }}
-        .clockPrimaryBtn:hover, .clockPrimaryAction:hover, .clockSecondaryAction:hover, .clockGhostBtn:hover {{
-          transform: translateY(-1px);
-        }}
-        .clockPrimaryBtn {{
-          display: inline-flex;
-          width: 100%;
-          align-items: center;
-          justify-content: center;
-          gap: 14px;
-          min-height: 72px;
-          font-size: 20px;
-        }}
-        .clockPrimaryBtnArrow {{
-          font-size: 34px;
-          line-height: 1;
-          margin-top: -1px;
-        }}
-        .clockGhostBtn {{
-          min-width: 120px;
-          min-height: 72px;
-          padding: 0 22px;
-          background: rgba(15,23,42,.62);
-          color: #cbd5e1;
-          border: 1px solid rgba(148,163,184,.18);
-        }}
-        .clockDistanceAlert {{
-          margin: 22px auto 18px;
-          padding: 0 10px;
-          text-align: center;
-        }}
-        .clockDistanceAlertTitle {{
-          font-size: 18px;
-          font-weight: 700;
-          color: #fca5a5;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          gap: 8px;
-        }}
-        .clockDistanceAlertMeta {{
-          margin-top: 4px;
-          font-size: 15px;
-          color: #cbd5e1;
-        }}
+        .clockStepLabel {{ text-align: center; color: #93c5fd; font-size: 17px; font-weight: 700; letter-spacing: .02em; margin-bottom: 14px; }}
+        .clockHeroTitle {{ margin: 0 0 28px; text-align: center; color: #f8fafc; font-size: clamp(32px, 5vw, 44px); line-height: 1.06; font-weight: 800; }}
+        .clockStageCard {{ border-radius: 24px; border: 1px solid rgba(96,165,250,.18); overflow: hidden; background: linear-gradient(180deg, rgba(10,24,49,.88), rgba(8,18,34,.94)); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }}
+        .clockSelfieStage {{ position: relative; min-height: 320px; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at center, rgba(59,130,246,.16), transparent 52%), linear-gradient(180deg, rgba(8,23,47,.76), rgba(7,20,39,.96)); }}
+        .clockSelfiePlaceholder {{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #bfdbfe; opacity: .84; text-align: center; }}
+        .clockSelfiePlaceholderIcon {{ font-size: 76px; line-height: 1; }}
+        .clockSelfiePlaceholderText {{ font-size: 15px; color: #cbd5e1; max-width: 420px; }}
+        .clockSelfieVideo {{ display: none; width: 100%; min-height: 320px; border-radius: 18px; object-fit: cover; background: #020617; border: 1px solid rgba(148,163,184,.18); }}
+        .clockCaptureBar {{ display: flex; gap: 12px; padding: 18px; align-items: center; background: linear-gradient(180deg, rgba(17,24,39,.52), rgba(11,18,32,.80)); border-top: 1px solid rgba(148,163,184,.08); }}
+        .clockPrimaryBtn, .clockPrimaryAction, .clockSecondaryAction, .clockGhostBtn {{ border: 0; border-radius: 18px; font-weight: 800; transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, filter .18s ease; }}
+        .clockPrimaryBtn, .clockPrimaryAction {{ background: linear-gradient(90deg, #2563eb, #4f7cff); color: white; box-shadow: 0 14px 28px rgba(37,99,235,.24), inset 0 1px 0 rgba(255,255,255,.18); }}
+        .clockPrimaryBtn:hover, .clockPrimaryAction:hover, .clockSecondaryAction:hover, .clockGhostBtn:hover {{ transform: translateY(-1px); filter: brightness(1.03); }}
+        .clockPrimaryBtn {{ display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 14px; min-height: 72px; font-size: 20px; }}
+        .clockPrimaryBtnArrow {{ font-size: 34px; line-height: 1; margin-top: -1px; }}
+        .clockGhostBtn {{ min-width: 128px; min-height: 72px; padding: 0 22px; background: rgba(15,23,42,.70); color: #cbd5e1; border: 1px solid rgba(96,165,250,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }}
+        .clockDistanceAlert {{ margin: 20px auto 16px; max-width: 520px; padding: 14px 18px; border-radius: 18px; text-align: center; border: 1px solid rgba(248,113,113,.22); background: linear-gradient(180deg, rgba(69,10,10,.30), rgba(31,41,55,.18)); box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }}
+        .clockDistanceAlertTitle {{ font-size: 18px; font-weight: 800; color: #fca5a5; display: flex; align-items: center; justify-content: center; gap: 8px; }}
+        .clockDistanceAlertMeta {{ margin-top: 5px; font-size: 15px; color: #e2e8f0; }}
+        .clockDistanceAlert.is-ok {{ border-color: rgba(74,222,128,.22); background: linear-gradient(180deg, rgba(20,83,45,.28), rgba(15,23,42,.20)); }}
         .clockDistanceAlert.is-ok .clockDistanceAlertTitle {{ color: #86efac; }}
-        .clockDistanceAlert.is-ok .clockDistanceAlertMeta {{ color: #bbf7d0; }}
-        .clockMapShell {{
-          border-radius: 24px;
-          overflow: hidden;
-          border: 1px solid rgba(148,163,184,.16);
-          box-shadow: 0 18px 40px rgba(2,6,23,.24);
-        }}
-        .clockFooterNote {{
-          margin: 22px 6px 0;
-          text-align: center;
-          color: #94a3b8;
-          font-size: 15px;
-        }}
-        .clockFooterNote strong {{ color: #e2e8f0; }}
+        .clockDistanceAlert.is-ok .clockDistanceAlertMeta {{ color: #dcfce7; }}
+        .clockMapShell {{ border-radius: 24px; overflow: hidden; border: 1px solid rgba(96,165,250,.16); box-shadow: 0 18px 40px rgba(2,6,23,.24); background: linear-gradient(180deg, rgba(5,19,39,.94), rgba(7,20,39,.98)); }}
+        .clockFooterNote {{ margin: 18px 6px 0; text-align: center; color: #94a3b8; font-size: 15px; }}
+        .clockFooterNote strong {{ color: #f8fafc; }}
         .clockHidden {{ display: none !important; }}
-        .clockStepTwo {{ display: none; text-align: center; padding-top: 52px; }}
-        .clockCapturedRow {{
-          display: inline-flex;
-          align-items: center;
-          gap: 10px;
-          color: #e5e7eb;
-          font-size: 18px;
-          font-weight: 700;
-          margin-bottom: 22px;
-        }}
-        .clockCapturedIcon {{
-          width: 32px;
-          height: 32px;
-          display: inline-grid;
-          place-items: center;
-          border-radius: 999px;
-          background: rgba(255,255,255,.9);
-          color: #0f172a;
-          font-size: 18px;
-          font-weight: 900;
-        }}
-        .clockFinalSelfie {{
-          width: min(220px, 52vw);
-          aspect-ratio: 1 / 1;
-          margin: 0 auto 28px;
-          border-radius: 22px;
-          object-fit: cover;
-          background: rgba(255,255,255,.08);
-          border: 1px solid rgba(148,163,184,.18);
-          box-shadow: 0 18px 44px rgba(2,6,23,.24);
-          display: none;
-        }}
-        .clockTimerStage {{
-          margin: 0 auto 24px;
-          max-width: 520px;
-        }}
+        .clockStepTwo {{ display: none; text-align: center; padding-top: 40px; }}
+        .clockCapturedRow {{ display: inline-flex; align-items: center; gap: 10px; color: #e5e7eb; font-size: 18px; font-weight: 700; margin-bottom: 22px; }}
+        .clockCapturedIcon {{ width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 999px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 18px; font-weight: 900; }}
+        .clockFinalSelfie {{ width: min(220px, 52vw); aspect-ratio: 1 / 1; margin: 0 auto 28px; border-radius: 22px; object-fit: cover; background: rgba(255,255,255,.08); border: 1px solid rgba(148,163,184,.18); box-shadow: 0 18px 44px rgba(2,6,23,.24); display: none; }}
+        .clockTimerStage {{ margin: 0 auto 24px; max-width: 540px; padding: 8px 0 0; }}
         .clockTimerStage .clockStatusIdle,
-        .clockTimerStage .clockStatusLive {{
-          background: transparent !important;
-          color: #94a3b8 !important;
-          font-size: 16px !important;
-          font-weight: 600 !important;
-          margin-bottom: 10px !important;
-          padding: 0 !important;
-          border: 0 !important;
-          box-shadow: none !important;
-        }}
-        .clockTimerStage .timerBig {{
-          font-size: clamp(54px, 11vw, 78px) !important;
-          line-height: 1 !important;
-          letter-spacing: 1.5px !important;
-          color: #eef2ff !important;
-          margin: 0 !important;
-          font-weight: 800 !important;
-        }}
-        .clockTimerStage .clockHint {{
-          margin-top: 12px !important;
-          color: #94a3b8 !important;
-          font-size: 14px !important;
-        }}
+        .clockTimerStage .clockStatusLive {{ background: transparent !important; color: #93c5fd !important; font-size: 16px !important; font-weight: 700 !important; margin-bottom: 10px !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }}
+        .clockTimerStage .timerBig {{ font-size: clamp(54px, 11vw, 80px) !important; line-height: 1 !important; letter-spacing: 1.5px !important; color: #eef2ff !important; margin: 0 !important; font-weight: 800 !important; }}
+        .clockTimerStage .clockHint {{ margin-top: 12px !important; color: #94a3b8 !important; font-size: 14px !important; }}
         .clockTimerStage .timerSub {{ margin-top: 12px !important; }}
-        .clockActionStack {{
-          max-width: 560px;
-          margin: 0 auto;
-          display: grid;
-          gap: 14px;
-        }}
-        .clockPrimaryAction, .clockSecondaryAction {{
-          width: 100%;
-          min-height: 82px;
-          font-size: clamp(22px, 4vw, 28px);
-          letter-spacing: .04em;
-          text-transform: uppercase;
-        }}
-        .clockSecondaryAction {{
-          background: rgba(15,23,42,.36);
-          color: #a5b4fc;
-          border: 1px solid rgba(148,163,184,.16);
-          box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-        }}
-        .clockSecondaryAction[disabled],
-        .clockGhostBtn[disabled] {{
-          opacity: .5;
-          cursor: not-allowed;
-          transform: none;
-        }}
-        .clockTextLink {{
-          display: inline-block;
-          margin-top: 18px;
-          color: #93c5fd;
-          font-weight: 600;
-          text-decoration: none;
-        }}
-        .clockBackLink {{
-          margin-top: 16px;
-          background: transparent;
-          border: 0;
-          color: #cbd5e1;
-          font-weight: 600;
-          cursor: pointer;
-        }}
-        .clockMetaText {{
-          margin-top: 14px;
-          color: #94a3b8;
-          font-size: 14px;
-          text-align: center;
-        }}
-        @media (max-width: 640px) {{
-          .clockFlowWrap {{ padding-top: 10px; }}
-                    .clockStep {{ padding: 22px 14px 24px; border-radius: 24px; }}
-          .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }}
-          .clockSelfieStage {{ min-height: 240px; padding: 16px; }}
-          .clockSelfieVideo {{ min-height: 240px; }}
-          .clockCaptureBar {{ flex-direction: column; }}
-          .clockGhostBtn {{ width: 100%; min-height: 58px; }}
-          .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }}
-          .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }}
-        }}
+        .clockActionStack {{ max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }}
+        .clockPrimaryAction, .clockSecondaryAction {{ width: 100%; min-height: 82px; font-size: clamp(22px, 4vw, 28px); letter-spacing: .04em; text-transform: uppercase; }}
+        .clockSecondaryAction {{ background: rgba(15,23,42,.52); color: #c7d2fe; border: 1px solid rgba(96,165,250,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }}
+        .clockSecondaryAction[disabled], .clockGhostBtn[disabled] {{ opacity: .5; cursor: not-allowed; transform: none; }}
+        .clockTextLink {{ display: inline-block; margin-top: 18px; color: #93c5fd; font-weight: 700; text-decoration: none; }}
+        .clockBackLink {{ margin-top: 16px; background: transparent; border: 0; color: #cbd5e1; font-weight: 600; cursor: pointer; }}
+        .clockMetaText {{ margin-top: 14px; color: #94a3b8; font-size: 14px; text-align: center; }}
+        @media (max-width: 640px) {{ .clockFlowWrap {{ padding-top: 10px; }} .clockStep {{ padding: 22px 14px 24px; border-radius: 24px; }} .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }} .clockSelfieStage {{ min-height: 240px; padding: 16px; }} .clockSelfieVideo {{ min-height: 240px; }} .clockCaptureBar {{ flex-direction: column; }} .clockGhostBtn {{ width: 100%; min-height: 58px; }} .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }} .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }} }}
+
       </style>
 
       <div class="clockFlowWrap">
@@ -10417,49 +11509,123 @@ def my_times():
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
     allowed_wps = set(_workplace_ids_for_read(current_wp))
-    body = []
+
+    records = []
+    total_hours = 0.0
+    total_pay = 0.0
+    last_clock_date = "—"
+    today_count = 0
+    week_count = 0
+    today = datetime.now(TZ).date()
+    week_start = today - timedelta(days=today.weekday())
+
     for r in rows[1:]:
-        if len(r) <= COL_PAY:
-            continue
-        if len(r) <= COL_USER:
+        if len(r) <= COL_PAY or len(r) <= COL_USER:
             continue
         row_user = (r[COL_USER] or "").strip()
         if row_user != username:
             continue
 
-        # Workplace filter (only if WorkHours has Workplace_ID column)
         if wp_idx is not None:
             row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
             if row_wp not in allowed_wps:
                 continue
         else:
-            # Backward compat if sheet has no Workplace_ID column
             if not user_in_same_workplace(row_user):
                 continue
 
-        body.append(
-            f"<tr><td>{escape(r[COL_DATE])}</td><td>{escape(r[COL_IN])}</td>"
-            f"<td>{escape(r[COL_OUT])}</td><td class='num'>{escape(r[COL_HOURS])}</td><td class='num'>{escape(currency)}{escape(r[COL_PAY])}</td></tr>"
+        d_raw = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        hours_val = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        pay_val = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
+        total_hours += hours_val
+        total_pay += pay_val
+        if d_raw:
+            last_clock_date = d_raw
+            try:
+                row_date = datetime.strptime(d_raw, "%Y-%m-%d").date()
+                if row_date == today:
+                    today_count += 1
+                if week_start <= row_date <= today:
+                    week_count += 1
+            except Exception:
+                pass
+
+        records.append({
+            "date": d_raw,
+            "clock_in": (r[COL_IN] if len(r) > COL_IN else "") or "",
+            "clock_out": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
+            "hours": hours_val,
+            "pay": pay_val,
+        })
+
+    table_rows = []
+    for rec in records:
+        table_rows.append(
+            f"<tr><td>{escape(rec['date'])}</td><td>{escape(rec['clock_in'])}</td><td>{escape(rec['clock_out'])}</td><td class='num'>{escape(fmt_hours(rec['hours']))}</td><td class='num'>{escape(currency)}{escape(money(rec['pay']))}</td></tr>"
         )
-    table = "".join(body) if body else "<tr><td colspan='5'>No records yet.</td></tr>"
+    table = "".join(table_rows) if table_rows else "<tr><td colspan='5'>No records yet.</td></tr>"
+
+    page_css = """
+    <style>
+      .timeLogsPageShell{ display:grid; gap:14px; }
+      .timeLogsHero,
+      .timeLogsSummaryCard,
+      .timeLogsTableCard{
+        border:1px solid rgba(56,189,248,.14);
+        background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+        box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+      }
+      .timeLogsHero{ padding:18px; border-radius:24px; }
+      .timeLogsHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); }
+      .timeLogsHero h1{ margin:12px 0 0; font-size:clamp(34px, 5vw, 46px); color:#f8fafc; }
+      .timeLogsHero .sub{ color:rgba(191,219,254,.84); }
+      .timeLogsSummaryGrid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
+      .timeLogsSummaryCard{ padding:14px 16px; border-radius:20px; }
+      .timeLogsSummaryCard .k{ font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#93c5fd; }
+      .timeLogsSummaryCard .v{ margin-top:8px; font-size:clamp(24px, 3vw, 34px); font-weight:800; color:#f8fafc; }
+      .timeLogsSummaryCard .sub{ margin-top:6px; color:rgba(191,219,254,.78); }
+      .timeLogsTableCard{ padding:12px; border-radius:24px; }
+      .timeLogsTable{ width:100%; min-width:720px; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid rgba(96,165,250,.14); border-radius:18px; background:linear-gradient(180deg, rgba(3,12,28,.92), rgba(5,19,39,.94)); }
+      .timeLogsTable thead th{ padding:14px 16px; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#dbeafe; background:linear-gradient(180deg, rgba(29,78,216,.28), rgba(15,23,42,.86)); border-bottom:1px solid rgba(96,165,250,.14); }
+      .timeLogsTable tbody td{ padding:16px; color:#f8fafc; font-weight:700; font-variant-numeric:tabular-nums; border-bottom:1px solid rgba(96,165,250,.10); }
+      .timeLogsTable tbody tr:nth-child(even) td{ background:rgba(255,255,255,.015); }
+      .timeLogsTable tbody tr:hover td{ background:rgba(59,130,246,.08); }
+      .timeLogsTable td.num, .timeLogsTable th.num{ text-align:right; }
+      .timeLogsTable tbody tr:last-child td{ border-bottom:0; }
+      @media (max-width: 960px){ .timeLogsSummaryGrid{ grid-template-columns:1fr 1fr; } }
+      @media (max-width: 700px){ .timeLogsSummaryGrid{ grid-template-columns:1fr; } .timeLogsHero{ padding:16px; border-radius:20px; } .timeLogsTableCard{ padding:10px; border-radius:20px; } }
+    </style>
+    """
 
     content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Time logs</h1>
-          <p class="sub">{escape(display_name)} • Clock history</p>
+      {page_css}
+      <div class="timeLogsPageShell">
+        <div class="timeLogsHero card">
+          <div class="timeLogsHeroTop">
+            <div>
+              <div class="timeLogsEyebrow">Clock history</div>
+              <h1>Time logs</h1>
+              <p class="sub">{escape(display_name)} • Review every saved clock in and out entry.</p>
+            </div>
+            <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+          </div>
         </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
-      </div>
 
-      <div class="card payrollShell" style="padding:12px;">
-        <div class="tablewrap">
-          <table class="timeLogsTable">
-            <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class="num" style="text-align:center;">Hours</th>
-<th class="num" style="text-align:center;">Pay</th>
-</tr></thead>
-            <tbody>{table}</tbody>
-          </table>
+        <div class="timeLogsSummaryGrid">
+          <div class="timeLogsSummaryCard card"><div class="k">Entries</div><div class="v">{len(records)}</div><div class="sub">Saved shifts</div></div>
+          <div class="timeLogsSummaryCard card"><div class="k">Total Hours</div><div class="v">{escape(fmt_hours(total_hours))}</div><div class="sub">Across all records</div></div>
+          <div class="timeLogsSummaryCard card"><div class="k">Total Pay</div><div class="v">{escape(currency)}{escape(money(total_pay))}</div><div class="sub">Recorded gross pay</div></div>
+          <div class="timeLogsSummaryCard card"><div class="k">Recent Activity</div><div class="v">{escape(str(last_clock_date))}</div><div class="sub">Today: {today_count} • This week: {week_count}</div></div>
+        </div>
+
+        <div class="timeLogsTableCard card">
+          <div class="tablewrap">
+            <table class="timeLogsTable">
+              <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class='num'>Hours</th><th class='num'>Pay</th></tr></thead>
+              <tbody>{table}</tbody>
+            </table>
+          </div>
         </div>
       </div>
     """
@@ -10649,6 +11815,23 @@ def my_reports():
       .myReportsMonthCard{
         margin-top:12px;
       }
+      .myReportsHero{
+        padding:18px;
+        border-radius:24px;
+        border:1px solid rgba(56,189,248,.14);
+        background:
+          radial-gradient(circle at top right, rgba(59,130,246,.12), transparent 34%),
+          linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+        box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+      }
+      .myReportsHeroRow{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+      .myReportsHeroBrand{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+      .myReportsHeroLogo{ max-height:64px; max-width:150px; object-fit:contain; border-radius:14px; border:1px solid rgba(96,165,250,.18); padding:8px; background:rgba(255,255,255,.98); }
+      .myReportsHeroTitle{ font-size:clamp(26px, 3vw, 34px); font-weight:800; line-height:1.05; color:#f8fafc; }
+      .myReportsHeroMeta{ margin-top:4px; color:rgba(191,219,254,.82); font-size:15px; }
+      .myReportsHeroEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
+      .myReportsWeekTable{ border:1px solid rgba(56,189,248,.14); background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%); box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04); }
+      .myReportsWeekTable .sub{ color:rgba(191,219,254,.82); }
 
       .myReportsWeekPicker{
         margin-top:12px;
@@ -10761,9 +11944,14 @@ def my_reports():
 }
 
 .myReportsWeekPicker .input{
-  background: rgba(7,20,39,.72);
-  border: 1px solid rgba(96,165,250,.20);
-  color: #e8f1ff;
+  background: rgba(7,20,39,.88);
+  border: 1px solid rgba(96,165,250,.18);
+  color: #f8fafc;
+  box-shadow: none;
+}
+.myReportsWeekPicker .input option{
+  color:#f8fafc;
+  background:#081428;
 }
 
 .myReportsWeekTable .payrollSummaryItem:nth-child(1),
@@ -10940,33 +12128,60 @@ def my_reports():
   }
 }
 @media print{
+  /* remove all navigation / shell chrome */
   .sidebar,
   .topbar,
   .mobileNav,
-  .noPrint,
+  .bottomNav,
+  .dashboardMainMenu,
+  .payrollMenuBackdrop,
+  .payrollMenuToggle,
   #payrollMenuBackdrop,
-  #payrollMenuToggle{
-    display:none !important;
-  }
-
-    .headerTop,
+  #payrollMenuToggle,
+  .noPrint,
+  .headerTop,
   .myReportsTopGrid,
   .myReportsMonthCard,
-  .myReportsWeekPicker{
+  .myReportsWeekPicker,
+  .badge{
     display:none !important;
+    visibility:hidden !important;
   }
 
-  .shell,
+  /* cancel desktop sidebar-open payroll layout */
+  .payrollShell,
+  .shell{
+    display:block !important;
+    grid-template-columns:1fr !important;
+  }
+
+  .payrollShell .sidebar,
+  .shell .sidebar{
+    display:none !important;
+    width:0 !important;
+    min-width:0 !important;
+    max-width:0 !important;
+  }
+
+  .payrollShell .main,
+  .shell .main,
   .content,
-  .page,
-  .main{
+  .page{
     margin:0 !important;
     padding:0 !important;
     width:100% !important;
     max-width:none !important;
   }
 
-  .card{
+  body{
+    background:#fff !important;
+    margin:0 !important;
+    padding:0 !important;
+  }
+
+  .card,
+  .tablewrap,
+  .myReportsWeekTable{
     box-shadow:none !important;
     border:1px solid #dbe5f1 !important;
     break-inside:avoid;
@@ -10986,19 +12201,19 @@ def my_reports():
       {page_css}
 
 
-      <div class="card payrollEmployeeCard" style="padding:14px; margin-bottom:12px;">
-  <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-    {f'''
-    <img src="{escape(company_logo)}" alt="Company logo"
-         style="max-height:64px; max-width:150px; object-fit:contain; border:1px solid #dbe5f1; border-radius:12px; padding:6px; background:#fff;">
-    ''' if company_logo else ""}
-    <div>
-      <div style="font-size:26px; font-weight:800; line-height:1.1;">{escape(company_name)}</div>
-      <div class="sub" style="margin-top:4px;">Payslip / Timesheet</div>
-      <div class="sub"><strong>{escape(display_name)}</strong> • {escape(week_label)}</div>
-    </div>
-  </div>
-</div>
+      <div class="myReportsHero card" style="margin-bottom:12px;">
+        <div class="myReportsHeroRow">
+          <div class="myReportsHeroBrand">
+            {f'<img src="{escape(company_logo)}" alt="Company logo" class="myReportsHeroLogo">' if company_logo else ''}
+            <div>
+              <div class="myReportsHeroEyebrow">Payslip / Timesheet</div>
+              <div class="myReportsHeroTitle">{escape(company_name)}</div>
+              <div class="myReportsHeroMeta"><strong>{escape(display_name)}</strong> • {escape(week_label)}</div>
+            </div>
+          </div>
+          <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+        </div>
+      </div>
 
       <div class="myReportsTopGrid">
         <div class="card kpi">
@@ -11454,19 +12669,19 @@ def my_reports_print():
     content = f"""
       {page_css}
 
-      <div class="card payrollEmployeeCard" style="padding:14px; margin-bottom:12px;">
-        <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-          {f'''
-          <img src="{escape(company_logo)}" alt="Company logo"
-               style="max-height:64px; max-width:150px; object-fit:contain; border:1px solid #dbe5f1; border-radius:12px; padding:6px; background:#fff;">
-          ''' if company_logo else ""}
-          <div>
-            <div style="font-size:26px; font-weight:800; line-height:1.1;">{escape(company_name)}</div>
-            <div class="sub" style="margin-top:4px;">Payslip / Timesheet</div>
-            <div class="sub"><strong>{escape(display_name)}</strong> • {escape(week_label)}</div>
-          </div>
-        </div>
-      </div>
+      <div class="kpiFancy payrollEmployeeCard" style="padding:18px; margin-bottom:14px; border-radius:20px;">
+  <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
+    {f'''
+    <img src="{escape(company_logo)}" alt="Company logo"
+         style="max-height:64px; max-width:150px; object-fit:contain; border:1px solid rgba(96,165,250,.18); border-radius:12px; padding:6px; background:rgba(255,255,255,.96);">
+    ''' if company_logo else ""}
+    <div>
+      <div style="font-size:26px; font-weight:800; line-height:1.1; color:#f8fafc;">{escape(company_name)}</div>
+      <div class="sub" style="margin-top:4px; color:rgba(191,219,254,.78);">Payslip / Timesheet</div>
+      <div class="sub" style="color:rgba(191,219,254,.86);"><strong style="color:#f8fafc;">{escape(display_name)}</strong> • {escape(week_label)}</div>
+    </div>
+  </div>
+</div>
 
       <div class="headerTop noPrint">
         <div>
@@ -12164,21 +13379,66 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
 
     drive_hint = ""
     if role == "master_admin" and (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
-        drive_hint = "<p class='sub'>Master admin: if uploads fail, click <a href='/connect-drive' style='color:var(--navy);font-weight:600;'>Connect Drive</a> once.</p>"
+        drive_hint = "<p class='sub'>Master admin: if uploads fail, click <a href='/connect-drive' style='color:#93c5fd;font-weight:700;'>Connect Drive</a> once.</p>"
+
+    page_css = """
+      <style>
+        .onboardIntroCard, .onboardShell{
+          border:1px solid rgba(56,189,248,.14);
+          background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+          box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+        }
+        .onboardIntroCard{ padding:18px; border-radius:24px; margin-bottom:12px; }
+        .onboardHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+        .onboardEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
+        .onboardIntroCard h1{ color:#f8fafc; margin:0; }
+        .onboardIntroCard .sub{ color:rgba(191,219,254,.82); }
+        .onboardMiniGrid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }
+        .onboardMiniStat{ padding:12px 14px; border-radius:18px; background:rgba(7,20,39,.52); border:1px solid rgba(96,165,250,.12); }
+        .onboardMiniStat .k{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#93c5fd; }
+        .onboardMiniStat .v{ margin-top:6px; font-size:15px; font-weight:700; color:#f8fafc; }
+        .onboardShell{ padding:16px; border-radius:24px; }
+        .onboardShell form > h2{ margin:18px 0 10px; padding:10px 14px; border-radius:16px; background:rgba(7,20,39,.54); border:1px solid rgba(96,165,250,.12); color:#f8fafc; font-size:18px; font-weight:800; }
+        .onboardShell .sub, .onboardShell label{ color:rgba(191,219,254,.84); }
+        .onboardShell .uploadTitle{ margin-top:12px; font-size:13px; font-weight:800; letter-spacing:.03em; color:#f8fafc; }
+        .onboardShell .row2{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; }
+        .onboardShell .input{ background:rgba(7,20,39,.88); border:1px solid rgba(96,165,250,.18); color:#f8fafc; box-shadow:none; }
+        .onboardShell .input::placeholder{ color:#93a8c4; }
+        .onboardShell .input:focus{ border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
+        .onboardShell .contractBox{ background:rgba(7,20,39,.72); border:1px solid rgba(96,165,250,.14); color:#e2e8f0; }
+        .onboardActionRow{ position:sticky; bottom:10px; z-index:3; margin-top:18px !important; padding:12px; border-radius:18px; background:rgba(5,15,30,.88); border:1px solid rgba(96,165,250,.16); box-shadow:0 18px 36px rgba(2,6,23,.22); }
+        .onboardDraftBtn, .onboardFinalBtn{ min-height:52px; width:100%; }
+        .onboardDraftBtn{ background:rgba(15,23,42,.72); color:#e2e8f0; border:1px solid rgba(96,165,250,.12); }
+        .onboardFinalBtn{ background:linear-gradient(90deg, #2563eb, #4f7cff) !important; color:#fff; box-shadow:0 14px 28px rgba(37,99,235,.24); }
+        .onboardShell .bad{ border-color:rgba(248,113,113,.42) !important; }
+        .onboardShell .badLabel{ color:#fca5a5 !important; }
+        @media (max-width: 860px){ .onboardMiniGrid{ grid-template-columns:1fr; } }
+        @media (max-width: 700px){ .onboardShell .row2{ grid-template-columns:1fr; } .onboardActionRow{ position:static; padding:0; border:0; background:transparent; box-shadow:none; } }
+      </style>
+    """
     return f"""
-      <div class="headerTop">
-        <div>
-          <h1>Starter Form</h1>
-          <p class="sub">{escape(display_name)} • Save Draft anytime • Submit Final when complete</p>
-          {drive_hint}
+      {page_css}
+      <div class="onboardIntroCard card">
+        <div class="onboardHeroTop">
+          <div>
+            <div class="onboardEyebrow">Starter Form</div>
+            <h1>Starter Form</h1>
+            <p class="sub">{escape(display_name)} • Save draft anytime • Submit final when complete.</p>
+            {drive_hint}
+          </div>
+          <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
         </div>
-        <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
+        <div class="onboardMiniGrid">
+          <div class="onboardMiniStat"><div class="k">Workflow</div><div class="v">Draft → Final submission</div></div>
+          <div class="onboardMiniStat"><div class="k">Uploads</div><div class="v">4 documents required for final</div></div>
+          <div class="onboardMiniStat"><div class="k">Status</div><div class="v">Review each section before sending</div></div>
+        </div>
       </div>
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and msg_ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not msg_ok) else ""}
 
-      <div class="card" style="padding:14px;">
+      <div class="card onboardShell">
         <form method="POST" enctype="multipart/form-data">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
 
@@ -12358,9 +13618,9 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
           <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name', 'SignatureName'))}">
 
-          <div class="row2" style="margin-top:14px;">
-            <button class="btnSoft" name="submit_type" value="draft" type="submit">Save Draft</button>
-            <button class="btnSoft" name="submit_type" value="final" type="submit" style="background:rgba(10,42,94,.14);">Submit Final</button>
+          <div class="row2 onboardActionRow">
+            <button class="btnSoft onboardDraftBtn" name="submit_type" value="draft" type="submit">Save Draft</button>
+            <button class="btnSoft onboardFinalBtn" name="submit_type" value="final" type="submit">Submit Final</button>
           </div>
         </form>
       </div>
@@ -12760,12 +14020,35 @@ def admin():
         employee_options = ""
 
     content = f"""
-      <div class="headerTop">
-        <div>
-          <h1>Admin</h1>
-          <p class="sub">Payroll + onboarding</p>
+      <style>
+        .adminHeroCard,
+        .adminSectionCard,
+        .adminForceCard{{
+          border:1px solid rgba(56,189,248,.14);
+          background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+          box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+        }}
+        .adminHeroCard{{padding:18px; border-radius:24px; margin-bottom:12px;}}
+        .adminHeroTop{{display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;}}
+        .adminHeroEyebrow{{display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); margin-bottom:10px;}}
+        .adminHeroCard h1{{color:#f8fafc; margin:0;}}
+        .adminHeroCard .sub{{color:rgba(191,219,254,.82);}}
+        .adminForceCard{{margin-top:12px; padding:16px; border-radius:24px;}}
+        .adminActionBar{{background:rgba(7,20,39,.44); border:1px solid rgba(96,165,250,.14);}}
+        .adminActionBar .input{{background:rgba(7,20,39,.88); border:1px solid rgba(96,165,250,.18); color:#f8fafc; box-shadow:none;}}
+        .adminActionBar .input:focus{{border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.12);}}
+        .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.24);}}
+      </style>
+
+      <div class="adminHeroCard card">
+        <div class="adminHeroTop">
+          <div>
+            <div class="adminHeroEyebrow">Admin workspace</div>
+            <h1>Admin</h1>
+            <p class="sub">Payroll, onboarding, employees and workplace controls.</p>
+          </div>
+          <div class="badge admin">{escape(role_label(session.get('role', 'admin')))}</div>
         </div>
-        <div class="badge admin">{escape(role_label(session.get('role', 'admin')))}</div>
       </div>
 
                   <div class="kpiStrip adminStats" style="margin-bottom:12px;">
@@ -12860,7 +14143,7 @@ def admin():
     }
         </div>
       </div>
-            <div class="card adminSectionCard" style="margin-top:12px; background:linear-gradient(180deg, #eef8ff 0%, #dff2ff 100%); border:1px solid #b9e3ff;">
+            <div class="card adminForceCard">
         <div class="adminSectionHead">
           <div class="adminSectionHeadLeft">
             <div class="adminSectionIcon clockin">{_svg_clock()}</div>
@@ -13576,15 +14859,22 @@ def admin_payroll():
         )
 
     week_nav_html = f"""
-      <form method="GET" style="margin-top:10px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
+      <form method="GET" class="payrollWeekBar">
         <input type="hidden" name="q" value="{escape(q)}">
         <input type="hidden" name="from" value="{escape(date_from)}">
         <input type="hidden" name="to" value="{escape(date_to)}">
 
-        <label class="sub" style="margin:0; font-weight:700;">Week</label>
-        <select class="input" name="wk" style="max-width:320px; margin-top:0;" onchange="this.form.submit()">
-          {''.join(week_options)}
-        </select>
+        <div class="payrollWeekLead">
+          <div class="payrollWeekBadge">Employee detail tables</div>
+          <div class="payrollWeekHint">Choose the week shown in the individual employee tables below.</div>
+        </div>
+
+        <div class="payrollWeekControl">
+          <label class="payrollWeekLabel" for="payroll-week-select">Week</label>
+          <select id="payroll-week-select" class="input" name="wk" onchange="this.form.submit()">
+            {''.join(week_options)}
+          </select>
+        </div>
       </form>
     """
     # Payroll donut chart data (gross by employee for current filtered view)
@@ -13818,7 +15108,7 @@ def admin_payroll():
         paid, _paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
         cells.append(
-            f"<td class='num payrollSummaryTotal' style='color:#8b5cf6 !important; font-weight:800;'>{show_num(total_hours)}</td>")
+            f"<td class='num payrollSummaryTotal' style='color:#1d4ed8 !important; font-weight:900;'>{show_num(total_hours)}</td>")
         cells.append(
             f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(gross)) if gross > 0 else ''}</td>")
         cells.append(f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(tax)) if tax > 0 else ''}</td>")
@@ -13962,10 +15252,8 @@ def admin_payroll():
 
         blocks.append(f"""
           <div class="card payrollEmployeeCard" style="padding:12px; margin-top:12px;">
-            <div style="margin-bottom:12px;">
-              <div style="font-size:30px; font-weight:800; line-height:1.1;">
-               {escape(display)}
-              </div>
+            <div class="payrollEmployeeHead">
+              <div class="payrollEmployeeName">{escape(display)}</div>
             </div>
 
             <div class="tablewrap" style="margin-top:12px;">
@@ -14097,8 +15385,6 @@ def admin_payroll():
         </div>
       </div>
 
-      {week_nav_html}
-
               <div class="payrollWrap" style="margin-top:12px;">
         <table class="payrollSheet">
           <thead>
@@ -14122,6 +15408,8 @@ def admin_payroll():
           </tbody>
         </table>
       </div>
+
+      {week_nav_html}
 
       {''.join(blocks)}
 
@@ -14640,10 +15928,10 @@ def admin_locations():
               <form method="POST" action="/admin/locations/save" style="margin:0; display:flex; gap:8px; flex-wrap:wrap; align-items:center;">
                 <input type="hidden" name="csrf" value="{escape(csrf)}">
                 <input type="hidden" name="orig_name" value="{escape(s.get('name', ''))}">
-                <input class="input" name="name" value="{escape(s.get('name', ''))}" placeholder="Site name" style="margin-top:0; max-width:160px;">
-                <input class="input" name="lat" value="{escape(s.get('lat', ''))}" placeholder="Lat" style="margin-top:0; max-width:120px;">
-                <input class="input" name="lon" value="{escape(s.get('lon', ''))}" placeholder="Lon" style="margin-top:0; max-width:120px;">
-                <input class="input" name="rad" value="{escape(s.get('rad', ''))}" placeholder="Radius m" style="margin-top:0; max-width:110px;">
+                <input class="input" name="name" value="{escape(s.get('name', ''))}" placeholder="Site name" style="margin-top:0; max-width:160px; color:#f8fafc; -webkit-text-fill-color:#f8fafc; caret-color:#f8fafc;">
+                <input class="input" name="lat" value="{escape(s.get('lat', ''))}" placeholder="Lat" style="margin-top:0; max-width:120px; color:#f8fafc; -webkit-text-fill-color:#f8fafc; caret-color:#f8fafc;">
+                <input class="input" name="lon" value="{escape(s.get('lon', ''))}" placeholder="Lon" style="margin-top:0; max-width:120px; color:#f8fafc; -webkit-text-fill-color:#f8fafc; caret-color:#f8fafc;">
+                <input class="input" name="rad" value="{escape(s.get('rad', ''))}" placeholder="Radius m" style="margin-top:0; max-width:110px; color:#f8fafc; -webkit-text-fill-color:#f8fafc; caret-color:#f8fafc;">
                 <label class="sub" style="display:flex; align-items:center; gap:8px; margin:0;">
                   <input type="checkbox" name="active" value="yes" {"checked" if act_on else ""}>
                   Active
