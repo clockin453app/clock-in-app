@@ -4074,58 +4074,50 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .kpiMini .k{ font-size: 12px; color: var(--muted); font-weight:600; }
 .kpiMini .v{ margin-top:6px; font-size: 18px; font-weight:800; font-variant-numeric: tabular-nums; }
-/* Admin summary cards */
+
+/* Admin summary cards - same theme as dashboard chart */
 .adminStats .adminStatCard{
   border-radius: 18px;
-  border: 1px solid rgba(15,23,42,.10);
-  box-shadow: 0 8px 22px rgba(15,23,42,.06);
+  border: 1px solid rgba(56,189,248,.14);
+  box-shadow:
+    0 18px 40px rgba(2,6,23,.22),
+    inset 0 1px 0 rgba(255,255,255,.04);
+  background:
+    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
 }
 
 .adminStats .adminStatCard .k{
   font-size: 12px;
   font-weight: 700;
+  color: rgba(191,219,254,.82);
 }
 
 .adminStats .adminStatCard .v{
   font-size: 18px;
   font-weight: 900;
+  color: #67e8f9;
+  text-shadow: 0 0 10px rgba(34,211,238,.18);
 }
 
-/* Individual colors */
-.adminStats .adminStatCard.employees{
-  background: linear-gradient(180deg, rgba(219,234,254,.55), rgba(255,255,255,.96));
-  border-color: rgba(37,99,235,.16);
-}
-.adminStats .adminStatCard.employees .k,
-.adminStats .adminStatCard.employees .v{
-  color: #1d4ed8;
-}
-
-.adminStats .adminStatCard.clocked{
-  background: linear-gradient(180deg, rgba(220,252,231,.55), rgba(255,255,255,.96));
-  border-color: rgba(22,163,74,.16);
-}
-.adminStats .adminStatCard.clocked .k,
-.adminStats .adminStatCard.clocked .v{
-  color: #15803d;
-}
-
-.adminStats .adminStatCard.locations{
-  background: linear-gradient(180deg, rgba(207,250,254,.55), rgba(255,255,255,.96));
-  border-color: rgba(8,145,178,.16);
-}
-.adminStats .adminStatCard.locations .k,
-.adminStats .adminStatCard.locations .v{
-  color: #0e7490;
-}
-
+/* keep all 4 cards the same dark chart theme */
+.adminStats .adminStatCard.employees,
+.adminStats .adminStatCard.clocked,
+.adminStats .adminStatCard.locations,
 .adminStats .adminStatCard.onboarding{
-  background: linear-gradient(180deg, rgba(224,231,255,.55), rgba(255,255,255,.96));
-  border-color: rgba(79,70,229,.16);
+  background:
+    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+  border-color: rgba(56,189,248,.14);
 }
+
+.adminStats .adminStatCard.employees .k,
+.adminStats .adminStatCard.employees .v,
+.adminStats .adminStatCard.clocked .k,
+.adminStats .adminStatCard.clocked .v,
+.adminStats .adminStatCard.locations .k,
+.adminStats .adminStatCard.locations .v,
 .adminStats .adminStatCard.onboarding .k,
 .adminStats .adminStatCard.onboarding .v{
-  color: #4338ca;
+  color: #67e8f9;
 }
 
 /* Weekly net badge */
