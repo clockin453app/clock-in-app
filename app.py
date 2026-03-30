@@ -2276,6 +2276,28 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   min-width: 0;   /* IMPORTANT: allows wide content to scroll instead of overflowing */
 }
 
+.topBrandBadge{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:38px;
+  padding:8px 18px;
+  border-radius:16px;
+  font-size:13px;
+  font-weight:800;
+  letter-spacing:.04em;
+  text-transform:uppercase;
+  color:#dbeafe;
+  border:1px solid rgba(147,197,253,.34);
+  background:linear-gradient(180deg, rgba(29,78,216,.26), rgba(15,23,42,.78));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.12), 0 10px 24px rgba(2,6,23,.22);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+.topBrandBadge:hover{
+  border-color:rgba(147,197,253,.42);
+}
+
 /* Header top */
 .headerTop{
   display:flex;
@@ -2489,7 +2511,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     text-align: right;
   }
 }  
-  
+
 .dashboardLower{
   margin-top: 12px;
   display: grid;
@@ -5326,7 +5348,7 @@ body.mobileRailClosed #mobileRailToggle::before{
     display: none !important;
   }
 }
-  
+
 
 .timeLogsTable{
   width: 100% !important;
@@ -6009,20 +6031,49 @@ def _app_icon(file_name: str, size: int = 22, alt: str = ""):
 
 
 def _icon_dashboard(size=22): return _app_icon("dashboard.png", size, "Dashboard")
+
+
 def _icon_clock(size=22): return _app_icon("clock.png", size, "Clock In & Out")
+
+
 def _icon_timelogs(size=22): return _app_icon("timelogs.png", size, "Time Logs")
+
+
 def _icon_timesheets(size=22): return _app_icon("timesheets.png", size, "Timesheets")
+
+
 def _icon_starter_form(size=22): return _app_icon("starter_form.png", size, "Starter Form")
+
+
 def _icon_admin(size=22): return _app_icon("admin.png", size, "Admin")
+
+
 def _icon_workplaces(size=22): return _app_icon("workplaces.png", size, "Workplaces")
+
+
 def _icon_profile(size=22): return _app_icon("profile.png", size, "Profile")
+
+
 def _icon_onboarding(size=22): return _app_icon("onboarding.png", size, "Onboarding")
+
+
 def _icon_payroll_report(size=22): return _app_icon("payroll_report.png", size, "Payroll Report")
+
+
 def _icon_company_settings(size=22): return _app_icon("company_settings.png", size, "Company Settings")
+
+
 def _icon_employee_sites(size=22): return _app_icon("employee_sites.png", size, "Employee Sites")
+
+
 def _icon_employees(size=22): return _app_icon("employees.png", size, "Employees")
+
+
 def _icon_connect_drive(size=22): return _app_icon("connect_drive.png", size, "Connect Drive")
+
+
 def _icon_locations(size=22): return _app_icon("locations.png", size, "Locations")
+
 
 CONTRACT_TEXT = """Contract
 
@@ -8625,6 +8676,7 @@ def bottom_nav(active: str, role: str) -> str:
     </div>
     """
 
+
 def sidebar_html(active: str, role: str) -> str:
     items = [
         ("home", "/", "Dashboard", _icon_dashboard(45)),
@@ -8683,9 +8735,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
 
     company_bar = f"""
       <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
-        <span class="badge" style="background: var(--navy); color:#fff; border-color: rgba(255,255,255,.12);">
-  {escape(company_name)}
-</span>
+        <span class="topBrandBadge">{escape(company_name)}</span>
       </div>
     """
 
@@ -9717,72 +9767,378 @@ def clock_page():
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
 """
 
+    company_name = str(get_company_settings().get("Company_Name") or "Main").strip() or "Main"
+    msg_html = ""
+    if msg:
+        msg_state = "ok" if msg_class != "message error" else ""
+        msg_html = f'<div class="clockInlineMsg {msg_state}">{escape(msg)}</div>'
+
     content = f"""
       {leaflet_tags}
+      <style>
+        .clockFlowWrap {{
+          position: relative;
+          max-width: 760px;
+          margin: 0 auto;
+          padding: 18px 0 8px;
+        }}
+                .clockInlineMsg {{
+          margin: 0 0 18px;
+          padding: 14px 16px;
+          border-radius: 18px;
+          border: 1px solid rgba(248,113,113,.30);
+          background: rgba(127,29,29,.20);
+          color: #fecaca;
+          box-shadow: 0 18px 34px rgba(15,23,42,.16);
+        }}
+        .clockInlineMsg.ok {{
+          border-color: rgba(74,222,128,.28);
+          background: rgba(20,83,45,.20);
+          color: #dcfce7;
+        }}
+        .clockStep {{
+          padding: 26px 20px 28px;
+          border-radius: 30px;
+          border: 1px solid rgba(148,163,184,.14);
+          background:
+            radial-gradient(circle at top, rgba(59,130,246,.18), transparent 42%),
+            linear-gradient(180deg, rgba(2,6,23,.74), rgba(2,6,23,.88));
+          box-shadow:
+            0 26px 70px rgba(2,6,23,.36),
+            inset 0 1px 0 rgba(255,255,255,.04);
+        }}
+        .clockStepLabel {{
+          text-align: center;
+          color: #94a3b8;
+          font-size: 18px;
+          font-weight: 600;
+          letter-spacing: .01em;
+          margin-bottom: 14px;
+        }}
+        .clockHeroTitle {{
+          margin: 0 0 28px;
+          text-align: center;
+          color: #e5e7eb;
+          font-size: clamp(32px, 5vw, 42px);
+          line-height: 1.08;
+          font-weight: 800;
+        }}
+        .clockStageCard {{
+          border-radius: 24px;
+          border: 1px solid rgba(96,165,250,.20);
+          overflow: hidden;
+          background: linear-gradient(180deg, rgba(15,23,42,.56), rgba(15,23,42,.82));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+        }}
+        .clockSelfieStage {{
+          position: relative;
+          min-height: 320px;
+          display: grid;
+          place-items: center;
+          padding: 24px;
+          background:
+            radial-gradient(circle at center, rgba(30,64,175,.22), transparent 58%),
+            linear-gradient(180deg, rgba(15,23,42,.42), rgba(15,23,42,.82));
+        }}
+        .clockSelfiePlaceholder {{
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          gap: 10px;
+          color: #93c5fd;
+          opacity: .72;
+          text-align: center;
+        }}
+        .clockSelfiePlaceholderIcon {{
+          font-size: 76px;
+          line-height: 1;
+        }}
+        .clockSelfiePlaceholderText {{
+          font-size: 15px;
+          color: #cbd5e1;
+        }}
+        .clockSelfieVideo {{
+          display: none;
+          width: 100%;
+          min-height: 320px;
+          border-radius: 18px;
+          object-fit: cover;
+          background: #020617;
+          border: 1px solid rgba(148,163,184,.20);
+        }}
+        .clockCaptureBar {{
+          display: flex;
+          gap: 12px;
+          padding: 18px;
+          align-items: center;
+          background: linear-gradient(180deg, rgba(30,41,59,.34), rgba(15,23,42,.54));
+          border-top: 1px solid rgba(148,163,184,.08);
+        }}
+        .clockPrimaryBtn, .clockPrimaryAction, .clockSecondaryAction, .clockGhostBtn {{
+          border: 0;
+          border-radius: 18px;
+          font-weight: 800;
+          transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+        }}
+        .clockPrimaryBtn, .clockPrimaryAction {{
+          background: linear-gradient(90deg, #3b82f6, #4f7cff);
+          color: white;
+          box-shadow: 0 16px 34px rgba(59,130,246,.26), inset 0 1px 0 rgba(255,255,255,.18);
+        }}
+        .clockPrimaryBtn:hover, .clockPrimaryAction:hover, .clockSecondaryAction:hover, .clockGhostBtn:hover {{
+          transform: translateY(-1px);
+        }}
+        .clockPrimaryBtn {{
+          display: inline-flex;
+          width: 100%;
+          align-items: center;
+          justify-content: center;
+          gap: 14px;
+          min-height: 72px;
+          font-size: 20px;
+        }}
+        .clockPrimaryBtnArrow {{
+          font-size: 34px;
+          line-height: 1;
+          margin-top: -1px;
+        }}
+        .clockGhostBtn {{
+          min-width: 120px;
+          min-height: 72px;
+          padding: 0 22px;
+          background: rgba(15,23,42,.62);
+          color: #cbd5e1;
+          border: 1px solid rgba(148,163,184,.18);
+        }}
+        .clockDistanceAlert {{
+          margin: 22px auto 18px;
+          padding: 0 10px;
+          text-align: center;
+        }}
+        .clockDistanceAlertTitle {{
+          font-size: 18px;
+          font-weight: 700;
+          color: #fca5a5;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 8px;
+        }}
+        .clockDistanceAlertMeta {{
+          margin-top: 4px;
+          font-size: 15px;
+          color: #cbd5e1;
+        }}
+        .clockDistanceAlert.is-ok .clockDistanceAlertTitle {{ color: #86efac; }}
+        .clockDistanceAlert.is-ok .clockDistanceAlertMeta {{ color: #bbf7d0; }}
+        .clockMapShell {{
+          border-radius: 24px;
+          overflow: hidden;
+          border: 1px solid rgba(148,163,184,.16);
+          box-shadow: 0 18px 40px rgba(2,6,23,.24);
+        }}
+        .clockFooterNote {{
+          margin: 22px 6px 0;
+          text-align: center;
+          color: #94a3b8;
+          font-size: 15px;
+        }}
+        .clockFooterNote strong {{ color: #e2e8f0; }}
+        .clockHidden {{ display: none !important; }}
+        .clockStepTwo {{ display: none; text-align: center; padding-top: 52px; }}
+        .clockCapturedRow {{
+          display: inline-flex;
+          align-items: center;
+          gap: 10px;
+          color: #e5e7eb;
+          font-size: 18px;
+          font-weight: 700;
+          margin-bottom: 22px;
+        }}
+        .clockCapturedIcon {{
+          width: 32px;
+          height: 32px;
+          display: inline-grid;
+          place-items: center;
+          border-radius: 999px;
+          background: rgba(255,255,255,.9);
+          color: #0f172a;
+          font-size: 18px;
+          font-weight: 900;
+        }}
+        .clockFinalSelfie {{
+          width: min(220px, 52vw);
+          aspect-ratio: 1 / 1;
+          margin: 0 auto 28px;
+          border-radius: 22px;
+          object-fit: cover;
+          background: rgba(255,255,255,.08);
+          border: 1px solid rgba(148,163,184,.18);
+          box-shadow: 0 18px 44px rgba(2,6,23,.24);
+          display: none;
+        }}
+        .clockTimerStage {{
+          margin: 0 auto 24px;
+          max-width: 520px;
+        }}
+        .clockTimerStage .clockStatusIdle,
+        .clockTimerStage .clockStatusLive {{
+          background: transparent !important;
+          color: #94a3b8 !important;
+          font-size: 16px !important;
+          font-weight: 600 !important;
+          margin-bottom: 10px !important;
+          padding: 0 !important;
+          border: 0 !important;
+          box-shadow: none !important;
+        }}
+        .clockTimerStage .timerBig {{
+          font-size: clamp(54px, 11vw, 78px) !important;
+          line-height: 1 !important;
+          letter-spacing: 1.5px !important;
+          color: #eef2ff !important;
+          margin: 0 !important;
+          font-weight: 800 !important;
+        }}
+        .clockTimerStage .clockHint {{
+          margin-top: 12px !important;
+          color: #94a3b8 !important;
+          font-size: 14px !important;
+        }}
+        .clockTimerStage .timerSub {{ margin-top: 12px !important; }}
+        .clockActionStack {{
+          max-width: 560px;
+          margin: 0 auto;
+          display: grid;
+          gap: 14px;
+        }}
+        .clockPrimaryAction, .clockSecondaryAction {{
+          width: 100%;
+          min-height: 82px;
+          font-size: clamp(22px, 4vw, 28px);
+          letter-spacing: .04em;
+          text-transform: uppercase;
+        }}
+        .clockSecondaryAction {{
+          background: rgba(15,23,42,.36);
+          color: #a5b4fc;
+          border: 1px solid rgba(148,163,184,.16);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+        }}
+        .clockSecondaryAction[disabled],
+        .clockGhostBtn[disabled] {{
+          opacity: .5;
+          cursor: not-allowed;
+          transform: none;
+        }}
+        .clockTextLink {{
+          display: inline-block;
+          margin-top: 18px;
+          color: #93c5fd;
+          font-weight: 600;
+          text-decoration: none;
+        }}
+        .clockBackLink {{
+          margin-top: 16px;
+          background: transparent;
+          border: 0;
+          color: #cbd5e1;
+          font-weight: 600;
+          cursor: pointer;
+        }}
+        .clockMetaText {{
+          margin-top: 14px;
+          color: #94a3b8;
+          font-size: 14px;
+          text-align: center;
+        }}
+        @media (max-width: 640px) {{
+          .clockFlowWrap {{ padding-top: 10px; }}
+                    .clockStep {{ padding: 22px 14px 24px; border-radius: 24px; }}
+          .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }}
+          .clockSelfieStage {{ min-height: 240px; padding: 16px; }}
+          .clockSelfieVideo {{ min-height: 240px; }}
+          .clockCaptureBar {{ flex-direction: column; }}
+          .clockGhostBtn {{ width: 100%; min-height: 58px; }}
+          .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }}
+          .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }}
+        }}
+      </style>
 
-{f'''
-<div class="statusCard {'statusCardError' if msg_class == 'message error' else 'statusCardOk'}">
-  <div class="statusCardTitle">{'Attention needed' if msg_class == 'message error' else 'Status'}</div>
-  <div class="statusCardText">{escape(msg)}</div>
-</div>
-''' if msg else ""}
+      <div class="clockFlowWrap">
+        {msg_html}
 
-<div class="card clockCard">
-  <div class="clockTop">
-    <div class="clockStateWrap">
-      {timer_html}
-    </div>
-  </div>
+        <div class="clockStep" id="clockStepOne">
+          <div class="clockStepLabel">Step 1 of 2</div>
+          <h1 class="clockHeroTitle">Take a selfie to continue</h1>
 
-  <div class="clockPanel">
-    <div id="geoStatus">📍 Waiting for location…</div>
-  </div>
+          <div class="clockStageCard">
+            <div class="clockSelfieStage">
+              <div class="clockSelfiePlaceholder" id="clockSelfiePlaceholder">
+                <div class="clockSelfiePlaceholderIcon">&#128247;</div>
+                <div class="clockSelfiePlaceholderText">Open the camera and capture a clear front-facing selfie.</div>
+              </div>
+              <video id="selfieVideo" class="clockSelfieVideo" autoplay playsinline muted></video>
+            </div>
+            <div class="clockCaptureBar">
+              <button class="clockPrimaryBtn" id="takeSelfieBtn" type="button">
+                <span class="clockPrimaryBtnText">Take Selfie</span>
+                <span class="clockPrimaryBtnArrow">&#8250;</span>
+              </button>
+              <button class="clockGhostBtn" id="retakeSelfieBtn" type="button" disabled>Retake</button>
+            </div>
+          </div>
 
-  <div class="clockPanel">
-    <div id="map" style="height:240px; min-height:240px; border-radius:14px; overflow:hidden; border:1px solid #dbe5f1;"></div>
-  </div>
+          <div class="clockMetaText" id="selfieStatus">Tap Take Selfie to open the camera.</div>
+          <div id="geoStatus" class="clockHidden" aria-live="polite"></div>
 
-  <div class="clockPanel" style="padding:14px;">
-    <div style="display:flex; justify-content:space-between; gap:10px; align-items:center; flex-wrap:wrap;">
-      <div>
-        <div style="font-weight:700; color:var(--navy);">Selfie required</div>
-        <div class="sub">Take a selfie before clocking in or out.</div>
+          <div class="clockDistanceAlert is-error" id="geoAlert">
+            <div class="clockDistanceAlertTitle" id="geoAlertTitle">📍 You are too far from the site</div>
+            <div class="clockDistanceAlertMeta" id="geoAlertMeta">Distance: --m (limit --m)</div>
+          </div>
+
+          <div class="clockMapShell">
+            <div id="map" style="height:280px; min-height:280px;"></div>
+          </div>
+
+          <div class="clockFooterNote" id="clockFooterNote">You'll be able to <strong>clock in</strong> after taking a selfie.</div>
+        </div>
+
+        <div class="clockStep clockStepTwo" id="clockStepTwo">
+          <div class="clockStepLabel">Step 2 of 2</div>
+          <div class="clockCapturedRow">
+            <span class="clockCapturedIcon">✓</span>
+            <span>Selfie captured</span>
+          </div>
+
+          <img id="selfiePreviewFinal" class="clockFinalSelfie" alt="Selfie preview">
+          <canvas id="selfieCanvas" class="clockHidden"></canvas>
+
+          <div class="clockTimerStage">
+            {timer_html}
+          </div>
+
+          <form method="POST" id="geoClockForm" class="clockActionStack">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <input type="hidden" name="action" id="geoAction" value="">
+            <input type="hidden" name="lat" id="geoLat" value="">
+            <input type="hidden" name="lon" id="geoLon" value="">
+            <input type="hidden" name="acc" id="geoAcc" value="">
+            <input type="hidden" name="geo_ts" id="geoTs" value="">
+            <input type="hidden" name="selfie_data" id="selfieData" value="">
+
+            <button class="clockPrimaryAction" id="btnClockIn" type="button">Clock In</button>
+            <button class="clockSecondaryAction" id="btnClockOut" type="button">Clock Out</button>
+          </form>
+
+          <a href="/my-times" class="clockTextLink">View time logs</a>
+          <div><button class="clockBackLink" id="backToStepOne" type="button">Retake selfie</button></div>
+        </div>
       </div>
-      <div style="display:flex; gap:8px; flex-wrap:wrap;">
-        <button class="btnSoft" id="takeSelfieBtn" type="button">Take selfie</button>
-        <button class="btnSoft" id="retakeSelfieBtn" type="button" disabled>Retake</button>
-      </div>
-    </div>
-
-    <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px;">
-      <video id="selfieVideo" autoplay playsinline muted style="width:100%; border-radius:14px; border:1px solid #dbe5f1; background:#0f172a; min-height:220px; object-fit:cover;"></video>
-      <img id="selfiePreview" alt="Selfie preview" style="width:100%; border-radius:14px; border:1px solid #dbe5f1; background:#f8fafc; min-height:220px; object-fit:cover; display:none;">
-    </div>
-    <canvas id="selfieCanvas" style="display:none;"></canvas>
-    <div id="selfieStatus" class="sub" style="margin-top:10px;">No selfie captured yet.</div>
-  </div>
-
-  <form method="POST" class="actionRow" id="geoClockForm">
-  <input type="hidden" name="csrf" value="{escape(csrf)}">
-  <input type="hidden" name="action" id="geoAction" value="">
-  <input type="hidden" name="lat" id="geoLat" value="">
-  <input type="hidden" name="lon" id="geoLon" value="">
-  <input type="hidden" name="acc" id="geoAcc" value="">
-  <input type="hidden" name="geo_ts" id="geoTs" value="">
-  <input type="hidden" name="selfie_data" id="selfieData" value="">
-
-  <button class="btn btnIn" id="btnClockIn" type="button">Clock In</button>
-  <button class="btn btnOut" id="btnClockOut" type="button">Clock Out</button>
-</form>
-
-    <a href="/my-times">
-      <button class="btnSoft" type="button">View time logs</button>
-    </a>
-  </div>
-</div>
 
       <script>
-        (function(){{
+        (function() {{
           const SITE = {site_json};
           const statusEl = document.getElementById("geoStatus");
           const form = document.getElementById("geoClockForm");
@@ -9796,88 +10152,57 @@ def clock_page():
           const btnOut = document.getElementById("btnClockOut");
           const selfieDataEl = document.getElementById("selfieData");
           const selfieVideo = document.getElementById("selfieVideo");
-          const selfiePreview = document.getElementById("selfiePreview");
           const selfieCanvas = document.getElementById("selfieCanvas");
           const selfieStatus = document.getElementById("selfieStatus");
           const takeSelfieBtn = document.getElementById("takeSelfieBtn");
+          const takeSelfieBtnText = takeSelfieBtn.querySelector(".clockPrimaryBtnText");
           const retakeSelfieBtn = document.getElementById("retakeSelfieBtn");
+          const backToStepOneBtn = document.getElementById("backToStepOne");
+          const stepOne = document.getElementById("clockStepOne");
+          const stepTwo = document.getElementById("clockStepTwo");
+          const selfiePlaceholder = document.getElementById("clockSelfiePlaceholder");
+          const selfiePreviewFinal = document.getElementById("selfiePreviewFinal");
+          const geoAlert = document.getElementById("geoAlert");
+          const geoAlertTitle = document.getElementById("geoAlertTitle");
+          const geoAlertMeta = document.getElementById("geoAlertMeta");
+          const footerNote = document.getElementById("clockFooterNote");
           let selfieStream = null;
-          let selfieTriedAutostart = false;
 
-          function setDisabled(v){{
+          function setDisabled(v) {{
             btnIn.disabled = v;
             btnOut.disabled = v;
-            btnIn.style.opacity = v ? "0.6" : "1";
-            btnOut.style.opacity = v ? "0.6" : "1";
           }}
 
-          // Map
-          let map = null;
-          let siteMarker = null;
-          let radiusCircle = null;
-          let youMarker = null;
-
-          function initMap(){{
-            const start = SITE ? [SITE.lat, SITE.lon] : [51.505, -0.09];
-            map = L.map("map", {{ zoomControl: true }}).setView(start, SITE ? 16 : 5);
-            L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
-              maxZoom: 19,
-              attribution: "&copy; OpenStreetMap"
-            }}).addTo(map);
-
-            if(SITE){{
-              siteMarker = L.marker([SITE.lat, SITE.lon]).addTo(map).bindPopup(SITE.name);
-              radiusCircle = L.circle([SITE.lat, SITE.lon], {{
-                radius: SITE.radius
-              }}).addTo(map);
-            }}
-          }}
-
-          function haversineMeters(lat1, lon1, lat2, lon2){{
-            const R = 6371000;
-            const toRad = (x)=> x * Math.PI / 180;
-            const dLat = toRad(lat2-lat1);
-            const dLon = toRad(lon2-lon1);
-            const a = Math.sin(dLat/2)*Math.sin(dLat/2) +
-                      Math.cos(toRad(lat1))*Math.cos(toRad(lat2))*
-                      Math.sin(dLon/2)*Math.sin(dLon/2);
-            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-            return R * c;
-          }}
-
-          function updateStatus(lat, lon, acc){{
-            if(!SITE){{
-              statusEl.textContent = "📍 Location captured (no site configured)";
-              return;
-            }}
-            const dist = haversineMeters(lat, lon, SITE.lat, SITE.lon);
-            const ok = dist <= SITE.radius;
-            statusEl.textContent = ok
-              ? `📍 Location OK: ${{SITE.name}} (${{Math.round(dist)}}m)`
-              : `📍 Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
-            statusEl.style.color = ok ? "var(--green)" : "var(--red)";
-          }}
-
-          function updateYouMarker(lat, lon){{
-            if(!map) return;
-            if(!youMarker){{
-              youMarker = L.marker([lat, lon]).addTo(map);
+          function syncSteps() {{
+            const hasSelfie = !!selfieDataEl.value;
+            stepOne.style.display = hasSelfie ? "none" : "block";
+            stepTwo.style.display = hasSelfie ? "block" : "none";
+            if (hasSelfie) {{
+              selfiePreviewFinal.src = selfieDataEl.value;
+              selfiePreviewFinal.style.display = "block";
             }} else {{
-              youMarker.setLatLng([lat, lon]);
+              selfiePreviewFinal.src = "";
+              selfiePreviewFinal.style.display = "none";
             }}
           }}
 
-          function stopSelfieCamera(){{
-            if(selfieStream){{
+          function updateCaptureUi(cameraLive) {{
+            selfiePlaceholder.style.display = cameraLive ? "none" : "flex";
+            selfieVideo.style.display = cameraLive ? "block" : "none";
+            takeSelfieBtnText.textContent = cameraLive ? "Capture Selfie" : "Take Selfie";
+          }}
+
+          function stopSelfieCamera() {{
+            if (selfieStream) {{
               selfieStream.getTracks().forEach(track => track.stop());
               selfieStream = null;
             }}
             selfieVideo.srcObject = null;
-            takeSelfieBtn.disabled = true;
+            updateCaptureUi(false);
           }}
 
-          async function startSelfieCamera(){{
-            if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){{
+          async function startSelfieCamera() {{
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {{
               selfieStatus.textContent = "Camera preview is not supported on this device/browser.";
               return;
             }}
@@ -9886,34 +10211,33 @@ def clock_page():
               selfieStream = await navigator.mediaDevices.getUserMedia({{ video: {{ facingMode: "user", width: {{ ideal: 1280 }}, height: {{ ideal: 720 }} }}, audio: false }});
               selfieVideo.srcObject = selfieStream;
               if (selfieVideo.play) {{
-                try {{ await selfieVideo.play(); }} catch(e) {{}}
+                try {{ await selfieVideo.play(); }} catch (e) {{}}
               }}
-              takeSelfieBtn.disabled = false;
-              selfieStatus.textContent = "Camera ready. Take your selfie.";
-            }} catch(err) {{
+              updateCaptureUi(true);
+              selfieStatus.textContent = "Camera ready. Tap capture when you're centered.";
+            }} catch (err) {{
               console.log(err);
               selfieStatus.textContent = "Could not open camera. Please allow camera permission and try again.";
             }}
           }}
 
-          function setSelfieData(dataUrl){{
+          function setSelfieData(dataUrl) {{
             selfieDataEl.value = dataUrl || "";
-            if(dataUrl){{
-              selfiePreview.src = dataUrl;
-              selfiePreview.style.display = "block";
+            if (dataUrl) {{
               retakeSelfieBtn.disabled = false;
-              selfieStatus.textContent = "Selfie ready.";
+              selfieStatus.textContent = "Selfie captured.";
+              footerNote.innerHTML = "Selfie captured. You can now <strong>clock in</strong>.";
             }} else {{
-              selfiePreview.src = "";
-              selfiePreview.style.display = "none";
               retakeSelfieBtn.disabled = true;
-              selfieStatus.textContent = "No selfie captured yet.";
+              selfieStatus.textContent = "Tap Take Selfie to open the camera.";
+              footerNote.innerHTML = "You'll be able to <strong>clock in</strong> after taking a selfie.";
             }}
+            syncSteps();
           }}
 
-          function captureSelfieFrame(){{
-            if(!selfieVideo || !selfieVideo.videoWidth || !selfieVideo.videoHeight){{
-              alert("Open the camera first, then take your selfie.");
+          function captureSelfieFrame() {{
+            if (!selfieVideo || !selfieVideo.videoWidth || !selfieVideo.videoHeight) {{
+              selfieStatus.textContent = "Open the camera first, then capture your selfie.";
               return;
             }}
             const maxW = 960;
@@ -9929,24 +10253,80 @@ def clock_page():
             stopSelfieCamera();
           }}
 
-          function requestLocationAndSubmit(actionValue){{
-            if(!selfieDataEl.value){{
-              alert("Please take a selfie before clocking in or out.");
+          let map = null;
+          let youMarker = null;
+
+          function initMap() {{
+            const start = SITE ? [SITE.lat, SITE.lon] : [51.505, -0.09];
+            map = L.map("map", {{ zoomControl: true }}).setView(start, SITE ? 16 : 5);
+            L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
+              maxZoom: 19,
+              attribution: "&copy; OpenStreetMap"
+            }}).addTo(map);
+
+            if (SITE) {{
+              L.marker([SITE.lat, SITE.lon]).addTo(map).bindPopup(SITE.name);
+              L.circle([SITE.lat, SITE.lon], {{ radius: SITE.radius }}).addTo(map);
+            }}
+          }}
+
+          function haversineMeters(lat1, lon1, lat2, lon2) {{
+            const R = 6371000;
+            const toRad = (x) => x * Math.PI / 180;
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                      Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                      Math.sin(dLon / 2) * Math.sin(dLon / 2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+            return R * c;
+          }}
+
+          function updateStatus(lat, lon, acc) {{
+            if (!SITE) {{
+              statusEl.textContent = "Location captured (no site configured).";
+              geoAlert.className = "clockDistanceAlert is-ok";
+              geoAlertTitle.textContent = "📍 Location captured";
+              geoAlertMeta.textContent = "No active site radius is configured for this account.";
+              return;
+            }}
+            const dist = haversineMeters(lat, lon, SITE.lat, SITE.lon);
+            const ok = dist <= SITE.radius;
+            statusEl.textContent = ok
+              ? `Location OK: ${{SITE.name}} (${{Math.round(dist)}}m)`
+              : `Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
+            geoAlert.className = `clockDistanceAlert ${{ok ? 'is-ok' : 'is-error'}}`;
+            geoAlertTitle.textContent = ok ? "📍 You are at the correct site" : "📍 You are too far from the site";
+            geoAlertMeta.textContent = `Distance: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
+          }}
+
+          function updateYouMarker(lat, lon) {{
+            if (!map) return;
+            if (!youMarker) {{
+              youMarker = L.marker([lat, lon]).addTo(map);
+            }} else {{
+              youMarker.setLatLng([lat, lon]);
+            }}
+          }}
+
+          function requestLocationAndSubmit(actionValue) {{
+            if (!selfieDataEl.value) {{
+              syncSteps();
               selfieStatus.textContent = "Selfie required before clocking in or out.";
               return;
             }}
 
             stopSelfieCamera();
 
-            if(!navigator.geolocation){{
+            if (!navigator.geolocation) {{
               alert("Geolocation is not supported on this device/browser.");
               return;
             }}
-            setDisabled(true);
-            statusEl.style.color = "var(--muted)";
-            statusEl.textContent = "📍 Getting your location…";
 
-            navigator.geolocation.getCurrentPosition((pos)=>{{
+            setDisabled(true);
+            statusEl.textContent = "Getting your location…";
+
+            navigator.geolocation.getCurrentPosition((pos) => {{
               const lat = pos.coords.latitude;
               const lon = pos.coords.longitude;
               const acc = pos.coords.accuracy;
@@ -9961,70 +10341,59 @@ def clock_page():
 
               act.value = actionValue;
               form.submit();
-            }}, (err)=>{{
+            }}, (err) => {{
               console.log(err);
-              alert("Location is required to clock in/out. Please allow location permission and try again.");
-              statusEl.textContent = "📍 Location required. Please allow permission.";
-              statusEl.style.color = "var(--red)";
+              alert("Location is required to clock in or out. Please allow location permission and try again.");
+              statusEl.textContent = "Location required. Please allow permission.";
               setDisabled(false);
-            }}, {{
-              enableHighAccuracy: true,
-              timeout: 12000,
-              maximumAge: 0
-            }});
+            }}, {{ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }});
           }}
 
-                    initMap();
+          initMap();
 
-          // Try to show status + marker before pressing buttons
-          if(navigator.geolocation){{
-            navigator.geolocation.getCurrentPosition((pos)=>{{
+          if (navigator.geolocation) {{
+            navigator.geolocation.getCurrentPosition((pos) => {{
               const lat = pos.coords.latitude;
               const lon = pos.coords.longitude;
-              const acc = pos.coords.accuracy;
-              updateStatus(lat, lon, acc);
+              updateStatus(lat, lon, pos.coords.accuracy);
               updateYouMarker(lat, lon);
-            }}, ()=>{{
-              statusEl.textContent = "📍 Location required. Please allow permission.";
-              statusEl.style.color = "var(--red)";
-            }}, {{ enableHighAccuracy:true, timeout: 8000, maximumAge: 0 }});
+            }}, () => {{
+              geoAlert.className = "clockDistanceAlert is-error";
+              geoAlertTitle.textContent = "📍 Location permission needed";
+              geoAlertMeta.textContent = "Allow location access so we can verify your site.";
+            }}, {{ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }});
           }}
 
-          takeSelfieBtn.addEventListener("click", async ()=> {{
-  const hasLiveCamera = !!(selfieStream || (selfieVideo && selfieVideo.srcObject));
-
-  if(!hasLiveCamera){{
-    await startSelfieCamera();
-    selfieStatus.textContent = "Camera ready. Tap Take selfie again to capture.";
-    return;
-  }}
-
-  captureSelfieFrame();
-}});
-
-          retakeSelfieBtn.addEventListener("click", ()=> {{
-            setSelfieData("");
-            startSelfieCamera();
-          }});
-
-          window.addEventListener("pagehide", ()=> {{
-            stopSelfieCamera();
-          }});
-
-          window.addEventListener("beforeunload", ()=> {{
-            stopSelfieCamera();
-          }});
-
-          document.addEventListener("visibilitychange", ()=> {{
-            if(document.hidden){{
-              stopSelfieCamera();
+          takeSelfieBtn.addEventListener("click", async () => {{
+            const hasLiveCamera = !!(selfieStream || (selfieVideo && selfieVideo.srcObject));
+            if (!hasLiveCamera) {{
+              await startSelfieCamera();
+              return;
             }}
+            captureSelfieFrame();
           }});
-          takeSelfieBtn.disabled = false;
-          selfieStatus.textContent = "Tap Take selfie to open the camera.";
 
-          btnIn.addEventListener("click", ()=> requestLocationAndSubmit("in"));
-          btnOut.addEventListener("click", ()=> requestLocationAndSubmit("out"));
+          retakeSelfieBtn.addEventListener("click", async () => {{
+            setSelfieData("");
+            await startSelfieCamera();
+          }});
+
+          backToStepOneBtn.addEventListener("click", async () => {{
+            setSelfieData("");
+            await startSelfieCamera();
+          }});
+
+          window.addEventListener("pagehide", stopSelfieCamera);
+          window.addEventListener("beforeunload", stopSelfieCamera);
+          document.addEventListener("visibilitychange", () => {{
+            if (document.hidden) stopSelfieCamera();
+          }});
+
+          btnIn.addEventListener("click", () => requestLocationAndSubmit("in"));
+          btnOut.addEventListener("click", () => requestLocationAndSubmit("out"));
+
+          updateCaptureUi(false);
+          syncSteps();
         }})();
       </script>
     """
@@ -10971,7 +11340,7 @@ def my_reports_print():
       .myReportsWeekTable .weeklyEditTable td:nth-child(7){
         width:64px;
       }
-      
+
 
       @media (max-width: 780px){
         .myReportsActions{
@@ -11831,7 +12200,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
           <input type="hidden" name="phone_cc" value="">
           <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num', 'PhoneNumber'))}">
-          
+
 
           <h2 style="margin-top:14px;">Address</h2>
           <input class="input" name="street" placeholder="Street Address" value="{escape(val('street', 'StreetAddress'))}">
@@ -11854,7 +12223,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
           <input type="hidden" name="ec_cc" value="">
           <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone', 'EmergencyContactPhoneNumber'))}">
-          
+
 
           <h2 style="margin-top:14px;">Medical</h2>
           <label class="sub {bad_label('medical')}">Do you have any medical condition that may affect you at work?</label>
@@ -12420,7 +12789,7 @@ def admin():
 
             <div class="card menu adminToolsShell" style="padding:14px;">
              <div class="adminGrid">
-  
+
           <a class="adminToolCard payroll" href="/admin/payroll">
             <div class="adminToolTop">
               <div class="adminToolIcon">{_icon_payroll_report(45)}</div>
@@ -12474,7 +12843,7 @@ def admin():
             <div class="adminToolTitle">Employees</div>
             <div class="adminToolSub">Create employees, update rates and manage access.</div>
           </a>
-                     
+
                     {
     f'''
               <a class="adminToolCard drive" href="/connect-drive">
@@ -12487,7 +12856,7 @@ def admin():
               </a>
             '''
     if session.get("role") == "master_admin"
-else ""
+    else ""
     }
         </div>
       </div>
@@ -12691,6 +13060,7 @@ def admin_company():
         layout_shell("admin", session.get("role", "admin"), content)
     )
 
+
 @app.post("/admin/save-shift")
 def admin_save_shift():
     gate = require_admin()
@@ -12826,12 +13196,15 @@ def admin_save_shift():
             ]
             if headers and "Workplace_ID" in headers:
                 wp_col = headers.index("Workplace_ID") + 1
-                updates.append({"range": gspread.utils.rowcol_to_a1(rownum, wp_col), "values": [[_session_workplace_id()]]})
+                updates.append(
+                    {"range": gspread.utils.rowcol_to_a1(rownum, wp_col), "values": [[_session_workplace_id()]]})
             _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
     except Exception as e:
         return make_response(f"Could not save shift: {e}", 500)
 
     return redirect(request.referrer or "/admin/payroll")
+
+
 @app.post("/admin/force-clockin")
 def admin_force_clockin():
     gate = require_admin()
@@ -12915,6 +13288,8 @@ def admin_force_clockin():
     actor = session.get("username", "admin")
     log_audit("FORCE_CLOCK_IN", actor=actor, username=username, date_str=date_str, details=f"in={in_time}")
     return redirect(request.referrer or "/admin")
+
+
 @app.post("/admin/force-clockout")
 def admin_force_clockout():
     gate = require_admin()
@@ -12994,7 +13369,8 @@ def admin_force_clockout():
             ]
             if headers and "Workplace_ID" in headers:
                 wp_col = headers.index("Workplace_ID") + 1
-                updates.append({"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
+                updates.append(
+                    {"range": gspread.utils.rowcol_to_a1(sheet_row, wp_col), "values": [[_session_workplace_id()]]})
             _gs_write_with_retry(lambda: work_sheet.batch_update(updates))
         except Exception as e:
             return make_response(f"Could not force clock out: {e}", 500)
@@ -13003,6 +13379,8 @@ def admin_force_clockout():
     log_audit("FORCE_CLOCK_OUT", actor=actor, username=username, date_str=d,
               details=f"out={out_time} hours={computed_hours} pay={pay}")
     return redirect(request.referrer or "/admin")
+
+
 @app.post("/admin/mark-paid")
 def admin_mark_paid():
     gate = require_admin()
