@@ -5413,6 +5413,540 @@ body.mobileRailClosed #mobileRailToggle::before{
   }
 }
 
+/* ===== GLOBAL PROFESSIONAL DARK-BLUE THEME ===== */
+:root{
+  --bg:#071427 !important;
+  --card:#0b1d36 !important;
+  --text:#e8f1ff !important;
+  --muted:#9fb3d1 !important;
+  --border:rgba(96,165,250,.18) !important;
+  --shadow:0 16px 36px rgba(2,6,23,.30) !important;
+  --shadow2:0 20px 50px rgba(2,6,23,.36) !important;
+  --radius:8px !important;
+
+  --navy:#60a5fa !important;
+  --navy2:#2563eb !important;
+  --navySoft:rgba(59,130,246,.12) !important;
+}
+
+/* page background */
+body{
+  background:
+    radial-gradient(1200px 620px at 18% 0%, rgba(14,165,233,.10) 0%, rgba(14,165,233,0) 55%),
+    linear-gradient(180deg, #071427 0%, #081a31 45%, #091d36 100%) !important;
+  color: var(--text) !important;
+}
+
+/* general cards / panels */
+.card,
+.quickCard,
+.activityCard,
+.sideInfoCard,
+.kpiMini,
+.kpi,
+.payrollFiltersCard,
+.payrollChartCard,
+.adminToolCard,
+.adminSectionCard,
+.payrollSummaryItem,
+.contractBox,
+.graphShell,
+.tablewrap,
+.payrollWrap,
+.sectionIcon,
+.adminToolIcon,
+.adminSectionIcon,
+.sideIcon,
+.icoBox{
+  background:
+    linear-gradient(180deg, rgba(8,24,47,.96), rgba(11,32,61,.94)) !important;
+  border: 1px solid rgba(96,165,250,.18) !important;
+  border-radius: 8px !important;
+  box-shadow: 0 16px 36px rgba(2,6,23,.28) !important;
+  color: var(--text) !important;
+}
+
+/* remove overly rounded corners everywhere important */
+.badge,
+.badge.admin,
+.chip,
+.weekPill,
+.btn,
+.btnSoft,
+.btnTiny,
+.input,
+.menuItem,
+.sideItem,
+.navIcon,
+.payrollMenuToggle,
+.adminPrimaryBtn,
+.message,
+.kpiMini,
+.payrollSummaryItem,
+.tablewrap,
+.payrollWrap,
+.contractBox{
+  border-radius: 8px !important;
+}
+
+/* top badges / pills */
+.badge,
+.badge.admin,
+.chip,
+.weekPill{
+  background: linear-gradient(180deg, #1d4ed8, #2563eb) !important;
+  color: #eff6ff !important;
+  border: 1px solid rgba(96,165,250,.28) !important;
+  box-shadow: 0 8px 18px rgba(29,78,216,.20) !important;
+}
+
+/* inputs / selects */
+.input,
+select.input,
+input.input,
+textarea.input{
+  background: rgba(7,20,39,.72) !important;
+  color: #e8f1ff !important;
+  border: 1px solid rgba(96,165,250,.20) !important;
+  border-radius: 8px !important;
+}
+
+.input::placeholder,
+textarea.input::placeholder{
+  color: #8fa7c7 !important;
+}
+
+.input:focus,
+select.input:focus,
+input.input:focus,
+textarea.input:focus{
+  border-color: rgba(96,165,250,.46) !important;
+  box-shadow: 0 0 0 3px rgba(59,130,246,.12) !important;
+}
+
+/* buttons */
+.btn,
+.btnSoft,
+.adminPrimaryBtn{
+  background: linear-gradient(180deg, #1d4ed8, #2563eb) !important;
+  color: #f8fbff !important;
+  border: 1px solid rgba(96,165,250,.26) !important;
+  box-shadow: 0 12px 24px rgba(29,78,216,.22) !important;
+}
+
+.btnTiny{
+  background: rgba(37,99,235,.16) !important;
+  color: #dbeafe !important;
+  border: 1px solid rgba(96,165,250,.24) !important;
+}
+
+.btnTiny:hover,
+.btnSoft:hover,
+.btn:hover,
+.adminPrimaryBtn:hover{
+  filter: brightness(1.04) !important;
+}
+
+/* cards with labels + values */
+.kpiMini .k,
+.kpi .label,
+.graphStat .k,
+.payrollSummaryItem .k,
+.sectionBadge,
+.sub,
+.timerSub,
+.sideInfoLabel,
+.adminToolSub,
+.adminSectionSub{
+  color: #9fb3d1 !important;
+}
+
+.kpiMini .v,
+.kpi .value,
+.graphStat .v,
+.payrollSummaryItem .v,
+.sideInfoValue,
+.adminToolTitle,
+.adminSectionTitle,
+h1,
+h2{
+  color: #e8f1ff !important;
+}
+
+/* tables */
+.tablewrap table,
+.weeklyEditTable,
+.payrollSheet{
+  background: rgba(8,24,47,.98) !important;
+  color: #e8f1ff !important;
+}
+
+.tablewrap th,
+.weeklyEditTable thead th,
+.payrollSheet thead th{
+  background: linear-gradient(180deg, #0b2344, #102b52) !important;
+  color: #dbeafe !important;
+  border-bottom: 1px solid rgba(96,165,250,.20) !important;
+}
+
+.tablewrap td,
+.weeklyEditTable tbody td,
+.payrollSheet td{
+  background: rgba(8,24,47,.90) !important;
+  color: #e8f1ff !important;
+  border-bottom: 1px solid rgba(96,165,250,.12) !important;
+}
+
+.tablewrap table tbody tr:nth-child(even),
+.weeklyEditTable tbody tr:nth-child(even) td{
+  background: rgba(10,28,54,.96) !important;
+}
+
+.tablewrap table tbody tr:hover,
+.weeklyEditTable tbody tr:hover td{
+  background: rgba(17,46,86,.92) !important;
+}
+
+/* left sidebar */
+.sidebar{
+  background: linear-gradient(180deg, #071427 0%, #0a1f3d 100%) !important;
+  border: 1px solid rgba(96,165,250,.16) !important;
+  border-radius: 8px !important;
+}
+
+.sideTitle,
+.sideText,
+.menuText{
+  color: #f8fbff !important;
+}
+
+.sideItem,
+.menuItem{
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(96,165,250,.12) !important;
+  border-radius: 8px !important;
+  box-shadow: none !important;
+}
+
+.sideItem:hover,
+.menuItem:hover{
+  background: rgba(37,99,235,.12) !important;
+  border-color: rgba(96,165,250,.28) !important;
+}
+
+.sideItem.active,
+.menuItem.active{
+  background: linear-gradient(180deg, rgba(37,99,235,.22), rgba(59,130,246,.12)) !important;
+  border-color: rgba(96,165,250,.32) !important;
+}
+
+.chev{
+  color: #93c5fd !important;
+}
+
+/* special status/messages */
+.message{
+  background: rgba(30,64,175,.14) !important;
+  border: 1px solid rgba(96,165,250,.22) !important;
+  color: #e8f1ff !important;
+}
+.message.error{
+  background: rgba(127,29,29,.22) !important;
+  border-color: rgba(248,113,113,.28) !important;
+  color: #fee2e2 !important;
+}
+
+/* ===== FIX PAYROLL TEXT ON DARK THEME ===== */
+.payrollSheet{
+  background:#081a31 !important;
+}
+
+.payrollSheet thead th{
+  background: linear-gradient(180deg, #0b2344, #102b52) !important;
+  color: #dbeafe !important;
+  border-bottom: 1px solid rgba(96,165,250,.20) !important;
+}
+
+.payrollSheet tbody td{
+  background:#081a31 !important;
+  color:#e8f1ff !important;
+  border-bottom:1px solid rgba(96,165,250,.12) !important;
+}
+
+.payrollSheet thead th:first-child{
+  background: linear-gradient(180deg, #0b2344, #102b52) !important;
+  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+}
+
+.payrollSheet tbody td:first-child{
+  background:#081a31 !important;
+  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+}
+
+.payrollSheet tbody tr:hover td{
+  background:#0c2342 !important;
+}
+
+.payrollSheet tbody tr.is-selected td{
+  background:#112c4f !important;
+}
+
+.payrollSheet tbody tr:hover td:first-child,
+.payrollSheet tbody tr.is-selected td:first-child{
+  background:inherit !important;
+}
+
+.payrollSheet .emp{
+  color:#f8fbff !important;
+}
+
+.payrollSheet .empSub{
+  color:#9fb3d1 !important;
+}
+
+.payrollDayHours{
+  color:#67e8f9 !important;
+}
+
+.payrollDayEmpty{
+  color:#7dd3fc !important;
+}
+
+.payrollSheet input[type="time"],
+.payrollSheet input[type="time"]:disabled,
+.payrollSheet input.payrollTimeInput,
+.payrollTimeInput{
+  color:#e8f1ff !important;
+  -webkit-text-fill-color:#e8f1ff !important;
+}
+
+.payrollSheet input.payrollTimeInput[value=""]{
+  color:transparent !important;
+}
+
+.payrollWrap,
+.tablewrap{
+  background:#081a31 !important;
+  border-color:rgba(96,165,250,.16) !important;
+}
+
+/* ===== EXACT FIX: payroll + business snapshot text on dark theme ===== */
+
+/* Business Snapshot */
+.sideInfoCard{
+  background: linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%) !important;
+  border: 1px solid rgba(56,189,248,.14) !important;
+  box-shadow: 0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04) !important;
+}
+
+.sideInfoRow{
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(96,165,250,.14) !important;
+}
+
+.sideInfoLabel{
+  color: #9fb3d1 !important;
+}
+
+.sideInfoValue{
+  color: #f8fbff !important;
+}
+
+/* Payroll main sheet */
+.payrollSheet{
+  background:#081a31 !important;
+}
+
+.payrollSheet thead th{
+  background: linear-gradient(180deg, #0b2344, #102b52) !important;
+  color: #dbeafe !important;
+  border-bottom: 1px solid rgba(96,165,250,.20) !important;
+}
+
+.payrollSheet tbody td{
+  background:#081a31 !important;
+  color:#e8f1ff !important;
+  border-bottom:1px solid rgba(96,165,250,.12) !important;
+}
+
+.payrollSheet thead th:first-child{
+  background: linear-gradient(180deg, #0b2344, #102b52) !important;
+  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+}
+
+.payrollSheet tbody td:first-child{
+  background:#081a31 !important;
+  box-shadow: 6px 0 14px rgba(2,6,23,.28) !important;
+}
+
+.payrollSheet tbody tr:hover td{
+  background:#0c2342 !important;
+}
+
+.payrollSheet tbody tr.is-selected td{
+  background:#112c4f !important;
+}
+
+.payrollSheet tbody tr:hover td:first-child,
+.payrollSheet tbody tr.is-selected td:first-child{
+  background:inherit !important;
+}
+
+.payrollSheet .emp{
+  color:#f8fbff !important;
+}
+
+.payrollSheet .empSub{
+  color:#9fb3d1 !important;
+}
+
+.payrollDayHours{
+  color:#67e8f9 !important;
+}
+
+.payrollDayEmpty{
+  color:#7dd3fc !important;
+}
+
+.payrollSheet input[type="time"],
+.payrollSheet input[type="time"]:disabled,
+.payrollSheet input.payrollTimeInput,
+.payrollTimeInput{
+  color:#e8f1ff !important;
+  -webkit-text-fill-color:#e8f1ff !important;
+}
+
+/* Payroll employee detail cards below */
+.payrollSummaryItem,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4),
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5){
+  background: rgba(255,255,255,.03) !important;
+  border: 1px solid rgba(96,165,250,.14) !important;
+}
+
+.payrollSummaryItem .k,
+.payrollEmployeeCard .payrollSummaryItem .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .k,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k{
+  color:#9fb3d1 !important;
+}
+
+.payrollSummaryItem .v,
+.payrollSummaryItem.net .v,
+.payrollEmployeeCard .payrollSummaryItem .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
+  color:#f8fbff !important;
+}
+
+.weeklyEditTable{
+  background:#081a31 !important;
+  border-color: rgba(96,165,250,.16) !important;
+}
+
+.weeklyEditTable thead th{
+  background: linear-gradient(180deg, #0b2344, #102b52) !important;
+  color:#dbeafe !important;
+  border-bottom:1px solid rgba(96,165,250,.20) !important;
+}
+
+.weeklyEditTable tbody td{
+  background:#081a31 !important;
+  color:#e8f1ff !important;
+  border-bottom:1px solid rgba(96,165,250,.12) !important;
+}
+
+.weeklyEditTable tbody tr:nth-child(even) td{
+  background:#0a1f3d !important;
+}
+
+.weeklyEditTable tbody tr:hover td{
+  background:#112c4f !important;
+}
+
+.weeklyEditTable tbody td:nth-child(2){
+  color:#9fb3d1 !important;
+}
+
+/* Fix invisible employee name/title inside dark payroll cards */
+.payrollEmployeeCard{
+  color: #f8fbff !important;
+}
+
+.payrollEmployeeCard .sub{
+  color: #9fb3d1 !important;
+}
+
+/* dashboard cards that are still light */
+.kpiMini,
+.sideInfoCard,
+.sideInfoRow,
+.quickMini,
+.activityRow,
+.activityEmpty,
+.dashboardMainMenu .menuItem,
+.adminStats .adminStatCard,
+.adminSectionCard,
+.adminToolCard,
+.payrollSummaryItem,
+.payrollEmployeeCard .payrollSummaryItem,
+.weeklyEditTable,
+.tablewrap{
+  background: linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%) !important;
+  border: 1px solid rgba(56,189,248,.14) !important;
+  box-shadow: 0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04) !important;
+  border-radius: 8px !important;
+}
+
+/* text inside those cards */
+.kpiMini .k,
+.sideInfoLabel,
+.activityHead,
+.activityEmpty,
+.adminToolSub,
+.adminSectionSub,
+.payrollSummaryItem .k,
+.payrollEmployeeCard .payrollSummaryItem .k,
+.weeklyEditTable tbody td:nth-child(2){
+  color: #9fb3d1 !important;
+}
+
+.kpiMini .v,
+.sideInfoValue,
+.quickMini .miniText,
+.activityRow,
+.dashboardMainMenu .menuText,
+.dashboardMainMenu .chev,
+.adminToolTitle,
+.adminSectionTitle,
+.payrollSummaryItem .v,
+.payrollSummaryItem.net .v,
+.payrollEmployeeCard .payrollSummaryItem .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v,
+.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
+  color: #f8fbff !important;
+}
+
+/* dashboard menu cards */
+.dashboardMainMenu .menuItem{
+  background: rgba(255,255,255,.04) !important;
+}
+.dashboardMainMenu .icoBox{
+  border-color: rgba(96,165,250,.16) !important;
+}
+
 </style>
 """
 
@@ -9730,7 +10264,7 @@ def my_reports():
             <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
             <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
             <td class="num" style="font-weight:700;">{escape(gross_txt)}</td>
-            <td class="num" style="font-weight:800; color:rgba(15,23,42,.92);">{escape(net_txt)}</td>
+            <td class="num" style="font-weight:800; color:var(--text);">{escape(net_txt)}</td>
           </tr>
         """)
 
@@ -9858,9 +10392,9 @@ def my_reports():
 }
 
 .myReportsWeekPicker .input{
-  background: rgba(248,250,252,.96);
-  border: 1px solid rgba(148,163,184,.16);
-  color: #0f172a;
+  background: rgba(7,20,39,.72);
+  border: 1px solid rgba(96,165,250,.20);
+  color: #e8f1ff;
 }
 
 .myReportsWeekTable .payrollSummaryItem:nth-child(1),
@@ -13050,8 +13584,8 @@ def admin_payroll():
         blocks.append(f"""
           <div class="card payrollEmployeeCard" style="padding:12px; margin-top:12px;">
             <div style="margin-bottom:12px;">
-              <div style="font-size:30px; font-weight:800; line-height:1.1; color:rgba(15,23,42,.96);">
-                {escape(display)}
+              <div style="font-size:30px; font-weight:800; line-height:1.1;">
+               {escape(display)}
               </div>
             </div>
 
