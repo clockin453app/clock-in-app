@@ -13439,7 +13439,8 @@ def admin_payroll():
 
         paid, _paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
-        cells.append(f"<td class='num payrollSummaryTotal'>{show_num(total_hours)}</td>")
+        cells.append(
+            f"<td class='num payrollSummaryTotal' style='color:#8b5cf6 !important; font-weight:800;'>{show_num(total_hours)}</td>")
         cells.append(
             f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(gross)) if gross > 0 else ''}</td>")
         cells.append(f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(tax)) if tax > 0 else ''}</td>")
@@ -13710,7 +13711,6 @@ def admin_payroll():
                 <p class="sub" style="margin:4px 0 0 0;">Gross by employee for current filters.</p>
               </div>
             </div>
-            <div class="sectionBadge">{len(chart_segments)} segments</div>
           </div>
 
           <div class="payrollPieSection">
