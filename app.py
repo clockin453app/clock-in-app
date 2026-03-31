@@ -14629,19 +14629,28 @@ def admin_payroll():
         )
 
     week_nav_html = f"""
-      <form method="GET" class="payrollWeekBar">
+      <form method="GET"
+            style="margin-top:14px; display:flex; flex-wrap:wrap; gap:16px; align-items:end; justify-content:space-between; padding:18px 20px; border-radius:24px; border:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#f8f7ff); box-shadow:0 14px 30px rgba(41,25,86,.08);">
         <input type="hidden" name="q" value="{escape(q)}">
         <input type="hidden" name="from" value="{escape(date_from)}">
         <input type="hidden" name="to" value="{escape(date_to)}">
 
-        <div class="payrollWeekLead">
-          <div class="payrollWeekBadge">Employee detail tables</div>
-          <div class="payrollWeekHint">Choose the week shown in the individual employee tables below.</div>
+        <div style="flex:1 1 320px; min-width:260px;">
+          <div style="display:inline-flex; align-items:center; padding:8px 14px; border-radius:999px; border:1px solid rgba(109,40,217,.12); background:rgba(109,40,217,.06); color:#4338ca; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;">
+            Employee detail tables
+          </div>
+          <div style="margin-top:10px; color:#6f6c85; font-size:15px;">
+            Choose the week shown in the individual employee tables below.
+          </div>
         </div>
 
-        <div class="payrollWeekControl">
-          <label class="payrollWeekLabel" for="payroll-week-select">Week</label>
-          <select id="payroll-week-select" class="input" name="wk" onchange="this.form.submit()">
+        <div style="flex:0 1 360px; min-width:260px; display:flex; flex-direction:column; gap:8px;">
+          <label for="payroll-week-select"
+                 style="font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6f6c85;">
+            Week
+          </label>
+          <select id="payroll-week-select" class="input" name="wk" onchange="this.form.submit()"
+                  style="margin-top:0; height:56px; border-radius:18px; border:1px solid rgba(109,40,217,.14); background:#ffffff; color:#1f2547; font-weight:800; box-shadow:0 8px 20px rgba(41,25,86,.06);">
             {''.join(week_options)}
           </select>
         </div>
