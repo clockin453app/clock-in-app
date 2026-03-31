@@ -6260,7 +6260,7 @@ h2{
   line-height: 1.05;
   font-weight: 900;
   letter-spacing: -.03em;
-  color: rgba(15,23,42,.96) !important;
+  color: #f8fbff !important;
   text-shadow: none !important;
 }
 
@@ -6909,15 +6909,15 @@ h2{
   border-bottom:1px solid rgba(191,219,254,.56) !important;
 }
 
-.tablewrap table tbody tr:nth-child(even) td,
-.tablewrap table tbody tr:nth-child(even),
+.tablewrap table:not(.timeLogsTable) tbody tr:nth-child(even) td,
+.tablewrap table:not(.timeLogsTable) tbody tr:nth-child(even),
 .weeklyEditTable tbody tr:nth-child(even) td,
 .payrollSheet tbody tr:nth-child(even) td{
   background: rgba(248,251,255,.92) !important;
 }
 
-.tablewrap table tbody tr:hover td,
-.tablewrap table tbody tr:hover,
+.tablewrap table:not(.timeLogsTable) tbody tr:hover td,
+.tablewrap table:not(.timeLogsTable) tbody tr:hover,
 .weeklyEditTable tbody tr:hover td,
 .payrollSheet tbody tr:hover td{
   background: rgba(239,246,255,.95) !important;
@@ -6988,9 +6988,13 @@ h2{
   background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(232,244,255,.98)) !important;
 }
 
-.payrollSheet .emp,
-.payrollEmployeeName{
+.payrollSheet .emp{
   color: rgba(15,23,42,.96) !important;
+  text-shadow:none !important;
+}
+
+.payrollEmployeeName{
+  color: #f8fbff !important;
   text-shadow:none !important;
 }
 
@@ -7027,6 +7031,374 @@ h2{
 .myReportsWeekTable .weeklyEditTable{
   background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99)) !important;
   border-color: rgba(96,165,250,.16) !important;
+}
+
+
+/* ===== Plain informational sections: remove non-clickable card chrome ===== */
+.plainSection,
+.plainMetric{
+  min-width:0;
+  max-width:100%;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+}
+
+.kpi.kpiFancy.plainMetric,
+.timeLogsSummaryCard.plainMetric,
+.myReportsTopGrid .plainMetric,
+.myReportsMonthCard.plainMetric,
+.graphStat,
+.quickMini,
+.sideInfoRow,
+.payrollSummaryItem{
+  background:transparent !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  border:0 !important;
+  border-bottom:1px solid rgba(148,163,184,.18) !important;
+  padding:0 0 12px 0 !important;
+}
+
+.quickMini,
+.sideInfoRow,
+.payrollSummaryItem,
+.graphStat,
+.timeLogsSummaryCard.plainMetric{
+  margin:0 !important;
+}
+
+.graphCard.plainSection,
+.quickCard.plainSection,
+.activityCard.plainSection,
+.sideInfoCard.plainSection,
+.timeLogsHero.plainSection,
+.timeLogsTableCard.plainSection,
+.myReportsHero.plainSection,
+.myReportsWeekPicker.plainSection,
+.myReportsWeekTable.plainSection,
+.payrollChartCard.plainSection,
+.payrollEmployeeCard.plainSection,
+.adminHeroCard.plainSection,
+.adminSectionCard.plainSection{
+  padding:0 !important;
+}
+
+.kpiRow,
+.timeLogsSummaryGrid,
+.quickGrid,
+.sideInfoList,
+.graphMeta,
+.payrollSummaryBar{
+  gap:18px !important;
+}
+
+.graphCard.plainSection .graphShell{
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  padding:14px 0 10px 0 !important;
+}
+
+.graphCard.plainSection .barTrack{
+  background:rgba(15,23,42,.05) !important;
+  box-shadow:none !important;
+}
+
+.graphCard.plainSection .barValue,
+.graphCard.plainSection .graphRange,
+.graphCard.plainSection .graphTitle,
+.graphCard.plainSection .sub{
+  text-shadow:none !important;
+}
+
+.activityRow{
+  background:transparent !important;
+  box-shadow:none !important;
+  border:0 !important;
+  border-bottom:1px solid rgba(148,163,184,.18) !important;
+  border-radius:0 !important;
+  padding:10px 0 !important;
+}
+
+.activityHead{
+  padding:0 0 8px 0 !important;
+  border-bottom:1px solid rgba(148,163,184,.18) !important;
+}
+
+.timeLogsTableCard.plainSection .tablewrap,
+.myReportsWeekTable.plainSection .tablewrap,
+.payrollEmployeeCard.plainSection .tablewrap,
+.adminSectionCard.plainSection .tablewrap{
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  margin-top:10px !important;
+}
+
+/* Keep the wrappers flat, but preserve readable table contrast */
+.timeLogsTable,
+.weeklyEditTable{
+  box-shadow:none !important;
+}
+
+.timeLogsTable thead th{
+  background:transparent !important;
+  color:rgba(226,232,240,.88) !important;
+  border-bottom:1px solid rgba(148,163,184,.24) !important;
+}
+
+.timeLogsTable tbody td{
+  color:rgba(241,245,249,.96) !important;
+  border-bottom:1px solid rgba(148,163,184,.18) !important;
+}
+
+.myReportsWeekTable.plainSection .weeklyEditTable,
+.payrollEmployeeCard.plainSection .weeklyEditTable{
+  background:rgba(255,255,255,.96) !important;
+  border:1px solid rgba(96,165,250,.14) !important;
+}
+
+.myReportsWeekTable.plainSection .weeklyEditTable thead th,
+.payrollEmployeeCard.plainSection .weeklyEditTable thead th{
+  background:linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
+  color:rgba(15,23,42,.88) !important;
+  border-bottom:1px solid rgba(148,163,184,.18) !important;
+}
+
+.myReportsWeekTable.plainSection .weeklyEditTable tbody td,
+.payrollEmployeeCard.plainSection .weeklyEditTable tbody td{
+  background:rgba(255,255,255,.92) !important;
+  color:rgba(15,23,42,.92) !important;
+  border-bottom:1px solid rgba(191,219,254,.50) !important;
+}
+
+.myReportsWeekTable.plainSection .weeklyEditTable tbody tr:nth-child(even) td,
+.payrollEmployeeCard.plainSection .weeklyEditTable tbody tr:nth-child(even) td{
+  background:rgba(248,251,255,.92) !important;
+}
+
+.myReportsWeekTable.plainSection .weeklyEditTable tbody tr:hover td,
+.payrollEmployeeCard.plainSection .weeklyEditTable tbody tr:hover td{
+  background:rgba(239,246,255,.86) !important;
+}
+
+.quickMini .miniIcon,
+.sectionIcon,
+.adminSectionIcon{
+  background:transparent !important;
+  box-shadow:none !important;
+}
+
+
+/* Improve readability inside white admin tables */
+.tablewrap td .sub,
+.tablewrap td label.sub{
+  color:rgba(71,85,105,.88) !important;
+}
+
+.tablewrap .btnTiny,
+.tablewrap td:last-child .btnTiny,
+.tablewrap td:last-child a.btnTiny{
+  background:rgba(30,64,175,.08) !important;
+  color:rgba(30,64,175,1) !important;
+  border:1px solid rgba(15,23,42,.14) !important;
+  box-shadow:none !important;
+}
+
+.tablewrap .btnTiny.dark,
+.tablewrap td:last-child .btnTiny.dark{
+  background:rgba(15,23,42,.06) !important;
+  color:rgba(15,23,42,.86) !important;
+  border:1px solid rgba(15,23,42,.18) !important;
+}
+
+select.input option{
+  color:#e8f1ff;
+  background:#0b1830;
+}
+
+.snapshotFoot{
+  margin-top:12px;
+  color:var(--muted);
+}
+
+
+/* ===== FINAL READABILITY PATCH V2 ===== */
+.shell:has(.sidebar) .main{
+  padding-right: clamp(26px, 2.4vw, 42px) !important;
+}
+
+@media (max-width: 860px){
+  .shell:has(.sidebar) .main{
+    padding-right: 12px !important;
+  }
+}
+
+/* keep flat summary rows readable on dark backgrounds */
+.myReportsWeekTable.plainSection .payrollSummaryItem,
+.payrollEmployeeCard.plainSection .payrollSummaryItem,
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(1),
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(2),
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(3),
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(4),
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(1),
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(2),
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(3),
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(4),
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(5){
+  background: transparent !important;
+  border: 0 !important;
+  border-bottom: 1px solid rgba(148,163,184,.18) !important;
+  box-shadow: none !important;
+  border-radius: 0 !important;
+}
+
+.myReportsWeekTable.plainSection .payrollSummaryItem .k,
+.payrollEmployeeCard.plainSection .payrollSummaryItem .k,
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(1) .k,
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(2) .k,
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(3) .k,
+.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(4) .k,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(1) .k,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(2) .k,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(3) .k,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(4) .k,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(5) .k{
+  color: rgba(191,219,254,.84) !important;
+  -webkit-text-fill-color: rgba(191,219,254,.84) !important;
+}
+
+.myReportsWeekTable.plainSection .payrollSummaryItem .v,
+.myReportsWeekTable.plainSection .payrollSummaryItem.net .v,
+.payrollEmployeeCard.plainSection .payrollSummaryItem .v,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(1) .v,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(2) .v,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(3) .v,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(4) .v,
+.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(5) .v{
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  text-shadow: none !important;
+}
+
+/* ===== FINAL TABLE READABILITY FIXES ===== */
+
+/* 1) TIME LOGS: remove zebra completely and keep all rows readable */
+.timeLogsTable tbody tr,
+.timeLogsTable tbody tr:nth-child(odd),
+.timeLogsTable tbody tr:nth-child(even){
+  background: transparent !important;
+}
+
+.timeLogsTable tbody tr td,
+.timeLogsTable tbody tr:nth-child(odd) td,
+.timeLogsTable tbody tr:nth-child(even) td{
+  background: #102742 !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+  text-shadow: none !important;
+  border-bottom: 1px solid rgba(96,165,250,.14) !important;
+}
+
+.timeLogsTable tbody tr:hover td{
+  background: #17365d !important;
+  color: #f8fafc !important;
+  -webkit-text-fill-color: #f8fafc !important;
+}
+
+/* 2) EMPLOYEE SITES + LOCATIONS: make table form controls light and clean */
+.tablewrap td form .input,
+.tablewrap td form input,
+.tablewrap td form input.input,
+.tablewrap td form select,
+.tablewrap td form select.input,
+.tablewrap td form textarea,
+.tablewrap td form textarea.input{
+  background: #f8fbff !important;
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  border: 1px solid #cbd5e1 !important;
+  box-shadow: none !important;
+  font-weight: 600 !important;
+}
+
+.tablewrap td form .input::placeholder,
+.tablewrap td form input::placeholder,
+.tablewrap td form textarea::placeholder{
+  color: #64748b !important;
+  -webkit-text-fill-color: #64748b !important;
+}
+
+.tablewrap td form select option,
+.tablewrap td form select optgroup{
+  background: #ffffff !important;
+  color: #0f172a !important;
+}
+
+/* keep plain numeric/location cells readable */
+.tablewrap td.num{
+  color: #0f172a !important;
+  -webkit-text-fill-color: #0f172a !important;
+}
+
+/* 3) DISTINCT STATUS COLORS */
+.chip.ok,
+.tablewrap .chip.ok{
+  background: #16a34a !important;
+  color: #f0fdf4 !important;
+  border: 1px solid #15803d !important;
+  box-shadow: none !important;
+}
+
+.chip.warn,
+.tablewrap .chip.warn{
+  background: #dc2626 !important;
+  color: #fff1f2 !important;
+  border: 1px solid #b91c1c !important;
+  box-shadow: none !important;
+}
+
+.chip.bad,
+.tablewrap .chip.bad{
+  background: #d97706 !important;
+  color: #fffbeb !important;
+  border: 1px solid #b45309 !important;
+  box-shadow: none !important;
+}
+
+/* helper text inside white table sections */
+.tablewrap td .sub,
+.tablewrap td label.sub{
+  color: #475569 !important;
+}
+
+/* keep action links readable */
+.tablewrap td a[href*="/admin/locations?site="]{
+  color: #1d4ed8 !important;
+  font-weight: 700 !important;
+}
+
+/* reduce clipping on admin management tables */
+.tablewrap > table[style*="min-width:980px"]{
+  min-width: 860px !important;
+  width: 100% !important;
+  table-layout: auto !important;
+}
+
+.tablewrap > table[style*="min-width:980px"] th,
+.tablewrap > table[style*="min-width:980px"] td{
+  white-space: normal !important;
+  vertical-align: top !important;
+}
+
+.tablewrap > table[style*="min-width:980px"] td:last-child,
+.tablewrap > table[style*="min-width:980px"] th:last-child{
+  min-width: 280px !important;
 }
 
 </style>
@@ -10183,9 +10555,6 @@ def login():
     html = f"""
     <div class="shell loginShellPro" style="grid-template-columns:1fr;">
       <div class="main">
-        <div class="loginTopBar">
-          <span class="topBrandBadge">{escape(company_name)}</span>
-        </div>
 
         <div class="card loginCardPro">
           <div class="loginHeroPro">
@@ -10569,7 +10938,7 @@ def home():
     snapshot_html = ""
     if role in ("admin", "master_admin"):
         snapshot_html = f"""
-          <div class="card sideInfoCard">
+          <div class="sideInfoCard plainSection">
             <div class="sectionHead">
               <div class="sectionHeadLeft">
                 <div class="sectionIcon">{_svg_grid()}</div>
@@ -10621,7 +10990,7 @@ def home():
       </div>
 
       <div class="kpiRow">
-        <div class="card kpi kpiFancy">
+        <div class="kpi kpiFancy plainMetric">
           <div class="kpiTop">
             <p class="label">Previous Gross</p>
             <span class="chip">Previous week</span>
@@ -10630,7 +10999,7 @@ def home():
           <p class="sub">Closed weekly total</p>
         </div>
 
-        <div class="card kpi kpiFancy kpiPrimary">
+        <div class="kpi kpiFancy kpiPrimary plainMetric">
           <div class="kpiTop">
             <p class="label">Current Gross</p>
             <span class="chip {'ok' if curr_gross >= prev_gross else 'warn'}">
@@ -10641,7 +11010,7 @@ def home():
           <p class="sub">This week so far</p>
         </div>
 
-        <div class="card kpi kpiFancy kpiHours">
+        <div class="kpi kpiFancy kpiHours plainMetric">
           <div class="kpiTop">
             <p class="label">Week Hours</p>
             <span class="chip">{len(week_days)} day{'s' if len(week_days) != 1 else ''}</span>
@@ -10655,7 +11024,7 @@ def home():
         </div>
       </div>
 
-      <div class="card graphCard">
+      <div class="graphCard plainSection">
         <div class="graphTop">
           <div>
             <div class="graphTitle">Weekly Gross</div>
@@ -10701,7 +11070,7 @@ def home():
       </div>
 
       <div class="dashboardLower">
-        <div class="card quickCard">
+        <div class="quickCard plainSection">
           <div class="sectionHead">
             <div class="sectionHeadLeft">
               <div class="sectionIcon">{_svg_clock()}</div>
@@ -10774,7 +11143,7 @@ def home():
       </div>
 
       <div class="dashboardBottom">
-        <div class="card activityCard">
+        <div class="activityCard plainSection">
           <div class="sectionHead">
             <div class="sectionHeadLeft">
               <div class="sectionIcon">{_svg_clipboard()}</div>
@@ -11705,7 +12074,7 @@ def my_times():
     content = f"""
       {page_css}
       <div class="timeLogsPageShell">
-        <div class="timeLogsHero card">
+        <div class="timeLogsHero plainSection">
           <div class="timeLogsHeroTop">
             <div>
               <div class="timeLogsEyebrow">Clock history</div>
@@ -11717,13 +12086,13 @@ def my_times():
         </div>
 
         <div class="timeLogsSummaryGrid">
-          <div class="timeLogsSummaryCard card"><div class="k">Entries</div><div class="v">{len(records)}</div><div class="sub">Saved shifts</div></div>
-          <div class="timeLogsSummaryCard card"><div class="k">Total Hours</div><div class="v">{escape(fmt_hours(total_hours))}</div><div class="sub">Across all records</div></div>
-          <div class="timeLogsSummaryCard card"><div class="k">Total Pay</div><div class="v">{escape(currency)}{escape(money(total_pay))}</div><div class="sub">Recorded gross pay</div></div>
-          <div class="timeLogsSummaryCard card"><div class="k">Recent Activity</div><div class="v">{escape(str(last_clock_date))}</div><div class="sub">Today: {today_count} • This week: {week_count}</div></div>
+          <div class="timeLogsSummaryCard plainMetric"><div class="k">Entries</div><div class="v">{len(records)}</div><div class="sub">Saved shifts</div></div>
+          <div class="timeLogsSummaryCard plainMetric"><div class="k">Total Hours</div><div class="v">{escape(fmt_hours(total_hours))}</div><div class="sub">Across all records</div></div>
+          <div class="timeLogsSummaryCard plainMetric"><div class="k">Total Pay</div><div class="v">{escape(currency)}{escape(money(total_pay))}</div><div class="sub">Recorded gross pay</div></div>
+          <div class="timeLogsSummaryCard plainMetric"><div class="k">Recent Activity</div><div class="v">{escape(str(last_clock_date))}</div><div class="sub">Today: {today_count} • This week: {week_count}</div></div>
         </div>
 
-        <div class="timeLogsTableCard card">
+        <div class="timeLogsTableCard plainSection">
           <div class="tablewrap">
             <table class="timeLogsTable">
               <thead><tr><th>Date</th><th>Clock In</th><th>Clock Out</th><th class='num'>Hours</th><th class='num'>Pay</th></tr></thead>
@@ -12305,7 +12674,7 @@ def my_reports():
       {page_css}
 
 
-      <div class="myReportsHero card" style="margin-bottom:12px;">
+      <div class="myReportsHero plainSection" style="margin-bottom:12px;">
         <div class="myReportsHeroRow">
           <div class="myReportsHeroBrand">
             {f'<img src="{escape(company_logo)}" alt="Company logo" class="myReportsHeroLogo">' if company_logo else ''}
@@ -12320,26 +12689,26 @@ def my_reports():
       </div>
 
       <div class="myReportsTopGrid">
-        <div class="card kpi">
+        <div class="kpi plainMetric">
           <p class="label">Today Gross</p>
           <p class="value">{escape(currency)}{money(d_g)}</p>
           <p class="sub">Hours: {escape(fmt_hours(daily_hours))} • Tax: {escape(currency)}{money(d_t)} • Net: {escape(currency)}{money(d_n)}</p>
         </div>
 
-        <div class="card kpi">
+        <div class="kpi plainMetric">
           <p class="label">Selected Week Gross</p>
           <p class="value">{escape(currency)}{money(w_g)}</p>
           <p class="sub">Hours: {escape(fmt_hours(selected_week_hours))} • Tax: {escape(currency)}{money(w_t)} • Net: {escape(currency)}{money(w_n)}</p>
         </div>
       </div>
 
-      <div class="card kpi myReportsMonthCard">
+      <div class="kpi myReportsMonthCard plainMetric">
         <p class="label">This Month Gross</p>
         <p class="value">{escape(currency)}{money(m_g)}</p>
         <p class="sub">Hours: {escape(fmt_hours(month_hours))} • Tax: {escape(currency)}{money(m_t)} • Net: {escape(currency)}{money(m_n)}</p>
       </div>
 
-      <div class="card myReportsWeekPicker">
+      <div class="myReportsWeekPicker plainSection">
   <div class="myReportsWeekPickerRow">
     <form method="GET">
       <label class="sub" style="display:block; margin-bottom:6px;">Choose week</label>
@@ -12354,7 +12723,7 @@ def my_reports():
   </div>
 </div>
 
-      <div class="card myReportsWeekTable">
+      <div class="myReportsWeekTable plainSection">
   <div style="margin-bottom:12px;">
     <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
   </div>
@@ -12798,7 +13167,7 @@ def my_reports_print():
         </div>
       </div>
 
-      <div class="card myReportsWeekTable">
+      <div class="myReportsWeekTable plainSection">
         <div style="margin-bottom:12px;">
           <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
         </div>
@@ -14017,7 +14386,7 @@ def admin():
             """)
 
         open_html = f"""
-                    <div class="card adminSectionCard" style="margin-top:12px;">
+                    <div class="adminSectionCard plainSection" style="margin-top:12px;">
             <div class="adminSectionHead">
               <div class="adminSectionHeadLeft">
                 <div class="adminSectionIcon live">{_svg_user()}</div>
@@ -14087,7 +14456,7 @@ def admin():
         """
     else:
         open_html = f"""
-          <div class="card adminSectionCard" style="margin-top:12px;">
+          <div class="adminSectionCard plainSection" style="margin-top:12px;">
             <div class="adminSectionHead">
               <div class="adminSectionHeadLeft">
                 <div class="adminSectionIcon live">{_svg_user()}</div>
@@ -14144,7 +14513,7 @@ def admin():
         .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.24);}}
       </style>
 
-      <div class="adminHeroCard card">
+      <div class="adminHeroCard plainSection">
         <div class="adminHeroTop">
           <div>
             <div class="adminHeroEyebrow">Admin workspace</div>
@@ -14429,7 +14798,7 @@ def admin_company():
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
-      <div class="card payrollEmployeeCard" style="padding:12px; margin-top:12px;">
+      <div class="payrollEmployeeCard plainSection" style="padding:12px; margin-top:12px;">
         <form method="POST">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <label class="sub">Company name</label>
@@ -15355,7 +15724,7 @@ def admin_payroll():
             """)
 
         blocks.append(f"""
-          <div class="card payrollEmployeeCard" style="padding:12px; margin-top:12px;">
+          <div class="payrollEmployeeCard plainSection" style="padding:12px; margin-top:12px;">
             <div class="payrollEmployeeHead">
               <div class="payrollEmployeeName">{escape(display)}</div>
             </div>
@@ -15472,7 +15841,7 @@ def admin_payroll():
           </div>
         </div>
 
-        <div class="card payrollChartCard">
+        <div class="payrollChartCard plainSection">
           <div class="sectionHead">
             <div class="sectionHeadLeft">
               <div class="sectionIcon">{_svg_chart()}</div>
