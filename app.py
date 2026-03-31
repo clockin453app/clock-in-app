@@ -4422,26 +4422,99 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     display:none !important;
   }
 
-  .shell:has(.sidebar) .sideIcon{
-    width:36px !important;
-    height:36px !important;
-    min-width:36px !important;
-    border-radius:12px !important;
-    display:grid;
-    place-items:center;
-  }
+  .shell:has(.sidebar) .sideItem{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+  min-height:66px;
+  padding:8px 4px !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  position:relative;
+  transition:background .18s ease, transform .18s ease;
+}
 
-  .shell:has(.sidebar) .sideIcon svg{
-    width:20px !important;
-    height:20px !important;
-  }
+.shell:has(.sidebar) .sideLeft{
+  width:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:0;
+}
 
-  .shell:has(.sidebar) .sideIcon img{
-    width:22px !important;
-    height:22px !important;
-    object-fit:contain;
-    display:block;
-  }
+.shell:has(.sidebar) .sideIcon{
+  width:100% !important;
+  height:auto !important;
+  min-width:0 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  transition:transform .18s ease, color .18s ease, filter .18s ease;
+}
+
+.shell:has(.sidebar) .sideIcon svg{
+  width:52px !important;
+  height:52px !important;
+  display:block !important;
+}
+
+.shell:has(.sidebar) .sideIcon img{
+  width:52px !important;
+  height:52px !important;
+  object-fit:contain;
+  display:block;
+}
+
+.shell:has(.sidebar) .sideText,
+.shell:has(.sidebar) .chev{
+  display:none !important;
+}
+
+/* hover */
+.shell:has(.sidebar) .sideItem:hover{
+  background:rgba(37,99,235,.10) !important;
+  border:1px solid rgba(96,165,250,.22) !important;
+  box-shadow:0 10px 22px rgba(2,6,23,.14) !important;
+  transform:translateY(-1px);
+}
+
+.shell:has(.sidebar) .sideItem:hover .sideIcon{
+  transform:scale(1.06);
+  color:#dbeafe !important;
+  filter:drop-shadow(0 6px 14px rgba(59,130,246,.22));
+}
+
+/* current page */
+.shell:has(.sidebar) .sideItem.active{
+  background:linear-gradient(180deg, rgba(37,99,235,.22), rgba(59,130,246,.12)) !important;
+  border:1px solid rgba(96,165,250,.34) !important;
+  box-shadow:0 14px 28px rgba(30,64,175,.22) !important;
+}
+
+.shell:has(.sidebar) .sideItem.active::before{
+  content:"";
+  position:absolute;
+  left:4px;
+  top:10px;
+  bottom:10px;
+  width:4px;
+  border-radius:999px;
+  background:linear-gradient(180deg, #60a5fa, #2563eb);
+  box-shadow:0 0 0 3px rgba(59,130,246,.14);
+}
+
+.shell:has(.sidebar) .sideItem.active .sideIcon{
+  color:#eff6ff !important;
+  transform:scale(1.08);
+  filter:drop-shadow(0 8px 16px rgba(37,99,235,.30));
+}
 
   .shell:has(.sidebar) .main{
     min-width:0 !important;
@@ -5475,8 +5548,20 @@ body.mobileRailClosed #mobileRailToggle::before{
 }
 
 .sideItem.active:before{
-  background: linear-gradient(180deg, #60a5fa, #2563eb) !important;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.14) !important;
+  content:none !important;
+  display:none !important;
+}
+
+.shell:has(.sidebar) .sideItem.active::after{
+  content:"";
+  position:absolute;
+  left:10px;
+  right:10px;
+  bottom:6px;
+  height:4px;
+  border-radius:999px;
+  background:linear-gradient(90deg, #60a5fa, #2563eb);
+  box-shadow:0 0 0 3px rgba(59,130,246,.12);
 }
 
 /* text + chevrons */
@@ -5489,11 +5574,30 @@ body.mobileRailClosed #mobileRailToggle::before{
   opacity: 1 !important;
 }
 
-/* icons */
+/* icons - remove inner card look */
 .sideIcon{
-  background: rgba(255,255,255,.06) !important;
-  border: 1px solid rgba(148,163,184,.16) !important;
-  box-shadow: none !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  padding:0 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  color:#cfe1ff !important;
+}
+
+.sideIcon svg{
+  width:32px !important;
+  height:32px !important;
+  display:block !important;
+}
+
+.sideIcon img{
+  width:32px !important;
+  height:32px !important;
+  object-fit:contain !important;
+  display:block !important;
 }
 
 /* logout row */
