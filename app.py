@@ -3539,8 +3539,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   -webkit-text-fill-color: rgba(2,6,23,.95); /* Safari/Chrome */
 }
 /* Employee weekly tables: center column headers (keep first column like Date left) */
-.tablewrap table thead th:not(:first-child),
-.tablewrap table thead td:not(:first-child){
+.tablewrap table:not(.onboardingListTable) thead th:not(:first-child),
+.tablewrap table:not(.onboardingListTable) thead td:not(:first-child){
   text-align: center;
 }
 /* Right-align numeric inputs inside numeric cells (Hours/Pay columns) */
@@ -15579,9 +15579,9 @@ def admin_onboarding_list():
                 f"<td><a href='/admin/onboarding/{escape(u)}' style='color:var(--navy);font-weight:600;'>{escape(name)}</a></td>"
                 f"<td>{escape(u)}</td>"
                 f"<td>{escape(sub)}</td>"
-                f"<td style='text-align:center; white-space:nowrap;'><a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a></td>"
+                f"<td style='text-align:center; vertical-align:middle; white-space:nowrap;'>"
                 f"<a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' "
-                f"style='display:inline; margin:0; padding:0; border:0; background:none; box-shadow:none; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a>"
+                f"style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a>"
                 f"</td>"
                 f"</tr>"
             )
@@ -15608,8 +15608,8 @@ def admin_onboarding_list():
         </form>
 
         <div class="tablewrap" style="margin-top:12px;">
-          <table style="min-width: 720px;">
-            <thead><tr><th>Name</th><th>Username</th><th>Last saved</th><th style="text-align:center; width:70px;">PDF</th></tr></thead>
+          <table class="onboardingListTable" style="min-width: 720px;">
+            <thead><tr><th style="text-align:left;">Name</th><th style="text-align:left;">Username</th><th style="text-align:left;">Last saved</th><th style="text-align:center; width:70px;">PDF</th></tr></thead>
             <tbody>{body}</tbody>
           </table>
         </div>
