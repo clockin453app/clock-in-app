@@ -14653,7 +14653,15 @@ def admin():
             content_html=content
         )
     )
-
+def admin_back_link() -> str:
+    return """
+      <div style="margin:8px 0 12px;">
+        <a href="/admin"
+           style="display:inline-flex; align-items:center; gap:6px; color:#e2e8f0; text-decoration:none; font-size:14px; font-weight:700; opacity:.96;">
+          <span style="font-size:15px; line-height:1;">←</span><span>Back</span>
+        </a>
+      </div>
+    """
 
 @app.route("/admin/company", methods=["GET", "POST"])
 def admin_company():
@@ -14794,6 +14802,8 @@ def admin_company():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+      
+      {admin_back_link()}
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
@@ -15805,6 +15815,8 @@ def admin_payroll():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+      
+      {admin_back_link()}
 
             <div class="payrollTopGrid">
         <div class="card payrollFiltersCard">
@@ -16247,6 +16259,8 @@ def admin_onboarding_list():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+      
+      {admin_back_link()}
 
       <div class="card" style="padding:12px;">
         <form method="GET">
@@ -16323,6 +16337,8 @@ def admin_onboarding_detail(username):
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+      
+      {admin_back_link()}
 
       <div class="card" style="padding:12px;">
         <div class="tablewrap">
@@ -16469,6 +16485,8 @@ def admin_locations():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+      
+      {admin_back_link()}
 
       {map_card}
 
@@ -16779,6 +16797,8 @@ def admin_employee_sites():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+      
+      {admin_back_link()}
 
       <div class="card" style="padding:12px;">
         <p class="sub" style="margin-top:0;">
@@ -17494,6 +17514,8 @@ def admin_employees():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
+      
+      {admin_back_link()}
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
 {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
@@ -17944,6 +17966,7 @@ def admin_workplaces():
         </div>
         <div class="badge admin">{escape(role_label(session.get('role', 'master_admin')))}</div>
       </div>
+      
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
