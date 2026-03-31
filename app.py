@@ -11554,73 +11554,121 @@ def my_reports():
     w_g, w_t, w_n = gross_tax_net(selected_week_pay)
     m_g, m_t, m_n = gross_tax_net(month_pay)
 
-    # week dropdown
-    week_options = []
-    for i in range(0, 52):
-        d0 = this_monday - timedelta(days=7 * i)
-        d1 = d0 + timedelta(days=6)
-        iso = d0.isocalendar()
-        label = f"Week {iso[1]} ({d0.strftime('%d %b')} – {d1.strftime('%d %b %Y')})"
-        selected = "selected" if i == wk_offset else ""
-        week_options.append(f"<option value='{i}' {selected}>{escape(label)}</option>")
+    # weekly summary list (all weeks with data)
+    week_summaries = {}
 
-    # weekly rows
-    rows_html = []
-    for i in range(7):
-        d = selected_week_start + timedelta(days=i)
-        d_str = d.strftime("%Y-%m-%d")
-        item = week_map[d_str]
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
 
-        hours_val = round(item["hours"], 2)
-        gross_val = round(item["gross"], 2)
-        net_val = round(gross_val - (gross_val * tax_rate), 2)
+        row_user = (r[COL_USER] or "").strip()
+        if row_user != username:
+            continue
 
-        row_class = "overtimeRow" if hours_val > OVERTIME_HOURS else ""
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
 
-        cin_txt = item["first_in"] if item["first_in"] else ""
-        cout_txt = item["last_out"] if item["last_out"] else ""
-        hrs_txt = fmt_hours(hours_val) if hours_val > 0 else ""
-        gross_txt = money(gross_val) if gross_val > 0 else ""
-        net_txt = money(net_val) if net_val > 0 else ""
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        if not d_str:
+            continue
 
-        rows_html.append(f"""
-          <tr class="{row_class}">
-            <td><b>{escape(item['day'])}</b></td>
-            <td>{escape(item['display_date'])}</td>
-            <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
-            <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
-            <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
-            <td class="num" style="font-weight:700;">{escape(gross_txt)}</td>
-            <td class="num" style="font-weight:800; color:var(--text);">{escape(net_txt)}</td>
+        try:
+            d = datetime.strptime(d_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        hrs = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        gross = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
+
+        if hrs <= 0 and gross <= 0:
+            continue
+
+        monday = d - timedelta(days=d.weekday())
+        sunday = monday + timedelta(days=6)
+        key = monday.strftime("%Y-%m-%d")
+
+        rec = week_summaries.setdefault(key, {
+            "monday": monday,
+            "sunday": sunday,
+            "hours": 0.0,
+            "gross": 0.0,
+            "payment_date": d,
+        })
+
+        rec["hours"] += hrs
+        rec["gross"] += gross
+
+        if d > rec["payment_date"]:
+            rec["payment_date"] = d
+
+    weekly_list = []
+    for key in sorted(week_summaries.keys(), reverse=True):
+        rec = week_summaries[key]
+        monday = rec["monday"]
+        sunday = rec["sunday"]
+        gross = round(rec["gross"], 2)
+        tax = round(gross * tax_rate, 2)
+        net = round(gross - tax, 2)
+
+        iso = monday.isocalendar()
+        period_label = f"Week {iso[1]} ({monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')})"
+        payment_date = rec["payment_date"].strftime("%d/%m/%y")
+        wk_link_offset = max(0, (this_monday - monday).days // 7)
+
+        weekly_list.append({
+            "period": period_label,
+            "payment_date": payment_date,
+            "company": company_name,
+            "hours": round(rec["hours"], 2),
+            "gross": gross,
+            "tax": tax,
+            "net": net,
+            "wk_offset": wk_link_offset,
+        })
+
+    list_rows_html = []
+    for item in weekly_list:
+        list_rows_html.append(f"""
+          <tr>
+            <td>{escape(item['period'])}</td>
+            <td>{escape(item['payment_date'])}</td>
+            <td>{escape(item['company'])}</td>
+            <td class="num">{escape(fmt_hours(item['hours']))}</td>
+            <td class="num">{escape(currency)}{money(item['gross'])}</td>
+            <td class="num">{escape(currency)}{money(item['tax'])}</td>
+            <td class="num">{escape(currency)}{money(item['net'])}</td>
+            <td class="num">
+              <a class="reportsListDownloadBtn" href="/my-reports-print?wk={item['wk_offset']}" target="_blank" rel="noopener" title="Download payslip">
+                ↓
+              </a>
+            </td>
           </tr>
         """)
 
+    if not list_rows_html:
+        list_rows_html = [
+            "<tr><td colspan='8' style='text-align:center; color:#6f6c85; padding:24px;'>No weekly timesheet records found.</td></tr>"
+        ]
+
     page_css = """
     <style>
-      .myReportsPageShell{
-        max-width: 1240px;
+      .reportsListShell{
+        max-width: 1320px;
         margin: 0 auto;
         padding: 6px 0 18px;
       }
 
-      .myReportsHeaderBar{
+      .reportsListHeader{
         display:flex;
-        align-items:flex-end;
+        align-items:flex-start;
         justify-content:space-between;
-        gap:16px;
+        gap:18px;
         margin-bottom:14px;
       }
 
-      .myReportsHeaderBar h1{
-        margin: 6px 0 0;
-        font-size: clamp(30px, 4vw, 42px);
-        line-height: 1.02;
-        letter-spacing: -.03em;
-        color: #1f2547;
-        font-weight: 900;
-      }
-
-      .myReportsTabLabel{
+      .reportsListEyebrow{
         display:inline-flex;
         align-items:center;
         padding:8px 14px;
@@ -11634,126 +11682,57 @@ def my_reports():
         letter-spacing:.06em;
       }
 
-      .myReportsHeaderBar .sub{
-        margin-top:8px;
+      .reportsListHeader h1{
+        margin:10px 0 8px;
+        font-size:clamp(34px,4vw,46px);
+        line-height:1.02;
+        letter-spacing:-.03em;
+        color:#1f2547;
+        font-weight:900;
+      }
+
+      .reportsListHeader .sub{
         color:#6f6c85;
         font-size:15px;
       }
 
-      .myReportsHeaderActions{
+      .reportsListTopActions{
         display:flex;
         align-items:center;
         gap:10px;
         flex-wrap:wrap;
       }
 
-      .myReportsHeaderActions .btnSoft,
-      .myReportsHeaderActions .btnPayslipGreen{
+      .reportsListTopActions .btnSoft{
         text-decoration:none;
         display:inline-flex;
         align-items:center;
         justify-content:center;
         min-height:46px;
         padding:0 16px;
-        border-radius:16px;
+        border-radius:14px;
         font-weight:800;
-      }
-
-      .myReportsHeaderActions .btnSoft{
         background:#ffffff;
         border:1px solid rgba(109,40,217,.12);
         color:#4338ca;
         box-shadow:0 8px 18px rgba(41,25,86,.06);
       }
 
-      .btnPayslipGreen{
-        background:linear-gradient(90deg, #16a34a, #15803d);
-        color:#ffffff !important;
-        border:0;
-        box-shadow:0 12px 24px rgba(22,163,74,.18);
-      }
-
-      .myReportsFilterRow{
-        display:grid;
-        grid-template-columns: minmax(280px, 380px) 1fr;
-        gap:14px;
-        align-items:stretch;
-        margin-bottom:14px;
-      }
-
-      .myReportsWeekPickerFlat,
-      .myReportsQuickStrip{
-        border:1px solid rgba(109,40,217,.10);
-        border-radius:22px;
-        background:linear-gradient(180deg, #ffffff, #faf8ff);
-        box-shadow:0 14px 30px rgba(41,25,86,.08);
-      }
-
-      .myReportsWeekPickerFlat{
-        padding:16px;
-      }
-
-      .myReportsWeekPickerFlat form{
-        margin:0;
-      }
-
-      .myReportsWeekPickerFlat .sub{
-        display:block;
-        margin:0 0 8px 0;
-        color:#6f6c85;
-        font-size:12px;
+      .reportsListTopActions .btnPrimary{
+        text-decoration:none;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-height:46px;
+        padding:0 18px;
+        border-radius:14px;
         font-weight:800;
-        letter-spacing:.05em;
-        text-transform:uppercase;
+        color:#ffffff;
+        background:linear-gradient(90deg, #6d28d9, #2563eb);
+        box-shadow:0 12px 24px rgba(79,70,229,.20);
       }
 
-      .myReportsWeekPickerFlat .input{
-        margin-top:0;
-        height:54px;
-        border-radius:16px;
-        border:1px solid rgba(109,40,217,.14);
-        background:#ffffff;
-        color:#1f2547;
-        font-weight:800;
-        box-shadow:0 8px 18px rgba(41,25,86,.05);
-      }
-
-      .myReportsQuickStrip{
-        padding:14px 16px;
-        display:grid;
-        grid-template-columns: repeat(4, minmax(0,1fr));
-        gap:10px;
-      }
-
-      .myReportsQuickItem{
-        min-width:0;
-        padding:12px 14px;
-        border-radius:18px;
-        border:1px solid rgba(109,40,217,.08);
-        background:#ffffff;
-        box-shadow:0 6px 16px rgba(41,25,86,.04);
-      }
-
-      .myReportsQuickItem .k{
-        display:block;
-        font-size:11px;
-        font-weight:800;
-        letter-spacing:.06em;
-        text-transform:uppercase;
-        color:#8a84a3;
-      }
-
-      .myReportsQuickItem .v{
-        display:block;
-        margin-top:4px;
-        font-size:26px;
-        line-height:1.06;
-        font-weight:900;
-        color:#1f2547;
-        white-space:nowrap;
-      }
-
-      .myReportsTableShell{
+      .reportsListTableShell{
         border:1px solid rgba(109,40,217,.10);
         border-radius:24px;
         overflow:hidden;
@@ -11761,50 +11740,67 @@ def my_reports():
         box-shadow:0 18px 36px rgba(41,25,86,.08);
       }
 
-      .myReportsTableTop{
+      .reportsListTableTop{
         display:flex;
         align-items:center;
         justify-content:space-between;
         gap:12px;
-        padding:16px 18px;
+        padding:14px 18px;
         border-bottom:1px solid rgba(109,40,217,.08);
-        background:linear-gradient(180deg, rgba(109,40,217,.04), rgba(255,255,255,.8));
+        background:linear-gradient(180deg, rgba(109,40,217,.04), rgba(255,255,255,.85));
       }
 
-      .myReportsTableTitle{
+      .reportsListTableTitle{
         font-size:18px;
         font-weight:800;
         color:#1f2547;
       }
 
-      .myReportsTableMeta{
+      .reportsListTableMeta{
         color:#6f6c85;
         font-size:14px;
         font-weight:600;
       }
 
-      .myReportsFlatTableWrap{
-        margin-top:0 !important;
-        border:0 !important;
-        border-radius:0 !important;
-        box-shadow:none !important;
+      .reportsListTableWrap{
         overflow:auto;
-        background:transparent !important;
-      }
-
-      .myReportsDataTable{
-        width:100%;
-        min-width:760px;
-        table-layout:fixed;
-        border-collapse:separate;
-        border-spacing:0;
         background:#ffffff;
       }
 
-      .myReportsDataTable thead th{
-        position:sticky;
-        top:0;
-        z-index:1;
+      .reportsListTable{
+  width:100%;
+  min-width:1120px;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:auto;
+  background:#ffffff;
+}
+
+.reportsListTable th:nth-child(1),
+.reportsListTable td:nth-child(1){
+  white-space:nowrap;
+  min-width:240px;
+}
+
+.reportsListTable th:nth-child(2),
+.reportsListTable td:nth-child(2){
+  white-space:nowrap;
+  min-width:120px;
+}
+
+.reportsListTable th:nth-child(3),
+.reportsListTable td:nth-child(3){
+  white-space:nowrap;
+  min-width:250px;
+}
+
+.reportsListTable th:nth-child(8),
+.reportsListTable td:nth-child(8){
+  width:72px;
+  min-width:72px;
+}
+
+      .reportsListTable thead th{
         background:#f4f5fb;
         color:#6b7280;
         font-size:12px;
@@ -11813,10 +11809,11 @@ def my_reports():
         letter-spacing:.04em;
         padding:14px 14px;
         border-bottom:1px solid #e8eaf2;
+        text-align:left;
         white-space:nowrap;
       }
 
-      .myReportsDataTable tbody td{
+      .reportsListTable tbody td{
         padding:15px 14px;
         color:#1f2547;
         font-size:14px;
@@ -11826,63 +11823,71 @@ def my_reports():
         background:#ffffff;
       }
 
-      .myReportsDataTable tbody tr:nth-child(even) td{
+      .reportsListTable tbody tr:nth-child(even) td{
         background:#fcfbff;
       }
 
-      .myReportsDataTable tbody tr:hover td{
+      .reportsListTable tbody tr:hover td{
         background:#f7f4ff;
       }
 
-      .myReportsDataTable td.num,
-      .myReportsDataTable th.num{
+      .reportsListTable td.num,
+      .reportsListTable th.num{
         text-align:right;
         font-variant-numeric:tabular-nums;
       }
 
-      .myReportsDataTable tbody tr:last-child td{
+      .reportsListTable tbody tr:last-child td{
         border-bottom:0;
       }
 
-      .myReportsFooterNote{
+      .reportsListDownloadBtn{
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        width:34px;
+        height:34px;
+        border-radius:999px;
+        border:1px solid rgba(109,40,217,.14);
+        background:rgba(109,40,217,.06);
+        color:#6d28d9;
+        font-size:18px;
+        font-weight:900;
+        text-decoration:none;
+        box-shadow:0 6px 14px rgba(41,25,86,.06);
+        transition:transform .16s ease, box-shadow .16s ease, background .16s ease;
+      }
+
+      .reportsListDownloadBtn:hover{
+        transform:translateY(-1px);
+        background:rgba(109,40,217,.10);
+        box-shadow:0 10px 18px rgba(41,25,86,.10);
+      }
+
+      .reportsListFooter{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
         padding:12px 18px 16px;
-        color:#8a84a3;
-        font-size:13px;
         border-top:1px solid rgba(109,40,217,.08);
         background:#ffffff;
+        color:#8a84a3;
+        font-size:13px;
       }
 
-      @media (max-width: 980px){
-        .myReportsFilterRow{
-          grid-template-columns: 1fr;
-        }
-
-        .myReportsQuickStrip{
-          grid-template-columns: repeat(2, minmax(0,1fr));
-        }
-      }
-
-      @media (max-width: 720px){
-        .myReportsHeaderBar{
-          align-items:flex-start;
+      @media (max-width: 820px){
+        .reportsListHeader{
           flex-direction:column;
         }
 
-        .myReportsHeaderActions{
+        .reportsListTopActions{
           width:100%;
         }
 
-        .myReportsHeaderActions .btnSoft,
-        .myReportsHeaderActions .btnPayslipGreen{
+        .reportsListTopActions .btnSoft,
+        .reportsListTopActions .btnPrimary{
           width:100%;
-        }
-
-        .myReportsQuickStrip{
-          grid-template-columns: 1fr;
-        }
-
-        .myReportsDataTable{
-          min-width:680px;
         }
       }
 
@@ -11906,7 +11911,7 @@ def my_reports():
         .content,
         .page,
         .main,
-        .myReportsPageShell{
+        .reportsListShell{
           margin:0 !important;
           padding:0 !important;
           width:100% !important;
@@ -11919,11 +11924,8 @@ def my_reports():
           padding:0 !important;
         }
 
-        .myReportsTableShell,
-        .myReportsWeekPickerFlat,
-        .myReportsQuickStrip{
+        .reportsListTableShell{
           box-shadow:none !important;
-          break-inside:avoid;
         }
       }
     </style>
@@ -11933,77 +11935,57 @@ def my_reports():
     content = f"""
       {page_css}
 
-      <div class="myReportsPageShell">
-        <div class="myReportsHeaderBar">
+      <div class="reportsListShell">
+        <div class="reportsListHeader">
           <div>
-            <div class="myReportsTabLabel">Timesheets</div>
+            <div class="reportsListEyebrow">Timesheets</div>
             <h1>Timesheets</h1>
-            <p class="sub">{escape(display_name)} • {escape(company_name)} • {escape(week_label)}</p>
+            <p class="sub">{escape(display_name)} • {escape(company_name)}</p>
           </div>
 
-          <div class="myReportsHeaderActions noPrint">
-            <a class="btnSoft" href="/my-reports-print?wk={wk_offset}" target="_blank" rel="noopener">Print / Save PDF</a>
-            <a class="btnPayslipGreen" href="/my-reports-print?wk={wk_offset}" target="_blank" rel="noopener">Open Payslip</a>
-          </div>
-        </div>
-
-        <div class="myReportsFilterRow noPrint">
-          <div class="myReportsWeekPickerFlat">
-            <form method="GET">
-              <label class="sub">Selected week</label>
-              <select class="input" name="wk" onchange="this.form.submit()">
-                {''.join(week_options)}
-              </select>
-            </form>
-          </div>
-
-          <div class="myReportsQuickStrip">
-            <div class="myReportsQuickItem">
-              <span class="k">Gross pay</span>
-              <span class="v">{escape(currency)}{money(w_g)}</span>
-            </div>
-            <div class="myReportsQuickItem">
-              <span class="k">Tax</span>
-              <span class="v">{escape(currency)}{money(w_t)}</span>
-            </div>
-            <div class="myReportsQuickItem">
-              <span class="k">Net pay</span>
-              <span class="v">{escape(currency)}{money(w_n)}</span>
-            </div>
-            <div class="myReportsQuickItem">
-              <span class="k">Week</span>
-              <span class="v" style="font-size:22px; line-height:1.1;">{escape((week_label or '').split(' (')[0])}</span>
-               </div>
+          <div class="reportsListTopActions noPrint">
+            <a class="btnPrimary" href="/my-reports-print?wk={wk_offset}" target="_blank" rel="noopener">Download pay summary</a>
           </div>
         </div>
 
-        <div class="myReportsTableShell">
-          <div class="myReportsTableTop">
-            <div class="myReportsTableTitle">Weekly breakdown</div>
-            <div class="myReportsTableMeta">{escape(week_label)}</div>
+        <div class="reportsListTableShell">
+          <div class="reportsListTableTop">
+            <div class="reportsListTableTitle">All weekly timesheets</div>
+            <div class="reportsListTableMeta">{len(weekly_list)} week(s)</div>
           </div>
 
-          <div class="tablewrap myReportsFlatTableWrap">
-            <table class="weeklyEditTable myReportsDataTable">
+          <div class="reportsListTableWrap">
+            <table class="reportsListTable">
+            <colgroup>
+  <col style="width:24%;">
+  <col style="width:12%;">
+  <col style="width:24%;">
+  <col style="width:8%;">
+  <col style="width:11%;">
+  <col style="width:10%;">
+  <col style="width:11%;">
+  <col style="width:4%;">
+</colgroup>
               <thead>
                 <tr>
-                  <th>Day</th>
-                  <th>Date</th>
-                  <th>Clock In</th>
-                  <th>Clock Out</th>
+                  <th>Period</th>
+                  <th>Payment Date</th>
+                  <th>Company</th>
                   <th class="num">Hours</th>
-                  <th class="num">Gross</th>
-                  <th class="num">Net</th>
+                  <th class="num">Gross Pay</th>
+                  <th class="num">Tax</th>
+                  <th class="num">Take Home</th>
+                  <th class="num">Download</th>
                 </tr>
               </thead>
               <tbody>
-                {''.join(rows_html)}
+                {''.join(list_rows_html)}
               </tbody>
             </table>
           </div>
 
-          <div class="myReportsFooterNote">
-            Weekly hours and pay are calculated from your saved clock-in and clock-out records.
+          <div class="reportsListFooter">
+            <span>Each row shows one week with a direct payslip download button.</span>
           </div>
         </div>
       </div>
