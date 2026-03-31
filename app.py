@@ -12249,178 +12249,267 @@ def my_reports_print():
 
     page_css = """
     <style>
-      .myReportsActions{
-        display:flex;
-        gap:8px;
-        flex-wrap:wrap;
-        justify-content:flex-end;
+      .printSheetWrap{
+        max-width: 980px;
+        margin: 0 auto;
       }
 
-      .myReportsActions .btnSoft{
-        display:inline-flex;
+      .printCard{
+        background: #ffffff;
+        border: 1px solid #e6e8f0;
+        border-radius: 0;
+        box-shadow: 0 18px 40px rgba(15,23,42,.08);
+        overflow: hidden;
+      }
+
+      .printToolbar{
+        display:flex;
+        justify-content:space-between;
         align-items:center;
-        justify-content:center;
+        gap:12px;
+        margin-bottom:14px;
+      }
+
+      .printToolbar .btnSoft{
         text-decoration:none;
       }
 
-      .myReportsWeekTable{
-        margin-top:12px;
-        padding:10px;
+      .statementHead{
+        padding: 26px 28px 18px;
+        border-bottom: 1px solid #ececf4;
+        background: #ffffff;
       }
 
-      .myReportsWeekTable .tablewrap{
-        margin-top:10px;
+      .statementHeadGrid{
+        display:grid;
+        grid-template-columns: 1.1fr 1fr .9fr;
+        gap: 20px;
+        align-items:start;
       }
 
-      .myReportsWeekTable .payrollSummaryBar{
-        margin-top:10px;
-        grid-template-columns:repeat(4, minmax(0, 1fr));
-        gap:6px;
-      }
-
-      .myReportsWeekTable .payrollSummaryItem{
-        padding:6px 8px;
-        border-radius:12px;
-      }
-
-      .myReportsWeekTable .payrollSummaryItem .k{
-        font-size:10px;
-      }
-
-      .myReportsWeekTable .payrollSummaryItem .v{
-        font-size:14px;
-        line-height:1.1;
-      }
-
-      .myReportsWeekTable .weeklyEditTable{
-        table-layout:fixed;
-        width:100%;
+      .statementCompany{
         min-width:0;
       }
 
-      .myReportsWeekTable .weeklyEditTable thead th,
-      .myReportsWeekTable .weeklyEditTable tbody td{
-        padding:7px 3px;
-        font-size:12px;
+      .statementLogo{
+        max-height: 42px;
+        max-width: 150px;
+        object-fit: contain;
+        display:block;
+        margin-bottom: 10px;
       }
 
-      .myReportsWeekTable .weeklyEditTable thead th{
-        white-space:nowrap;
-        letter-spacing:0;
-        font-size:10px;
+      .statementCompanyName{
+        font-size: 20px;
+        font-weight: 800;
+        color: #0f172a;
+        line-height: 1.15;
       }
 
-      .myReportsWeekTable .weeklyEditTable tbody td{
-        white-space:nowrap;
-        overflow:hidden;
-        text-overflow:ellipsis;
+      .statementCompanySub{
+        margin-top: 8px;
+        color: #64748b;
+        font-size: 12px;
+        line-height: 1.5;
       }
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(1),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(1){
-        width:38px;
-      }
-
-      .myReportsWeekTable .weeklyEditTable th:nth-child(2),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(2){
-        width:78px;
+      .statementTitleBlock{
         text-align:center;
+        min-width:0;
       }
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(3),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(3),
-      .myReportsWeekTable .weeklyEditTable th:nth-child(4),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(4){
-        width:56px;
-        text-align:center;
+      .statementTitle{
+        font-size: 22px;
+        font-weight: 900;
+        color: #111827;
+        line-height: 1.15;
       }
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(5),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(5){
-        width:46px;
+      .statementPeriod{
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 800;
+        color: #1f2937;
       }
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(6),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(6),
-      .myReportsWeekTable .weeklyEditTable th:nth-child(7),
-      .myReportsWeekTable .weeklyEditTable td:nth-child(7){
-        width:64px;
+      .statementMeta{
+        justify-self:end;
+        min-width: 220px;
+        text-align:right;
       }
 
+      .statementMetaRow{
+        font-size: 11px;
+        color: #6b7280;
+        line-height: 1.55;
+      }
 
-      @media (max-width: 780px){
-        .myReportsActions{
-          width:100%;
-          display:grid;
-          grid-template-columns:1fr;
-          gap:8px;
+      .statementMetaRow strong{
+        color: #111827;
+        font-weight: 800;
+      }
+
+      .statementBody{
+        padding: 20px 28px 18px;
+      }
+
+      .statementTopGrid{
+        display:grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 26px;
+        margin-bottom: 18px;
+      }
+
+      .statementSectionTitle{
+        margin: 0 0 8px 0;
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+        color: #6d28d9;
+      }
+
+      .statementInfoLines{
+        color: #111827;
+        font-size: 13px;
+        line-height: 1.7;
+      }
+
+      .statementInfoLines .muted{
+        color: #6b7280;
+      }
+
+      .statementSummary{
+        display:grid;
+        gap: 6px;
+      }
+
+      .statementSummaryRow{
+        display:grid;
+        grid-template-columns: 1fr auto;
+        gap: 12px;
+        align-items:end;
+        padding: 2px 0;
+        font-size: 13px;
+        color: #111827;
+      }
+
+      .statementSummaryRow .label{
+        color: #4b5563;
+      }
+
+      .statementSummaryRow .value{
+        font-weight: 800;
+        color: #111827;
+        white-space: nowrap;
+      }
+
+      .statementSummaryRow.total{
+        margin-top: 6px;
+        padding-top: 8px;
+        border-top: 1px solid #e5e7eb;
+      }
+
+      .statementSummaryRow.total .label,
+      .statementSummaryRow.total .value{
+        font-weight: 900;
+        color: #111827;
+      }
+
+      .statementTableWrap{
+        margin-top: 8px;
+        border: 1px solid #e5e7eb;
+        border-radius: 0;
+        overflow: hidden;
+      }
+
+      .statementTable{
+        width: 100%;
+        border-collapse: collapse;
+        table-layout: fixed;
+        background: #ffffff;
+      }
+
+      .statementTable th{
+        background: #f5f6fa;
+        color: #374151;
+        font-size: 11px;
+        font-weight: 900;
+        text-transform: uppercase;
+        letter-spacing: .04em;
+        padding: 10px 10px;
+        border-bottom: 1px solid #e5e7eb;
+        text-align: left;
+      }
+
+      .statementTable td{
+        padding: 9px 10px;
+        font-size: 13px;
+        color: #111827;
+        border-bottom: 1px solid #edf0f5;
+        vertical-align: middle;
+      }
+
+      .statementTable tbody tr:last-child td{
+        border-bottom: 0;
+      }
+
+      .statementTable td.num,
+      .statementTable th.num{
+        text-align: right;
+        font-variant-numeric: tabular-nums;
+      }
+
+      .statementFooterTotals{
+        margin-top: 16px;
+        display:grid;
+        grid-template-columns: repeat(4, minmax(0,1fr));
+        gap: 12px;
+      }
+
+      .statementTotalCard{
+        border: 1px solid #e5e7eb;
+        border-radius: 0;
+        background: #ffffff;
+        padding: 10px 12px;
+      }
+
+      .statementTotalCard .k{
+        font-size: 11px;
+        font-weight: 900;
+        letter-spacing: .06em;
+        text-transform: uppercase;
+        color: #6b7280;
+      }
+
+      .statementTotalCard .v{
+        margin-top: 4px;
+        font-size: 16px;
+        font-weight: 900;
+        color: #111827;
+        line-height: 1.15;
+      }
+
+      .statementBottomBar{
+        height: 14px;
+        background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 40%, #5b21b6 100%);
+      }
+
+      @media (max-width: 860px){
+        .statementHeadGrid,
+        .statementTopGrid,
+        .statementFooterTotals{
+          grid-template-columns: 1fr;
         }
 
-        .myReportsActions .btnSoft{
-          width:100%;
+        .statementMeta{
+          justify-self:start;
+          text-align:left;
+          min-width:0;
         }
 
-        .myReportsWeekTable{
-          padding:6px;
-        }
-
-        .myReportsWeekTable .tablewrap{
-          margin-top:8px;
-          border-radius:14px;
-        }
-
-        .myReportsWeekTable .weeklyEditTable thead th,
-        .myReportsWeekTable .weeklyEditTable tbody td{
-          padding:7px 3px;
-          font-size:11px;
-        }
-
-        .myReportsWeekTable .weeklyEditTable th:nth-child(1),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(1){
-          width:32px;
-        }
-
-        .myReportsWeekTable .weeklyEditTable th:nth-child(2),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(2){
-          width:68px;
-          text-align:center;
-        }
-
-        .myReportsWeekTable .weeklyEditTable th:nth-child(3),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(3),
-        .myReportsWeekTable .weeklyEditTable th:nth-child(4),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(4){
-          width:48px;
-        }
-
-        .myReportsWeekTable .weeklyEditTable th:nth-child(5),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(5){
-          width:38px;
-        }
-
-        .myReportsWeekTable .weeklyEditTable th:nth-child(6),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(6),
-        .myReportsWeekTable .weeklyEditTable th:nth-child(7),
-        .myReportsWeekTable .weeklyEditTable td:nth-child(7){
-          width:54px;
-        }
-
-        .payrollSummaryBar{
-          grid-template-columns:1fr 1fr;
-          gap:8px;
-        }
-
-        .payrollSummaryItem{
-          padding:8px 10px;
-          border-radius:14px;
-        }
-
-        .payrollSummaryItem .k{
-          font-size:11px;
-        }
-
-        .payrollSummaryItem .v{
-          font-size:16px;
+        .statementTitleBlock{
+          text-align:left;
         }
       }
 
@@ -12428,120 +12517,140 @@ def my_reports_print():
         .sidebar,
         .topbar,
         .mobileNav,
-        .noPrint,
+        .bottomNav,
+        .dashboardMainMenu,
+        .payrollMenuBackdrop,
+        .payrollMenuToggle,
         #payrollMenuBackdrop,
-        #payrollMenuToggle{
+        #payrollMenuToggle,
+        .noPrint,
+        .headerTop,
+        .badge{
           display:none !important;
+          visibility:hidden !important;
         }
 
         .shell,
         .content,
         .page,
-        .main{
+        .main,
+        .printSheetWrap{
           margin:0 !important;
           padding:0 !important;
           width:100% !important;
           max-width:none !important;
         }
 
-        .card{
-          box-shadow:none !important;
-          border:1px solid #dbe5f1 !important;
-          break-inside:avoid;
+        body{
+          background:#ffffff !important;
+          margin:0 !important;
+          padding:0 !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
         }
 
-        body{
-          background:#fff !important;
+        .printCard,
+        .statementTableWrap,
+        .statementTotalCard{
+          box-shadow:none !important;
+        }
+
+        .printCard{
+          border:none !important;
         }
       }
     </style>
     """
-
     content = f"""
       {page_css}
 
-      <div class="kpiFancy payrollEmployeeCard" style="padding:18px; margin-bottom:14px; border-radius:20px;">
-  <div style="display:flex; align-items:center; gap:14px; flex-wrap:wrap;">
-    {f'''
-    <img src="{escape(company_logo)}" alt="Company logo"
-         style="max-height:64px; max-width:150px; object-fit:contain; border:1px solid rgba(96,165,250,.18); border-radius:12px; padding:6px; background:rgba(255,255,255,.96);">
-    ''' if company_logo else ""}
-    <div>
-      <div style="font-size:26px; font-weight:800; line-height:1.1; color:#f8fafc;">{escape(company_name)}</div>
-      <div class="sub" style="margin-top:4px; color:rgba(191,219,254,.78);">Payslip / Timesheet</div>
-      <div class="sub" style="color:rgba(191,219,254,.86);"><strong style="color:#f8fafc;">{escape(display_name)}</strong> • {escape(week_label)}</div>
-    </div>
-  </div>
-</div>
-
-      <div class="headerTop noPrint">
-        <div>
-          <h1>Payslip</h1>
-          <p class="sub">{escape(display_name)} • {escape(week_label)}</p>
-        </div>
-        <div class="myReportsActions">
+      <div class="printSheetWrap">
+        <div class="printToolbar noPrint">
           <a class="btnSoft" href="/my-reports?wk={wk_offset}">← Back to Timesheets</a>
           <button class="btnSoft" type="button" onclick="window.print()">Save / Print Payslip</button>
         </div>
-      </div>
 
-      <div class="myReportsWeekTable plainSection">
-        <div style="margin-bottom:12px;">
-          <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
-        </div>
+        <div class="printCard">
+          <div class="statementHead" style="padding:18px 24px 12px;">
+            <div class="statementHeadGrid" style="grid-template-columns:1.2fr 1fr; gap:18px;">
+              <div class="statementCompany">
+                {f'<img src="{escape(company_logo)}" alt="Company logo" class="statementLogo">' if company_logo else ''}
+                <div class="statementCompanyName">{escape(company_name)}</div>
+                <div class="statementCompanySub">
+                  Payroll / Timesheet statement<br>
+                  Generated from weekly records
+                </div>
+              </div>
 
-        <div class="tablewrap">
-          <table class="weeklyEditTable">
-            <colgroup>
-              <col style="width:38px;">
-              <col style="width:78px;">
-              <col style="width:56px;">
-              <col style="width:56px;">
-              <col style="width:46px;">
-              <col style="width:64px;">
-              <col style="width:64px;">
-            </colgroup>
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Date</th>
-                <th>Clock In</th>
-                <th>Clock Out</th>
-                <th class="num">Hours</th>
-                <th class="num">Gross</th>
-                <th class="num">Net</th>
-              </tr>
-            </thead>
-            <tbody>
-              {''.join(rows_html)}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="payrollSummaryBar">
-          <div class="payrollSummaryItem">
-            <div class="k">Hours</div>
-            <div class="v">{escape(fmt_hours(selected_week_hours))}</div>
+              <div class="statementTitleBlock" style="text-align:right;">
+                <div class="statementTitle">CIS Pay Statement</div>
+                <div class="statementPeriod">{escape(week_label)}</div>
+                <div class="statementMetaRow" style="margin-top:10px;">
+                  <strong>Employee:</strong> {escape(display_name)}
+                </div>
+                <div class="statementMetaRow">
+                  <strong>Generated:</strong> {escape(datetime.now(TZ).strftime("%d/%m/%Y %H:%M"))}
+                </div>
+              </div>
+            </div>
           </div>
 
-          <div class="payrollSummaryItem">
-            <div class="k">Gross</div>
-            <div class="v">{escape(currency)}{money(w_g)}</div>
+          <div class="statementBody" style="padding:14px 24px 16px;">
+            <div class="statementSectionTitle" style="margin-bottom:8px;">Pay summary</div>
+            <div class="statementSummary" style="margin-bottom:14px;">
+              <div class="statementSummaryRow">
+                <div class="label">Hours worked</div>
+                <div class="value">{escape(fmt_hours(selected_week_hours))}</div>
+              </div>
+              <div class="statementSummaryRow">
+                <div class="label">Gross pay</div>
+                <div class="value">{escape(currency)}{money(w_g)}</div>
+              </div>
+              <div class="statementSummaryRow">
+                <div class="label">Tax</div>
+                <div class="value">{escape(currency)}{money(w_t)}</div>
+              </div>
+              <div class="statementSummaryRow total">
+                <div class="label">Total net pay</div>
+                <div class="value">{escape(currency)}{money(w_n)}</div>
+              </div>
+            </div>
+
+            <div class="statementSectionTitle" style="margin-bottom:8px;">Weekly breakdown</div>
+
+            <div class="statementTableWrap">
+              <table class="statementTable" style="table-layout:fixed;">
+                <colgroup>
+                  <col style="width:14%;">
+                  <col style="width:18%;">
+                  <col style="width:16%;">
+                  <col style="width:16%;">
+                  <col style="width:12%;">
+                  <col style="width:12%;">
+                  <col style="width:12%;">
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th>Day</th>
+                    <th>Date</th>
+                    <th>Clock In</th>
+                    <th>Clock Out</th>
+                    <th class="num">Hours</th>
+                    <th class="num">Gross</th>
+                    <th class="num">Net</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {''.join(rows_html)}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <div class="payrollSummaryItem">
-            <div class="k">Tax</div>
-            <div class="v">{escape(currency)}{money(w_t)}</div>
-          </div>
-
-          <div class="payrollSummaryItem net">
-            <div class="k">Net</div>
-            <div class="v">{escape(currency)}{money(w_n)}</div>
-          </div>
+          <div class="statementBottomBar"></div>
         </div>
       </div>
     """
-
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
 
