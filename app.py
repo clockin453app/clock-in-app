@@ -9302,214 +9302,240 @@ def login():
     login_page_style = """
     <style>
       .loginShellPro{
-        max-width:720px;
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 22px 0 30px;
       }
-      .loginTopBar{
-        display:flex;
-        justify-content:flex-end;
-        align-items:center;
-        margin-bottom:14px;
-      }
+
       .loginCardPro{
-        padding:0;
-        overflow:hidden;
-        border-radius:30px;
-        border:1px solid rgba(96,165,250,.18);
+        overflow: hidden;
+        border-radius: 28px !important;
+        border: 1px solid rgba(109,40,217,.10) !important;
         background:
-          linear-gradient(180deg, rgba(3,14,33,.94), rgba(5,23,48,.90)),
-          radial-gradient(circle at top left, rgba(59,130,246,.14), transparent 34%),
-          radial-gradient(circle at bottom right, rgba(34,211,238,.08), transparent 30%);
-        box-shadow:
-          0 22px 54px rgba(2,6,23,.30),
-          inset 0 1px 0 rgba(255,255,255,.05);
+          radial-gradient(circle at top right, rgba(109,40,217,.05), transparent 32%),
+          radial-gradient(circle at top left, rgba(37,99,235,.05), transparent 28%),
+          linear-gradient(180deg, #ffffff 0%, #fbfaff 100%) !important;
+        box-shadow: 0 24px 60px rgba(41,25,86,.10) !important;
       }
+
       .loginHeroPro{
-        display:flex;
-        align-items:flex-start;
-        justify-content:space-between;
-        gap:18px;
-        padding:28px 28px 18px 28px;
-        border-bottom:1px solid rgba(148,163,184,.10);
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        padding: 26px 28px 20px 28px;
+        border-bottom: 1px solid rgba(109,40,217,.08);
+        background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(248,247,255,.96));
       }
+
       .loginEyebrow{
-        display:inline-flex;
-        align-items:center;
-        gap:8px;
-        padding:8px 12px;
-        border-radius:999px;
-        margin-bottom:14px;
-        font-size:12px;
-        font-weight:800;
-        letter-spacing:.08em;
-        text-transform:uppercase;
-        color:#bfdbfe;
-        background:rgba(29,78,216,.16);
-        border:1px solid rgba(96,165,250,.20);
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 14px;
+        border-radius: 999px;
+        border: 1px solid rgba(109,40,217,.12);
+        background: rgba(109,40,217,.06);
+        color: #7c3aed;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: .05em;
+        text-transform: uppercase;
       }
+
       .loginHeroPro h1{
-        margin:0;
-        font-size:52px;
-        line-height:1.02;
-        letter-spacing:-.03em;
-        color:#f8fafc;
+        margin: 16px 0 10px 0;
+        font-size: clamp(52px, 7vw, 74px);
+        line-height: .95;
+        letter-spacing: -.04em;
+        color: #1f2547;
+        font-weight: 900;
       }
+
       .loginLead{
-        margin:12px 0 0 0;
-        max-width:480px;
-        color:rgba(191,219,254,.78);
-        font-size:16px;
-        line-height:1.65;
+        margin: 0;
+        color: #6f6c85 !important;
+        font-size: 18px;
+        line-height: 1.65;
+        max-width: 560px;
       }
+
       .loginHeroBadge{
-        flex:0 0 auto;
-        display:inline-flex;
-        align-items:center;
-        justify-content:center;
-        min-height:40px;
-        padding:10px 14px;
-        border-radius:16px;
-        font-size:12px;
-        font-weight:800;
-        letter-spacing:.08em;
-        text-transform:uppercase;
-        color:#dbeafe;
-        background:rgba(15,23,42,.48);
-        border:1px solid rgba(96,165,250,.22);
-        box-shadow:inset 0 1px 0 rgba(255,255,255,.06);
+        flex: 0 0 auto;
+        align-self: flex-start;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 48px;
+        padding: 0 18px;
+        border-radius: 18px;
+        border: 1px solid rgba(37,99,235,.10);
+        background: linear-gradient(180deg, #f3f7ff, #edf2ff);
+        color: #4f46e5;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: .05em;
+        text-transform: uppercase;
+        box-shadow: 0 8px 20px rgba(41,25,86,.06);
       }
+
       .loginFormWrap{
-        padding:24px 28px 28px 28px;
+        padding: 26px 28px 28px 28px;
       }
+
       .loginSectionTitle{
-        font-size:15px;
-        font-weight:700;
-        color:#cbd5e1;
-        margin:0 0 16px 0;
+        margin: 0 0 14px 0;
+        color: #1f2547;
+        font-size: 28px;
+        font-weight: 800;
+        letter-spacing: -.02em;
       }
+
       .loginFormGrid{
-        display:grid;
-        gap:14px;
+        display: grid;
+        gap: 14px;
       }
+
       .loginFieldLabel{
-        display:block;
-        margin:0 0 8px 0;
-        color:#cbd5e1;
-        font-size:13px;
-        font-weight:700;
-        letter-spacing:.02em;
+        display: block;
+        margin: 0 0 8px 0;
+        color: #6f6c85;
+        font-size: 13px;
+        font-weight: 800;
+        letter-spacing: .02em;
       }
+
       .loginInput{
-        height:56px;
-        margin-top:0;
-        border-radius:16px;
-        border:1px solid rgba(96,165,250,.16);
-        background:linear-gradient(180deg, rgba(2,12,30,.92), rgba(3,20,44,.88));
-        color:#f8fafc;
-        box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
+        margin-top: 0 !important;
+        height: 56px !important;
+        padding: 0 16px !important;
+        border-radius: 18px !important;
+        border: 1px solid rgba(109,40,217,.12) !important;
+        background: #ffffff !important;
+        color: #1f2547 !important;
+        box-shadow: 0 6px 18px rgba(41,25,86,.04);
       }
+
       .loginInput::placeholder{
-        color:rgba(148,163,184,.78);
+        color: #9a96ad;
       }
+
       .loginInput:focus{
-        border-color:rgba(96,165,250,.42);
-        box-shadow:0 0 0 4px rgba(37,99,235,.14);
+        border-color: rgba(79,70,229,.35) !important;
+        box-shadow: 0 0 0 4px rgba(109,40,217,.08), 0 8px 24px rgba(41,25,86,.08) !important;
+        outline: none;
       }
+
       .loginPrimaryBtn{
-        width:100%;
-        margin-top:4px;
-        border:none;
-        border-radius:18px;
-        height:58px;
-        padding:0 18px;
-        cursor:pointer;
-        font-size:17px;
-        font-weight:800;
-        letter-spacing:.01em;
-        color:#eff6ff;
-        background:linear-gradient(135deg, #2f6bff 0%, #4f83ff 55%, #5d92ff 100%);
-        box-shadow:
-          0 18px 34px rgba(37,99,235,.24),
-          inset 0 1px 0 rgba(255,255,255,.16);
-        transition:transform .16s ease, box-shadow .16s ease, filter .16s ease;
+        margin-top: 4px;
+        width: 100%;
+        min-height: 58px;
+        border: 0;
+        border-radius: 18px;
+        background: linear-gradient(90deg, #2563eb, #5b8cff);
+        color: #ffffff;
+        font-size: 17px;
+        font-weight: 800;
+        letter-spacing: .01em;
+        box-shadow: 0 14px 30px rgba(37,99,235,.20);
+        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
       }
+
       .loginPrimaryBtn:hover{
-        transform:translateY(-1px);
-        box-shadow:
-          0 22px 36px rgba(37,99,235,.28),
-          inset 0 1px 0 rgba(255,255,255,.18);
-        filter:brightness(1.02);
+        transform: translateY(-1px);
+        box-shadow: 0 18px 34px rgba(37,99,235,.24);
+        filter: brightness(1.02);
       }
-      .loginPrimaryBtn:active{
-        transform:translateY(0);
-        filter:brightness(.99);
-      }
-      .loginMetaGrid{
-        display:grid;
-        grid-template-columns:repeat(3, minmax(0,1fr));
-        gap:10px;
-        margin-top:18px;
-      }
-      .loginMetaCard{
-        padding:12px 14px;
-        border-radius:18px;
-        border:1px solid rgba(96,165,250,.10);
-        background:linear-gradient(180deg, rgba(9,28,55,.88), rgba(6,22,46,.82));
-        box-shadow:inset 0 1px 0 rgba(255,255,255,.04);
-      }
-      .loginMetaLabel{
-        display:block;
-        margin:0 0 4px 0;
-        color:rgba(148,163,184,.90);
-        font-size:11px;
-        font-weight:700;
-        letter-spacing:.08em;
-        text-transform:uppercase;
-      }
-      .loginMetaValue{
-        display:block;
-        color:#f8fafc;
-        font-size:13px;
-        font-weight:700;
-        line-height:1.45;
-      }
+
       .loginMessageWrap{
-        margin-top:14px;
+        margin-top: 16px;
       }
+
+      .loginMetaGrid{
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0,1fr));
+        gap: 12px;
+      }
+
+      .loginMetaCard{
+        padding: 14px 16px;
+        border-radius: 20px;
+        border: 1px solid rgba(109,40,217,.10);
+        background: linear-gradient(180deg, #ffffff, #f8f7ff);
+        box-shadow: 0 10px 24px rgba(41,25,86,.06);
+      }
+
+      .loginMetaLabel{
+        display: block;
+        margin: 0 0 6px 0;
+        color: #8a84a3;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: .08em;
+        text-transform: uppercase;
+      }
+
+      .loginMetaValue{
+        display: block;
+        color: #1f2547;
+        font-size: 15px;
+        font-weight: 800;
+        line-height: 1.45;
+      }
+
       .loginFooterNote{
-        margin-top:14px;
-        color:rgba(148,163,184,.94);
-        font-size:13px;
-        line-height:1.6;
+        margin-top: 16px;
+        color: #8a84a3;
+        font-size: 14px;
+        line-height: 1.65;
       }
+
       @media (max-width: 760px){
         .loginShellPro{
-          max-width:100%;
+          max-width: 100%;
+          padding-top: 10px;
         }
+
         .loginHeroPro{
-          padding:24px 20px 16px 20px;
-          flex-direction:column;
-          align-items:flex-start;
+          padding: 22px 20px 18px 20px;
+          flex-direction: column;
+          align-items: flex-start;
         }
+
         .loginHeroPro h1{
-          font-size:42px;
+          font-size: 48px;
         }
+
         .loginFormWrap{
-          padding:20px;
+          padding: 20px;
+        }
+
+        .loginMetaGrid{
+          grid-template-columns: 1fr;
         }
       }
+
       @media (max-width: 560px){
-        .loginTopBar{
-          margin-bottom:12px;
-        }
         .loginHeroPro h1{
-          font-size:36px;
+          font-size: 40px;
         }
+
         .loginLead{
-          font-size:15px;
-          line-height:1.58;
+          font-size: 15px;
+          line-height: 1.6;
         }
-        .loginMetaGrid{
-          grid-template-columns:1fr;
+
+        .loginSectionTitle{
+          font-size: 22px;
+        }
+
+        .loginInput{
+          height: 54px !important;
+        }
+
+        .loginPrimaryBtn{
+          min-height: 54px;
+          font-size: 16px;
         }
       }
     </style>
@@ -9979,10 +10005,18 @@ def home():
             <span class="chip">{len(week_days)} day{'s' if len(week_days) != 1 else ''}</span>
           </div>
           <p class="value">{fmt_hours(week_hours)}</p>
-          <div class="kpiMetaRow">
-            <span>{week_progress_pct}% of 40h target</span>
-            <span>{escape(currency)}{money(today_pay)} today</span>
-          </div>
+          <div class="kpiMetaRow"
+     style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px 10px; align-items:center;">
+  <div style="display:flex; align-items:center; gap:8px; min-width:0;">
+    <span style="font-weight:800; color:#4338ca; white-space:nowrap;">{week_progress_pct}%</span>
+    <span style="color:#6f6c85; font-weight:600;">of 40h target</span>
+  </div>
+
+  <div style="justify-self:end; display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid rgba(37,99,235,.10); background:rgba(37,99,235,.06); white-space:nowrap;">
+    <span style="font-weight:800; color:#1f2547;">{escape(currency)}{money(today_pay)}</span>
+    <span style="color:#6f6c85; font-weight:600;">today</span>
+  </div>
+</div>
           <div class="kpiProgress"><span style="width:{week_progress_pct}%;"></span></div>
         </div>
       </div>
