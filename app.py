@@ -11597,508 +11597,417 @@ def my_reports():
 
     page_css = """
     <style>
-      .myReportsTopGrid{
-        margin-top:12px;
+      .myReportsPageShell{
+        max-width: 1240px;
+        margin: 0 auto;
+        padding: 6px 0 18px;
+      }
+
+      .myReportsHeaderBar{
+        display:flex;
+        align-items:flex-end;
+        justify-content:space-between;
+        gap:16px;
+        margin-bottom:14px;
+      }
+
+      .myReportsHeaderBar h1{
+        margin: 6px 0 0;
+        font-size: clamp(30px, 4vw, 42px);
+        line-height: 1.02;
+        letter-spacing: -.03em;
+        color: #1f2547;
+        font-weight: 900;
+      }
+
+      .myReportsTabLabel{
+        display:inline-flex;
+        align-items:center;
+        padding:8px 14px;
+        border-radius:999px;
+        border:1px solid rgba(109,40,217,.12);
+        background:rgba(109,40,217,.06);
+        color:#6d28d9;
+        font-size:12px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.06em;
+      }
+
+      .myReportsHeaderBar .sub{
+        margin-top:8px;
+        color:#6f6c85;
+        font-size:15px;
+      }
+
+      .myReportsHeaderActions{
+        display:flex;
+        align-items:center;
+        gap:10px;
+        flex-wrap:wrap;
+      }
+
+      .myReportsHeaderActions .btnSoft,
+      .myReportsHeaderActions .btnPayslipGreen{
+        text-decoration:none;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        min-height:46px;
+        padding:0 16px;
+        border-radius:16px;
+        font-weight:800;
+      }
+
+      .myReportsHeaderActions .btnSoft{
+        background:#ffffff;
+        border:1px solid rgba(109,40,217,.12);
+        color:#4338ca;
+        box-shadow:0 8px 18px rgba(41,25,86,.06);
+      }
+
+      .btnPayslipGreen{
+        background:linear-gradient(90deg, #16a34a, #15803d);
+        color:#ffffff !important;
+        border:0;
+        box-shadow:0 12px 24px rgba(22,163,74,.18);
+      }
+
+      .myReportsFilterRow{
         display:grid;
-        grid-template-columns: 1fr 1fr;
-        gap:12px;
+        grid-template-columns: minmax(280px, 380px) 1fr;
+        gap:14px;
+        align-items:stretch;
+        margin-bottom:14px;
       }
 
-      .myReportsMonthCard{
-        margin-top:12px;
+      .myReportsWeekPickerFlat,
+      .myReportsQuickStrip{
+        border:1px solid rgba(109,40,217,.10);
+        border-radius:22px;
+        background:linear-gradient(180deg, #ffffff, #faf8ff);
+        box-shadow:0 14px 30px rgba(41,25,86,.08);
       }
-      .myReportsHero{
-        padding:18px;
+
+      .myReportsWeekPickerFlat{
+        padding:16px;
+      }
+
+      .myReportsWeekPickerFlat form{
+        margin:0;
+      }
+
+      .myReportsWeekPickerFlat .sub{
+        display:block;
+        margin:0 0 8px 0;
+        color:#6f6c85;
+        font-size:12px;
+        font-weight:800;
+        letter-spacing:.05em;
+        text-transform:uppercase;
+      }
+
+      .myReportsWeekPickerFlat .input{
+        margin-top:0;
+        height:54px;
+        border-radius:16px;
+        border:1px solid rgba(109,40,217,.14);
+        background:#ffffff;
+        color:#1f2547;
+        font-weight:800;
+        box-shadow:0 8px 18px rgba(41,25,86,.05);
+      }
+
+      .myReportsQuickStrip{
+        padding:14px 16px;
+        display:grid;
+        grid-template-columns: repeat(4, minmax(0,1fr));
+        gap:10px;
+      }
+
+      .myReportsQuickItem{
+        min-width:0;
+        padding:12px 14px;
+        border-radius:18px;
+        border:1px solid rgba(109,40,217,.08);
+        background:#ffffff;
+        box-shadow:0 6px 16px rgba(41,25,86,.04);
+      }
+
+      .myReportsQuickItem .k{
+        display:block;
+        font-size:11px;
+        font-weight:800;
+        letter-spacing:.06em;
+        text-transform:uppercase;
+        color:#8a84a3;
+      }
+
+      .myReportsQuickItem .v{
+        display:block;
+        margin-top:4px;
+        font-size:26px;
+        line-height:1.06;
+        font-weight:900;
+        color:#1f2547;
+        white-space:nowrap;
+      }
+
+      .myReportsTableShell{
+        border:1px solid rgba(109,40,217,.10);
         border-radius:24px;
-        border:1px solid rgba(96,165,250,.16);
-        background:
-          radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 34%),
-          linear-gradient(180deg, rgba(239,246,255,.98), rgba(255,255,255,.98));
-        box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
-      }
-      .myReportsHeroRow{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
-      .myReportsHeroBrand{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
-      .myReportsHeroLogo{ max-height:64px; max-width:150px; object-fit:contain; border-radius:14px; border:1px solid rgba(96,165,250,.18); padding:8px; background:rgba(255,255,255,.98); }
-      .myReportsHeroTitle{ font-size:clamp(26px, 3vw, 34px); font-weight:800; line-height:1.05; color:var(--text); }
-      .myReportsHeroMeta{ margin-top:4px; color:var(--muted); font-size:15px; }
-      .myReportsHeroEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1e40af; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
-      .myReportsWeekTable{ border:1px solid rgba(15,23,42,.08); background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96)); box-shadow:0 18px 40px rgba(15,23,42,.08); }
-      .myReportsWeekTable .sub{ color:var(--muted); }
-
-      .myReportsWeekPicker{
-        margin-top:12px;
-        padding:12px;
+        overflow:hidden;
+        background:linear-gradient(180deg, #ffffff, #fbfaff);
+        box-shadow:0 18px 36px rgba(41,25,86,.08);
       }
 
-      .myReportsActions{
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  justify-content:flex-end;
-}
-
-.myReportsActions .btnSoft{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  text-decoration:none;
-}
-
-.myReportsWeekPickerRow{
-  display:grid;
-  grid-template-columns:minmax(0, 1fr) auto;
-  gap:12px;
-  align-items:end;
-}
-
-.myReportsWeekPickerRow form{
-  margin:0;
-}
-
-.myReportsWeekPickerRow .btnPayslipGreen{
-  white-space:nowrap;
-  padding:12px 20px;
-  min-width:170px;
-}
-
-@media (max-width: 780px){
-  .myReportsWeekPickerRow{
-    grid-template-columns:1fr;
-  }
-
-  .myReportsWeekPickerRow .btnPayslipGreen{
-    width:100%;
-    min-width:0;
-  }
-}
-      .myReportsWeekTable{
-        margin-top:12px;
-        padding:10px;
+      .myReportsTableTop{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:16px 18px;
+        border-bottom:1px solid rgba(109,40,217,.08);
+        background:linear-gradient(180deg, rgba(109,40,217,.04), rgba(255,255,255,.8));
       }
 
-      .myReportsWeekTable .tablewrap{
-        margin-top:10px;
+      .myReportsTableTitle{
+        font-size:18px;
+        font-weight:800;
+        color:#1f2547;
       }
 
-      .myReportsWeekTable .payrollSummaryBar{
-  margin-top: 10px;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
-}
-
-.myReportsWeekTable .payrollSummaryItem{
-  padding: 6px 8px;
-  border-radius: 12px;
-}
-
-.myReportsWeekTable .payrollSummaryItem .k{
-  font-size: 10px;
-}
-
-.myReportsWeekTable .payrollSummaryItem .v{
-  font-size: 14px;
-  line-height: 1.1;
-}
-
-.payrollEmployeeCard,
-.myReportsTopGrid .card.kpi,
-.myReportsMonthCard,
-.myReportsWeekPicker{
-  border: 1px solid rgba(15,23,42,.08);
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-  box-shadow:
-    0 14px 30px rgba(15,23,42,.06);
-}
-
-.payrollEmployeeCard,
-.myReportsTopGrid .card.kpi,
-.myReportsMonthCard,
-.myReportsWeekPicker,
-.payrollEmployeeCard .label,
-.myReportsTopGrid .card.kpi .label,
-.myReportsMonthCard .label,
-.myReportsWeekPicker .sub{
-  color: var(--text);
-}
-
-.payrollEmployeeCard .sub,
-.myReportsTopGrid .card.kpi .sub,
-.myReportsMonthCard .sub{
-  color: var(--muted);
-}
-
-.payrollEmployeeCard strong,
-.myReportsTopGrid .card.kpi .value,
-.myReportsMonthCard .value{
-  color: var(--text);
-}
-
-.myReportsWeekPicker .input{
-  background: rgba(255,255,255,.96);
-  border: 1px solid rgba(15,23,42,.10);
-  color: var(--text);
-  box-shadow: none;
-}
-.myReportsWeekPicker .input option{
-  color:var(--text);
-  background:#ffffff;
-}
-
-.myReportsWeekTable .payrollSummaryItem:nth-child(1),
-.myReportsWeekTable .payrollSummaryItem:nth-child(2),
-.myReportsWeekTable .payrollSummaryItem:nth-child(3),
-.myReportsWeekTable .payrollSummaryItem:nth-child(4){
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-  border-color: rgba(11,18,32,.08);
-}
-
-.myReportsWeekTable .payrollSummaryItem:nth-child(1) .k,
-.myReportsWeekTable .payrollSummaryItem:nth-child(2) .k,
-.myReportsWeekTable .payrollSummaryItem:nth-child(3) .k,
-.myReportsWeekTable .payrollSummaryItem:nth-child(4) .k{
-  color: var(--muted);
-}
-
-.myReportsWeekTable .payrollSummaryItem:nth-child(1) .v,
-.myReportsWeekTable .payrollSummaryItem:nth-child(2) .v,
-.myReportsWeekTable .payrollSummaryItem:nth-child(3) .v,
-.myReportsWeekTable .payrollSummaryItem:nth-child(4) .v{
-  color: rgba(15,23,42,.96);
-}
-      .myReportsWeekTable .weeklyEditTable{
-        table-layout: fixed;
-        width: 100%;
-        min-width: 0;
+      .myReportsTableMeta{
+        color:#6f6c85;
+        font-size:14px;
+        font-weight:600;
       }
 
-      .myReportsWeekTable .weeklyEditTable thead th,
-.myReportsWeekTable .weeklyEditTable tbody td{
-  padding: 7px 3px;
-  font-size: 12px;
-}
-
-      .myReportsWeekTable .weeklyEditTable thead th{
-  white-space: nowrap;
-  letter-spacing: 0;
-  font-size: 10px;
-}
-
-      .myReportsWeekTable .weeklyEditTable tbody td{
-        white-space: nowrap;
-        overflow: hidden;
-        text-overflow: ellipsis;
+      .myReportsFlatTableWrap{
+        margin-top:0 !important;
+        border:0 !important;
+        border-radius:0 !important;
+        box-shadow:none !important;
+        overflow:auto;
+        background:transparent !important;
       }
 
-      .myReportsWeekTable .weeklyEditTable th:nth-child(1),
-.myReportsWeekTable .weeklyEditTable td:nth-child(1){
-  width: 38px;
-}
+      .myReportsDataTable{
+        width:100%;
+        min-width:760px;
+        table-layout:fixed;
+        border-collapse:separate;
+        border-spacing:0;
+        background:#ffffff;
+      }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(2),
-.myReportsWeekTable .weeklyEditTable td:nth-child(2){
-  width: 78px;
-  text-align: center;
-}
+      .myReportsDataTable thead th{
+        position:sticky;
+        top:0;
+        z-index:1;
+        background:#f4f5fb;
+        color:#6b7280;
+        font-size:12px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.04em;
+        padding:14px 14px;
+        border-bottom:1px solid #e8eaf2;
+        white-space:nowrap;
+      }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(3),
-.myReportsWeekTable .weeklyEditTable td:nth-child(3),
-.myReportsWeekTable .weeklyEditTable th:nth-child(4),
-.myReportsWeekTable .weeklyEditTable td:nth-child(4){
-  width: 56px;
-  text-align: center;
-}
+      .myReportsDataTable tbody td{
+        padding:15px 14px;
+        color:#1f2547;
+        font-size:14px;
+        font-weight:700;
+        border-bottom:1px solid #edf0f5;
+        white-space:nowrap;
+        background:#ffffff;
+      }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(5),
-.myReportsWeekTable .weeklyEditTable td:nth-child(5){
-  width: 46px;
-}
+      .myReportsDataTable tbody tr:nth-child(even) td{
+        background:#fcfbff;
+      }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(6),
-.myReportsWeekTable .weeklyEditTable td:nth-child(6),
-.myReportsWeekTable .weeklyEditTable th:nth-child(7),
-.myReportsWeekTable .weeklyEditTable td:nth-child(7){
-  width: 64px;
-}
+      .myReportsDataTable tbody tr:hover td{
+        background:#f7f4ff;
+      }
 
-.btnPayslipGreen{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  text-decoration:none;
-  padding:12px 16px;
-  border-radius:999px;
-  font-weight:800;
-  background:linear-gradient(180deg, #16a34a 0%, #15803d 100%);
-  color:#ffffff;
-  border:1px solid rgba(255,255,255,.10);
-  box-shadow:0 10px 24px rgba(22,163,74,.25);
-}
+      .myReportsDataTable td.num,
+      .myReportsDataTable th.num{
+        text-align:right;
+        font-variant-numeric:tabular-nums;
+      }
 
-.btnPayslipGreen:hover{
-  filter:brightness(1.04);
-}
+      .myReportsDataTable tbody tr:last-child td{
+        border-bottom:0;
+      }
 
-      @media (max-width: 780px){
-  .myReportsTopGrid{
-    grid-template-columns: 1fr;
-  }
+      .myReportsFooterNote{
+        padding:12px 18px 16px;
+        color:#8a84a3;
+        font-size:13px;
+        border-top:1px solid rgba(109,40,217,.08);
+        background:#ffffff;
+      }
 
-    .myReportsActions{
-    width:100%;
-    display:grid;
-    grid-template-columns:1fr;
-    gap:8px;
-  }
+      @media (max-width: 980px){
+        .myReportsFilterRow{
+          grid-template-columns: 1fr;
+        }
 
-  .myReportsActions .btnSoft{
-    width:100%;
-  }
+        .myReportsQuickStrip{
+          grid-template-columns: repeat(2, minmax(0,1fr));
+        }
+      }
 
-  .myReportsWeekTable{
-    padding:6px;
-  }
+      @media (max-width: 720px){
+        .myReportsHeaderBar{
+          align-items:flex-start;
+          flex-direction:column;
+        }
 
-  .myReportsWeekTable .tablewrap{
-    margin-top:8px;
-    border-radius:14px;
-  }
+        .myReportsHeaderActions{
+          width:100%;
+        }
 
-  .myReportsWeekTable .weeklyEditTable thead th,
-  .myReportsWeekTable .weeklyEditTable tbody td{
-    padding: 7px 3px;
-    font-size: 11px;
-  }
+        .myReportsHeaderActions .btnSoft,
+        .myReportsHeaderActions .btnPayslipGreen{
+          width:100%;
+        }
 
-  .myReportsWeekTable .weeklyEditTable th:nth-child(1),
-.myReportsWeekTable .weeklyEditTable td:nth-child(1){
-  width: 32px;
-}
+        .myReportsQuickStrip{
+          grid-template-columns: 1fr;
+        }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(2),
-.myReportsWeekTable .weeklyEditTable td:nth-child(2){
-  width: 68px;
-  text-align: center;
-}
+        .myReportsDataTable{
+          min-width:680px;
+        }
+      }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(3),
-.myReportsWeekTable .weeklyEditTable td:nth-child(3),
-.myReportsWeekTable .weeklyEditTable th:nth-child(4),
-.myReportsWeekTable .weeklyEditTable td:nth-child(4){
-  width: 48px;
-}
+      @media print{
+        .sidebar,
+        .topbar,
+        .mobileNav,
+        .bottomNav,
+        .dashboardMainMenu,
+        .payrollMenuBackdrop,
+        .payrollMenuToggle,
+        #payrollMenuBackdrop,
+        #payrollMenuToggle,
+        .noPrint,
+        .badge{
+          display:none !important;
+          visibility:hidden !important;
+        }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(5),
-.myReportsWeekTable .weeklyEditTable td:nth-child(5){
-  width: 38px;
-}
+        .shell,
+        .content,
+        .page,
+        .main,
+        .myReportsPageShell{
+          margin:0 !important;
+          padding:0 !important;
+          width:100% !important;
+          max-width:none !important;
+        }
 
-.myReportsWeekTable .weeklyEditTable th:nth-child(6),
-.myReportsWeekTable .weeklyEditTable td:nth-child(6),
-.myReportsWeekTable .weeklyEditTable th:nth-child(7),
-.myReportsWeekTable .weeklyEditTable td:nth-child(7){
-  width: 54px;
-}
+        body{
+          background:#fff !important;
+          margin:0 !important;
+          padding:0 !important;
+        }
 
-  .payrollSummaryBar{
-    grid-template-columns: 1fr 1fr;
-    gap:8px;
-  }
-
-  .payrollSummaryItem{
-    padding:8px 10px;
-    border-radius:14px;
-  }
-
-  .payrollSummaryItem .k{
-    font-size:11px;
-  }
-
-  .payrollSummaryItem .v{
-    font-size:16px;
-  }
-}
-@media print{
-  /* remove all navigation / shell chrome */
-  .sidebar,
-  .topbar,
-  .mobileNav,
-  .bottomNav,
-  .dashboardMainMenu,
-  .payrollMenuBackdrop,
-  .payrollMenuToggle,
-  #payrollMenuBackdrop,
-  #payrollMenuToggle,
-  .noPrint,
-  .headerTop,
-  .myReportsTopGrid,
-  .myReportsMonthCard,
-  .myReportsWeekPicker,
-  .badge{
-    display:none !important;
-    visibility:hidden !important;
-  }
-
-  /* cancel desktop sidebar-open payroll layout */
-  .payrollShell,
-  .shell{
-    display:block !important;
-    grid-template-columns:1fr !important;
-  }
-
-  .payrollShell .sidebar,
-  .shell .sidebar{
-    display:none !important;
-    width:0 !important;
-    min-width:0 !important;
-    max-width:0 !important;
-  }
-
-  .payrollShell .main,
-  .shell .main,
-  .content,
-  .page{
-    margin:0 !important;
-    padding:0 !important;
-    width:100% !important;
-    max-width:none !important;
-  }
-
-  body{
-    background:#fff !important;
-    margin:0 !important;
-    padding:0 !important;
-  }
-
-  .card,
-  .tablewrap,
-  .myReportsWeekTable{
-    box-shadow:none !important;
-    border:1px solid #dbe5f1 !important;
-    break-inside:avoid;
-  }
-
-  body{
-    background:#fff !important;
-  }
-}
-
+        .myReportsTableShell,
+        .myReportsWeekPickerFlat,
+        .myReportsQuickStrip{
+          box-shadow:none !important;
+          break-inside:avoid;
+        }
+      }
     </style>
     """
-
     week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
 
     content = f"""
       {page_css}
 
+      <div class="myReportsPageShell">
+        <div class="myReportsHeaderBar">
+          <div>
+            <div class="myReportsTabLabel">Timesheets</div>
+            <h1>Timesheets</h1>
+            <p class="sub">{escape(display_name)} • {escape(company_name)} • {escape(week_label)}</p>
+          </div>
 
-      <div class="myReportsHero plainSection" style="margin-bottom:12px;">
-        <div class="myReportsHeroRow">
-          <div class="myReportsHeroBrand">
-            {f'<img src="{escape(company_logo)}" alt="Company logo" class="myReportsHeroLogo">' if company_logo else ''}
-            <div>
-              <div class="myReportsHeroEyebrow">Payslip / Timesheet</div>
-              <div class="myReportsHeroTitle">{escape(company_name)}</div>
-              <div class="myReportsHeroMeta"><strong>{escape(display_name)}</strong> • {escape(week_label)}</div>
+          <div class="myReportsHeaderActions noPrint">
+            <a class="btnSoft" href="/my-reports-print?wk={wk_offset}" target="_blank" rel="noopener">Print / Save PDF</a>
+            <a class="btnPayslipGreen" href="/my-reports-print?wk={wk_offset}" target="_blank" rel="noopener">Open Payslip</a>
+          </div>
+        </div>
+
+        <div class="myReportsFilterRow noPrint">
+          <div class="myReportsWeekPickerFlat">
+            <form method="GET">
+              <label class="sub">Selected week</label>
+              <select class="input" name="wk" onchange="this.form.submit()">
+                {''.join(week_options)}
+              </select>
+            </form>
+          </div>
+
+          <div class="myReportsQuickStrip">
+            <div class="myReportsQuickItem">
+              <span class="k">Gross pay</span>
+              <span class="v">{escape(currency)}{money(w_g)}</span>
             </div>
+            <div class="myReportsQuickItem">
+              <span class="k">Tax</span>
+              <span class="v">{escape(currency)}{money(w_t)}</span>
+            </div>
+            <div class="myReportsQuickItem">
+              <span class="k">Net pay</span>
+              <span class="v">{escape(currency)}{money(w_n)}</span>
+            </div>
+            <div class="myReportsQuickItem">
+              <span class="k">Week</span>
+              <span class="v" style="font-size:22px; line-height:1.1;">{escape((week_label or '').split(' (')[0])}</span>
+               </div>
           </div>
-          <div class="badge {'admin' if role == 'admin' else ''}">{escape(role.upper())}</div>
-        </div>
-      </div>
-
-      <div class="myReportsTopGrid">
-        <div class="kpi plainMetric">
-          <p class="label">Today Gross</p>
-          <p class="value">{escape(currency)}{money(d_g)}</p>
-          <p class="sub">Hours: {escape(fmt_hours(daily_hours))} • Tax: {escape(currency)}{money(d_t)} • Net: {escape(currency)}{money(d_n)}</p>
-        </div>
-
-        <div class="kpi plainMetric">
-          <p class="label">Selected Week Gross</p>
-          <p class="value">{escape(currency)}{money(w_g)}</p>
-          <p class="sub">Hours: {escape(fmt_hours(selected_week_hours))} • Tax: {escape(currency)}{money(w_t)} • Net: {escape(currency)}{money(w_n)}</p>
-        </div>
-      </div>
-
-      <div class="kpi myReportsMonthCard plainMetric">
-        <p class="label">This Month Gross</p>
-        <p class="value">{escape(currency)}{money(m_g)}</p>
-        <p class="sub">Hours: {escape(fmt_hours(month_hours))} • Tax: {escape(currency)}{money(m_t)} • Net: {escape(currency)}{money(m_n)}</p>
-      </div>
-
-      <div class="myReportsWeekPicker plainSection">
-  <div class="myReportsWeekPickerRow">
-    <form method="GET">
-      <label class="sub" style="display:block; margin-bottom:6px;">Choose week</label>
-      <select class="input" name="wk" onchange="this.form.submit()">
-        {''.join(week_options)}
-      </select>
-    </form>
-
-    <div class="noPrint">
-      <a class="btnPayslipGreen" href="/my-reports-print?wk={wk_offset}">Open Payslip</a>
-    </div>
-  </div>
-</div>
-
-      <div class="myReportsWeekTable plainSection">
-  <div style="margin-bottom:12px;">
-    <div class="sub" style="margin-top:6px;">{escape(week_label)}</div>
-  </div>
-
-        <div class="tablewrap">
-          <table class="weeklyEditTable">
-            <colgroup>
-  <col style="width:38px;">
-  <col style="width:78px;">
-  <col style="width:56px;">
-  <col style="width:56px;">
-  <col style="width:46px;">
-  <col style="width:64px;">
-  <col style="width:64px;">
-</colgroup>
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Date</th>
-                <th>Clock In</th>
-                <th>Clock Out</th>
-                <th class="num">Hours</th>
-                <th class="num">Gross</th>
-                <th class="num">Net</th>
-              </tr>
-            </thead>
-            <tbody>
-              {''.join(rows_html)}
-            </tbody>
-          </table>
         </div>
 
-        <div class="payrollSummaryBar">
-          <div class="payrollSummaryItem">
-            <div class="k">Hours</div>
-            <div class="v">{escape(fmt_hours(selected_week_hours))}</div>
+        <div class="myReportsTableShell">
+          <div class="myReportsTableTop">
+            <div class="myReportsTableTitle">Weekly breakdown</div>
+            <div class="myReportsTableMeta">{escape(week_label)}</div>
           </div>
 
-          <div class="payrollSummaryItem">
-            <div class="k">Gross</div>
-            <div class="v">{escape(currency)}{money(w_g)}</div>
+          <div class="tablewrap myReportsFlatTableWrap">
+            <table class="weeklyEditTable myReportsDataTable">
+              <thead>
+                <tr>
+                  <th>Day</th>
+                  <th>Date</th>
+                  <th>Clock In</th>
+                  <th>Clock Out</th>
+                  <th class="num">Hours</th>
+                  <th class="num">Gross</th>
+                  <th class="num">Net</th>
+                </tr>
+              </thead>
+              <tbody>
+                {''.join(rows_html)}
+              </tbody>
+            </table>
           </div>
 
-          <div class="payrollSummaryItem">
-            <div class="k">Tax</div>
-            <div class="v">{escape(currency)}{money(w_t)}</div>
-          </div>
-
-          <div class="payrollSummaryItem net">
-            <div class="k">Net</div>
-            <div class="v">{escape(currency)}{money(w_n)}</div>
+          <div class="myReportsFooterNote">
+            Weekly hours and pay are calculated from your saved clock-in and clock-out records.
           </div>
         </div>
       </div>
-
     """
-
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
 
