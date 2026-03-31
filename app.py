@@ -2959,9 +2959,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .adminToolsShell{
-  background: linear-gradient(180deg, #08142f, #0b1b3f);
-  border: 1px solid rgba(255,255,255,.08);
-  box-shadow: 0 18px 40px rgba(15,23,42,.24);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+  border: 1px solid rgba(15,23,42,.08);
+  box-shadow: 0 18px 40px rgba(15,23,42,.08);
 }
 
 .adminToolsShell .adminGrid{
@@ -10518,79 +10518,396 @@ def clock_page():
       {leaflet_tags}
       <style>
         .clockFlowWrap {{
-          position: relative;
-          max-width: 780px;
-          margin: 0 auto;
-          padding: 18px 0 10px;
-        }}
-        .clockInlineMsg {{
-          margin: 0 0 18px;
-          padding: 14px 16px;
-          border-radius: 18px;
-          border: 1px solid rgba(248,113,113,.30);
-          background: rgba(127,29,29,.20);
-          color: #fecaca;
-          box-shadow: 0 18px 34px rgba(15,23,42,.16);
-        }}
-        .clockInlineMsg.ok {{
-          border-color: rgba(74,222,128,.28);
-          background: rgba(20,83,45,.20);
-          color: #dcfce7;
-        }}
-        .clockStep {{
-          padding: 28px 22px 30px;
-          border-radius: 30px;
-          border: 1px solid rgba(96,165,250,.18);
-          background:
-            radial-gradient(circle at top right, rgba(59,130,246,.12), transparent 36%),
-            linear-gradient(180deg, #06142b 0%, #081b36 52%, #081428 100%);
-          box-shadow:
-            0 26px 64px rgba(2,6,23,.34),
-            inset 0 1px 0 rgba(255,255,255,.04);
-        }}
-        .clockStepLabel {{ text-align: center; color: #93c5fd; font-size: 17px; font-weight: 700; letter-spacing: .02em; margin-bottom: 14px; }}
-        .clockHeroTitle {{ margin: 0 0 28px; text-align: center; color: #f8fafc; font-size: clamp(32px, 5vw, 44px); line-height: 1.06; font-weight: 800; }}
-        .clockStageCard {{ border-radius: 24px; border: 1px solid rgba(96,165,250,.18); overflow: hidden; background: linear-gradient(180deg, rgba(10,24,49,.88), rgba(8,18,34,.94)); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }}
-        .clockSelfieStage {{ position: relative; min-height: 320px; display: grid; place-items: center; padding: 24px; background: radial-gradient(circle at center, rgba(59,130,246,.16), transparent 52%), linear-gradient(180deg, rgba(8,23,47,.76), rgba(7,20,39,.96)); }}
-        .clockSelfiePlaceholder {{ display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: #bfdbfe; opacity: .84; text-align: center; }}
-        .clockSelfiePlaceholderIcon {{ font-size: 76px; line-height: 1; }}
-        .clockSelfiePlaceholderText {{ font-size: 15px; color: #cbd5e1; max-width: 420px; }}
-        .clockSelfieVideo {{ display: none; width: 100%; min-height: 320px; border-radius: 18px; object-fit: cover; background: #020617; border: 1px solid rgba(148,163,184,.18); }}
-        .clockCaptureBar {{ display: flex; gap: 12px; padding: 18px; align-items: center; background: linear-gradient(180deg, rgba(17,24,39,.52), rgba(11,18,32,.80)); border-top: 1px solid rgba(148,163,184,.08); }}
-        .clockPrimaryBtn, .clockPrimaryAction, .clockSecondaryAction, .clockGhostBtn {{ border: 0; border-radius: 18px; font-weight: 800; transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, filter .18s ease; }}
-        .clockPrimaryBtn, .clockPrimaryAction {{ background: linear-gradient(90deg, #2563eb, #4f7cff); color: white; box-shadow: 0 14px 28px rgba(37,99,235,.24), inset 0 1px 0 rgba(255,255,255,.18); }}
-        .clockPrimaryBtn:hover, .clockPrimaryAction:hover, .clockSecondaryAction:hover, .clockGhostBtn:hover {{ transform: translateY(-1px); filter: brightness(1.03); }}
-        .clockPrimaryBtn {{ display: inline-flex; width: 100%; align-items: center; justify-content: center; gap: 14px; min-height: 72px; font-size: 20px; }}
-        .clockPrimaryBtnArrow {{ font-size: 34px; line-height: 1; margin-top: -1px; }}
-        .clockGhostBtn {{ min-width: 128px; min-height: 72px; padding: 0 22px; background: rgba(15,23,42,.70); color: #cbd5e1; border: 1px solid rgba(96,165,250,.16); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }}
-        .clockDistanceAlert {{ margin: 20px auto 16px; max-width: 520px; padding: 14px 18px; border-radius: 18px; text-align: center; border: 1px solid rgba(248,113,113,.22); background: linear-gradient(180deg, rgba(69,10,10,.30), rgba(31,41,55,.18)); box-shadow: inset 0 1px 0 rgba(255,255,255,.03); }}
-        .clockDistanceAlertTitle {{ font-size: 18px; font-weight: 800; color: #fca5a5; display: flex; align-items: center; justify-content: center; gap: 8px; }}
-        .clockDistanceAlertMeta {{ margin-top: 5px; font-size: 15px; color: #e2e8f0; }}
-        .clockDistanceAlert.is-ok {{ border-color: rgba(74,222,128,.22); background: linear-gradient(180deg, rgba(20,83,45,.28), rgba(15,23,42,.20)); }}
-        .clockDistanceAlert.is-ok .clockDistanceAlertTitle {{ color: #86efac; }}
-        .clockDistanceAlert.is-ok .clockDistanceAlertMeta {{ color: #dcfce7; }}
-        .clockMapShell {{ border-radius: 24px; overflow: hidden; border: 1px solid rgba(96,165,250,.16); box-shadow: 0 18px 40px rgba(2,6,23,.24); background: linear-gradient(180deg, rgba(5,19,39,.94), rgba(7,20,39,.98)); }}
-        .clockFooterNote {{ margin: 18px 6px 0; text-align: center; color: #94a3b8; font-size: 15px; }}
-        .clockFooterNote strong {{ color: #f8fafc; }}
-        .clockHidden {{ display: none !important; }}
-        .clockStepTwo {{ display: none; text-align: center; padding-top: 40px; }}
-        .clockCapturedRow {{ display: inline-flex; align-items: center; gap: 10px; color: #e5e7eb; font-size: 18px; font-weight: 700; margin-bottom: 22px; }}
-        .clockCapturedIcon {{ width: 32px; height: 32px; display: inline-grid; place-items: center; border-radius: 999px; background: rgba(255,255,255,.92); color: #0f172a; font-size: 18px; font-weight: 900; }}
-        .clockFinalSelfie {{ width: min(220px, 52vw); aspect-ratio: 1 / 1; margin: 0 auto 28px; border-radius: 22px; object-fit: cover; background: rgba(255,255,255,.08); border: 1px solid rgba(148,163,184,.18); box-shadow: 0 18px 44px rgba(2,6,23,.24); display: none; }}
-        .clockTimerStage {{ margin: 0 auto 24px; max-width: 540px; padding: 8px 0 0; }}
-        .clockTimerStage .clockStatusIdle,
-        .clockTimerStage .clockStatusLive {{ background: transparent !important; color: #93c5fd !important; font-size: 16px !important; font-weight: 700 !important; margin-bottom: 10px !important; padding: 0 !important; border: 0 !important; box-shadow: none !important; }}
-        .clockTimerStage .timerBig {{ font-size: clamp(54px, 11vw, 80px) !important; line-height: 1 !important; letter-spacing: 1.5px !important; color: #eef2ff !important; margin: 0 !important; font-weight: 800 !important; }}
-        .clockTimerStage .clockHint {{ margin-top: 12px !important; color: #94a3b8 !important; font-size: 14px !important; }}
-        .clockTimerStage .timerSub {{ margin-top: 12px !important; }}
-        .clockActionStack {{ max-width: 560px; margin: 0 auto; display: grid; gap: 14px; }}
-        .clockPrimaryAction, .clockSecondaryAction {{ width: 100%; min-height: 82px; font-size: clamp(22px, 4vw, 28px); letter-spacing: .04em; text-transform: uppercase; }}
-        .clockSecondaryAction {{ background: rgba(15,23,42,.52); color: #c7d2fe; border: 1px solid rgba(96,165,250,.14); box-shadow: inset 0 1px 0 rgba(255,255,255,.04); }}
-        .clockSecondaryAction[disabled], .clockGhostBtn[disabled] {{ opacity: .5; cursor: not-allowed; transform: none; }}
-        .clockTextLink {{ display: inline-block; margin-top: 18px; color: #93c5fd; font-weight: 700; text-decoration: none; }}
-        .clockBackLink {{ margin-top: 16px; background: transparent; border: 0; color: #cbd5e1; font-weight: 600; cursor: pointer; }}
-        .clockMetaText {{ margin-top: 14px; color: #94a3b8; font-size: 14px; text-align: center; }}
-        @media (max-width: 640px) {{ .clockFlowWrap {{ padding-top: 10px; }} .clockStep {{ padding: 22px 14px 24px; border-radius: 24px; }} .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }} .clockSelfieStage {{ min-height: 240px; padding: 16px; }} .clockSelfieVideo {{ min-height: 240px; }} .clockCaptureBar {{ flex-direction: column; }} .clockGhostBtn {{ width: 100%; min-height: 58px; }} .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }} .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }} }}
+  position: relative;
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 18px 0 10px;
+}}
+
+.clockInlineMsg {{
+  margin: 0 0 18px;
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(220,38,38,.16);
+  background: linear-gradient(180deg, #fff5f5, #ffffff);
+  color: #b91c1c;
+  box-shadow: 0 10px 24px rgba(41,25,86,.08);
+}}
+
+.clockInlineMsg.ok {{
+  border-color: rgba(22,163,74,.18);
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+  color: #166534;
+}}
+
+.clockStep {{
+  padding: 28px 22px 30px;
+  border-radius: 30px;
+  border: 1px solid rgba(109,40,217,.10);
+  background:
+    radial-gradient(circle at top right, rgba(109,40,217,.05), transparent 34%),
+    radial-gradient(circle at top left, rgba(37,99,235,.05), transparent 30%),
+    linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
+  box-shadow: 0 18px 42px rgba(41,25,86,.10);
+}}
+
+.clockStepLabel {{
+  text-align: center;
+  color: #2563eb;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: .02em;
+  margin-bottom: 12px;
+}}
+
+.clockHeroTitle {{
+  margin: 0 0 12px;
+  text-align: center;
+  color: #1f2547;
+  font-size: clamp(32px, 5vw, 44px);
+  line-height: 1.06;
+  font-weight: 900;
+}}
+
+.clockStageCard {{
+  border-radius: 24px;
+  border: 1px solid rgba(109,40,217,.10);
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 14px 34px rgba(41,25,86,.08);
+}}
+
+.clockSelfieStage {{
+  position: relative;
+  min-height: 320px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at center, rgba(37,99,235,.05), transparent 52%),
+    linear-gradient(180deg, #fcfcff, #f4f7ff);
+}}
+
+.clockSelfiePlaceholder {{
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  color: #4338ca;
+  opacity: .96;
+  text-align: center;
+}}
+
+.clockSelfiePlaceholderIcon {{
+  font-size: 76px;
+  line-height: 1;
+}}
+
+.clockSelfiePlaceholderText {{
+  font-size: 15px;
+  color: #6f6c85;
+  max-width: 420px;
+}}
+
+.clockSelfieVideo {{
+  display: none;
+  width: 100%;
+  min-height: 320px;
+  border-radius: 18px;
+  object-fit: cover;
+  background: #e9eefb;
+  border: 1px solid rgba(109,40,217,.10);
+}}
+
+.clockCaptureBar {{
+  display: flex;
+  gap: 12px;
+  padding: 18px;
+  align-items: center;
+  background: linear-gradient(180deg, #ffffff, #f8f9ff);
+  border-top: 1px solid rgba(109,40,217,.08);
+}}
+
+.clockPrimaryBtn,
+.clockPrimaryAction,
+.clockSecondaryAction,
+.clockGhostBtn {{
+  border: 0;
+  border-radius: 18px;
+  font-weight: 800;
+  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, filter .18s ease;
+}}
+
+.clockPrimaryBtn,
+.clockPrimaryAction {{
+  background: linear-gradient(90deg, #6d28d9, #2563eb);
+  color: #ffffff;
+  box-shadow: 0 12px 26px rgba(79,70,229,.22);
+}}
+
+.clockPrimaryBtn:hover,
+.clockPrimaryAction:hover,
+.clockSecondaryAction:hover,
+.clockGhostBtn:hover {{
+  transform: translateY(-1px);
+  filter: brightness(1.03);
+}}
+
+.clockPrimaryBtn {{
+  display: inline-flex;
+  width: 100%;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  min-height: 72px;
+  font-size: 20px;
+}}
+
+.clockPrimaryBtnArrow {{
+  font-size: 34px;
+  line-height: 1;
+  margin-top: -1px;
+}}
+
+.clockGhostBtn {{
+  min-width: 128px;
+  min-height: 72px;
+  padding: 0 22px;
+  background: #f8f7ff;
+  color: #6d28d9;
+  border: 1px solid rgba(109,40,217,.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
+}}
+
+.clockDistanceAlert {{
+  margin: 20px auto 16px;
+  max-width: 520px;
+  padding: 14px 18px;
+  border-radius: 18px;
+  text-align: center;
+  border: 1px solid rgba(220,38,38,.14);
+  background: linear-gradient(180deg, #fff7f7, #ffffff);
+  box-shadow: 0 10px 24px rgba(41,25,86,.06);
+}}
+
+.clockDistanceAlertTitle {{
+  font-size: 18px;
+  font-weight: 800;
+  color: #dc2626;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}}
+
+.clockDistanceAlertMeta {{
+  margin-top: 5px;
+  font-size: 15px;
+  color: #6f6c85;
+}}
+
+.clockDistanceAlert.is-ok {{
+  border-color: rgba(22,163,74,.18);
+  background: linear-gradient(180deg, #f0fdf4, #ffffff);
+}}
+
+.clockDistanceAlert.is-ok .clockDistanceAlertTitle {{
+  color: #15803d;
+}}
+
+.clockDistanceAlert.is-ok .clockDistanceAlertMeta {{
+  color: #166534;
+}}
+
+.clockMapShell {{
+  border-radius: 24px;
+  overflow: hidden;
+  border: 1px solid rgba(109,40,217,.10);
+  box-shadow: 0 14px 30px rgba(41,25,86,.08);
+  background: #ffffff;
+}}
+
+.clockFooterNote {{
+  margin: 18px 6px 0;
+  text-align: center;
+  color: #6f6c85;
+  font-size: 15px;
+}}
+
+.clockFooterNote strong {{
+  color: #26233a;
+}}
+
+.clockHidden {{
+  display: none !important;
+}}
+
+.clockStepTwo {{
+  display: none;
+  text-align: center;
+  padding-top: 10px;
+}}
+
+.clockCapturedRow {{
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  color: #26233a;
+  font-size: 18px;
+  font-weight: 700;
+  margin-bottom: 22px;
+}}
+
+.clockCapturedIcon {{
+  width: 32px;
+  height: 32px;
+  display: inline-grid;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(109,40,217,.10);
+  color: #6d28d9;
+  font-size: 18px;
+  font-weight: 900;
+}}
+
+.clockFinalSelfie {{
+  width: min(220px, 52vw);
+  aspect-ratio: 1 / 1;
+  margin: 0 auto 28px;
+  border-radius: 22px;
+  object-fit: cover;
+  background: #ffffff;
+  border: 1px solid rgba(109,40,217,.10);
+  box-shadow: 0 14px 30px rgba(41,25,86,.10);
+  display: none;
+}}
+
+.clockTimerStage {{
+  margin: 0 auto 24px;
+  max-width: 540px;
+  padding: 8px 0 0;
+}}
+
+.clockTimerStage .clockStatusIdle,
+.clockTimerStage .clockStatusLive {{
+  background: transparent !important;
+  color: #2563eb !important;
+  font-size: 16px !important;
+  font-weight: 700 !important;
+  margin-bottom: 10px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}}
+
+.clockTimerStage .timerBig {{
+  font-size: clamp(54px, 11vw, 80px) !important;
+  line-height: 1 !important;
+  letter-spacing: 1.5px !important;
+  color: #26233a !important;
+  margin: 0 !important;
+  font-weight: 800 !important;
+}}
+
+.clockTimerStage .clockHint {{
+  margin-top: 12px !important;
+  color: #6f6c85 !important;
+  font-size: 14px !important;
+}}
+
+.clockTimerStage .timerSub {{
+  margin-top: 12px !important;
+}}
+
+.clockActionStack {{
+  max-width: 560px;
+  margin: 0 auto;
+  display: grid;
+  gap: 14px;
+}}
+
+.clockPrimaryAction,
+.clockSecondaryAction {{
+  width: 100%;
+  min-height: 82px;
+  font-size: clamp(22px, 4vw, 28px);
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}}
+
+.clockSecondaryAction {{
+  background: #ffffff;
+  color: #2563eb;
+  border: 1px solid rgba(37,99,235,.14);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.78);
+}}
+
+.clockSecondaryAction[disabled],
+.clockGhostBtn[disabled] {{
+  opacity: .5;
+  cursor: not-allowed;
+  transform: none;
+}}
+
+.clockTextLink {{
+  display: inline-block;
+  margin-top: 18px;
+  color: #6d28d9;
+  font-weight: 700;
+  text-decoration: none;
+}}
+
+.clockBackLink {{
+  margin-top: 16px;
+  background: transparent;
+  border: 0;
+  color: #6d28d9;
+  font-weight: 700;
+  cursor: pointer;
+}}
+
+.clockMetaText {{
+  margin-top: 14px;
+  color: #6f6c85;
+  font-size: 14px;
+  text-align: center;
+}}
+
+@media (max-width: 640px) {{
+  .clockFlowWrap {{ padding-top: 10px; }}
+  .clockStep {{
+    padding: 22px 14px 24px;
+    border-radius: 24px;
+  }}
+  .clockHeroTitle {{
+    font-size: 28px;
+    margin-bottom: 16px;
+  }}
+  .clockSelfieStage {{
+    min-height: 240px;
+    padding: 16px;
+  }}
+  .clockSelfieVideo {{
+    min-height: 240px;
+  }}
+  .clockCaptureBar {{
+    flex-direction: column;
+  }}
+  .clockGhostBtn {{
+    width: 100%;
+    min-height: 58px;
+  }}
+  .clockPrimaryBtn {{
+    min-height: 62px;
+    font-size: 18px;
+  }}
+  .clockPrimaryAction,
+  .clockSecondaryAction {{
+    min-height: 72px;
+    font-size: 20px;
+  }}
+}} .clockFlowWrap {{ padding-top: 10px; }} .clockStep {{ padding: 22px 14px 24px; border-radius: 24px; }} .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }} .clockSelfieStage {{ min-height: 240px; padding: 16px; }} .clockSelfieVideo {{ min-height: 240px; }} .clockCaptureBar {{ flex-direction: column; }} .clockGhostBtn {{ width: 100%; min-height: 58px; }} .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }} .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }} }}
 
       </style>
 
@@ -11004,29 +11321,34 @@ def my_times():
     page_css = """
     <style>
       .timeLogsPageShell{ display:grid; gap:14px; }
-      .timeLogsHero,
+      .timeLogsHero{
+        padding:18px;
+        border-radius:24px;
+        border:1px solid rgba(96,165,250,.16);
+        background:linear-gradient(180deg, rgba(245,243,255,.98), rgba(255,255,255,.98));
+        box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
+      }
       .timeLogsSummaryCard,
       .timeLogsTableCard{
-        border:1px solid rgba(56,189,248,.14);
-        background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
-        box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+        border:1px solid rgba(15,23,42,.08);
+        background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+        box-shadow:0 14px 30px rgba(15,23,42,.06);
       }
-      .timeLogsHero{ padding:18px; border-radius:24px; }
       .timeLogsHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); }
-      .timeLogsHero h1{ margin:12px 0 0; font-size:clamp(34px, 5vw, 46px); color:#f8fafc; }
-      .timeLogsHero .sub{ color:rgba(191,219,254,.84); }
+      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#6d28d9; background:rgba(139,92,246,.10); border:1px solid rgba(139,92,246,.16); }
+      .timeLogsHero h1{ margin:12px 0 0; font-size:clamp(34px, 5vw, 46px); color:var(--text); }
+      .timeLogsHero .sub{ color:var(--muted); }
       .timeLogsSummaryGrid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
       .timeLogsSummaryCard{ padding:14px 16px; border-radius:20px; }
-      .timeLogsSummaryCard .k{ font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#93c5fd; }
-      .timeLogsSummaryCard .v{ margin-top:8px; font-size:clamp(24px, 3vw, 34px); font-weight:800; color:#f8fafc; }
-      .timeLogsSummaryCard .sub{ margin-top:6px; color:rgba(191,219,254,.78); }
+      .timeLogsSummaryCard .k{ font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#64748b; }
+      .timeLogsSummaryCard .v{ margin-top:8px; font-size:clamp(24px, 3vw, 34px); font-weight:800; color:var(--text); }
+      .timeLogsSummaryCard .sub{ margin-top:6px; color:var(--muted); }
       .timeLogsTableCard{ padding:12px; border-radius:24px; }
-      .timeLogsTable{ width:100%; min-width:720px; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid rgba(96,165,250,.14); border-radius:18px; background:linear-gradient(180deg, rgba(3,12,28,.92), rgba(5,19,39,.94)); }
-      .timeLogsTable thead th{ padding:14px 16px; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#dbeafe; background:linear-gradient(180deg, rgba(29,78,216,.28), rgba(15,23,42,.86)); border-bottom:1px solid rgba(96,165,250,.14); }
-      .timeLogsTable tbody td{ padding:16px; color:#f8fafc; font-weight:700; font-variant-numeric:tabular-nums; border-bottom:1px solid rgba(96,165,250,.10); }
-      .timeLogsTable tbody tr:nth-child(even) td{ background:rgba(255,255,255,.015); }
-      .timeLogsTable tbody tr:hover td{ background:rgba(59,130,246,.08); }
+      .timeLogsTable{ width:100%; min-width:720px; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid rgba(15,23,42,.08); border-radius:18px; background:rgba(255,255,255,.98); }
+      .timeLogsTable thead th{ padding:14px 16px; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#475569; background:linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.98)); border-bottom:1px solid rgba(15,23,42,.08); }
+      .timeLogsTable tbody td{ padding:16px; color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; border-bottom:1px solid rgba(15,23,42,.08); }
+      .timeLogsTable tbody tr:nth-child(even) td{ background:rgba(248,250,252,.92); }
+      .timeLogsTable tbody tr:hover td{ background:rgba(59,130,246,.06); }
       .timeLogsTable td.num, .timeLogsTable th.num{ text-align:right; }
       .timeLogsTable tbody tr:last-child td{ border-bottom:0; }
       @media (max-width: 960px){ .timeLogsSummaryGrid{ grid-template-columns:1fr 1fr; } }
@@ -11254,20 +11576,20 @@ def my_reports():
       .myReportsHero{
         padding:18px;
         border-radius:24px;
-        border:1px solid rgba(56,189,248,.14);
+        border:1px solid rgba(96,165,250,.16);
         background:
-          radial-gradient(circle at top right, rgba(59,130,246,.12), transparent 34%),
-          linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
-        box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+          radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 34%),
+          linear-gradient(180deg, rgba(239,246,255,.98), rgba(255,255,255,.98));
+        box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
       }
       .myReportsHeroRow{ display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
       .myReportsHeroBrand{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
       .myReportsHeroLogo{ max-height:64px; max-width:150px; object-fit:contain; border-radius:14px; border:1px solid rgba(96,165,250,.18); padding:8px; background:rgba(255,255,255,.98); }
-      .myReportsHeroTitle{ font-size:clamp(26px, 3vw, 34px); font-weight:800; line-height:1.05; color:#f8fafc; }
-      .myReportsHeroMeta{ margin-top:4px; color:rgba(191,219,254,.82); font-size:15px; }
-      .myReportsHeroEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
-      .myReportsWeekTable{ border:1px solid rgba(56,189,248,.14); background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%); box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04); }
-      .myReportsWeekTable .sub{ color:rgba(191,219,254,.82); }
+      .myReportsHeroTitle{ font-size:clamp(26px, 3vw, 34px); font-weight:800; line-height:1.05; color:var(--text); }
+      .myReportsHeroMeta{ margin-top:4px; color:var(--muted); font-size:15px; }
+      .myReportsHeroEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1e40af; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
+      .myReportsWeekTable{ border:1px solid rgba(15,23,42,.08); background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96)); box-shadow:0 18px 40px rgba(15,23,42,.08); }
+      .myReportsWeekTable .sub{ color:var(--muted); }
 
       .myReportsWeekPicker{
         margin-top:12px;
@@ -11348,12 +11670,11 @@ def my_reports():
 .myReportsTopGrid .card.kpi,
 .myReportsMonthCard,
 .myReportsWeekPicker{
-  border: 1px solid rgba(56,189,248,.14);
+  border: 1px solid rgba(15,23,42,.08);
   background:
-    linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
+    linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
   box-shadow:
-    0 18px 40px rgba(2,6,23,.22),
-    inset 0 1px 0 rgba(255,255,255,.04);
+    0 14px 30px rgba(15,23,42,.06);
 }
 
 .payrollEmployeeCard,
@@ -11364,30 +11685,30 @@ def my_reports():
 .myReportsTopGrid .card.kpi .label,
 .myReportsMonthCard .label,
 .myReportsWeekPicker .sub{
-  color: #f8fafc;
+  color: var(--text);
 }
 
 .payrollEmployeeCard .sub,
 .myReportsTopGrid .card.kpi .sub,
 .myReportsMonthCard .sub{
-  color: rgba(191,219,254,.78);
+  color: var(--muted);
 }
 
 .payrollEmployeeCard strong,
 .myReportsTopGrid .card.kpi .value,
 .myReportsMonthCard .value{
-  color: #f8fafc;
+  color: var(--text);
 }
 
 .myReportsWeekPicker .input{
-  background: rgba(7,20,39,.88);
-  border: 1px solid rgba(96,165,250,.18);
-  color: #f8fafc;
+  background: rgba(255,255,255,.96);
+  border: 1px solid rgba(15,23,42,.10);
+  color: var(--text);
   box-shadow: none;
 }
 .myReportsWeekPicker .input option{
-  color:#f8fafc;
-  background:#081428;
+  color:var(--text);
+  background:#ffffff;
 }
 
 .myReportsWeekTable .payrollSummaryItem:nth-child(1),
@@ -12815,41 +13136,41 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
 
     drive_hint = ""
     if role == "master_admin" and (OAUTH_CLIENT_ID and OAUTH_CLIENT_SECRET and OAUTH_REDIRECT_URI):
-        drive_hint = "<p class='sub'>Master admin: if uploads fail, click <a href='/connect-drive' style='color:#93c5fd;font-weight:700;'>Connect Drive</a> once.</p>"
+        drive_hint = "<p class='sub'>Master admin: if uploads fail, click <a href='/connect-drive' style='color:#1d4ed8;font-weight:700;'>Connect Drive</a> once.</p>"
 
     page_css = """
       <style>
         .onboardIntroCard, .onboardShell{
-          border:1px solid rgba(56,189,248,.14);
-          background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
-          box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+          border:1px solid rgba(15,23,42,.08);
+          background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+          box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
         }
         .onboardIntroCard{ padding:18px; border-radius:24px; margin-bottom:12px; }
         .onboardHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-        .onboardEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
-        .onboardIntroCard h1{ color:#f8fafc; margin:0; }
-        .onboardIntroCard .sub{ color:rgba(191,219,254,.82); }
+        .onboardEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1d4ed8; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
+        .onboardIntroCard h1{ color:var(--text); margin:0; }
+        .onboardIntroCard .sub{ color:var(--muted); }
         .onboardMiniGrid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }
-        .onboardMiniStat{ padding:12px 14px; border-radius:18px; background:rgba(7,20,39,.52); border:1px solid rgba(96,165,250,.12); }
-        .onboardMiniStat .k{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#93c5fd; }
-        .onboardMiniStat .v{ margin-top:6px; font-size:15px; font-weight:700; color:#f8fafc; }
+        .onboardMiniStat{ padding:12px 14px; border-radius:18px; background:linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.98)); border:1px solid rgba(15,23,42,.08); }
+        .onboardMiniStat .k{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#64748b; }
+        .onboardMiniStat .v{ margin-top:6px; font-size:15px; font-weight:700; color:var(--text); }
         .onboardShell{ padding:16px; border-radius:24px; }
-        .onboardShell form > h2{ margin:18px 0 10px; padding:10px 14px; border-radius:16px; background:rgba(7,20,39,.54); border:1px solid rgba(96,165,250,.12); color:#f8fafc; font-size:18px; font-weight:800; }
-        .onboardShell .sub, .onboardShell label{ color:rgba(191,219,254,.84); }
-        .onboardShell .uploadTitle{ margin-top:12px; font-size:13px; font-weight:800; letter-spacing:.03em; color:#f8fafc; }
+        .onboardShell form > h2{ margin:18px 0 10px; padding:10px 14px; border-radius:16px; background:linear-gradient(180deg, rgba(241,245,249,.98), rgba(226,232,240,.96)); border:1px solid rgba(148,163,184,.18); color:var(--text); font-size:18px; font-weight:800; }
+        .onboardShell .sub, .onboardShell label{ color:#64748b; }
+        .onboardShell .uploadTitle{ margin-top:12px; font-size:13px; font-weight:800; letter-spacing:.03em; color:var(--text); }
         .onboardShell .row2{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; }
-        .onboardShell .input{ background:rgba(7,20,39,.88); border:1px solid rgba(96,165,250,.18); color:#f8fafc; box-shadow:none; }
-        .onboardShell .input::placeholder{ color:#93a8c4; }
-        .onboardShell .input:focus{ border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.12); }
-        .onboardShell .contractBox{ background:rgba(7,20,39,.72); border:1px solid rgba(96,165,250,.14); color:#e2e8f0; }
-        .onboardActionRow{ position:sticky; bottom:10px; z-index:3; margin-top:18px !important; padding:12px; border-radius:18px; background:rgba(5,15,30,.88); border:1px solid rgba(96,165,250,.16); box-shadow:0 18px 36px rgba(2,6,23,.22); }
+        .onboardShell .input{ background:rgba(255,255,255,.96); border:1px solid rgba(15,23,42,.10); color:var(--text); box-shadow:none; }
+        .onboardShell .input::placeholder{ color:#94a3b8; }
+        .onboardShell .input:focus{ border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
+        .onboardShell .contractBox{ background:rgba(248,250,252,.96); border:1px solid rgba(15,23,42,.08); color:var(--text); }
+        .onboardActionRow{ position:sticky; bottom:10px; z-index:3; margin-top:18px !important; padding:12px; border-radius:18px; background:rgba(255,255,255,.92); border:1px solid rgba(15,23,42,.08); box-shadow:0 18px 36px rgba(15,23,42,.08); backdrop-filter:blur(10px); }
         .onboardDraftBtn, .onboardFinalBtn{ min-height:52px; width:100%; }
-        .onboardDraftBtn{ background:rgba(15,23,42,.72); color:#e2e8f0; border:1px solid rgba(96,165,250,.12); }
-        .onboardFinalBtn{ background:linear-gradient(90deg, #2563eb, #4f7cff) !important; color:#fff; box-shadow:0 14px 28px rgba(37,99,235,.24); }
+        .onboardDraftBtn{ background:rgba(255,255,255,.96); color:#1e40af; border:1px solid rgba(30,64,175,.14); }
+        .onboardFinalBtn{ background:linear-gradient(90deg, #2563eb, #4f7cff) !important; color:#fff; box-shadow:0 14px 28px rgba(37,99,235,.20); }
         .onboardShell .bad{ border-color:rgba(248,113,113,.42) !important; }
-        .onboardShell .badLabel{ color:#fca5a5 !important; }
+        .onboardShell .badLabel{ color:#dc2626 !important; }
         @media (max-width: 860px){ .onboardMiniGrid{ grid-template-columns:1fr; } }
-        @media (max-width: 700px){ .onboardShell .row2{ grid-template-columns:1fr; } .onboardActionRow{ position:static; padding:0; border:0; background:transparent; box-shadow:none; } }
+        @media (max-width: 700px){ .onboardShell .row2{ grid-template-columns:1fr; } .onboardActionRow{ position:static; padding:0; border:0; background:transparent; box-shadow:none; backdrop-filter:none; } }
       </style>
     """
     return f"""
@@ -13460,20 +13781,20 @@ def admin():
         .adminHeroCard,
         .adminSectionCard,
         .adminForceCard{{
-          border:1px solid rgba(56,189,248,.14);
-          background:linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
-          box-shadow:0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04);
+          border:1px solid rgba(15,23,42,.08);
+          background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+          box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
         }}
         .adminHeroCard{{padding:18px; border-radius:24px; margin-bottom:12px;}}
         .adminHeroTop{{display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;}}
-        .adminHeroEyebrow{{display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#bfdbfe; background:rgba(30,64,175,.18); border:1px solid rgba(96,165,250,.18); margin-bottom:10px;}}
-        .adminHeroCard h1{{color:#f8fafc; margin:0;}}
-        .adminHeroCard .sub{{color:rgba(191,219,254,.82);}}
+        .adminHeroEyebrow{{display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1d4ed8; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px;}}
+        .adminHeroCard h1{{color:var(--text); margin:0;}}
+        .adminHeroCard .sub{{color:var(--muted);}}
         .adminForceCard{{margin-top:12px; padding:16px; border-radius:24px;}}
-        .adminActionBar{{background:rgba(7,20,39,.44); border:1px solid rgba(96,165,250,.14);}}
-        .adminActionBar .input{{background:rgba(7,20,39,.88); border:1px solid rgba(96,165,250,.18); color:#f8fafc; box-shadow:none;}}
-        .adminActionBar .input:focus{{border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.12);}}
-        .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.24);}}
+        .adminActionBar{{background:rgba(248,250,252,.96); border:1px solid rgba(15,23,42,.08);}}
+        .adminActionBar .input{{background:rgba(255,255,255,.96); border:1px solid rgba(15,23,42,.10); color:var(--text); box-shadow:none;}}
+        .adminActionBar .input:focus{{border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.10);}}
+        .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.20);}}
       </style>
 
       <div class="adminHeroCard plainSection">
@@ -13620,9 +13941,9 @@ def admin():
 
 def admin_back_link() -> str:
     return """
-      <div style="margin:8px 0 12px;">
+      <div style="margin:8px 0 14px;">
         <a href="/admin"
-           style="display:inline-flex; align-items:center; gap:6px; color:#e2e8f0; text-decoration:none; font-size:14px; font-weight:700; opacity:.96;">
+           style="display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border-radius:999px; background:rgba(255,255,255,.92); border:1px solid rgba(30,64,175,.16); color:#1e40af; text-decoration:none; font-size:14px; font-weight:800; box-shadow:0 8px 18px rgba(15,23,42,.06);">
           <span style="font-size:15px; line-height:1;">←</span><span>Back</span>
         </a>
       </div>
