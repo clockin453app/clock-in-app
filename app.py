@@ -5731,35 +5731,38 @@ body.mobileRailClosed #mobileRailToggle::before{
   }
 }
 
-/* ===== GLOBAL PROFESSIONAL DARK-BLUE THEME ===== */
+/* ===== LIGHT BRAND THEME (PURPLE / BLUE / GREEN) ===== */
 :root{
-  --bg:#071427 !important;
-  --card:#0b1d36 !important;
-  --text:#e8f1ff !important;
-  --muted:#9fb3d1 !important;
-  --border:rgba(96,165,250,.18) !important;
-  --shadow:0 16px 36px rgba(2,6,23,.30) !important;
-  --shadow2:0 20px 50px rgba(2,6,23,.36) !important;
-  --radius:8px !important;
+  --bg:#f6f5fb !important;
+  --card:#ffffff !important;
+  --text:#26233a !important;
+  --muted:#6f6c85 !important;
+  --border:rgba(107,70,193,.12) !important;
+  --shadow:0 12px 30px rgba(41,25,86,.08) !important;
+  --shadow2:0 20px 42px rgba(41,25,86,.12) !important;
+  --radius:18px !important;
 
-  --navy:#60a5fa !important;
+  /* Re-map existing theme vars without touching app logic */
+  --navy:#6d28d9 !important;
   --navy2:#2563eb !important;
-  --navySoft:rgba(59,130,246,.12) !important;
+  --navySoft:rgba(109,40,217,.10) !important;
+  --green:#16a34a !important;
+  --red:#dc2626 !important;
+  --amber:#d97706 !important;
 }
 
 /* page background */
 body{
   background:
-    radial-gradient(1200px 620px at 18% 0%, rgba(14,165,233,.10) 0%, rgba(14,165,233,0) 55%),
-    linear-gradient(180deg, #071427 0%, #081a31 45%, #091d36 100%) !important;
+    radial-gradient(980px 540px at 0% 0%, rgba(109,40,217,.08) 0%, rgba(109,40,217,0) 48%),
+    radial-gradient(860px 520px at 100% 0%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 48%),
+    radial-gradient(880px 580px at 50% 100%, rgba(34,197,94,.05) 0%, rgba(34,197,94,0) 45%),
+    linear-gradient(180deg, #fbfaff 0%, #f5f4fb 52%, #f1f5ff 100%) !important;
   color: var(--text) !important;
 }
 
 /* general cards / panels */
 .card,
-.quickCard,
-.activityCard,
-.sideInfoCard,
 .kpiMini,
 .kpi,
 .payrollFiltersCard,
@@ -5768,7 +5771,6 @@ body{
 .adminSectionCard,
 .payrollSummaryItem,
 .contractBox,
-.graphShell,
 .tablewrap,
 .payrollWrap,
 .sectionIcon,
@@ -5776,15 +5778,31 @@ body{
 .adminSectionIcon,
 .sideIcon,
 .icoBox{
-  background:
-    linear-gradient(180deg, rgba(8,24,47,.96), rgba(11,32,61,.94)) !important;
-  border: 1px solid rgba(96,165,250,.18) !important;
-  border-radius: 8px !important;
-  box-shadow: 0 16px 36px rgba(2,6,23,.28) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(250,248,255,.98)) !important;
+  border: 1px solid rgba(109,40,217,.10) !important;
+  border-radius: 18px !important;
+  box-shadow: 0 12px 28px rgba(41,25,86,.08) !important;
   color: var(--text) !important;
 }
 
-/* remove overly rounded corners everywhere important */
+/* module tinting */
+.quickCard{
+  background: linear-gradient(180deg, rgba(245,243,255,.98), rgba(255,255,255,.98)) !important;
+  border: 1px solid rgba(109,40,217,.14) !important;
+  color: var(--text) !important;
+}
+.activityCard{
+  background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(255,255,255,.98)) !important;
+  border: 1px solid rgba(37,99,235,.14) !important;
+  color: var(--text) !important;
+}
+.sideInfoCard{
+  background: linear-gradient(180deg, rgba(240,253,244,.98), rgba(255,255,255,.98)) !important;
+  border: 1px solid rgba(34,197,94,.16) !important;
+  color: var(--text) !important;
+}
+
+/* corner radius */
 .badge,
 .badge.admin,
 .chip,
@@ -5804,68 +5822,79 @@ body{
 .tablewrap,
 .payrollWrap,
 .contractBox{
-  border-radius: 8px !important;
+  border-radius: 16px !important;
 }
 
-/* top badges / pills */
+/* brand badges / pills */
 .badge,
 .badge.admin,
-.chip,
 .weekPill{
-  background: linear-gradient(180deg, #1d4ed8, #2563eb) !important;
-  color: #eff6ff !important;
-  border: 1px solid rgba(96,165,250,.28) !important;
-  box-shadow: 0 8px 18px rgba(29,78,216,.20) !important;
+  background: linear-gradient(180deg, rgba(109,40,217,.12), rgba(37,99,235,.10)) !important;
+  color: #5b21b6 !important;
+  border: 1px solid rgba(109,40,217,.16) !important;
+  box-shadow: 0 4px 12px rgba(109,40,217,.08) !important;
 }
 
-/* inputs / selects */
+/* brand button system */
+.btn,
+.btnSoft,
+.adminPrimaryBtn,
+.payrollMenuToggle{
+  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(124,58,237,.14) !important;
+  box-shadow: 0 12px 24px rgba(109,40,217,.18) !important;
+}
+.btnTiny{
+  background: rgba(109,40,217,.08) !important;
+  color: #5b21b6 !important;
+  border: 1px solid rgba(109,40,217,.14) !important;
+  box-shadow: none !important;
+}
+.btnTiny:hover,
+.btnSoft:hover,
+.btn:hover,
+.adminPrimaryBtn:hover,
+.payrollMenuToggle:hover{
+  filter: brightness(1.03) !important;
+  box-shadow: 0 16px 28px rgba(109,40,217,.20) !important;
+}
+
+/* top badges / company pill */
+.topBrandBadge{
+  color: #312e81 !important;
+  border: 1px solid rgba(109,40,217,.12) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,243,255,.96)) !important;
+  box-shadow: 0 10px 24px rgba(41,25,86,.08) !important;
+}
+.topBrandBadge:hover{
+  border-color: rgba(109,40,217,.20) !important;
+}
+
+/* inputs */
 .input,
 select.input,
 input.input,
 textarea.input{
-  background: rgba(7,20,39,.72) !important;
-  color: #e8f1ff !important;
-  border: 1px solid rgba(96,165,250,.20) !important;
-  border-radius: 8px !important;
+  background: rgba(255,255,255,.98) !important;
+  color: #27253a !important;
+  border: 1px solid rgba(148,163,184,.34) !important;
+  border-radius: 14px !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.75) !important;
 }
-
 .input::placeholder,
 textarea.input::placeholder{
-  color: #8fa7c7 !important;
+  color: #8a86a3 !important;
 }
-
 .input:focus,
 select.input:focus,
 input.input:focus,
 textarea.input:focus{
-  border-color: rgba(96,165,250,.46) !important;
-  box-shadow: 0 0 0 3px rgba(59,130,246,.12) !important;
+  border-color: rgba(124,58,237,.40) !important;
+  box-shadow: 0 0 0 4px rgba(124,58,237,.10) !important;
 }
 
-/* buttons */
-.btn,
-.btnSoft,
-.adminPrimaryBtn{
-  background: linear-gradient(180deg, #1d4ed8, #2563eb) !important;
-  color: #f8fbff !important;
-  border: 1px solid rgba(96,165,250,.26) !important;
-  box-shadow: 0 12px 24px rgba(29,78,216,.22) !important;
-}
-
-.btnTiny{
-  background: rgba(37,99,235,.16) !important;
-  color: #dbeafe !important;
-  border: 1px solid rgba(96,165,250,.24) !important;
-}
-
-.btnTiny:hover,
-.btnSoft:hover,
-.btn:hover,
-.adminPrimaryBtn:hover{
-  filter: brightness(1.04) !important;
-}
-
-/* cards with labels + values */
+/* labels + values */
 .kpiMini .k,
 .kpi .label,
 .graphStat .k,
@@ -5875,10 +5904,10 @@ textarea.input:focus{
 .timerSub,
 .sideInfoLabel,
 .adminToolSub,
-.adminSectionSub{
-  color: #9fb3d1 !important;
+.adminSectionSub,
+.activityHead{
+  color: #7a7592 !important;
 }
-
 .kpiMini .v,
 .kpi .value,
 .graphStat .v,
@@ -5886,272 +5915,139 @@ textarea.input:focus{
 .sideInfoValue,
 .adminToolTitle,
 .adminSectionTitle,
+.quickMini .miniText,
 h1,
 h2{
-  color: #e8f1ff !important;
+  color: #26233a !important;
+}
+
+/* graph / dashboard */
+.graphCard{
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,243,255,.98)) !important;
+  border: 1px solid rgba(109,40,217,.14) !important;
+  box-shadow: 0 16px 36px rgba(41,25,86,.08) !important;
+}
+.graphTitle{
+  color: #2f2851 !important;
+}
+.graphCard .sub{
+  color: #7a7592 !important;
+}
+.graphRange{
+  color: #5b21b6 !important;
+}
+.graphShell{
+  background:
+    linear-gradient(180deg, rgba(249,247,255,.98), rgba(240,247,255,.96)),
+    radial-gradient(circle at top right, rgba(109,40,217,.08), transparent 40%),
+    radial-gradient(circle at top left, rgba(37,99,235,.08), transparent 40%) !important;
+  border: 1px solid rgba(109,40,217,.10) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.85), 0 10px 24px rgba(41,25,86,.06) !important;
+}
+.barValue{
+  color: #6d28d9 !important;
+  text-shadow: none !important;
+}
+.barTrack{
+  background:
+    linear-gradient(180deg, rgba(109,40,217,.04), rgba(109,40,217,.01)),
+    linear-gradient(180deg, rgba(37,99,235,.03), rgba(37,99,235,0)) !important;
+  box-shadow: inset 0 0 0 1px rgba(109,40,217,.06) !important;
+}
+.bar{
+  background: linear-gradient(180deg, #7c3aed 0%, #38bdf8 100%) !important;
+  box-shadow: 0 12px 24px rgba(109,40,217,.16), 0 0 16px rgba(56,189,248,.10) !important;
+}
+.barLabels{
+  color: #6f6c85 !important;
+}
+.graphStat{
+  background: rgba(255,255,255,.92) !important;
+  border: 1px solid rgba(109,40,217,.08) !important;
 }
 
 /* tables */
 .tablewrap table,
 .weeklyEditTable,
-.payrollSheet{
-  background: rgba(8,24,47,.98) !important;
-  color: #e8f1ff !important;
+.payrollSheet,
+.timeLogsTable{
+  background: rgba(255,255,255,.98) !important;
+  color: #26233a !important;
 }
-
 .tablewrap th,
 .weeklyEditTable thead th,
-.payrollSheet thead th{
-  background: linear-gradient(180deg, #0b2344, #102b52) !important;
-  color: #dbeafe !important;
-  border-bottom: 1px solid rgba(96,165,250,.20) !important;
+.payrollSheet thead th,
+.timeLogsTable th{
+  background: linear-gradient(180deg, rgba(244,241,255,.99), rgba(236,245,255,.99)) !important;
+  color: rgba(38,35,58,.88) !important;
+  border-bottom: 1px solid rgba(148,163,184,.18) !important;
 }
-
 .tablewrap td,
 .weeklyEditTable tbody td,
-.payrollSheet td{
-  background: rgba(8,24,47,.90) !important;
-  color: #e8f1ff !important;
-  border-bottom: 1px solid rgba(96,165,250,.12) !important;
+.payrollSheet td,
+.timeLogsTable td{
+  background: rgba(255,255,255,.96) !important;
+  color: rgba(38,35,58,.95) !important;
+  border-bottom: 1px solid rgba(226,232,240,.90) !important;
 }
-
 .tablewrap table tbody tr:nth-child(even),
-.weeklyEditTable tbody tr:nth-child(even) td{
-  background: rgba(10,28,54,.96) !important;
+.weeklyEditTable tbody tr:nth-child(even) td,
+.payrollSheet tbody tr:nth-child(even) td,
+.timeLogsTable tbody tr:nth-child(even) td{
+  background: rgba(249,247,255,.86) !important;
 }
-
 .tablewrap table tbody tr:hover,
-.weeklyEditTable tbody tr:hover td{
-  background: rgba(17,46,86,.92) !important;
+.weeklyEditTable tbody tr:hover td,
+.payrollSheet tbody tr:hover td,
+.timeLogsTable tbody tr:hover td{
+  background: rgba(241,245,255,.96) !important;
+}
+.weeklyEditTable tbody td:nth-child(2){
+  color: #7a7592 !important;
 }
 
-/* left sidebar */
-.sidebar{
-  background: linear-gradient(180deg, #071427 0%, #0a1f3d 100%) !important;
-  border: 1px solid rgba(96,165,250,.16) !important;
-  border-radius: 8px !important;
-}
-
-.sideTitle,
-.sideText,
-.menuText{
-  color: #f8fbff !important;
-}
-
-.sideItem,
-.menuItem{
-  background: rgba(255,255,255,.03) !important;
-  border: 1px solid rgba(96,165,250,.12) !important;
-  border-radius: 8px !important;
-  box-shadow: none !important;
-}
-
-.sideItem:hover,
-.menuItem:hover{
-  background: rgba(37,99,235,.12) !important;
-  border-color: rgba(96,165,250,.28) !important;
-}
-
-.sideItem.active,
-.menuItem.active{
-  background: linear-gradient(180deg, rgba(37,99,235,.22), rgba(59,130,246,.12)) !important;
-  border-color: rgba(96,165,250,.32) !important;
-}
-
-.chev{
-  color: #93c5fd !important;
-}
-
-/* special status/messages */
-.message{
-  background: rgba(30,64,175,.14) !important;
-  border: 1px solid rgba(96,165,250,.22) !important;
-  color: #e8f1ff !important;
-}
-.message.error{
-  background: rgba(127,29,29,.22) !important;
-  border-color: rgba(248,113,113,.28) !important;
-  color: #fee2e2 !important;
-}
-
-/* ===== PAYROLL LIGHT READABILITY OVERRIDES ===== */
-.payrollSheet{
-  background: transparent !important;
-}
-
-.payrollSheet thead th{
-  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
-  color: rgba(15,23,42,.86) !important;
-  border-bottom: 1px solid rgba(148,163,184,.22) !important;
-}
-
-.payrollSheet tbody td{
-  background: rgba(255,255,255,.92) !important;
-  color: rgba(15,23,42,.94) !important;
-  border-bottom:1px solid rgba(191,219,254,.56) !important;
-}
-
-.payrollSheet tbody tr:nth-child(even) td{
-  background: rgba(248,251,255,.92) !important;
-}
-
-.payrollSheet thead th:first-child{
-  background: linear-gradient(180deg, rgba(226,236,254,.99), rgba(216,230,252,.99)) !important;
-  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
-}
-
-.payrollSheet tbody td:first-child{
-  background: linear-gradient(180deg, rgba(247,250,255,.98), rgba(242,247,255,.98)) !important;
-  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
-}
-
-.payrollSheet tbody tr:hover td{
-  background: rgba(239,246,255,.95) !important;
-}
-
-.payrollSheet tbody tr.is-selected td{
-  background: rgba(224,242,254,.92) !important;
-}
-
-.payrollSheet tbody tr:hover td:first-child,
-.payrollSheet tbody tr.is-selected td:first-child{
-  background: inherit !important;
-}
-
-.payrollSheet .emp{
-  color: rgba(15,23,42,.96) !important;
-}
-
-.payrollSheet .empSub{
-  color: rgba(71,85,105,.72) !important;
-}
-
-.payrollDayHours{
-  color: #0f766e !important;
-}
-
-.payrollDayEmpty{
-  color: rgba(100,116,139,.55) !important;
-}
-
-.payrollSheet input[type="time"],
-.payrollSheet input[type="time"]:disabled,
-.payrollSheet input.payrollTimeInput,
-.payrollTimeInput{
-  color: rgba(15,23,42,.98) !important;
-  -webkit-text-fill-color: rgba(15,23,42,.98) !important;
-}
-
-.payrollSheet input.payrollTimeInput[value=""]{
-  color:transparent !important;
-}
-
+/* payroll-specific light treatment */
 .payrollWrap,
 .tablewrap{
-  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99)) !important;
-  border-color:rgba(96,165,250,.16) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(247,249,255,.98)) !important;
+  border-color: rgba(109,40,217,.10) !important;
 }
-
-/* ===== EXACT FIX: payroll + business snapshot text on dark theme ===== */
-
-/* Business Snapshot */
-.sideInfoCard{
-  background: linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%) !important;
-  border: 1px solid rgba(56,189,248,.14) !important;
-  box-shadow: 0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04) !important;
-}
-
-.sideInfoRow{
-  background: rgba(255,255,255,.03) !important;
-  border: 1px solid rgba(96,165,250,.14) !important;
-}
-
-.sideInfoLabel{
-  color: #9fb3d1 !important;
-}
-
-.sideInfoValue{
-  color: #f8fbff !important;
-}
-
-/* Payroll main sheet */
 .payrollSheet{
   background: transparent !important;
 }
-
-.payrollSheet thead th{
-  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
-  color: rgba(15,23,42,.86) !important;
-  border-bottom: 1px solid rgba(148,163,184,.22) !important;
-}
-
-.payrollSheet tbody td{
-  background: rgba(255,255,255,.92) !important;
-  color: rgba(15,23,42,.94) !important;
-  border-bottom:1px solid rgba(191,219,254,.56) !important;
-}
-
+.payrollSheet tbody td:first-child,
 .payrollSheet thead th:first-child{
-  background: linear-gradient(180deg, rgba(226,236,254,.99), rgba(216,230,252,.99)) !important;
-  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
+  box-shadow: 10px 0 18px rgba(41,25,86,.06) !important;
 }
-
-.payrollSheet tbody td:first-child{
-  background: linear-gradient(180deg, rgba(247,250,255,.98), rgba(242,247,255,.98)) !important;
-  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
-}
-
-.payrollSheet tbody tr:hover td{
-  background: rgba(239,246,255,.95) !important;
-}
-
-.payrollSheet tbody tr.is-selected td{
-  background: rgba(224,242,254,.92) !important;
-}
-
-.payrollSheet tbody tr:hover td:first-child,
-.payrollSheet tbody tr.is-selected td:first-child{
-  background:inherit !important;
-}
-
 .payrollSheet .emp{
-  color: rgba(15,23,42,.96) !important;
+  color: rgba(38,35,58,.98) !important;
 }
-
 .payrollSheet .empSub{
-  color: rgba(71,85,105,.72) !important;
+  color: rgba(111,108,133,.76) !important;
 }
-
 .payrollDayHours{
-  color: #0f766e !important;
+  color: #15803d !important;
 }
-
 .payrollDayEmpty{
-  color: rgba(100,116,139,.55) !important;
+  color: rgba(111,108,133,.54) !important;
 }
-
 .payrollSheet input[type="time"],
 .payrollSheet input[type="time"]:disabled,
 .payrollSheet input.payrollTimeInput,
 .payrollTimeInput{
-  color: rgba(15,23,42,.98) !important;
-  -webkit-text-fill-color: rgba(15,23,42,.98) !important;
+  color: rgba(38,35,58,.98) !important;
+  -webkit-text-fill-color: rgba(38,35,58,.98) !important;
 }
-
-/* Payroll employee detail cards below */
 .payrollSummaryItem,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(1),
 .payrollEmployeeCard .payrollSummaryItem:nth-child(2),
 .payrollEmployeeCard .payrollSummaryItem:nth-child(3),
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4),
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5){
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96)) !important;
-  border: 1px solid rgba(191,219,254,.95) !important;
-  box-shadow:
-    0 8px 18px rgba(15,23,42,.07),
-    inset 0 1px 0 rgba(255,255,255,.88) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.97)) !important;
+  border: 1px solid rgba(109,40,217,.10) !important;
+  box-shadow: 0 8px 18px rgba(41,25,86,.06), inset 0 1px 0 rgba(255,255,255,.90) !important;
 }
-
 .payrollSummaryItem .k,
 .payrollEmployeeCard .payrollSummaryItem .k,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(1) .k,
@@ -6159,9 +6055,8 @@ h2{
 .payrollEmployeeCard .payrollSummaryItem:nth-child(3) .k,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4) .k,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5) .k{
-  color: rgba(71,85,105,.82) !important;
+  color: rgba(111,108,133,.82) !important;
 }
-
 .payrollSummaryItem .v,
 .payrollSummaryItem.net .v,
 .payrollEmployeeCard .payrollSummaryItem .v,
@@ -6170,81 +6065,16 @@ h2{
 .payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v,
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
-  color: rgba(15,23,42,.96) !important;
+  color: rgba(38,35,58,.96) !important;
 }
 
-
-/* Payroll detail tables stay light even with global dark theme */
-.weeklyEditTable{
-  background: rgba(255,255,255,.94) !important;
-}
-
-.weeklyEditTable thead th{
-  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
-  color: rgba(15,23,42,.88) !important;
-  border-bottom: 1px solid rgba(148,163,184,.18) !important;
-}
-
-.weeklyEditTable tbody td{
-  background: rgba(255,255,255,.92) !important;
-  color: rgba(15,23,42,.92) !important;
-  border-bottom: 1px solid rgba(191,219,254,.50) !important;
-}
-
-.weeklyEditTable tbody tr:nth-child(even) td{
-  background: rgba(248,251,255,.92) !important;
-}
-
-.weeklyEditTable tbody tr:hover td{
-  background: rgba(239,246,255,.86) !important;
-}
-
+/* employee detail cards */
 .payrollEmployeeCard{
-  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(242,247,255,.98)) !important;
-  border: 1px solid rgba(96,165,250,.16) !important;
-  box-shadow:
-    0 20px 40px rgba(2,6,23,.16),
-    inset 0 1px 0 rgba(255,255,255,.88) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(245,243,255,.98)) !important;
+  border: 1px solid rgba(109,40,217,.12) !important;
+  box-shadow: 0 18px 34px rgba(41,25,86,.08), inset 0 1px 0 rgba(255,255,255,.90) !important;
+  color: #26233a !important;
 }
-
-.weeklyEditTable{
-  background:#081a31 !important;
-  border-color: rgba(96,165,250,.16) !important;
-}
-
-.weeklyEditTable thead th{
-  background: linear-gradient(180deg, #0b2344, #102b52) !important;
-  color:#dbeafe !important;
-  border-bottom:1px solid rgba(96,165,250,.20) !important;
-}
-
-.weeklyEditTable tbody td{
-  background:#081a31 !important;
-  color:#e8f1ff !important;
-  border-bottom:1px solid rgba(96,165,250,.12) !important;
-}
-
-.weeklyEditTable tbody tr:nth-child(even) td{
-  background:#0a1f3d !important;
-}
-
-.weeklyEditTable tbody tr:hover td{
-  background:#112c4f !important;
-}
-
-.weeklyEditTable tbody td:nth-child(2){
-  color:#9fb3d1 !important;
-}
-
-/* Fix invisible employee name/title inside dark payroll cards */
-.payrollEmployeeCard{
-  color: #f8fbff !important;
-}
-
-.payrollEmployeeCard .sub{
-  color: #9fb3d1 !important;
-}
-
 .payrollEmployeeHead{
   display:flex;
   align-items:center;
@@ -6252,1011 +6082,144 @@ h2{
   gap:12px;
   margin-bottom:14px;
   padding-bottom:10px;
-  border-bottom:1px solid rgba(148,163,184,.20);
+  border-bottom:1px solid rgba(148,163,184,.18);
 }
-
 .payrollEmployeeName{
   font-size: clamp(28px, 3vw, 40px);
   line-height: 1.05;
   font-weight: 900;
   letter-spacing: -.03em;
-  color: #f8fbff !important;
+  color: #26233a !important;
   text-shadow: none !important;
 }
 
-.payrollSheet .empSub{
-  display:none !important;
+/* sidebar */
+.sidebar{
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,241,255,.96)) !important;
+  border: 1px solid rgba(109,40,217,.10) !important;
+  border-radius: 20px !important;
+  box-shadow: 0 18px 40px rgba(41,25,86,.08) !important;
+}
+.sideTitle,
+.sideText,
+.menuText{
+  color: #26233a !important;
+}
+.sideItem,
+.menuItem{
+  background: rgba(255,255,255,.82) !important;
+  border: 1px solid rgba(109,40,217,.08) !important;
+  border-radius: 16px !important;
+  box-shadow: none !important;
+}
+.sideItem:hover,
+.menuItem:hover{
+  background: rgba(124,58,237,.05) !important;
+  border-color: rgba(124,58,237,.16) !important;
+}
+.sideItem.active,
+.menuItem.active{
+  background: linear-gradient(180deg, rgba(124,58,237,.10), rgba(37,99,235,.06)) !important;
+  border-color: rgba(124,58,237,.20) !important;
+  box-shadow: inset 0 -3px 0 rgba(37,99,235,.35) !important;
+}
+.chev{
+  color: #5b21b6 !important;
+}
+.navIcon,
+.sideIcon,
+.icoBox,
+.adminToolIcon,
+.adminSectionIcon{
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,243,255,.98)) !important;
+  color: #5b21b6 !important;
+  border-color: rgba(109,40,217,.10) !important;
 }
 
-/* dashboard cards that are still light */
-.kpiMini,
-.sideInfoCard,
-.sideInfoRow,
+/* admin shells */
+.adminToolsShell{
+  background: linear-gradient(180deg, rgba(248,246,255,.98), rgba(255,255,255,.98)) !important;
+  border: 1px solid rgba(109,40,217,.10) !important;
+  box-shadow: 0 18px 40px rgba(41,25,86,.08) !important;
+}
+.adminToolCard:hover{
+  transform: translateY(-2px);
+  box-shadow: 0 18px 34px rgba(41,25,86,.12) !important;
+}
+.adminToolCard.payroll .adminToolIcon{
+  background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(219,234,254,.98)) !important;
+  color: #2563eb !important;
+  border-color: rgba(37,99,235,.16) !important;
+}
+.adminToolCard.company .adminToolIcon{
+  background: linear-gradient(180deg, rgba(245,243,255,.98), rgba(237,233,254,.98)) !important;
+  color: #6d28d9 !important;
+  border-color: rgba(109,40,217,.16) !important;
+}
+.adminToolCard.onboarding .adminToolIcon,
+.adminToolCard.employees .adminToolIcon{
+  background: linear-gradient(180deg, rgba(240,253,244,.98), rgba(220,252,231,.98)) !important;
+  color: #15803d !important;
+  border-color: rgba(34,197,94,.16) !important;
+}
+
+/* dashboard mini cards / rows */
 .quickMini,
 .activityRow,
 .activityEmpty,
 .dashboardMainMenu .menuItem,
 .adminStats .adminStatCard,
-.adminSectionCard,
-.adminToolCard,
-.payrollSummaryItem,
-.payrollEmployeeCard .payrollSummaryItem,
-.weeklyEditTable,
-.tablewrap{
-  background: linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%) !important;
-  border: 1px solid rgba(56,189,248,.14) !important;
-  box-shadow: 0 18px 40px rgba(2,6,23,.22), inset 0 1px 0 rgba(255,255,255,.04) !important;
-  border-radius: 8px !important;
-}
-
-/* text inside those cards */
-.kpiMini .k,
-.sideInfoLabel,
-.activityHead,
-.activityEmpty,
-.adminToolSub,
-.adminSectionSub,
-.payrollSummaryItem .k,
-.payrollEmployeeCard .payrollSummaryItem .k,
-.weeklyEditTable tbody td:nth-child(2){
-  color: #9fb3d1 !important;
-}
-
-.kpiMini .v,
-.sideInfoValue,
-.quickMini .miniText,
-.activityRow,
-.dashboardMainMenu .menuText,
-.dashboardMainMenu .chev,
-.adminToolTitle,
-.adminSectionTitle,
-.payrollSummaryItem .v,
-.payrollSummaryItem.net .v,
-.payrollEmployeeCard .payrollSummaryItem .v,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(1) .v,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(2) .v,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(3) .v,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(4) .v,
-.payrollEmployeeCard .payrollSummaryItem:nth-child(5) .v{
-  color: #f8fbff !important;
-}
-
-/* dashboard menu cards */
-.dashboardMainMenu .menuItem{
-  background: rgba(255,255,255,.04) !important;
-}
-.dashboardMainMenu .icoBox{
-  border-color: rgba(96,165,250,.16) !important;
-}
-
-/* polished dashboard */
-.dashboardHero{
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:18px;
-  margin-bottom:18px;
-}
-.dashboardHeroMain{
-  max-width:720px;
-}
-.dashboardEyebrow{
-  display:inline-flex;
-  align-items:center;
-  gap:8px;
-  padding:6px 10px;
-  border-radius:999px;
-  margin-bottom:10px;
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:.08em;
-  text-transform:uppercase;
-  color:#93c5fd;
-  border:1px solid rgba(96,165,250,.18);
-  background:rgba(255,255,255,.03);
-}
-.dashboardHero h1{
-  margin:0;
-  font-size: clamp(38px, 4.1vw, 56px);
-  line-height:1.02;
-  letter-spacing:-.03em;
-}
-.dashboardHero .sub{
-  margin:10px 0 0 0;
-  max-width:60ch;
-  color:#b8c7dd !important;
-  font-size:15px;
-}
-.dashboardHeroMeta{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-end;
-  gap:10px;
-}
-.dashboardDateChip{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-height:36px;
-  padding:8px 14px;
-  border-radius:8px;
-  font-size:13px;
-  font-weight:700;
-  color:#dbeafe;
-  border:1px solid rgba(96,165,250,.16);
-  background:rgba(255,255,255,.04);
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.03);
-}
-
-.kpiRow{
-  display:grid;
-  grid-template-columns:repeat(3, minmax(0, 1fr));
-  gap:16px;
-  margin-top:0;
-}
-.kpiFancy{
-  position:relative;
-  overflow:hidden;
-  min-height:160px;
-  padding:20px !important;
-  border-radius:12px !important;
-  background:
-    radial-gradient(circle at top right, rgba(59,130,246,.18), transparent 36%),
-    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
-}
-.kpiFancy::before{
-  content:"";
-  position:absolute;
-  inset:0;
-  background:linear-gradient(180deg, rgba(255,255,255,.03), transparent 42%);
-  pointer-events:none;
-}
-.kpiTop{
-  position:relative;
-  z-index:1;
-  display:flex;
-  align-items:flex-start;
-  justify-content:space-between;
-  gap:12px;
-}
-.kpiFancy .label{
-  margin:0;
-  font-size:13px;
-  font-weight:700;
-  color:#9fb3d1 !important;
-  letter-spacing:.02em;
-}
-.kpiFancy .value{
-  position:relative;
-  z-index:1;
-  margin:14px 0 0 0;
-  font-size:clamp(32px, 3vw, 46px);
-  font-weight:800;
-  letter-spacing:-.03em;
-  color:#f8fbff !important;
-}
-.kpiFancy .sub{
-  position:relative;
-  z-index:1;
-  margin:8px 0 0 0;
-  font-size:13px;
-  color:#9fb3d1 !important;
-}
-.kpiFancy .chip{
-  position:relative;
-  z-index:1;
-  background:rgba(59,130,246,.14) !important;
-  color:#dbeafe !important;
-  border:1px solid rgba(96,165,250,.18) !important;
-  box-shadow:none !important;
-}
-.kpiFancy.kpiPrimary{
-  background:
-    radial-gradient(circle at top right, rgba(34,211,238,.16), transparent 34%),
-    linear-gradient(180deg, rgba(12,34,63,.98), rgba(9,42,79,.95)) !important;
-}
-.kpiFancy.kpiHours{
-  background:
-    radial-gradient(circle at top right, rgba(56,189,248,.16), transparent 34%),
-    linear-gradient(180deg, rgba(8,24,47,.98), rgba(10,36,68,.95)) !important;
-}
-.kpiMetaRow{
-  position:relative;
-  z-index:1;
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  margin-top:12px;
-  font-size:12px;
-  font-weight:700;
-  color:#9fb3d1;
-}
-.kpiProgress{
-  position:relative;
-  z-index:1;
-  height:10px;
-  margin-top:12px;
-  border-radius:999px;
-  overflow:hidden;
-  background:rgba(148,163,184,.14);
-  border:1px solid rgba(96,165,250,.10);
-}
-.kpiProgress span{
-  display:block;
-  height:100%;
-  border-radius:inherit;
-  background:linear-gradient(90deg, #2563eb, #22d3ee);
-  box-shadow:0 0 20px rgba(34,211,238,.18);
-}
-
-.graphCard{
-  margin-top:18px !important;
-  padding:22px !important;
-  border-radius:12px !important;
-  background:
-    radial-gradient(circle at top right, rgba(34,211,238,.10), transparent 34%),
-    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
-}
-.graphTitle{
-  font-size:28px;
-  letter-spacing:-.02em;
-}
-.graphCard .sub{
-  color:#9fb3d1 !important;
-}
-.graphRange{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-height:36px;
-  padding:8px 12px;
-  border-radius:8px;
-  border:1px solid rgba(96,165,250,.16);
-  background:rgba(255,255,255,.03);
-  color:#dbeafe !important;
-  font-weight:800;
-}
-.graphShell{
-  margin-top:18px !important;
-  padding:18px 18px 12px 18px !important;
-  border-radius:12px !important;
-  background:
-    linear-gradient(180deg, rgba(6,20,43,.92), rgba(9,28,54,.88)),
-    radial-gradient(circle at top right, rgba(34,211,238,.08), transparent 42%) !important;
-  border:1px solid rgba(96,165,250,.14) !important;
-}
-.bars{
-  height:260px;
-  gap:16px;
-  padding:10px 4px 0 4px;
-}
-.barCol{
-  gap:10px;
-}
-.barValue{
-  font-size:13px;
-  font-weight:800;
-  color:#67e8f9;
-  text-shadow:none;
-}
-.barTrack{
-  height:190px;
-  border-radius:20px;
-  background:
-    linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.015)),
-    linear-gradient(180deg, rgba(37,99,235,.08), rgba(14,165,233,0)) !important;
-  box-shadow:inset 0 0 0 1px rgba(255,255,255,.025);
-}
-.bar{
-  width:68%;
-  border-radius:16px 16px 10px 10px;
-  background:linear-gradient(180deg, #2563eb 0%, #22d3ee 100%) !important;
-  box-shadow:0 18px 30px rgba(8,145,178,.18);
-}
-.barLabels{
-  margin-top:12px;
-  font-size:13px;
-  color:#bfd8ff;
-}
-.graphMeta{
-  margin-top:16px;
-  display:grid;
-  grid-template-columns:repeat(3, minmax(0, 1fr));
-  gap:12px;
-}
-.graphStat{
-  padding:14px 16px;
-  border-radius:10px !important;
-  background:rgba(255,255,255,.03) !important;
-  border:1px solid rgba(96,165,250,.14) !important;
-  box-shadow:none !important;
-}
-.graphStat .k{
-  color:#9fb3d1 !important;
-  font-size:12px;
-  font-weight:700;
-  text-transform:uppercase;
-  letter-spacing:.04em;
-}
-.graphStat .v{
-  margin-top:8px;
-  color:#f8fbff !important;
-  font-size:24px;
-  letter-spacing:-.02em;
-}
-
-.dashboardLower,
-.dashboardBottom{
-  gap:16px;
-}
-.dashboardLower{
-  margin-top:18px !important;
-}
-.dashboardBottom{
-  margin-top:18px !important;
-  grid-template-columns:minmax(0, 1.25fr) minmax(280px, .75fr);
-}
-.quickCard,
-.activityCard,
-.sideInfoCard,
-.dashboardMainMenu{
-  padding:20px !important;
-  border-radius:12px !important;
-}
-.quickCard,
-.activityCard,
-.sideInfoCard{
-  background:
-    radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 34%),
-    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
-}
-.sectionHead{
-  margin-bottom:14px;
-}
-.sectionHeadLeft{
-  align-items:flex-start;
-}
-.sectionIcon{
-  width:40px;
-  height:40px;
-  border-radius:10px !important;
-  background:rgba(59,130,246,.12) !important;
-  border:1px solid rgba(96,165,250,.16) !important;
-  color:#dbeafe !important;
-  box-shadow:none !important;
-}
-.sectionBadge{
-  min-height:34px;
-  padding:7px 12px;
-  border-radius:8px !important;
-  background:rgba(255,255,255,.04) !important;
-  border:1px solid rgba(96,165,250,.14) !important;
-  color:#9fb3d1 !important;
-  box-shadow:none !important;
-}
-.quickGrid{
-  grid-template-columns:repeat(3, minmax(0, 1fr));
-  gap:12px;
-  margin-top:0;
-}
-.quickMini{
-  padding:14px 16px !important;
-  border-radius:10px !important;
-  background:rgba(255,255,255,.03) !important;
-  border:1px solid rgba(96,165,250,.14) !important;
-  box-shadow:none !important;
-}
-.quickMini:hover{
-  transform:translateY(-2px);
-  box-shadow:0 16px 34px rgba(2,6,23,.16) !important;
-}
-.quickMini .left{
-  align-items:center;
+.adminSectionCard{
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.96)) !important;
+  border: 1px solid rgba(109,40,217,.10) !important;
+  box-shadow: 0 10px 22px rgba(41,25,86,.06) !important;
+  border-radius: 16px !important;
 }
 .quickMini .miniIcon{
-  width:38px;
-  height:38px;
-  border-radius:10px !important;
-  background:rgba(37,99,235,.14) !important;
-  border:1px solid rgba(96,165,250,.16) !important;
-  color:#dbeafe !important;
-}
-.quickMini .miniText{
-  color:#f8fbff !important;
-  font-size:15px;
-}
-.dashboardProgressRow{
-  margin-top:14px;
-  padding:14px 16px;
-  border-radius:10px;
-  border:1px solid rgba(96,165,250,.14);
-  background:rgba(255,255,255,.03);
-}
-.dashboardProgressMeta{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:12px;
-  font-size:13px;
-  color:#9fb3d1;
-}
-.dashboardProgressMeta strong{
-  color:#f8fbff;
-  font-size:14px;
-}
-.dashboardProgressBar{
-  height:10px;
-  margin-top:12px;
-  border-radius:999px;
-  overflow:hidden;
-  background:rgba(148,163,184,.14);
-  border:1px solid rgba(96,165,250,.10);
-}
-.dashboardProgressBar span{
-  display:block;
-  height:100%;
-  border-radius:inherit;
-  background:linear-gradient(90deg, #2563eb, #22d3ee);
-}
-
-.activityList{
-  margin-top:2px;
-  gap:10px;
+  color: #5b21b6 !important;
+  background: rgba(109,40,217,.08) !important;
+  border-color: rgba(109,40,217,.10) !important;
 }
 .activityRow{
-  grid-template-columns:1.2fr .7fr .7fr .7fr .9fr;
-  gap:10px;
-  padding:12px 14px;
-  border-radius:10px !important;
-  background:rgba(255,255,255,.03) !important;
-  border:1px solid rgba(96,165,250,.12) !important;
-  color:#f8fbff !important;
-}
-.activityHead{
-  padding:0 4px 6px 4px;
-  background:transparent !important;
-  border:none !important;
-  color:#9fb3d1 !important;
-  font-size:11px;
-  font-weight:800;
-  text-transform:uppercase;
-  letter-spacing:.05em;
+  color: rgba(38,35,58,.88) !important;
 }
 .activityEmpty{
-  padding:16px;
-  border-radius:10px !important;
-  border:1px dashed rgba(96,165,250,.20) !important;
-  background:rgba(255,255,255,.02) !important;
-  color:#9fb3d1 !important;
-}
-.sideInfoList{
-  margin-top:0;
-  gap:10px;
+  color: #7a7592 !important;
+  background: rgba(255,255,255,.82) !important;
+  border: 1px dashed rgba(109,40,217,.16) !important;
 }
 .sideInfoRow{
-  padding:14px 16px !important;
-  border-radius:10px !important;
-  background:rgba(255,255,255,.03) !important;
-  border:1px solid rgba(96,165,250,.12) !important;
+  background: rgba(255,255,255,.84) !important;
+  border: 1px solid rgba(34,197,94,.12) !important;
 }
 .sideInfoLabel{
-  color:#b8c7dd !important;
-  font-size:14px;
-  font-weight:700;
+  color: #5e7a66 !important;
 }
 .sideInfoValue{
-  color:#f8fbff !important;
-  font-size:24px;
-  letter-spacing:-.02em;
-}
-.snapshotFoot{
-  margin-top:14px;
-  color:#9fb3d1;
-  font-size:12px;
-  line-height:1.5;
+  color: #1f3b2c !important;
 }
 
-.dashboardMainMenu{
-  margin-top:18px !important;
-  background:
-    radial-gradient(circle at top right, rgba(59,130,246,.08), transparent 34%),
-    linear-gradient(180deg, rgba(8,24,47,.98), rgba(11,32,61,.95)) !important;
+/* messages */
+.message{
+  background: rgba(124,58,237,.08) !important;
+  border: 1px solid rgba(124,58,237,.14) !important;
+  color: #312e81 !important;
 }
-.dashboardShortcutGrid{
-  display:grid;
-  grid-template-columns:repeat(3, minmax(0, 1fr));
-  gap:12px;
-}
-.dashboardMainMenu .menuItem{
-  margin-top:0 !important;
-  min-height:88px;
-  padding:16px !important;
-  background:rgba(255,255,255,.03) !important;
-  border:1px solid rgba(96,165,250,.14) !important;
-  border-radius:10px !important;
-  box-shadow:none !important;
-}
-.dashboardMainMenu .menuItem:hover{
-  transform:translateY(-2px);
-  box-shadow:0 16px 34px rgba(2,6,23,.16) !important;
-}
-.dashboardMainMenu .menuLeft{
-  gap:12px;
-}
-.dashboardMainMenu .icoBox{
-  width:46px;
-  height:46px;
-  border-radius:10px !important;
-  background:rgba(255,255,255,.05) !important;
-  border:1px solid rgba(96,165,250,.14) !important;
-}
-.dashboardMainMenu .menuText{
-  color:#f8fbff !important;
-  font-size:15px;
-  font-weight:800;
-}
-.dashboardMainMenu .chev{
-  color:#9fb3d1 !important;
-  font-size:28px;
-  line-height:1;
+.message.error{
+  background: rgba(220,38,38,.08) !important;
+  border-color: rgba(220,38,38,.16) !important;
+  color: #991b1b !important;
 }
 
-@media (max-width: 1200px){
-  .kpiRow{
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-  }
-  .dashboardShortcutGrid,
-  .quickGrid{
-    grid-template-columns:repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 860px){
-  .shell:has(.sidebar) .main{
-    padding-right:0 !important;
-  }
-  .dashboardHero{
-    flex-direction:column;
-    align-items:flex-start;
-  }
-  .dashboardHeroMeta{
-    align-items:flex-start;
-  }
-  .kpiRow,
-  .graphMeta,
-  .quickGrid,
-  .dashboardShortcutGrid,
-  .dashboardBottom{
-    grid-template-columns:1fr !important;
-  }
-  .graphTop{
-    flex-direction:column;
-    align-items:flex-start;
-  }
-  .bars{
-    height:220px;
-    gap:10px;
-  }
-  .barTrack{
-    height:160px;
-  }
-}
-
-@media (max-width: 640px){
-  .dashboardHero h1{
-    font-size:34px;
-  }
-  .dashboardHero .sub{
-    font-size:14px;
-  }
-  .kpiFancy{
-    min-height:auto;
-    padding:18px !important;
-  }
-  .kpiFancy .value{
-    font-size:32px;
-  }
-  .kpiMetaRow,
-  .dashboardProgressMeta{
-    flex-direction:column;
-    align-items:flex-start;
-  }
-  .graphCard,
-  .quickCard,
-  .activityCard,
-  .sideInfoCard,
-  .dashboardMainMenu{
-    padding:16px !important;
-  }
-  .activityRow{
-    grid-template-columns:repeat(5, minmax(0, 1fr));
-    gap:6px;
-    padding:10px 8px;
-    font-size:11px;
-  }
-}
-
-
-
-/* ===== FINAL LIGHT TABLE SYSTEM (applies across all table pages) ===== */
-.tablewrap{
-  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99)) !important;
-  border:1px solid rgba(96,165,250,.16) !important;
-  box-shadow:0 18px 34px rgba(15,23,42,.10), inset 0 1px 0 rgba(255,255,255,.88) !important;
-  backdrop-filter:none !important;
-}
-
-.tablewrap table{
-  background:transparent !important;
-}
-
-.tablewrap th,
-.weeklyEditTable thead th,
-.payrollSheet thead th{
-  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
-  color: rgba(15,23,42,.88) !important;
-  border-bottom:1px solid rgba(148,163,184,.20) !important;
-  text-transform:uppercase;
-  letter-spacing:.02em;
-}
-
-.tablewrap td,
-.weeklyEditTable tbody td,
-.payrollSheet tbody td{
-  background: rgba(255,255,255,.92) !important;
-  color: rgba(15,23,42,.94) !important;
-  border-bottom:1px solid rgba(191,219,254,.56) !important;
-}
-
-.tablewrap table:not(.timeLogsTable) tbody tr:nth-child(even) td,
-.tablewrap table:not(.timeLogsTable) tbody tr:nth-child(even),
-.weeklyEditTable tbody tr:nth-child(even) td,
-.payrollSheet tbody tr:nth-child(even) td{
-  background: rgba(248,251,255,.92) !important;
-}
-
-.tablewrap table:not(.timeLogsTable) tbody tr:hover td,
-.tablewrap table:not(.timeLogsTable) tbody tr:hover,
-.weeklyEditTable tbody tr:hover td,
-.payrollSheet tbody tr:hover td{
-  background: rgba(239,246,255,.95) !important;
-}
-
-.tablewrap input.input,
-.tablewrap select.input,
-.tablewrap textarea.input,
-.tablewrap input,
-.tablewrap select,
-.tablewrap textarea,
-.weeklyEditTable input,
-.weeklyEditTable select,
-.weeklyEditTable textarea,
-.payrollSheet input,
-.payrollSheet select,
-.payrollSheet textarea{
-  color: rgba(15,23,42,.96) !important;
-  -webkit-text-fill-color: rgba(15,23,42,.96) !important;
-  caret-color: rgba(15,23,42,.96) !important;
-}
-
-.tablewrap input::placeholder,
-.tablewrap textarea::placeholder,
-.weeklyEditTable input::placeholder,
-.weeklyEditTable textarea::placeholder,
-.payrollSheet input::placeholder,
-.payrollSheet textarea::placeholder{
-  color: rgba(100,116,139,.72) !important;
-  -webkit-text-fill-color: rgba(100,116,139,.72) !important;
-}
-
-.tablewrap a,
-.weeklyEditTable a,
-.payrollSheet a{
-  color:#1d4ed8 !important;
-}
-
-.weeklyEditTable,
-.payrollSheet{
-  background:transparent !important;
-}
-
-.weeklyEditTable thead th{
-  position:sticky;
-  top:0;
-  z-index:3;
-}
-
-.weeklyEditTable tbody td:nth-child(2){
-  color: rgba(71,85,105,.86) !important;
-}
-
-.payrollSheet thead th:first-child{
-  background: linear-gradient(180deg, rgba(226,236,254,.99), rgba(216,230,252,.99)) !important;
-  color: rgba(15,23,42,.88) !important;
-  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
-}
-
-.payrollSheet tbody td:first-child{
-  background: linear-gradient(180deg, rgba(247,250,255,.98), rgba(242,247,255,.98)) !important;
-  color: rgba(15,23,42,.96) !important;
-  box-shadow: 10px 0 18px rgba(15,23,42,.08) !important;
-}
-
-.payrollSheet tbody tr:hover td:first-child,
-.payrollSheet tbody tr.is-selected td:first-child{
-  background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(232,244,255,.98)) !important;
-}
-
-.payrollSheet .emp{
-  color: rgba(15,23,42,.96) !important;
-  text-shadow:none !important;
-}
-
-.payrollEmployeeName{
-  color: #f8fbff !important;
-  text-shadow:none !important;
-}
-
-.payrollSheet .empSub,
-.payrollSummaryItem .k,
-.payrollEmployeeCard .payrollSummaryItem .k{
-  color: rgba(71,85,105,.82) !important;
-}
-
-.payrollDayHours{
-  color:#0f766e !important;
-}
-
-.payrollDayEmpty{
-  color: rgba(100,116,139,.55) !important;
-}
-
-.payrollSummaryItem,
-.payrollEmployeeCard .payrollSummaryItem{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,248,255,.96)) !important;
-  border:1px solid rgba(191,219,254,.95) !important;
-  box-shadow:0 8px 18px rgba(15,23,42,.07), inset 0 1px 0 rgba(255,255,255,.88) !important;
-}
-
-.payrollSummaryItem .v,
-.payrollSummaryItem.net .v,
-.payrollEmployeeCard .payrollSummaryItem .v{
-  color: rgba(15,23,42,.96) !important;
-}
-
-.payrollEmployeeCard .tablewrap,
-.payrollEmployeeCard .weeklyEditTable,
-.myReportsWeekTable .tablewrap,
-.myReportsWeekTable .weeklyEditTable{
-  background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99)) !important;
-  border-color: rgba(96,165,250,.16) !important;
-}
-
-
-/* ===== Plain informational sections: remove non-clickable card chrome ===== */
-.plainSection,
-.plainMetric{
-  min-width:0;
-  max-width:100%;
-  background:transparent !important;
-  border:0 !important;
-  box-shadow:none !important;
-  border-radius:0 !important;
-}
-
-.kpi.kpiFancy.plainMetric,
-.timeLogsSummaryCard.plainMetric,
-.myReportsTopGrid .plainMetric,
-.myReportsMonthCard.plainMetric,
-.graphStat,
-.quickMini,
-.sideInfoRow,
-.payrollSummaryItem{
-  background:transparent !important;
-  box-shadow:none !important;
-  border-radius:0 !important;
-  border:0 !important;
-  border-bottom:1px solid rgba(148,163,184,.18) !important;
-  padding:0 0 12px 0 !important;
-}
-
-.quickMini,
-.sideInfoRow,
-.payrollSummaryItem,
-.graphStat,
-.timeLogsSummaryCard.plainMetric{
-  margin:0 !important;
-}
-
-.graphCard.plainSection,
-.quickCard.plainSection,
-.activityCard.plainSection,
-.sideInfoCard.plainSection,
-.timeLogsHero.plainSection,
-.timeLogsTableCard.plainSection,
-.myReportsHero.plainSection,
-.myReportsWeekPicker.plainSection,
+/* MY REPORTS / PLAIN SECTION cards become light too */
 .myReportsWeekTable.plainSection,
-.payrollChartCard.plainSection,
-.payrollEmployeeCard.plainSection,
-.adminHeroCard.plainSection,
-.adminSectionCard.plainSection{
-  padding:0 !important;
+.payrollEmployeeCard.plainSection{
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.98)) !important;
+  border: 1px solid rgba(109,40,217,.12) !important;
+  box-shadow: 0 16px 32px rgba(41,25,86,.08) !important;
 }
-
-.kpiRow,
-.timeLogsSummaryGrid,
-.quickGrid,
-.sideInfoList,
-.graphMeta,
-.payrollSummaryBar{
-  gap:18px !important;
-}
-
-.graphCard.plainSection .graphShell{
-  background:transparent !important;
-  border:0 !important;
-  box-shadow:none !important;
-  border-radius:0 !important;
-  padding:14px 0 10px 0 !important;
-}
-
-.graphCard.plainSection .barTrack{
-  background:rgba(15,23,42,.05) !important;
-  box-shadow:none !important;
-}
-
-.graphCard.plainSection .barValue,
-.graphCard.plainSection .graphRange,
-.graphCard.plainSection .graphTitle,
-.graphCard.plainSection .sub{
-  text-shadow:none !important;
-}
-
-.activityRow{
-  background:transparent !important;
-  box-shadow:none !important;
-  border:0 !important;
-  border-bottom:1px solid rgba(148,163,184,.18) !important;
-  border-radius:0 !important;
-  padding:10px 0 !important;
-}
-
-.activityHead{
-  padding:0 0 8px 0 !important;
-  border-bottom:1px solid rgba(148,163,184,.18) !important;
-}
-
-.timeLogsTableCard.plainSection .tablewrap,
-.myReportsWeekTable.plainSection .tablewrap,
-.payrollEmployeeCard.plainSection .tablewrap,
-.adminSectionCard.plainSection .tablewrap{
-  background:transparent !important;
-  border:0 !important;
-  box-shadow:none !important;
-  border-radius:0 !important;
-  margin-top:10px !important;
-}
-
-/* Keep the wrappers flat, but preserve readable table contrast */
-.timeLogsTable,
-.weeklyEditTable{
-  box-shadow:none !important;
-}
-
-.timeLogsTable thead th{
-  background:transparent !important;
-  color:rgba(226,232,240,.88) !important;
-  border-bottom:1px solid rgba(148,163,184,.24) !important;
-}
-
-.timeLogsTable tbody td{
-  color:rgba(241,245,249,.96) !important;
-  border-bottom:1px solid rgba(148,163,184,.18) !important;
-}
-
-.myReportsWeekTable.plainSection .weeklyEditTable,
-.payrollEmployeeCard.plainSection .weeklyEditTable{
-  background:rgba(255,255,255,.96) !important;
-  border:1px solid rgba(96,165,250,.14) !important;
-}
-
-.myReportsWeekTable.plainSection .weeklyEditTable thead th,
-.payrollEmployeeCard.plainSection .weeklyEditTable thead th{
-  background:linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98)) !important;
-  color:rgba(15,23,42,.88) !important;
-  border-bottom:1px solid rgba(148,163,184,.18) !important;
-}
-
-.myReportsWeekTable.plainSection .weeklyEditTable tbody td,
-.payrollEmployeeCard.plainSection .weeklyEditTable tbody td{
-  background:rgba(255,255,255,.92) !important;
-  color:rgba(15,23,42,.92) !important;
-  border-bottom:1px solid rgba(191,219,254,.50) !important;
-}
-
-.myReportsWeekTable.plainSection .weeklyEditTable tbody tr:nth-child(even) td,
-.payrollEmployeeCard.plainSection .weeklyEditTable tbody tr:nth-child(even) td{
-  background:rgba(248,251,255,.92) !important;
-}
-
-.myReportsWeekTable.plainSection .weeklyEditTable tbody tr:hover td,
-.payrollEmployeeCard.plainSection .weeklyEditTable tbody tr:hover td{
-  background:rgba(239,246,255,.86) !important;
-}
-
-.quickMini .miniIcon,
-.sectionIcon,
-.adminSectionIcon{
-  background:transparent !important;
-  box-shadow:none !important;
-}
-
-
-/* Improve readability inside white admin tables */
-.tablewrap td .sub,
-.tablewrap td label.sub{
-  color:rgba(71,85,105,.88) !important;
-}
-
-.tablewrap .btnTiny,
-.tablewrap td:last-child .btnTiny,
-.tablewrap td:last-child a.btnTiny{
-  background:rgba(30,64,175,.08) !important;
-  color:rgba(30,64,175,1) !important;
-  border:1px solid rgba(15,23,42,.14) !important;
-  box-shadow:none !important;
-}
-
-.tablewrap .btnTiny.dark,
-.tablewrap td:last-child .btnTiny.dark{
-  background:rgba(15,23,42,.06) !important;
-  color:rgba(15,23,42,.86) !important;
-  border:1px solid rgba(15,23,42,.18) !important;
-}
-
-select.input option{
-  color:#e8f1ff;
-  background:#0b1830;
-}
-
-.snapshotFoot{
-  margin-top:12px;
-  color:var(--muted);
-}
-
-
-/* ===== FINAL READABILITY PATCH V2 ===== */
-.shell:has(.sidebar) .main{
-  padding-right: clamp(26px, 2.4vw, 42px) !important;
-}
-
-@media (max-width: 860px){
-  .shell:has(.sidebar) .main{
-    padding-right: 12px !important;
-  }
-}
-
-/* keep flat summary rows readable on dark backgrounds */
-.myReportsWeekTable.plainSection .payrollSummaryItem,
-.payrollEmployeeCard.plainSection .payrollSummaryItem,
-.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(1),
-.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(2),
-.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(3),
-.myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(4),
-.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(1),
-.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(2),
-.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(3),
-.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(4),
-.payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(5){
-  background: transparent !important;
-  border: 0 !important;
-  border-bottom: 1px solid rgba(148,163,184,.18) !important;
-  box-shadow: none !important;
-  border-radius: 0 !important;
-}
-
+.myReportsWeekTable.plainSection .sub,
+.payrollEmployeeCard.plainSection .sub,
 .myReportsWeekTable.plainSection .payrollSummaryItem .k,
 .payrollEmployeeCard.plainSection .payrollSummaryItem .k,
 .myReportsWeekTable.plainSection .payrollSummaryItem:nth-child(1) .k,
@@ -7268,10 +6231,9 @@ select.input option{
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(3) .k,
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(4) .k,
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(5) .k{
-  color: rgba(191,219,254,.84) !important;
-  -webkit-text-fill-color: rgba(191,219,254,.84) !important;
+  color: rgba(111,108,133,.82) !important;
+  -webkit-text-fill-color: rgba(111,108,133,.82) !important;
 }
-
 .myReportsWeekTable.plainSection .payrollSummaryItem .v,
 .myReportsWeekTable.plainSection .payrollSummaryItem.net .v,
 .payrollEmployeeCard.plainSection .payrollSummaryItem .v,
@@ -7280,14 +6242,14 @@ select.input option{
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(3) .v,
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(4) .v,
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(5) .v{
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
+  color: #26233a !important;
+  -webkit-text-fill-color: #26233a !important;
   text-shadow: none !important;
 }
 
 /* ===== FINAL TABLE READABILITY FIXES ===== */
 
-/* 1) TIME LOGS: remove zebra completely and keep all rows readable */
+/* 1) TIME LOGS: keep all rows bright and readable */
 .timeLogsTable tbody tr,
 .timeLogsTable tbody tr:nth-child(odd),
 .timeLogsTable tbody tr:nth-child(even){
@@ -7297,20 +6259,20 @@ select.input option{
 .timeLogsTable tbody tr td,
 .timeLogsTable tbody tr:nth-child(odd) td,
 .timeLogsTable tbody tr:nth-child(even) td{
-  background: #102742 !important;
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
+  background: #ffffff !important;
+  color: #26233a !important;
+  -webkit-text-fill-color: #26233a !important;
   text-shadow: none !important;
-  border-bottom: 1px solid rgba(96,165,250,.14) !important;
+  border-bottom: 1px solid rgba(226,232,240,.90) !important;
 }
 
 .timeLogsTable tbody tr:hover td{
-  background: #17365d !important;
-  color: #f8fafc !important;
-  -webkit-text-fill-color: #f8fafc !important;
+  background: #f5f3ff !important;
+  color: #26233a !important;
+  -webkit-text-fill-color: #26233a !important;
 }
 
-/* 2) EMPLOYEE SITES + LOCATIONS: make table form controls light and clean */
+/* 2) EMPLOYEE SITES + LOCATIONS: keep table form controls clean */
 .tablewrap td form .input,
 .tablewrap td form input,
 .tablewrap td form input.input,
@@ -7318,11 +6280,11 @@ select.input option{
 .tablewrap td form select.input,
 .tablewrap td form textarea,
 .tablewrap td form textarea.input{
-  background: #f8fbff !important;
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
-  caret-color: #0f172a !important;
-  border: 1px solid #cbd5e1 !important;
+  background: #ffffff !important;
+  color: #26233a !important;
+  -webkit-text-fill-color: #26233a !important;
+  caret-color: #26233a !important;
+  border: 1px solid rgba(148,163,184,.36) !important;
   box-shadow: none !important;
   font-weight: 600 !important;
 }
@@ -7330,20 +6292,20 @@ select.input option{
 .tablewrap td form .input::placeholder,
 .tablewrap td form input::placeholder,
 .tablewrap td form textarea::placeholder{
-  color: #64748b !important;
-  -webkit-text-fill-color: #64748b !important;
+  color: #7a7592 !important;
+  -webkit-text-fill-color: #7a7592 !important;
 }
 
 .tablewrap td form select option,
 .tablewrap td form select optgroup{
   background: #ffffff !important;
-  color: #0f172a !important;
+  color: #26233a !important;
 }
 
 /* keep plain numeric/location cells readable */
 .tablewrap td.num{
-  color: #0f172a !important;
-  -webkit-text-fill-color: #0f172a !important;
+  color: #26233a !important;
+  -webkit-text-fill-color: #26233a !important;
 }
 
 /* 3) DISTINCT STATUS COLORS */
@@ -7374,12 +6336,12 @@ select.input option{
 /* helper text inside white table sections */
 .tablewrap td .sub,
 .tablewrap td label.sub{
-  color: #475569 !important;
+  color: #6f6c85 !important;
 }
 
 /* keep action links readable */
 .tablewrap td a[href*="/admin/locations?site="]{
-  color: #1d4ed8 !important;
+  color: #2563eb !important;
   font-weight: 700 !important;
 }
 
@@ -7400,6 +6362,7 @@ select.input option{
 .tablewrap > table[style*="min-width:980px"] th:last-child{
   min-width: 280px !important;
 }
+
 
 </style>
 """
@@ -14653,6 +13616,8 @@ def admin():
             content_html=content
         )
     )
+
+
 def admin_back_link() -> str:
     return """
       <div style="margin:8px 0 12px;">
@@ -14662,6 +13627,7 @@ def admin_back_link() -> str:
         </a>
       </div>
     """
+
 
 @app.route("/admin/company", methods=["GET", "POST"])
 def admin_company():
@@ -14802,7 +13768,7 @@ def admin_company():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-      
+
       {admin_back_link()}
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
@@ -15815,7 +14781,7 @@ def admin_payroll():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-      
+
       {admin_back_link()}
 
             <div class="payrollTopGrid">
@@ -16259,7 +15225,7 @@ def admin_onboarding_list():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-      
+
       {admin_back_link()}
 
       <div class="card" style="padding:12px;">
@@ -16337,7 +15303,7 @@ def admin_onboarding_detail(username):
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-      
+
       {admin_back_link()}
 
       <div class="card" style="padding:12px;">
@@ -16485,7 +15451,7 @@ def admin_locations():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-      
+
       {admin_back_link()}
 
       {map_card}
@@ -16797,7 +15763,7 @@ def admin_employee_sites():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-      
+
       {admin_back_link()}
 
       <div class="card" style="padding:12px;">
@@ -17514,7 +16480,7 @@ def admin_employees():
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
-      
+
       {admin_back_link()}
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
@@ -17966,7 +16932,7 @@ def admin_workplaces():
         </div>
         <div class="badge admin">{escape(role_label(session.get('role', 'master_admin')))}</div>
       </div>
-      
+
 
       {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
       {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
