@@ -14132,6 +14132,8 @@ def admin():
         .adminActionBar .input:focus{{border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.10);}}
         .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.20);}}
       </style>
+      
+      {admin_back_link()}
 
       <div class="adminHeroCard plainSection">
         <div class="adminHeroTop">
@@ -14275,8 +14277,32 @@ def admin():
     )
 
 
-def admin_back_link() -> str:
-    return page_back_button("/admin", "Back to Admin")
+def admin_back_link(href: str = "/admin") -> str:
+    return f"""
+      <div style="margin:4px 0 12px;">
+        <a href="{href}"
+           aria-label="Back"
+           title="Back"
+           style="
+             display:inline-flex;
+             align-items:center;
+             justify-content:center;
+             width:32px;
+             height:32px;
+             border-radius:999px;
+             background:#ffffff;
+             border:1px solid #cbd5e1;
+             color:#64748b;
+             text-decoration:none;
+             box-shadow:0 1px 2px rgba(15,23,42,.06);
+             font-size:18px;
+             font-weight:700;
+             line-height:1;
+           ">
+          &#8249;
+        </a>
+      </div>
+    """
 
 
 @app.route("/admin/company", methods=["GET", "POST"])
