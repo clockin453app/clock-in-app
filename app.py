@@ -18674,6 +18674,7 @@ def _patch_admin_only_endpoints():
         app.view_functions[endpoint] = wrapped
 
 
+
 _ensure_database_schema()
 _patch_admin_only_endpoints()
 
