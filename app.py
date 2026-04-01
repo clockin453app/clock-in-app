@@ -2017,7 +2017,174 @@ PWA_TAGS = """
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <script>
 (function(){
-  document.documentElement.style.setProperty('--bottom-nav-offset', '0px');
+  function syncBottomNav(){
+    var vv = window.visualViewport;
+    var gap = 0;
+
+    if (vv) {
+      gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    }
+
+    document.documentElement.style.setProperty('--bottom-nav-offset', gap + 'px');
+  }
+
+  function initMobileRail(){
+    var shell = document.querySelector('.shell');
+    var sidebar = shell ? shell.querySelector('.sidebar') : null;
+    var oldBtn = document.getElementById('mobileRailToggle');
+
+    if (window.innerWidth > 979 || !shell || !sidebar) {
+      document.body.classList.remove('mobileRailClosed');
+      if (oldBtn) oldBtn.remove();
+      return;
+    }
+
+    var btn = oldBtn;
+    if (!btn) {
+      btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'mobileRailToggle';
+      btn.setAttribute('aria-label', 'Toggle menu');
+      document.body.appendChild(btn);
+    }
+
+    var storageKey = 'mobileRailClosed';
+
+    function syncRail(){
+      var closed = localStorage.getItem(storageKey) === '1';
+      document.body.classList.toggle('mobileRailClosed', closed);
+    }
+
+    if (btn.dataset.bound !== '1') {
+      btn.dataset.bound = '1';
+      btn.addEventListener('click', function(e){
+        e.preventDefault();
+        e.stopPropagation();
+        var closed = localStorage.getItem(storageKey) === '1';
+        localStorage.setItem(storageKey, closed ? '0' : '1');
+        syncRail();
+      });
+    }
+
+    syncRail();
+  }
+
+  if (!window.__mobileRailSwipeBound) {
+    window.__mobileRailSwipeBound = true;
+
+    var touchStartX = 0;
+    var touchStartY = 0;
+    var touchLastX = 0;
+    var trackingSwipe = false;
+    var swipeMode = '';
+
+    document.addEventListener('touchstart', function(e){
+      if (window.innerWidth > 979) return;
+
+      var shell = document.querySelector('.shell');
+      var sidebar = shell ? shell.querySelector('.sidebar') : null;
+      if (!shell || !sidebar) return;
+
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+
+      var target = e.target;
+      if (target && target.closest('input, select, textarea, button, a, .tablewrap')) return;
+
+      var closed = document.body.classList.contains('mobileRailClosed');
+
+      trackingSwipe = false;
+      swipeMode = '';
+      touchStartX = t.clientX;
+      touchStartY = t.clientY;
+      touchLastX = t.clientX;
+
+      if (closed) {
+        if (t.clientX <= 18) {
+          trackingSwipe = true;
+          swipeMode = 'open';
+        }
+        return;
+      }
+
+      if (sidebar.contains(target) || t.clientX <= 90) {
+        trackingSwipe = true;
+        swipeMode = 'close';
+      }
+    }, { passive: true });
+
+    document.addEventListener('touchmove', function(e){
+      if (!trackingSwipe || window.innerWidth > 979) return;
+
+      var t = e.touches && e.touches[0];
+      if (!t) return;
+
+      var dx = t.clientX - touchStartX;
+      var dy = t.clientY - touchStartY;
+
+      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
+        e.preventDefault();
+      }
+
+      touchLastX = t.clientX;
+    }, { passive: false });
+
+    document.addEventListener('touchend', function(){
+      if (!trackingSwipe || window.innerWidth > 979) return;
+
+      var dx = touchLastX - touchStartX;
+
+      if (swipeMode === 'open' && dx > 45) {
+        localStorage.setItem('mobileRailClosed', '0');
+        document.body.classList.remove('mobileRailClosed');
+      } else if (swipeMode === 'close' && dx < -45) {
+        localStorage.setItem('mobileRailClosed', '1');
+        document.body.classList.add('mobileRailClosed');
+      }
+
+      trackingSwipe = false;
+      swipeMode = '';
+      touchStartX = 0;
+      touchStartY = 0;
+      touchLastX = 0;
+    }, { passive: true });
+  }
+
+  window.addEventListener('load', function(){
+    syncBottomNav();
+    initMobileRail();
+  });
+
+  window.addEventListener('resize', function(){
+    syncBottomNav();
+    initMobileRail();
+  });
+
+  window.addEventListener('pageshow', function(){
+    syncBottomNav();
+    initMobileRail();
+    setTimeout(syncBottomNav, 120);
+    setTimeout(syncBottomNav, 320);
+  });
+
+  window.addEventListener('orientationchange', function(){
+    setTimeout(function(){
+      syncBottomNav();
+      initMobileRail();
+    }, 250);
+  });
+
+  document.addEventListener('focusout', function(){
+    setTimeout(syncBottomNav, 180);
+  });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', syncBottomNav);
+    window.visualViewport.addEventListener('scroll', syncBottomNav);
+  }
+
+  syncBottomNav();
+  initMobileRail();
 })();
 </script>
 """
@@ -2129,6 +2296,82 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .topBrandBadge:hover{
   border-color:rgba(147,197,253,.42);
+}
+
+.topBarFixed{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.topAccountWrap{
+  position:relative;
+}
+
+.topAccountTrigger{
+  width:40px;
+  height:40px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  border:1px solid rgba(109,40,217,.10);
+  background:rgba(255,255,255,.92);
+  color:#6d28d9;
+  cursor:pointer;
+  box-shadow:0 8px 18px rgba(41,25,86,.08);
+}
+
+.topAccountTrigger svg{
+  width:18px;
+  height:18px;
+}
+
+.topAccountMenu{
+  position:absolute;
+  top:calc(100% + 8px);
+  right:0;
+  min-width:190px;
+  padding:8px;
+  border-radius:18px;
+  border:1px solid rgba(109,40,217,.10);
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,247,255,.98));
+  box-shadow:0 18px 36px rgba(41,25,86,.14);
+  display:none;
+  z-index:700;
+}
+
+.topAccountWrap.open .topAccountMenu{
+  display:block;
+}
+
+.topAccountMenuItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-radius:14px;
+  text-decoration:none;
+  color:#1f2547;
+  font-size:14px;
+  font-weight:600;
+}
+
+.topAccountMenuItem:hover{
+  background:rgba(109,40,217,.06);
+}
+
+.topAccountMenuItem.danger{
+  color:#dc2626;
+}
+
+.topAccountMenuMark{
+  color:#8b84a8;
+  font-size:16px;
+  line-height:1;
 }
 
 /* Header top */
@@ -2302,48 +2545,213 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   color: rgba(15,23,42,.95);
 }
 
+.grossChartCard{
+  margin-top: 12px;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid rgba(109,40,217,.12);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,243,255,.98));
+  box-shadow: 0 16px 36px rgba(41,25,86,.08);
+}
+
+.grossChartSummaryRow{
+  display:grid;
+  grid-template-columns: repeat(2, minmax(0,1fr));
+  gap:10px;
+}
+
+.grossSummaryBox{
+  min-width:0;
+  padding:14px 16px;
+  border-radius:18px;
+  border:1px solid rgba(109,40,217,.10);
+  background: rgba(255,255,255,.92);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
+}
+
+.grossSummaryLabel{
+  font-size:12px;
+  color:#6f6c85;
+  font-weight:700;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.grossSummaryValue{
+  margin-top:4px;
+  font-size:18px;
+  line-height:1.1;
+  color:#1f2547;
+  font-weight:800;
+  font-variant-numeric: tabular-nums;
+}
+
+.grossSummaryDelta{
+  margin-top:4px;
+  font-size:12px;
+  font-weight:800;
+}
+
+.grossSummaryDelta.up{ color:#15803d; }
+.grossSummaryDelta.down{ color:#e11d48; }
+
+.grossChartNav{
+  margin-top:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:18px;
+}
+
+.grossChartArrow{
+  width:24px;
+  text-align:center;
+  color:#5f5b7a;
+  font-size:24px;
+  line-height:1;
+  user-select:none;
+}
+
+.grossChartRangeTitle{
+  color:#1f172f;
+  font-size:18px;
+  font-weight:800;
+  letter-spacing:-.01em;
+}
+
+.grossChartPlot{
+  margin-top:10px;
+  display:grid;
+  grid-template-columns: 48px minmax(0,1fr);
+  gap:10px;
+  align-items:end;
+}
+
+.grossChartYAxis{
+  height:230px;
+  display:grid;
+  grid-template-rows: repeat(6, 1fr);
+}
+
+.grossChartTick{
+  display:flex;
+  align-items:flex-end;
+  justify-content:flex-end;
+  padding-right:2px;
+  color:#6b6f88;
+  font-size:11px;
+  font-weight:700;
+  font-variant-numeric: tabular-nums;
+}
+
+.grossChartCanvas{
+  position:relative;
+  height:230px;
+  border-bottom:1px solid rgba(109,40,217,.16);
+}
+
+.grossChartGridLine{
+  position:absolute;
+  left:0;
+  right:0;
+  border-top:1px dashed rgba(109,40,217,.18);
+}
+
+.grossChartBars{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:flex-end;
+  justify-content:space-around;
+  gap:12px;
+  padding:0 8px 0 8px;
+}
+
+.grossChartBarCol{
+  flex:1 1 0;
+  min-width:0;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-end;
+}
+
+.grossChartBarWrap{
+  width:min(52px, 100%);
+  height:100%;
+  display:flex;
+  align-items:flex-end;
+  justify-content:center;
+}
+
+.grossChartBar{
+  width:100%;
+  max-width:52px;
+  background:#000;
+  border-radius:0;
+}
+
+.grossChartBarLabel{
+  margin-top:8px;
+  color:#656b86;
+  font-size:12px;
+  font-weight:800;
+}
+
 @media (max-width: 700px){
-  .graphCard{
-    padding: 12px;
+  .grossChartCard{
+    padding: 14px 12px 12px;
   }
 
-  .graphShell{
-    padding: 12px 10px 8px 10px;
+  .grossSummaryBox{
+    padding:12px 14px;
   }
 
-  .bars{
-    height: 200px;
-    gap: 8px;
-    padding: 4px 2px 0 2px;
+  .grossSummaryLabel{
+    font-size:11px;
   }
 
-  .barTrack{
-    height: 150px;
+  .grossSummaryValue{
+    font-size:16px;
   }
 
-  .bar{
-    width: 82%;
-    min-width: 16px;
+  .grossChartNav{
+    gap:14px;
   }
 
-  .barValue{
-    display: none;
+  .grossChartRangeTitle{
+    font-size:16px;
   }
 
-  .barLabels{
-    gap: 8px;
-    font-size: 12px;
+  .grossChartPlot{
+    grid-template-columns: 40px minmax(0,1fr);
+    gap:8px;
   }
 
-  .graphTop{
-    gap: 8px;
+  .grossChartYAxis,
+  .grossChartCanvas{
+    height:200px;
   }
 
-  .graphRange{
-    font-size: 11px;
-    text-align: right;
+  .grossChartBars{
+    gap:10px;
+    padding:0 2px;
   }
-}  
+
+  .grossChartBarWrap{
+    width:min(38px, 100%);
+  }
+
+  .grossChartBar{
+    max-width:38px;
+  }
+
+  .grossChartBarLabel{
+    font-size:11px;
+  }
+}
 
 .dashboardLower{
   margin-top: 12px;
@@ -2491,6 +2899,12 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 @media (max-width: 1100px){
   .dashboardBottom{
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 700px){
+  .dashboardBottom .activityCard{
+    display:none;
   }
 }
 
@@ -4161,362 +4575,269 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .bad{ border: 1px solid rgba(220,38,38,.55) !important; box-shadow: 0 0 0 3px rgba(220,38,38,.10) !important; }
 .badLabel{ color: rgba(220,38,38,.92) !important; font-weight:800 !important; }
 
-/* Fixed mobile bottom nav + desktop sidebar */
+/* Mobile layout: no left sidebar */
+.bottomNav{
+  display:block !important;
+}
+
+.safeBottom{
+  display:block !important;
+  height:0 !important;
+}
+
 #mobileRailToggle{
   display:none !important;
 }
 
-.topBarFixed{
-  display:flex;
-  align-items:center;
-  justify-content:flex-end;
-  gap:12px;
-  margin-bottom:12px;
-}
-
-.topBrandBadge{
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  min-height:40px;
-  padding:8px 18px;
-  border-radius:16px;
-  font-size:13px;
-  font-weight:800;
-  letter-spacing:.04em;
-  text-transform:uppercase;
-  color:#4338ca;
-  border:1px solid rgba(109,40,217,.10);
-  background:linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,245,255,.96));
-  box-shadow:0 10px 24px rgba(41,25,86,.08);
-}
-
-.topAccountWrap{
-  position:relative;
-}
-
-.topAccountTrigger{
-  width:40px;
-  height:40px;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  border-radius:999px;
-  border:1px solid rgba(109,40,217,.10);
-  background:rgba(255,255,255,.96);
-  color:#6d28d9;
-  cursor:pointer;
-  box-shadow:0 10px 24px rgba(41,25,86,.08);
-}
-
-.topAccountTrigger svg{
-  width:18px;
-  height:18px;
-  display:block;
-}
-
-.topAccountMenu{
-  position:absolute;
-  top:calc(100% + 10px);
-  right:0;
-  min-width:210px;
-  padding:8px;
-  border-radius:18px;
-  border:1px solid rgba(109,40,217,.10);
-  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,247,255,.98));
-  box-shadow:0 18px 36px rgba(41,25,86,.14);
-  display:none;
-  z-index:700;
-}
-
-.topAccountWrap.open .topAccountMenu{
-  display:block;
-}
-
-.topAccountMenuItem{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:14px;
-  min-height:44px;
-  padding:0 14px;
-  border-radius:14px;
-  color:#1f2547;
-  font-size:14px;
-  font-weight:700;
-  text-decoration:none;
-}
-
-.topAccountMenuItem:hover{
-  background:rgba(109,40,217,.06);
-}
-
-.topAccountMenuItem.danger{
-  color:#dc2626;
-}
-
-.topAccountMenuMark{
-  color:#8b85a3;
-  font-size:15px;
-  line-height:1;
-}
-
-.bottomNav{
-  display:block !important;
-  position:fixed !important;
-  left:0;
-  right:0;
-  bottom:0;
-  z-index:1000;
-  width:100%;
-  padding:0;
-  margin:0;
-  background:rgba(255,255,255,.98);
-  border-top:1px solid rgba(109,40,217,.10);
-  box-shadow:0 -6px 18px rgba(41,25,86,.08);
-  backdrop-filter:blur(10px);
-  -webkit-backdrop-filter:blur(10px);
-  transform:none !important;
-}
-
-.bottomNav .navInner{
-  display:grid;
-  grid-auto-flow:column;
-  grid-auto-columns:1fr;
-  align-items:center;
-  gap:0;
-  width:100%;
-  padding:4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
-  max-width:none;
-  margin:0;
-  background:transparent !important;
-  border:0 !important;
-  box-shadow:none !important;
-  border-radius:0 !important;
-}
-
-.bottomNav .navIcon{
-  min-height:50px;
-  padding:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border:0 !important;
-  background:transparent !important;
-  box-shadow:none !important;
-  border-radius:0 !important;
-  text-decoration:none;
-  position:relative;
-  transform:none !important;
-}
-
-.bottomNav .navIcon img,
-.bottomNav .navIcon svg{
-  width:22px !important;
-  height:22px !important;
-  display:block;
-}
-
-.bottomNav .navIcon.active::after{
-  content:"";
-  position:absolute;
-  left:50%;
-  transform:translateX(-50%);
-  bottom:5px;
-  width:16px;
-  height:3px;
-  border-radius:999px;
-  background:#6d28d9;
-}
-
-.bottomNav .navIcon.nav-home{ color:#1d4ed8; }
-.bottomNav .navIcon.nav-clock{ color:#15803d; }
-.bottomNav .navIcon.nav-times{ color:#b45309; }
-.bottomNav .navIcon.nav-reports{ color:#4338ca; }
-.bottomNav .navIcon.nav-admin{ color:#0f172a; }
-.bottomNav .navIcon.nav-workplaces{ color:#0e7490; }
-
-.safeBottom{
-  display:block !important;
-  height:74px !important;
-}
-
-body{
-  padding:16px 14px calc(82px + env(safe-area-inset-bottom, 0px)) 14px !important;
-}
-
-.shell{
-  max-width:560px;
-  margin:0 auto;
-  width:100%;
-}
-
-.main{
-  width:100%;
-  min-width:0;
-  padding-right:0 !important;
-}
-
-.sidebar{
-  display:none !important;
-}
-
-@media (max-width: 520px){
+@media (max-width: 979px){
   body{
-    padding:12px 12px calc(78px + env(safe-area-inset-bottom, 0px)) 12px !important;
-  }
-
-  .bottomNav .navIcon{
-    min-height:48px;
-  }
-
-  .bottomNav .navIcon img,
-  .bottomNav .navIcon svg{
-    width:20px !important;
-    height:20px !important;
-  }
-
-  .topAccountMenu{
-    right:0;
-    min-width:190px;
-  }
-}
-
-@media (min-width: 980px){
-  body{
-    padding:18px !important;
+    padding:12px 12px 96px 12px !important;
   }
 
   .shell{
+    width:100% !important;
     max-width:none !important;
-    width:calc(100vw - 36px) !important;
-    margin:0 auto !important;
-    display:grid !important;
-    grid-template-columns:220px minmax(0, 1fr) !important;
-    gap:18px !important;
-    align-items:start !important;
-  }
-
-  .bottomNav{
-    display:none !important;
-  }
-
-  .safeBottom{
-    display:none !important;
-    height:0 !important;
+    margin:0 !important;
+    display:block !important;
   }
 
   .sidebar{
-    display:flex !important;
-    flex-direction:column;
-    gap:10px;
-    position:sticky;
-    top:18px;
-    height:calc(100vh - 36px);
-    padding:12px;
-    background:linear-gradient(180deg, rgba(255,255,255,.92), rgba(248,245,255,.94));
-    border:1px solid rgba(109,40,217,.08);
-    border-radius:18px;
-    box-shadow:0 14px 34px rgba(41,25,86,.08);
-    overflow:auto;
-  }
-
-  .sideMenuTitle{
-    font-size:13px;
-    font-weight:800;
-    letter-spacing:.03em;
-    color:#6f6c85;
-    margin:2px 4px 6px;
-    text-transform:none;
-  }
-
-  .sideItem{
-    display:flex;
-    align-items:center;
-    justify-content:flex-start;
-    gap:12px;
-    min-height:58px;
-    padding:0 14px;
-    border-radius:14px;
-    background:rgba(255,255,255,.72);
-    border:1px solid rgba(109,40,217,.06);
-    box-shadow:none;
-    position:relative;
-    text-decoration:none;
-    transition:background .16s ease, border-color .16s ease, box-shadow .16s ease, transform .16s ease;
-  }
-
-  .sideItem:hover{
-    transform:translateY(-1px);
-    border-color:rgba(109,40,217,.12);
-    box-shadow:0 10px 20px rgba(41,25,86,.08);
-  }
-
-  .sideItem.active{
-    background:linear-gradient(180deg, rgba(109,40,217,.10), rgba(99,102,241,.06));
-    border-color:rgba(109,40,217,.16);
-    box-shadow:0 12px 26px rgba(41,25,86,.08);
-  }
-
-  .sideItem.active::before{
-    content:"";
-    position:absolute;
-    left:0;
-    top:12px;
-    bottom:12px;
-    width:4px;
-    border-radius:999px;
-    background:linear-gradient(180deg, #7c3aed, #2563eb);
-  }
-
-  .sideLeft{
-    display:flex;
-    align-items:center;
-    gap:12px;
-    min-width:0;
-  }
-
-  .sideIcon{
-    width:38px;
-    height:38px;
-    min-width:38px;
-    border-radius:12px;
-    background:linear-gradient(180deg, rgba(249,250,251,.96), rgba(243,244,246,.96));
-    border:1px solid rgba(109,40,217,.08);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    color:#6d28d9;
-    overflow:hidden;
-  }
-
-  .sideIcon svg{
-    width:20px;
-    height:20px;
-  }
-
-  .sideIcon img{
-    width:21px;
-    height:21px;
-    object-fit:contain;
-  }
-
-  .sideText{
-    font-size:14px;
-    font-weight:700;
-    color:#1f2547;
-    white-space:nowrap;
-  }
-
-  .chev,
-  .sideDivider,
-  .logoutBtn{
     display:none !important;
   }
 
-  .topBarFixed{
-    margin-bottom:14px;
+  .main{
+    min-width:0 !important;
+    padding-right:0 !important;
   }
+
+  .topBarFixed{
+    position:sticky;
+    top:0;
+    z-index:120;
+    padding:4px 0 10px;
+    background:linear-gradient(180deg, rgba(245,247,252,.98), rgba(245,247,252,.85) 70%, rgba(245,247,252,0));
+    backdrop-filter:blur(8px);
+    -webkit-backdrop-filter:blur(8px);
+  }
+}
+
+.navIcon.nav-home{ color:#1d4ed8; }
+.navIcon.nav-clock{ color:#15803d; }
+.navIcon.nav-times{ color:#b45309; }
+.navIcon.nav-reports{ color:#4338ca; }
+.navIcon.nav-admin{ color:#0f172a; }
+.navIcon.nav-workplaces{ color:#0e7490; }
+.navIcon.nav-logout{ color:rgba(220,38,38,.92); }
+
+.navIcon.nav-home.active{
+  background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
+}
+.navIcon.nav-clock.active{
+  background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
+}
+.navIcon.nav-times.active{
+  background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
+}
+.navIcon.nav-reports.active{
+  background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
+}
+.navIcon.nav-admin.active{
+  background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
+}
+.navIcon.nav-workplaces.active{
+  background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
+}
+/* Desktop wide layout */
+@media (min-width: 980px){
+  body{ padding: 18px 18px 22px 18px; }
+    .shell{
+    max-width: none;
+    width: calc(100vw - 36px);
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: 16px;
+    align-items: start;
+  }
+  .bottomNav{ display:none; }
+    .sidebar{
+    display:flex;
+    flex-direction:column;
+    gap: 8px;
+    position: sticky;
+    top: 18px;
+    height: calc(100vh - 36px);
+    overflow: hidden;
+    padding: 12px;
+    background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(248,250,252,.92));
+    border: 1px solid rgba(30,64,175,.10);
+    border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(15,23,42,.08);
+  }
+  .sideScroll{
+    overflow:auto;
+    padding-right: 4px;
+    flex: 1 1 auto;
+  }
+  .sideTitle{
+    font-weight:800;
+    font-size: 14px;
+    color: rgba(11,18,32,.80);
+    margin: 0 0 10px 2px;
+  }
+    .sideItem{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:10px;
+    padding: 10px 11px;
+    border-radius: 14px;
+    background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.96));
+    border: 1px solid rgba(30,64,175,.08);
+    margin-top: 8px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
+  }
+    .sideItem:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 12px 26px rgba(30,64,175,.14);
+    border-color: rgba(30,64,175,.18);
+  }
+
+  .sideItem.active{
+    background: linear-gradient(180deg, rgba(30,64,175,.16), rgba(59,130,246,.10));
+    border-color: rgba(30,64,175,.26);
+    box-shadow: 0 12px 30px rgba(30,64,175,.16);
+  }
+  .sideItem.active:before{
+    content:"";
+    position:absolute;
+    left:0;
+    top:10px;
+    bottom:10px;
+    width:4px;
+    border-radius: 999px;
+    background: linear-gradient(180deg, rgba(30,64,175,1), rgba(30,64,175,.55));
+    box-shadow: 0 0 0 3px rgba(30,64,175,.10);
+  }
+  .sideLeft{ display:flex; align-items:center; gap:12px; }
+    .sideText{ font-weight:800; font-size: 14px; letter-spacing:.1px; }
+
+  .sideIcon{
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
+  border: 1px solid rgba(30,64,175,.12);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color: var(--navy);
+  overflow:hidden;
+}
+.sideIcon svg{
+  width: 20px;
+  height: 20px;
+}
+.sideIcon img{
+  width: 22px;
+  height: 22px;
+  object-fit:contain;
+  display:block;
+}
+
+    /* Different colors for each sidebar item */
+  .sideItem.nav-home .sideIcon{
+    background: linear-gradient(180deg, rgba(219,234,254,.95), rgba(191,219,254,.92));
+    border-color: rgba(37,99,235,.16);
+    color: #1d4ed8;
+  }
+
+  .sideItem.nav-clock .sideIcon{
+    background: linear-gradient(180deg, rgba(220,252,231,.95), rgba(187,247,208,.92));
+    border-color: rgba(22,163,74,.18);
+    color: #15803d;
+  }
+
+  .sideItem.nav-times .sideIcon{
+    background: linear-gradient(180deg, rgba(254,243,199,.95), rgba(253,230,138,.92));
+    border-color: rgba(217,119,6,.18);
+    color: #b45309;
+  }
+
+  .sideItem.nav-reports .sideIcon{
+    background: linear-gradient(180deg, rgba(224,231,255,.95), rgba(199,210,254,.92));
+    border-color: rgba(79,70,229,.18);
+    color: #4338ca;
+  }
+
+  .sideItem.nav-agreements .sideIcon{
+    background: linear-gradient(180deg, rgba(207,250,254,.95), rgba(165,243,252,.92));
+    border-color: rgba(8,145,178,.18);
+    color: #0e7490;
+  }
+
+  .sideItem.nav-profile .sideIcon{
+    background: linear-gradient(180deg, rgba(252,231,243,.95), rgba(251,207,232,.92));
+    border-color: rgba(219,39,119,.16);
+    color: #be185d;
+  }
+
+  .sideItem.nav-admin .sideIcon{
+    background: linear-gradient(180deg, rgba(226,232,240,.95), rgba(203,213,225,.92));
+    border-color: rgba(51,65,85,.18);
+    color: #0f172a;
+  }
+
+  .sideItem.nav-home.active{
+    background: linear-gradient(180deg, rgba(37,99,235,.14), rgba(96,165,250,.08));
+    border-color: rgba(37,99,235,.24);
+  }
+
+  .sideItem.nav-clock.active{
+    background: linear-gradient(180deg, rgba(22,163,74,.14), rgba(74,222,128,.08));
+    border-color: rgba(22,163,74,.24);
+  }
+
+  .sideItem.nav-times.active{
+    background: linear-gradient(180deg, rgba(245,158,11,.14), rgba(251,191,36,.08));
+    border-color: rgba(245,158,11,.24);
+  }
+
+  .sideItem.nav-reports.active{
+    background: linear-gradient(180deg, rgba(79,70,229,.14), rgba(129,140,248,.08));
+    border-color: rgba(79,70,229,.24);
+  }
+
+  .sideItem.nav-agreements.active{
+    background: linear-gradient(180deg, rgba(8,145,178,.14), rgba(34,211,238,.08));
+    border-color: rgba(8,145,178,.24);
+  }
+
+  .sideItem.nav-profile.active{
+    background: linear-gradient(180deg, rgba(219,39,119,.14), rgba(244,114,182,.08));
+    border-color: rgba(219,39,119,.22);
+  }
+
+  .sideItem.nav-admin.active{
+    background: linear-gradient(180deg, rgba(51,65,85,.16), rgba(148,163,184,.08));
+    border-color: rgba(51,65,85,.24);
+  }
+
+  .sideDivider{
+    height: 1px;
+    background: rgba(11,18,32,.12);
+    margin: 10px 0 6px 0;
+  }
+
+  .logoutBtn{
+    margin-top: 2px;
+    background: rgba(220,38,38,.08);
+    border-color: rgba(220,38,38,.12);
+  }
+  .logoutBtn .sideIcon, .logoutBtn .chev{ color: rgba(220,38,38,.95); }
+  .logoutBtn .sideText{ color: rgba(220,38,38,.95); }
 }
 
 /* ================= PAYROLL SHEET (condensed week design) ================= */
@@ -5325,31 +5646,42 @@ body{
 
 /* payroll sliding button */
 .payrollMenuToggle{
-  left: 1px !important;
+  left: 10px !important;
   top: 50% !important;
   transform: translateY(-50%) !important;
-  width: 18px !important;
-  height: 52px !important;
-  border-radius: 0 14px 14px 0 !important;
-  border: 1px solid rgba(96,165,250,.32) !important;
-  background: linear-gradient(180deg, #2563eb, #1d4ed8) !important;
-  box-shadow: 0 10px 24px rgba(37,99,235,.26) !important;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 999px !important;
+  border: 1px solid rgba(148,163,184,.34) !important;
+  background: rgba(255,255,255,.96) !important;
+  color: transparent !important;
+  font-size: 0 !important;
+  box-shadow: 0 6px 16px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.82) !important;
 }
 
 .payrollMenuToggle::before{
-  color: #ffffff !important;
-  font-size: 16px !important;
-  font-weight: 900 !important;
+  content: "›";
+  color: #64748b !important;
+  font-size: 20px !important;
+  font-weight: 800 !important;
+  line-height: 1 !important;
+  transform: translateX(1px);
 }
 
 .payrollMenuToggle:hover{
-  background: linear-gradient(180deg, #3b82f6, #2563eb) !important;
-  box-shadow: 0 14px 28px rgba(37,99,235,.32) !important;
+  background: rgba(255,255,255,.99) !important;
+  border-color: rgba(99,102,241,.28) !important;
+  box-shadow: 0 10px 20px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.9) !important;
 }
 
 /* when sidebar is open, keep toggle aligned just outside panel */
 .payrollShell.payrollMenuOpen .payrollMenuToggle{
-  left: 300px !important;
+  left: 286px !important;
+}
+.payrollShell.payrollMenuOpen .payrollMenuToggle::before{
+  content: "‹";
+  transform: translateX(-1px);
 }
 @media (max-width: 979px){
   .payrollMenuToggle{
@@ -5848,13 +6180,6 @@ h2{
   border-color: rgba(109,40,217,.10) !important;
 }
 
-.bottomNav .navIcon{
-  background: transparent !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  box-shadow: none !important;
-}
-
 /* admin shells */
 .adminToolsShell{
   background: linear-gradient(180deg, rgba(248,246,255,.98), rgba(255,255,255,.98)) !important;
@@ -6082,6 +6407,241 @@ h2{
   min-width: 280px !important;
 }
 
+
+
+/* ===== softer typography v2 ===== */
+body{
+  font-size:13px !important;
+  -webkit-font-smoothing:antialiased;
+  text-rendering:optimizeLegibility;
+}
+
+h1,
+.headerTop h1,
+.dashboardTitle,
+.timeLogsTitle,
+.adminPageTitle,
+.statementTitle{
+  font-size:clamp(20px, 3.2vw, 28px) !important;
+  font-weight:600 !important;
+  line-height:1.08 !important;
+  letter-spacing:-.02em !important;
+}
+
+h2,
+.card h2,
+.adminSectionTitle,
+.adminToolTitle,
+.timeLogsSectionTitle,
+.graphTitle,
+.sectionTitle{
+  font-size:16px !important;
+  font-weight:600 !important;
+  line-height:1.18 !important;
+  letter-spacing:-.01em !important;
+}
+
+h3,
+.uploadTitle,
+.contractTitle{
+  font-size:14px !important;
+  font-weight:600 !important;
+}
+
+strong,
+b{
+  font-weight:600 !important;
+}
+
+.sub,
+.timerSub,
+.sideInfoLabel,
+.adminToolSub,
+.adminSectionSub,
+.activityHead,
+label.sub,
+.smallText,
+.tableHint,
+.muted,
+.miniText{
+  font-size:12.5px !important;
+  font-weight:500 !important;
+  line-height:1.45 !important;
+  color:#7a7592 !important;
+}
+
+.badge,
+.badge.admin,
+.weekPill,
+.chip,
+.topBrandBadge,
+.dashboardEyebrow,
+.timeLogsEyebrow,
+.sectionBadge,
+.onboardMiniStat .k{
+  font-size:11px !important;
+  font-weight:600 !important;
+  letter-spacing:.03em !important;
+}
+
+.sideText,
+.menuText{
+  font-size:13px !important;
+  font-weight:600 !important;
+}
+
+.kpi .label,
+.kpiFancy .label,
+.kpiFancy .sub,
+.kpiMini .k,
+.graphStat .k,
+.payrollSummaryItem .k,
+.timeLogsSummaryCard .k,
+.adminStatCard .k,
+.statementSummaryRow .k,
+.statementTotalCard .k{
+  font-size:11.5px !important;
+  font-weight:500 !important;
+  letter-spacing:.01em !important;
+  color:#7a7592 !important;
+}
+
+.kpi .value,
+.kpiFancy .value,
+.kpiMini .v,
+.graphStat .v,
+.payrollSummaryItem .v,
+.timeLogsSummaryCard .v,
+.adminStatCard .v,
+.statementSummaryRow .v,
+.statementTotalCard .v,
+.netBadge,
+.sideInfoValue{
+  font-size:clamp(16px, 2.2vw, 22px) !important;
+  font-weight:600 !important;
+  line-height:1.08 !important;
+  letter-spacing:-.02em !important;
+}
+
+.kpi .value,
+.kpiFancy .value{
+  margin-top:4px !important;
+}
+
+.tablewrap th,
+.weeklyEditTable thead th,
+.payrollSheet thead th,
+table thead th{
+  font-size:11.5px !important;
+  font-weight:600 !important;
+  letter-spacing:.01em !important;
+  color:#6f6b87 !important;
+}
+
+.tablewrap td,
+.weeklyEditTable tbody td,
+.payrollSheet td,
+table tbody td{
+  font-size:12.5px !important;
+  font-weight:500 !important;
+  color:#302d43 !important;
+}
+
+.tablewrap input.input,
+.weeklyEditTable input.input,
+.payrollSheet input.input,
+.input,
+select.input,
+input.input,
+textarea.input{
+  font-size:13px !important;
+  font-weight:500 !important;
+}
+
+.btn,
+.btnSoft,
+.btnTiny,
+.adminPrimaryBtn,
+.payrollMenuToggle,
+button{
+  font-size:13px !important;
+  font-weight:600 !important;
+  letter-spacing:0 !important;
+}
+
+@media (min-width:980px){
+  .kpi .value,
+  .kpiFancy .value,
+  .kpiMini .v,
+  .graphStat .v,
+  .payrollSummaryItem .v,
+  .timeLogsSummaryCard .v,
+  .adminStatCard .v,
+  .statementSummaryRow .v,
+  .statementTotalCard .v,
+  .netBadge,
+  .sideInfoValue{
+    font-size:20px !important;
+  }
+
+  .tablewrap th,
+  .weeklyEditTable thead th,
+  .payrollSheet thead th,
+  table thead th{
+    font-size:11px !important;
+  }
+
+  .tablewrap td,
+  .weeklyEditTable tbody td,
+  .payrollSheet td,
+  table tbody td{
+    font-size:12px !important;
+  }
+}
+
+
+/* ===== shared back buttons ===== */
+.pageBackRow{
+  display:flex;
+  align-items:center;
+  margin:0 0 12px;
+}
+.printToolbar .pageBackRow,
+.toolbar .pageBackRow{
+  margin:0;
+}
+.pageBackBtn,
+.pageBackBtn:link,
+.pageBackBtn:visited{
+  width:32px;
+  height:32px;
+  min-width:32px;
+  padding:0;
+  border:1px solid rgba(148,163,184,.34);
+  border-radius:999px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(255,255,255,.96);
+  color:#64748b;
+  text-decoration:none;
+  box-shadow:0 6px 16px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.82);
+  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
+  cursor:pointer;
+}
+.pageBackBtn:hover{
+  transform:translateY(-1px);
+  border-color:rgba(99,102,241,.28);
+  box-shadow:0 10px 20px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.9);
+  background:rgba(255,255,255,.99);
+}
+.pageBackBtn span{
+  display:block;
+  font-size:20px;
+  font-weight:800;
+  line-height:1;
+  transform:translateX(-1px);
+}
 
 </style>
 """
@@ -8763,47 +9323,22 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
 
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
-    items = [
-        ("home", "/", "Dashboard", _icon_dashboard(22)),
-        ("clock", "/clock", "Clock", _icon_clock(22)),
-        ("times", "/my-times", "Time logs", _icon_timelogs(22)),
-        ("reports", "/my-reports", "Timesheets", _icon_timesheets(22)),
-    ]
-
-    if role in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Admin", _icon_admin(22)))
-
-    if role == "master_admin":
-        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(22)))
-
-    links = []
-    for key, href, title, icon in items:
-        links.append(
-            f'<a class="navIcon nav-{key} {"active" if active == key else ""}" href="{href}" title="{escape(title)}">{icon}</a>'
-        )
-
-    return f"""
-    <div class="bottomNav" aria-label="Primary navigation">
-      <div class="navInner">
-        {''.join(links)}
-      </div>
-    </div>
-    """
+    return ""
 
 
 def sidebar_html(active: str, role: str) -> str:
     items = [
-        ("home", "/", "Dashboard", _icon_dashboard(22)),
-        ("clock", "/clock", "Clock In & Out", _icon_clock(22)),
-        ("times", "/my-times", "Time logs", _icon_timelogs(22)),
-        ("reports", "/my-reports", "Timesheets", _icon_timesheets(22)),
+        ("home", "/", "Dashboard", _icon_dashboard(45)),
+        ("clock", "/clock", "Clock In & Out", _icon_clock(45)),
+        ("times", "/my-times", "Time logs", _icon_timelogs(45)),
+        ("reports", "/my-reports", "Timesheets", _icon_timesheets(45)),
     ]
 
     if role in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Admin", _icon_admin(22)))
+        items.append(("admin", "/admin", "Admin", _icon_admin(45)))
 
     if role == "master_admin":
-        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(22)))
+        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(45)))
 
     links = []
     for key, href, label, icon in items:
@@ -8813,15 +9348,23 @@ def sidebar_html(active: str, role: str) -> str:
               <div class="sideIcon">{icon}</div>
               <div class="sideText">{escape(label)}</div>
             </div>
+            <div class="chev">›</div>
           </a>
         """)
 
     return f"""
-      <div class="sidebar" aria-label="Desktop navigation">
+      <div class="sidebar">
         <div class="sideMenuTitle">Menu</div>
         {''.join(links)}
       </div>
     """
+
+
+def page_back_button(href: str | None = None, label: str = "Back") -> str:
+    icon = '<span aria-hidden="true">‹</span>'
+    if href:
+        return f'<div class="pageBackRow"><a class="pageBackBtn" href="{escape(href)}" aria-label="{escape(label)}" title="{escape(label)}">{icon}</a></div>'
+    return f'<div class="pageBackRow"><button type="button" class="pageBackBtn" aria-label="{escape(label)}" title="{escape(label)}" onclick="window.history.back()">{icon}</button></div>'
 
 
 def layout_shell(active: str, role: str, content_html: str, shell_class: str = "") -> str:
@@ -8832,29 +9375,16 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     except Exception:
         company_name = "Main"
 
-    admin_link = ""
-    workplaces_link = ""
-    if role in ("admin", "master_admin"):
-        admin_link = '<a class="topAccountMenuItem" href="/admin"><span>Admin</span><span class="topAccountMenuMark">›</span></a>'
-    if role == "master_admin":
-        workplaces_link = '<a class="topAccountMenuItem" href="/admin/workplaces"><span>Workplaces</span><span class="topAccountMenuMark">›</span></a>'
-
     company_bar = f"""
       <div class="topBarFixed">
         <span class="topBrandBadge">{escape(company_name)}</span>
         <div class="topAccountWrap">
           <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-              <circle cx="12" cy="5" r="1.5"></circle>
-              <circle cx="12" cy="12" r="1.5"></circle>
-              <circle cx="12" cy="19" r="1.5"></circle>
-            </svg>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
           </button>
           <div class="topAccountMenu">
             <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
             <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
-            {admin_link}
-            {workplaces_link}
             <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
           </div>
         </div>
@@ -9359,6 +9889,8 @@ def logout_confirm():
     role = session.get("role", "employee")
 
     content = f"""
+      {page_back_button("/", "Back to dashboard")}
+
       <div class="headerTop">
         <div>
           <h1>Logout</h1>
@@ -9669,6 +10201,108 @@ def home():
     else:
         week_delta_pct = 0.0
 
+    def _nice_chart_axis_max(value: float) -> float:
+        try:
+            value = float(value or 0.0)
+        except Exception:
+            value = 0.0
+        if value <= 0:
+            return 1000.0
+        scaled = value * 1.15
+        power = 10 ** math.floor(math.log10(scaled))
+        normalized = scaled / power
+        if normalized <= 1:
+            nice = 1
+        elif normalized <= 1.5:
+            nice = 1.5
+        elif normalized <= 2:
+            nice = 2
+        elif normalized <= 2.5:
+            nice = 2.5
+        elif normalized <= 5:
+            nice = 5
+        else:
+            nice = 10
+        return nice * power
+
+    def _fmt_chart_tick(value: float) -> str:
+        try:
+            value = float(value or 0.0)
+        except Exception:
+            value = 0.0
+        if abs(value) < 1e-9:
+            return "0.0"
+        if abs(value - round(value)) < 1e-9:
+            return str(int(round(value)))
+        return f"{value:.1f}".rstrip("0").rstrip(".")
+
+    chart_week_labels = week_labels[-5:] if len(week_labels) >= 5 else list(week_labels)
+    chart_weekly_gross = weekly_gross[-5:] if len(weekly_gross) >= 5 else list(weekly_gross)
+    chart_y_max = _nice_chart_axis_max(max(chart_weekly_gross) if chart_weekly_gross else 0.0)
+    chart_tick_values = [round(chart_y_max * (i / 5.0), 1) for i in range(5, -1, -1)]
+    chart_ticks_html = "".join(
+        f'<div class=\"grossChartTick\"><span>{escape(_fmt_chart_tick(v))}</span></div>'
+        for v in chart_tick_values
+    )
+    chart_grid_html = "".join(
+        f'<div class=\"grossChartGridLine\" style=\"bottom:{int((i / 5.0) * 100)}%;\"></div>'
+        for i in range(6)
+    )
+
+    chart_bar_parts = []
+    for lbl, gross in zip(chart_week_labels, chart_weekly_gross):
+        try:
+            gross_val = float(gross or 0.0)
+        except Exception:
+            gross_val = 0.0
+        bar_pct = 0.0 if chart_y_max <= 0 else max(0.0, min(100.0, (gross_val / chart_y_max) * 100.0))
+        if gross_val > 0 and bar_pct < 6.0:
+            bar_pct = 6.0
+        chart_bar_parts.append(
+            f"<div class='grossChartBarCol'><div class='grossChartBarWrap'><div class='grossChartBar' style='height:{bar_pct:.2f}%;'></div></div><div class='grossChartBarLabel'>{escape(lbl)}</div></div>"
+        )
+    chart_bars_html = "".join(chart_bar_parts)
+
+    chart_delta_text = ("+" if week_delta_pct > 0 else "") + f"{int(round(week_delta_pct))}%"
+    chart_delta_class = "up" if week_delta_pct >= 0 else "down"
+    chart_range_label = f"Weeks {chart_week_labels[0]} – {chart_week_labels[-1]}" if chart_week_labels else "Weeks"
+
+    chart_section_html = f"""
+      <div class=\"grossChartCard plainSection\">
+        <div class=\"grossChartSummaryRow\">
+          <div class=\"grossSummaryBox\">
+            <div class=\"grossSummaryLabel\">Previous Gross</div>
+            <div class=\"grossSummaryValue\">{escape(currency)}{money(prev_gross)}</div>
+          </div>
+
+          <div class=\"grossSummaryBox\">
+            <div class=\"grossSummaryLabel\">Current Gross</div>
+            <div class=\"grossSummaryValue\">{escape(currency)}{money(curr_gross)}</div>
+            <div class=\"grossSummaryDelta {chart_delta_class}\">{chart_delta_text}</div>
+          </div>
+        </div>
+
+        <div class=\"grossChartNav\">
+          <div class=\"grossChartArrow\">‹</div>
+          <div class=\"grossChartRangeTitle\">{escape(chart_range_label)}</div>
+          <div class=\"grossChartArrow\" style=\"opacity:.55;\">›</div>
+        </div>
+
+        <div class=\"grossChartPlot\">
+          <div class=\"grossChartYAxis\">
+            {chart_ticks_html}
+          </div>
+
+          <div class=\"grossChartCanvas\">
+            {chart_grid_html}
+            <div class=\"grossChartBars\">
+              {chart_bars_html}
+            </div>
+          </div>
+        </div>
+      </div>
+    """
+
     snapshot_html = ""
     if role in ("admin", "master_admin"):
         snapshot_html = f"""
@@ -9723,93 +10357,7 @@ def home():
         </div>
       </div>
 
-      <div class="kpiRow">
-        <div class="kpi kpiFancy plainMetric">
-          <div class="kpiTop">
-            <p class="label">Previous Gross</p>
-            <span class="chip">Previous week</span>
-          </div>
-          <p class="value">{escape(currency)}{money(prev_gross)}</p>
-          <p class="sub">Closed weekly total</p>
-        </div>
-
-        <div class="kpi kpiFancy kpiPrimary plainMetric">
-          <div class="kpiTop">
-            <p class="label">Current Gross</p>
-            <span class="chip {'ok' if curr_gross >= prev_gross else 'warn'}">
-              {'▲' if curr_gross >= prev_gross else '▼'} {money(abs(week_delta_pct))}%
-            </span>
-          </div>
-          <p class="value">{escape(currency)}{money(curr_gross)}</p>
-          <p class="sub">This week so far</p>
-        </div>
-
-        <div class="kpi kpiFancy kpiHours plainMetric">
-          <div class="kpiTop">
-            <p class="label">Week Hours</p>
-            <span class="chip">{len(week_days)} day{'s' if len(week_days) != 1 else ''}</span>
-          </div>
-          <p class="value">{fmt_hours(week_hours)}</p>
-          <div class="kpiMetaRow"
-     style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:8px 10px; align-items:center;">
-  <div style="display:flex; align-items:center; gap:8px; min-width:0;">
-    <span style="font-weight:800; color:#4338ca; white-space:nowrap;">{week_progress_pct}%</span>
-    <span style="color:#6f6c85; font-weight:600;">of 40h target</span>
-  </div>
-
-  <div style="justify-self:end; display:inline-flex; align-items:center; gap:6px; padding:6px 10px; border-radius:999px; border:1px solid rgba(37,99,235,.10); background:rgba(37,99,235,.06); white-space:nowrap;">
-    <span style="font-weight:800; color:#1f2547;">{escape(currency)}{money(today_pay)}</span>
-    <span style="color:#6f6c85; font-weight:600;">today</span>
-  </div>
-</div>
-          <div class="kpiProgress"><span style="width:{week_progress_pct}%;"></span></div>
-        </div>
-      </div>
-
-      <div class="graphCard plainSection">
-        <div class="graphTop">
-          <div>
-            <div class="graphTitle">Weekly Gross</div>
-            <div class="sub">Last 8 weeks performance</div>
-          </div>
-          <div class="graphRange">Weeks {escape(week_labels[0])} – {escape(week_labels[-1])}</div>
-        </div>
-
-        <div class="graphShell">
-          <div class="bars">
-            {''.join([
-        f"""
-              <div class="barCol">
-                <div class="barValue">{escape(currency)}{money(g)}</div>
-                <div class="barTrack">
-                  <div class="bar" style="height:{int((g / max_g) * 130)}px;"></div>
-                </div>
-              </div>
-              """
-        for g in weekly_gross
-    ])}
-          </div>
-
-          <div class="barLabels">
-            {''.join([f"<div>{escape(x)}</div>" for x in week_labels])}
-          </div>
-        </div>
-
-        <div class="graphMeta">
-          <div class="graphStat">
-            <div class="k">Best week</div>
-            <div class="v">{escape(currency)}{money(best_week_gross)}</div>
-          </div>
-          <div class="graphStat">
-            <div class="k">8-week average</div>
-            <div class="v">{escape(currency)}{money(avg_weekly_gross)}</div>
-          </div>
-          <div class="graphStat">
-            <div class="k">Days logged this week</div>
-            <div class="v">{len(week_days)}</div>
-          </div>
-        </div>
-      </div>
+      {chart_section_html}
 
       <div class="dashboardLower">
         <div class="quickCard plainSection">
@@ -9911,7 +10459,7 @@ def home():
             <div class="sectionIcon">{_svg_grid()}</div>
             <div>
               <h2 style="margin:0;">Workspace Shortcuts</h2>
-              <p class="sub" style="margin:4px 0 0 0;">Jump into the most-used areas of your payroll workspace.</p>
+
             </div>
           </div>
           <div class="sectionBadge">Quick access</div>
@@ -10690,6 +11238,8 @@ def clock_page():
 
       </style>
 
+      {page_back_button("/", "Back to dashboard")}
+
       <div class="clockFlowWrap">
         {msg_html}
 
@@ -11137,6 +11687,8 @@ def my_times():
 
     content = f"""
       {page_css}
+      {page_back_button("/", "Back to dashboard")}
+
       <div class="timeLogsPageShell">
         <div class="timeLogsHero plainSection">
           <div class="timeLogsHeroTop">
@@ -11680,6 +12232,8 @@ def my_reports():
     content = f"""
       {page_css}
 
+      {page_back_button("/", "Back to dashboard")}
+
       <div class="reportsListShell">
         <div class="reportsListHeader">
           <div>
@@ -12202,7 +12756,7 @@ def my_reports_print():
 
       <div class="printSheetWrap">
         <div class="printToolbar noPrint">
-          <a class="btnSoft" href="/my-reports?wk={wk_offset}">← Back to Timesheets</a>
+          {page_back_button(f"/my-reports?wk={wk_offset}", "Back to timesheets")}
           <button class="btnSoft" type="button" onclick="window.print()">Save / Print Payslip</button>
         </div>
 
@@ -12954,6 +13508,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
     """
     return f"""
       {page_css}
+      {page_back_button("/", "Back to dashboard")}
       <div class="onboardIntroCard card">
         <div class="onboardHeroTop">
           <div>
@@ -13207,6 +13762,8 @@ def change_password():
         details_html = onboarding_details_block(username)
 
     content = f"""
+      {page_back_button("/", "Back to dashboard")}
+
       <div class="headerTop">
         <div>
           <h1>Profile</h1>
@@ -13719,14 +14276,7 @@ def admin():
 
 
 def admin_back_link() -> str:
-    return """
-      <div style="margin:8px 0 14px;">
-        <a href="/admin"
-           style="display:inline-flex; align-items:center; gap:8px; padding:9px 14px; border-radius:999px; background:rgba(255,255,255,.92); border:1px solid rgba(30,64,175,.16); color:#1e40af; text-decoration:none; font-size:14px; font-weight:800; box-shadow:0 8px 18px rgba(15,23,42,.06);">
-          <span style="font-size:15px; line-height:1;">←</span><span>Back</span>
-        </a>
-      </div>
-    """
+    return page_back_button("/admin", "Back to Admin")
 
 
 @app.route("/admin/company", methods=["GET", "POST"])
@@ -14881,7 +15431,7 @@ def admin_payroll():
       <div class="headerTop">
         <div>
           <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-            <button type="button" class="payrollMenuToggle" id="payrollMenuToggle">☰ Menu</button>
+            <button type="button" class="payrollMenuToggle" id="payrollMenuToggle" aria-label="Toggle menu"></button>
             <div>
               <h1>Payroll Report</h1>
               <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
@@ -15438,6 +15988,7 @@ def admin_onboarding_detail(username):
         layout_shell("admin", session.get("role", "admin"), content)
     )
 
+
 @app.get("/admin/onboarding/<username>/download")
 def admin_onboarding_download(username):
     gate = require_admin()
@@ -15457,9 +16008,9 @@ def admin_onboarding_download(username):
     currency = str(settings.get("Currency_Symbol", "£") or "£")
 
     display_name = (
-        ((rec.get("FirstName") or "").strip() + " " + (rec.get("LastName") or "").strip()).strip()
-        or (rec.get("Username") or "").strip()
-        or username
+            ((rec.get("FirstName") or "").strip() + " " + (rec.get("LastName") or "").strip()).strip()
+            or (rec.get("Username") or "").strip()
+            or username
     )
 
     def show(key):
@@ -15713,7 +16264,7 @@ def admin_onboarding_download(username):
     <body>
       <div class="printWrap">
         <div class="toolbar">
-          <a class="btn" href="/admin/onboarding/{escape(username)}">← Back to details</a>
+          {page_back_button(f"/admin/onboarding/{escape(username)}", "Back to details")}
           <button class="btn btnPrimary" onclick="window.print()">Save / Print Form</button>
         </div>
 
@@ -15761,6 +16312,8 @@ def admin_onboarding_download(username):
     </html>
     """
     return render_template_string(page)
+
+
 # ---------- ADMIN LOCATIONS (Geofencing) ----------
 @app.get("/admin/locations")
 def admin_locations():
@@ -17368,6 +17921,8 @@ def admin_workplaces():
         """
 
     content = f"""
+      {page_back_button("/admin", "Back to Admin")}
+
       <div class="headerTop">
         <div>
           <h1>Workplaces</h1>
