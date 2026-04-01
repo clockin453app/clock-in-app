@@ -2020,171 +2020,30 @@ PWA_TAGS = """
   function syncBottomNav(){
     var vv = window.visualViewport;
     var gap = 0;
-
     if (vv) {
       gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
     }
-
     document.documentElement.style.setProperty('--bottom-nav-offset', gap + 'px');
   }
 
-  function initMobileRail(){
-    var shell = document.querySelector('.shell');
-    var sidebar = shell ? shell.querySelector('.sidebar') : null;
-    var oldBtn = document.getElementById('mobileRailToggle');
-
-    if (window.innerWidth > 979 || !shell || !sidebar) {
-      document.body.classList.remove('mobileRailClosed');
-      if (oldBtn) oldBtn.remove();
-      return;
-    }
-
-    var btn = oldBtn;
-    if (!btn) {
-      btn = document.createElement('button');
-      btn.type = 'button';
-      btn.id = 'mobileRailToggle';
-      btn.setAttribute('aria-label', 'Toggle menu');
-      document.body.appendChild(btn);
-    }
-
-    var storageKey = 'mobileRailClosed';
-
-    function syncRail(){
-      var closed = localStorage.getItem(storageKey) === '1';
-      document.body.classList.toggle('mobileRailClosed', closed);
-    }
-
-    if (btn.dataset.bound !== '1') {
-      btn.dataset.bound = '1';
-      btn.addEventListener('click', function(e){
-        e.preventDefault();
-        e.stopPropagation();
-        var closed = localStorage.getItem(storageKey) === '1';
-        localStorage.setItem(storageKey, closed ? '0' : '1');
-        syncRail();
-      });
-    }
-
-    syncRail();
-  }
-
-  if (!window.__mobileRailSwipeBound) {
-    window.__mobileRailSwipeBound = true;
-
-    var touchStartX = 0;
-    var touchStartY = 0;
-    var touchLastX = 0;
-    var trackingSwipe = false;
-    var swipeMode = '';
-
-    document.addEventListener('touchstart', function(e){
-      if (window.innerWidth > 979) return;
-
-      var shell = document.querySelector('.shell');
-      var sidebar = shell ? shell.querySelector('.sidebar') : null;
-      if (!shell || !sidebar) return;
-
-      var t = e.touches && e.touches[0];
-      if (!t) return;
-
-      var target = e.target;
-      if (target && target.closest('input, select, textarea, button, a, .tablewrap')) return;
-
-      var closed = document.body.classList.contains('mobileRailClosed');
-
-      trackingSwipe = false;
-      swipeMode = '';
-      touchStartX = t.clientX;
-      touchStartY = t.clientY;
-      touchLastX = t.clientX;
-
-      if (closed) {
-        if (t.clientX <= 18) {
-          trackingSwipe = true;
-          swipeMode = 'open';
-        }
-        return;
-      }
-
-      if (sidebar.contains(target) || t.clientX <= 90) {
-        trackingSwipe = true;
-        swipeMode = 'close';
-      }
-    }, { passive: true });
-
-    document.addEventListener('touchmove', function(e){
-      if (!trackingSwipe || window.innerWidth > 979) return;
-
-      var t = e.touches && e.touches[0];
-      if (!t) return;
-
-      var dx = t.clientX - touchStartX;
-      var dy = t.clientY - touchStartY;
-
-      if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 8) {
-        e.preventDefault();
-      }
-
-      touchLastX = t.clientX;
-    }, { passive: false });
-
-    document.addEventListener('touchend', function(){
-      if (!trackingSwipe || window.innerWidth > 979) return;
-
-      var dx = touchLastX - touchStartX;
-
-      if (swipeMode === 'open' && dx > 45) {
-        localStorage.setItem('mobileRailClosed', '0');
-        document.body.classList.remove('mobileRailClosed');
-      } else if (swipeMode === 'close' && dx < -45) {
-        localStorage.setItem('mobileRailClosed', '1');
-        document.body.classList.add('mobileRailClosed');
-      }
-
-      trackingSwipe = false;
-      swipeMode = '';
-      touchStartX = 0;
-      touchStartY = 0;
-      touchLastX = 0;
-    }, { passive: true });
-  }
-
-  window.addEventListener('load', function(){
-    syncBottomNav();
-    initMobileRail();
-  });
-
-  window.addEventListener('resize', function(){
-    syncBottomNav();
-    initMobileRail();
-  });
-
+  syncBottomNav();
+  window.addEventListener('load', syncBottomNav);
+  window.addEventListener('resize', syncBottomNav);
   window.addEventListener('pageshow', function(){
     syncBottomNav();
-    initMobileRail();
     setTimeout(syncBottomNav, 120);
     setTimeout(syncBottomNav, 320);
   });
-
   window.addEventListener('orientationchange', function(){
-    setTimeout(function(){
-      syncBottomNav();
-      initMobileRail();
-    }, 250);
+    setTimeout(syncBottomNav, 250);
   });
-
   document.addEventListener('focusout', function(){
     setTimeout(syncBottomNav, 180);
   });
-
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', syncBottomNav);
     window.visualViewport.addEventListener('scroll', syncBottomNav);
   }
-
-  syncBottomNav();
-  initMobileRail();
 })();
 </script>
 """
@@ -3539,8 +3398,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   -webkit-text-fill-color: rgba(2,6,23,.95); /* Safari/Chrome */
 }
 /* Employee weekly tables: center column headers (keep first column like Date left) */
-.tablewrap table:not(.onboardingListTable) thead th:not(:first-child),
-.tablewrap table:not(.onboardingListTable) thead td:not(:first-child){
+.tablewrap table thead th:not(:first-child),
+.tablewrap table thead td:not(:first-child){
   text-align: center;
 }
 /* Right-align numeric inputs inside numeric cells (Hours/Pay columns) */
@@ -6363,6 +6222,206 @@ h2{
 }
 
 
+
+
+/* ===== fixed bottom navigation + account menu ===== */
+.sidebar,
+#mobileRailToggle{
+  display:none !important;
+}
+
+.topBarFixed{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  gap:10px;
+  margin-bottom:10px;
+}
+
+.topAccountWrap{
+  position:relative;
+}
+
+.topAccountTrigger{
+  width:42px;
+  height:42px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  border-radius:999px;
+  border:1px solid rgba(109,40,217,.12);
+  background:rgba(255,255,255,.92);
+  color:#6d28d9;
+  cursor:pointer;
+  box-shadow:0 10px 22px rgba(41,25,86,.08);
+}
+
+.topAccountTrigger svg{
+  width:20px;
+  height:20px;
+}
+
+.topAccountMenu{
+  position:absolute;
+  top:calc(100% + 10px);
+  right:0;
+  min-width:210px;
+  padding:8px;
+  border-radius:18px;
+  border:1px solid rgba(109,40,217,.10);
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,247,255,.98));
+  box-shadow:0 18px 36px rgba(41,25,86,.14);
+  display:none;
+  z-index:700;
+}
+
+.topAccountWrap.open .topAccountMenu{
+  display:block;
+}
+
+.topAccountMenuItem{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:12px 14px;
+  border-radius:14px;
+  text-decoration:none;
+  color:#1f2547;
+  font-size:14px;
+  font-weight:700;
+}
+
+.topAccountMenuItem:hover{
+  background:rgba(109,40,217,.06);
+}
+
+.topAccountMenuItem.danger{
+  color:#dc2626;
+}
+
+.topAccountMenuMark{
+  color:#8b84a8;
+  font-size:16px;
+  line-height:1;
+}
+
+.bottomNav{
+  display:block !important;
+  position:fixed;
+  left:0;
+  right:0;
+  bottom:0;
+  z-index:500;
+  padding:0;
+  margin:0;
+  background:rgba(255,255,255,.98);
+  border-top:1px solid rgba(109,40,217,.10);
+  box-shadow:0 -8px 22px rgba(41,25,86,.08);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+}
+
+.navInner{
+  display:grid;
+  grid-auto-flow:column;
+  grid-auto-columns:1fr;
+  align-items:center;
+  gap:0;
+  max-width:none;
+  margin:0;
+  padding:8px 10px calc(8px + env(safe-area-inset-bottom, 0px));
+  background:transparent !important;
+  border:0 !important;
+  border-radius:0 !important;
+  box-shadow:none !important;
+}
+
+.navIcon{
+  min-height:56px;
+  display:flex !important;
+  align-items:center;
+  justify-content:center;
+  border:0 !important;
+  background:transparent !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
+  text-decoration:none;
+  position:relative;
+}
+
+.navIcon img,
+.navIcon svg{
+  width:28px !important;
+  height:28px !important;
+  display:block;
+}
+
+.navIcon.active::after{
+  content:"";
+  position:absolute;
+  left:50%;
+  transform:translateX(-50%);
+  bottom:2px;
+  width:18px;
+  height:3px;
+  border-radius:999px;
+  background:#6d28d9;
+}
+
+.navIcon.nav-home.active,
+.navIcon.nav-clock.active,
+.navIcon.nav-times.active,
+.navIcon.nav-reports.active,
+.navIcon.nav-admin.active,
+.navIcon.nav-workplaces.active{
+  background:transparent !important;
+}
+
+.safeBottom{
+  display:block !important;
+  height:88px !important;
+}
+
+body{
+  padding-bottom:96px !important;
+}
+
+.shell,
+body.mobileRailClosed .shell,
+.shell:has(.sidebar),
+body.mobileRailClosed .shell:has(.sidebar){
+  display:block !important;
+  grid-template-columns:1fr !important;
+  gap:0 !important;
+  width:100% !important;
+  max-width:none !important;
+  margin:0 !important;
+}
+
+.main,
+.shell:has(.sidebar) .main{
+  min-width:0 !important;
+  width:100% !important;
+  padding-right:0 !important;
+}
+
+@media (min-width: 980px){
+  body{ padding:18px 18px 96px 18px !important; }
+  .shell{ width:calc(100vw - 36px) !important; }
+  .bottomNav{ display:block !important; }
+  .sidebar{ display:none !important; }
+}
+
+@media (max-width: 520px){
+  body{ padding:12px 12px 92px 12px !important; }
+  .navInner{ padding:8px 8px calc(8px + env(safe-area-inset-bottom, 0px)); }
+  .navIcon{ min-height:54px; }
+  .navIcon img,
+  .navIcon svg{ width:30px !important; height:30px !important; }
+  .topAccountMenu{ right:0; min-width:190px; }
+}
+
 </style>
 """
 
@@ -9048,75 +9107,30 @@ def bottom_nav(active: str, role: str) -> str:
 
     if role in ("admin", "master_admin"):
         extra_admin = f"""
-        <a class="navIcon nav-admin {'active' if active == 'admin' else ''}" href="/admin" title="Admin">{_icon_admin(22)}</a>
+        <a class="navIcon nav-admin {'active' if active == 'admin' else ''}" href="/admin" title="Admin">{_icon_admin(28)}</a>
         """
 
     if role == "master_admin":
         extra_workplaces = f"""
-        <a class="navIcon nav-workplaces {'active' if active == 'workplaces' else ''}" href="/admin/workplaces" title="Workplaces">{_icon_workplaces(22)}</a>
+        <a class="navIcon nav-workplaces {'active' if active == 'workplaces' else ''}" href="/admin/workplaces" title="Workplaces">{_icon_workplaces(28)}</a>
         """
 
     return f"""
     <div class="bottomNav">
       <div class="navInner">
-        <a class="navIcon nav-home {'active' if active == 'home' else ''}" href="/" title="Dashboard">{_icon_dashboard(22)}</a>
-        <a class="navIcon nav-clock {'active' if active == 'clock' else ''}" href="/clock" title="Clock">{_icon_clock(22)}</a>
-        <a class="navIcon nav-times {'active' if active == 'times' else ''}" href="/my-times" title="Time logs">{_icon_timelogs(22)}</a>
-        <a class="navIcon nav-reports {'active' if active == 'reports' else ''}" href="/my-reports" title="Reports">{_icon_timesheets(22)}</a>
+        <a class="navIcon nav-home {'active' if active == 'home' else ''}" href="/" title="Dashboard">{_icon_dashboard(28)}</a>
+        <a class="navIcon nav-clock {'active' if active == 'clock' else ''}" href="/clock" title="Clock">{_icon_clock(28)}</a>
+        <a class="navIcon nav-times {'active' if active == 'times' else ''}" href="/my-times" title="Time logs">{_icon_timelogs(28)}</a>
+        <a class="navIcon nav-reports {'active' if active == 'reports' else ''}" href="/my-reports" title="Timesheets">{_icon_timesheets(28)}</a>
         {extra_admin}
         {extra_workplaces}
-        <a class="navIcon nav-logout" href="/logout" title="Logout">{_svg_logout()}</a>
       </div>
     </div>
     """
 
 
 def sidebar_html(active: str, role: str) -> str:
-    items = [
-        ("home", "/", "Dashboard", _icon_dashboard(45)),
-        ("clock", "/clock", "Clock In & Out", _icon_clock(45)),
-        ("times", "/my-times", "Time logs", _icon_timelogs(45)),
-        ("reports", "/my-reports", "Timesheets", _icon_timesheets(45)),
-        ("agreements", "/onboarding", "Starter Form", _icon_starter_form(45)),
-        ("profile", "/password", "Profile", _icon_profile(45)),
-    ]
-
-    if role in ("admin", "master_admin"):
-        items.insert(5, ("admin", "/admin", "Admin", _icon_admin(45)))
-
-    if role == "master_admin":
-        items.insert(6, ("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(45)))
-
-    links = []
-    for key, href, label, icon in items:
-        links.append(f"""
-          <a class="sideItem nav-{key} {'active' if active == key else ''}" href="{href}">
-            <div class="sideLeft">
-              <div class="sideIcon">{icon}</div>
-              <div class="sideText">{escape(label)}</div>
-            </div>
-            <div class="chev">›</div>
-          </a>
-        """)
-
-    logout_html = f"""
-      <div class="sideDivider"></div>
-      <a class="sideItem logoutBtn" href="/logout">
-        <div class="sideLeft">
-          <div class="sideIcon">{_svg_logout()}</div>
-          <div class="sideText">Logout</div>
-        </div>
-        <div class="chev">›</div>
-      </a>
-    """
-
-    return f"""
-      <div class="sidebar">
-        <div class="sideMenuTitle">Menu</div>
-        {''.join(links)}
-        {logout_html}
-      </div>
-    """
+    return ""
 
 
 def layout_shell(active: str, role: str, content_html: str, shell_class: str = "") -> str:
@@ -9127,15 +9141,51 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     except Exception:
         company_name = "Main"
 
+    admin_link = ""
+    workplaces_link = ""
+    if role in ("admin", "master_admin"):
+        admin_link = '<a class="topAccountMenuItem" href="/admin"><span>Admin</span><span class="topAccountMenuMark">›</span></a>'
+    if role == "master_admin":
+        workplaces_link = '<a class="topAccountMenuItem" href="/admin/workplaces"><span>Workplaces</span><span class="topAccountMenuMark">›</span></a>'
+
     company_bar = f"""
-      <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+      <div class="topBarFixed">
         <span class="topBrandBadge">{escape(company_name)}</span>
+        <div class="topAccountWrap">
+          <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+          </button>
+          <div class="topAccountMenu">
+            <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
+            <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
+            {admin_link}
+            {workplaces_link}
+            <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
+          </div>
+        </div>
       </div>
+      <script>
+      (function(){{
+        if (window.__topAccountMenuBound) return;
+        window.__topAccountMenuBound = true;
+        document.addEventListener('click', function(e){{
+          document.querySelectorAll('.topAccountWrap.open').forEach(function(wrap){{
+            if (!wrap.contains(e.target)) wrap.classList.remove('open');
+          }});
+        }});
+        document.addEventListener('keydown', function(e){{
+          if (e.key === 'Escape') {{
+            document.querySelectorAll('.topAccountWrap.open').forEach(function(wrap){{
+              wrap.classList.remove('open');
+            }});
+          }}
+        }});
+      }})();
+      </script>
     """
 
     return f"""
       <div class="shell{extra}">
-        {sidebar_html(active, role)}
         <div class="main">
           {company_bar}
           {content_html}
@@ -15579,9 +15629,9 @@ def admin_onboarding_list():
                 f"<td><a href='/admin/onboarding/{escape(u)}' style='color:var(--navy);font-weight:600;'>{escape(name)}</a></td>"
                 f"<td>{escape(u)}</td>"
                 f"<td>{escape(sub)}</td>"
-                f"<td style='text-align:center; vertical-align:middle; white-space:nowrap;'>"
+                f"<td style='text-align:center; white-space:nowrap;'><a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a></td>"
                 f"<a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' "
-                f"style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a>"
+                f"style='display:inline; margin:0; padding:0; border:0; background:none; box-shadow:none; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a>"
                 f"</td>"
                 f"</tr>"
             )
@@ -15608,8 +15658,8 @@ def admin_onboarding_list():
         </form>
 
         <div class="tablewrap" style="margin-top:12px;">
-          <table class="onboardingListTable" style="min-width: 720px;">
-            <thead><tr><th style="text-align:left;">Name</th><th style="text-align:left;">Username</th><th style="text-align:left;">Last saved</th><th style="text-align:center; width:70px;">PDF</th></tr></thead>
+          <table style="min-width: 720px;">
+            <thead><tr><th>Name</th><th>Username</th><th>Last saved</th><th style="text-align:center; width:70px;">PDF</th></tr></thead>
             <tbody>{body}</tbody>
           </table>
         </div>
