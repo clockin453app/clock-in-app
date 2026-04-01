@@ -4263,37 +4263,41 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .bottomNav{
   display:block !important;
-  position:fixed;
+  position:fixed !important;
   left:0;
   right:0;
   bottom:0;
-  z-index:500;
+  z-index:1000;
+  width:100%;
   padding:0;
   margin:0;
   background:rgba(255,255,255,.98);
   border-top:1px solid rgba(109,40,217,.10);
-  box-shadow:0 -10px 28px rgba(41,25,86,.10);
+  box-shadow:0 -6px 18px rgba(41,25,86,.08);
   backdrop-filter:blur(10px);
   -webkit-backdrop-filter:blur(10px);
+  transform:none !important;
 }
 
-.navInner{
+.bottomNav .navInner{
   display:grid;
   grid-auto-flow:column;
   grid-auto-columns:1fr;
   align-items:center;
   gap:0;
-  padding:6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  width:100%;
+  padding:4px 6px calc(4px + env(safe-area-inset-bottom, 0px));
   max-width:none;
   margin:0;
-  background:transparent;
-  border:0;
-  box-shadow:none;
-  border-radius:0;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  border-radius:0 !important;
 }
 
-.navIcon{
-  min-height:58px;
+.bottomNav .navIcon{
+  min-height:50px;
+  padding:0;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -4303,41 +4307,42 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border-radius:0 !important;
   text-decoration:none;
   position:relative;
+  transform:none !important;
 }
 
-.navIcon img,
-.navIcon svg{
-  width:28px !important;
-  height:28px !important;
+.bottomNav .navIcon img,
+.bottomNav .navIcon svg{
+  width:22px !important;
+  height:22px !important;
   display:block;
 }
 
-.navIcon.active::after{
+.bottomNav .navIcon.active::after{
   content:"";
   position:absolute;
   left:50%;
   transform:translateX(-50%);
-  bottom:4px;
-  width:18px;
+  bottom:5px;
+  width:16px;
   height:3px;
   border-radius:999px;
   background:#6d28d9;
 }
 
-.navIcon.nav-home{ color:#1d4ed8; }
-.navIcon.nav-clock{ color:#15803d; }
-.navIcon.nav-times{ color:#b45309; }
-.navIcon.nav-reports{ color:#4338ca; }
-.navIcon.nav-admin{ color:#0f172a; }
-.navIcon.nav-workplaces{ color:#0e7490; }
+.bottomNav .navIcon.nav-home{ color:#1d4ed8; }
+.bottomNav .navIcon.nav-clock{ color:#15803d; }
+.bottomNav .navIcon.nav-times{ color:#b45309; }
+.bottomNav .navIcon.nav-reports{ color:#4338ca; }
+.bottomNav .navIcon.nav-admin{ color:#0f172a; }
+.bottomNav .navIcon.nav-workplaces{ color:#0e7490; }
 
 .safeBottom{
   display:block !important;
-  height:88px !important;
+  height:74px !important;
 }
 
 body{
-  padding:16px 14px calc(96px + env(safe-area-inset-bottom, 0px)) 14px !important;
+  padding:16px 14px calc(82px + env(safe-area-inset-bottom, 0px)) 14px !important;
 }
 
 .shell{
@@ -4358,17 +4363,17 @@ body{
 
 @media (max-width: 520px){
   body{
-    padding:12px 12px calc(92px + env(safe-area-inset-bottom, 0px)) 12px !important;
+    padding:12px 12px calc(78px + env(safe-area-inset-bottom, 0px)) 12px !important;
   }
 
-  .navIcon{
-    min-height:56px;
+  .bottomNav .navIcon{
+    min-height:48px;
   }
 
-  .navIcon img,
-  .navIcon svg{
-    width:30px !important;
-    height:30px !important;
+  .bottomNav .navIcon img,
+  .bottomNav .navIcon svg{
+    width:20px !important;
+    height:20px !important;
   }
 
   .topAccountMenu{
@@ -4382,7 +4387,7 @@ body{
     padding:18px !important;
   }
 
-  .shell:not(.loginShellPro){
+  .shell{
     max-width:none !important;
     width:calc(100vw - 36px) !important;
     margin:0 auto !important;
@@ -4390,18 +4395,6 @@ body{
     grid-template-columns:220px minmax(0, 1fr) !important;
     gap:18px !important;
     align-items:start !important;
-  }
-
-  .shell.loginShellPro{
-    max-width:760px !important;
-    width:100% !important;
-    margin:24px auto !important;
-    display:block !important;
-  }
-
-  .shell.loginShellPro .main{
-    width:100% !important;
-    min-width:0 !important;
   }
 
   .bottomNav{
@@ -5853,6 +5846,13 @@ h2{
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,243,255,.98)) !important;
   color: #5b21b6 !important;
   border-color: rgba(109,40,217,.10) !important;
+}
+
+.bottomNav .navIcon{
+  background: transparent !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
 }
 
 /* admin shells */
@@ -8764,17 +8764,17 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
     items = [
-        ("home", "/", "Dashboard", _icon_dashboard(28)),
-        ("clock", "/clock", "Clock", _icon_clock(28)),
-        ("times", "/my-times", "Time logs", _icon_timelogs(28)),
-        ("reports", "/my-reports", "Timesheets", _icon_timesheets(28)),
+        ("home", "/", "Dashboard", _icon_dashboard(22)),
+        ("clock", "/clock", "Clock", _icon_clock(22)),
+        ("times", "/my-times", "Time logs", _icon_timelogs(22)),
+        ("reports", "/my-reports", "Timesheets", _icon_timesheets(22)),
     ]
 
     if role in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Admin", _icon_admin(28)))
+        items.append(("admin", "/admin", "Admin", _icon_admin(22)))
 
     if role == "master_admin":
-        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(28)))
+        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(22)))
 
     links = []
     for key, href, title, icon in items:
