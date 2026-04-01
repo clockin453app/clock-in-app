@@ -2017,33 +2017,27 @@ PWA_TAGS = """
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <script>
 (function(){
-  function syncBottomNav(){
-    var vv = window.visualViewport;
-    var gap = 0;
-    if (vv) {
-      gap = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
-    }
-    document.documentElement.style.setProperty('--bottom-nav-offset', gap + 'px');
+  function pinBottomNav(){
+    document.documentElement.style.setProperty('--bottom-nav-offset', '0px');
+    document.body.classList.remove('mobileRailClosed');
   }
 
-  syncBottomNav();
-  window.addEventListener('load', syncBottomNav);
-  window.addEventListener('resize', syncBottomNav);
+  window.addEventListener('load', pinBottomNav);
+  window.addEventListener('resize', pinBottomNav);
   window.addEventListener('pageshow', function(){
-    syncBottomNav();
-    setTimeout(syncBottomNav, 120);
-    setTimeout(syncBottomNav, 320);
+    pinBottomNav();
+    setTimeout(pinBottomNav, 120);
+    setTimeout(pinBottomNav, 320);
   });
   window.addEventListener('orientationchange', function(){
-    setTimeout(syncBottomNav, 250);
+    setTimeout(pinBottomNav, 250);
   });
+  document.addEventListener('focusin', pinBottomNav);
   document.addEventListener('focusout', function(){
-    setTimeout(syncBottomNav, 180);
+    setTimeout(pinBottomNav, 120);
   });
-  if (window.visualViewport) {
-    window.visualViewport.addEventListener('resize', syncBottomNav);
-    window.visualViewport.addEventListener('scroll', syncBottomNav);
-  }
+
+  pinBottomNav();
 })();
 </script>
 """
@@ -6312,6 +6306,8 @@ h2{
   left:0;
   right:0;
   bottom:0;
+  transform:translateZ(0);
+  will-change:transform;
   z-index:500;
   padding:0;
   margin:0;
@@ -18672,7 +18668,6 @@ def _patch_admin_only_endpoints():
             return _original(*args, **kwargs)
 
         app.view_functions[endpoint] = wrapped
-
 
 
 _ensure_database_schema()
