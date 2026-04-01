@@ -2017,27 +2017,7 @@ PWA_TAGS = """
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <script>
 (function(){
-  function pinBottomNav(){
-    document.documentElement.style.setProperty('--bottom-nav-offset', '0px');
-    document.body.classList.remove('mobileRailClosed');
-  }
-
-  window.addEventListener('load', pinBottomNav);
-  window.addEventListener('resize', pinBottomNav);
-  window.addEventListener('pageshow', function(){
-    pinBottomNav();
-    setTimeout(pinBottomNav, 120);
-    setTimeout(pinBottomNav, 320);
-  });
-  window.addEventListener('orientationchange', function(){
-    setTimeout(pinBottomNav, 250);
-  });
-  document.addEventListener('focusin', pinBottomNav);
-  document.addEventListener('focusout', function(){
-    setTimeout(pinBottomNav, 120);
-  });
-
-  pinBottomNav();
+  document.documentElement.style.setProperty('--bottom-nav-offset', '0px');
 })();
 </script>
 """
