@@ -14133,7 +14133,7 @@ def admin():
         .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.20);}}
       </style>
       
-      {admin_back_link()}
+      {admin_back_link("/")}
 
       <div class="adminHeroCard plainSection">
         <div class="adminHeroTop">
@@ -14279,7 +14279,7 @@ def admin():
 
 def admin_back_link(href: str = "/admin") -> str:
     return f"""
-      <div style="margin:4px 0 12px;">
+      <div style="margin:8px 0 14px;">
         <a href="{href}"
            aria-label="Back"
            title="Back"
