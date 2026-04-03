@@ -12102,7 +12102,6 @@ def my_reports():
 
         weekly_list.append({
             "period": period_label,
-            "payment_date": payment_date,
             "company": company_name,
             "hours": round(rec["hours"], 2),
             "gross": gross,
@@ -12115,23 +12114,23 @@ def my_reports():
     for item in weekly_list:
         list_rows_html.append(f"""
           <tr>
-            <td>{escape(item['period'])}</td>
-            <td>{escape(item['payment_date'])}</td>
-            <td>{escape(item['company'])}</td>
-            <td class="num">{escape(fmt_hours(item['hours']))}</td>
-            <td class="num">{escape(currency)}{money(item['gross'])}</td>
-            <td class="num">{escape(currency)}{money(item['tax'])}</td>
-            <td class="num">{escape(currency)}{money(item['net'])}</td>
-            <td class="num">
-  <a class="reportsListDownloadBtn"
-     href="/my-week-report?wk={item['wk_offset']}"
-     target="_blank"
-     rel="noopener"
-     title="View slip">
-    &#8250;
-  </a>
-</td>
-          </tr>
+            <tr>
+  <td>{escape(item['period'])}</td>
+  <td class="num">{escape(fmt_hours(item['hours']))}</td>
+  <td class="num">{escape(currency)}{money(item['gross'])}</td>
+  <td class="num">{escape(currency)}{money(item['tax'])}</td>
+  <td class="num">{escape(currency)}{money(item['net'])}</td>
+  <td>{escape(item['company'])}</td>
+  <td class="num">
+    <a class="reportsListDownloadBtn"
+       href="/my-week-report?wk={item['wk_offset']}"
+       target="_blank"
+       rel="noopener"
+       title="View slip">
+      &#8250;
+    </a>
+  </td>
+</tr>
         """)
 
     if not list_rows_html:
@@ -12256,59 +12255,82 @@ def my_reports():
 
       .reportsListTable{
   width:100%;
-  min-width:1120px;
+  min-width:0;
   border-collapse:separate;
   border-spacing:0;
-  table-layout:auto;
+  table-layout:fixed;
   background:#ffffff;
 }
 
 .reportsListTable th:nth-child(1),
 .reportsListTable td:nth-child(1){
-  white-space:nowrap;
+  width:240px;
   min-width:240px;
+  max-width:240px;
+  white-space:nowrap;
+  padding-right:2px;
 }
 
 .reportsListTable th:nth-child(2),
 .reportsListTable td:nth-child(2){
+  width:52px;
+  min-width:52px;
+  max-width:52px;
   white-space:nowrap;
-  min-width:120px;
+  text-align:left !important;
+  padding-left:2px;
+  padding-right:4px;
 }
 
 .reportsListTable th:nth-child(3),
-.reportsListTable td:nth-child(3){
+.reportsListTable td:nth-child(3),
+.reportsListTable th:nth-child(4),
+.reportsListTable td:nth-child(4),
+.reportsListTable th:nth-child(5),
+.reportsListTable td:nth-child(5){
+  width:110px;
+  min-width:110px;
+  max-width:110px;
   white-space:nowrap;
-  min-width:250px;
 }
 
-.reportsListTable th:nth-child(8),
-.reportsListTable td:nth-child(8){
-  width:72px;
-  min-width:72px;
+.reportsListTable th:nth-child(6),
+.reportsListTable td:nth-child(6){
+  width:230px;
+  min-width:230px;
+  max-width:230px;
+  white-space:nowrap;
 }
 
-      .reportsListTable thead th{
-        background:#f4f5fb;
-        color:#6b7280;
-        font-size:12px;
-        font-weight:800;
-        text-transform:uppercase;
-        letter-spacing:.04em;
-        padding:14px 14px;
-        border-bottom:1px solid #e8eaf2;
-        text-align:left;
-        white-space:nowrap;
-      }
+.reportsListTable th:nth-child(7),
+.reportsListTable td:nth-child(7){
+  width:52px;
+  min-width:52px;
+  max-width:52px;
+}
 
-      .reportsListTable tbody td{
-        padding:15px 14px;
-        color:#1f2547;
-        font-size:14px;
-        font-weight:700;
-        border-bottom:1px solid #edf0f5;
-        white-space:nowrap;
-        background:#ffffff;
-      }
+.reportsListTable thead th{
+  background:#f4f5fb;
+  color:#6b7280;
+  font-size:12px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+  padding:12px 6px;
+  border-bottom:1px solid #e8eaf2;
+  text-align:left;
+  white-space:nowrap;
+}
+
+.reportsListTable tbody td{
+  padding:13px 6px;
+  color:#1f2547;
+  font-size:14px;
+  font-weight:700;
+  border-bottom:1px solid #edf0f5;
+  white-space:nowrap;
+  background:#ffffff;
+}
 
       .reportsListTable tbody tr:nth-child(even) td{
         background:#fcfbff;
@@ -12487,28 +12509,17 @@ def my_reports():
 
           <div class="reportsListTableWrap">
             <table class="reportsListTable">
-            <colgroup>
-  <col style="width:24%;">
-  <col style="width:12%;">
-  <col style="width:24%;">
-  <col style="width:8%;">
-  <col style="width:11%;">
-  <col style="width:10%;">
-  <col style="width:11%;">
-  <col style="width:4%;">
-</colgroup>
-              <thead>
-                <tr>
-                  <th>Period</th>
-                  <th>Payment Date</th>
-                  <th>Company</th>
-                  <th class="num">Hours</th>
-                  <th class="num">Gross Pay</th>
-                  <th class="num">CIS Tax</th>
-                  <th class="num">Take Home</th>
-                  <th class="num">View</th>
-                </tr>
-              </thead>
+<thead>
+  <tr>
+   <th>Period</th>
+<th class="num">Hours</th>
+<th class="num">Gross Pay</th>
+<th class="num">CIS Tax</th>
+<th class="num">Take Home</th>
+<th>Company</th>
+<th class="num">View</th> 
+  </tr>
+</thead>
               <tbody>
                 {''.join(list_rows_html)}
               </tbody>
