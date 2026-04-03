@@ -11960,7 +11960,7 @@ def my_reports():
         net = round(gross - tax, 2)
 
         iso = monday.isocalendar()
-        period_label = f"Week {iso[1]} ({monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')})"
+        period_label = f"Week {iso[1]} • {monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')}"
         payment_date = rec["payment_date"].strftime("%d/%m/%y")
         wk_link_offset = max(0, (this_monday - monday).days // 7)
 
@@ -12333,9 +12333,7 @@ def my_reports():
             </table>
           </div>
 
-          <div class="reportsListFooter">
-            <span>Each row shows one week with a direct payslip download button.</span>
-          </div>
+        
         </div>
       </div>
     """
@@ -12432,7 +12430,7 @@ def payments_page():
 
         wk_offset = max(0, (this_monday - monday).days // 7)
         iso = monday.isocalendar()
-        period_label = f"Week {iso[1]} ({monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')})"
+        period_label = f"Week {iso[1]} • {monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')}"
 
         paid_rows.append({
             "monday": monday,
@@ -12682,9 +12680,7 @@ def payments_page():
             </table>
           </div>
 
-          <div class="paymentsFooter">
-            <span>Only weeks already marked as paid appear here.</span>
-          </div>
+          
         </div>
       </div>
     """
