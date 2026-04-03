@@ -9267,6 +9267,8 @@ def onboarding_details_block(username: str) -> str:
         ("CSCS expiry", "CSCSExpiryDate"),
         ("Employment type", "EmploymentType"),
         ("Right to work UK", "RightToWorkUK"),
+        ("National Insurance number (NIno)", "NationalInsurance"),
+        ("UTR number", "UTR"),
         ("Start date", "StartDate"),
         ("Account holder", "AccountHolderName"),
         ("Company trading name", "CompanyTradingName"),
@@ -9281,12 +9283,11 @@ def onboarding_details_block(username: str) -> str:
             return ""
         sensitive_full = {"BirthDate", "StreetAddress", "City", "Postcode", "MedicalCondition", "MedicalDetails",
                           "SiteAddress"}
-        sensitive_last4 = {"NationalInsurance", "UTR", "BankAccountNumber", "SortCode"}
+        sensitive_last4 = {"BankAccountNumber", "SortCode"}
         if key in sensitive_full:
-            return "[Hidden]"
+            return "••••"
         if key in sensitive_last4:
-            tail = val[-4:] if len(val) >= 4 else val
-            return f"••••{tail}"
+            return ("••••" + val[-4:]) if len(val) > 4 else "••••"
         return val
 
     rows = []
@@ -12123,7 +12124,7 @@ def my_reports():
             <td class="num">{escape(currency)}{money(item['net'])}</td>
             <td class="num">
   <a class="reportsListDownloadBtn"
-     href="/my-reports-print?wk={item['wk_offset']}"
+     href="/my-week-report?wk={item['wk_offset']}"
      target="_blank"
      rel="noopener"
      title="View slip">
@@ -12417,7 +12418,36 @@ def my_reports():
     </style>
     """
     week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
+    ni_number = ""
+    utr_number = ""
 
+    if USE_DATABASE:
+        allowed_wps = set(_workplace_ids_for_read())
+        onboard_rec = (
+            OnboardingRecord.query
+            .filter(OnboardingRecord.username == username)
+            .filter(OnboardingRecord.workplace_id.in_(allowed_wps))
+            .order_by(OnboardingRecord.id.desc())
+            .first()
+        )
+        if onboard_rec:
+            ni_number = str(getattr(onboard_rec, "national_insurance", "") or "").strip()
+            utr_number = str(getattr(onboard_rec, "utr", "") or "").strip()
+    else:
+        try:
+            allowed_wps = set(_workplace_ids_for_read())
+            for rec in reversed(onboarding_sheet.get_all_records()):
+                rec_user = str(rec.get("Username") or "").strip()
+                rec_wp = str(rec.get("Workplace_ID") or "default").strip() or "default"
+                if rec_user == username and rec_wp in allowed_wps:
+                    ni_number = str(rec.get("NationalInsurance") or "").strip()
+                    utr_number = str(rec.get("UTR") or "").strip()
+                    break
+        except Exception:
+            pass
+
+    ni_number = ni_number or "—"
+    utr_number = utr_number or "—"
     rows_html = []
     for i in range(7):
         d = selected_week_start + timedelta(days=i)
@@ -12474,7 +12504,7 @@ def my_reports():
                   <th>Company</th>
                   <th class="num">Hours</th>
                   <th class="num">Gross Pay</th>
-                  <th class="num">Tax</th>
+                  <th class="num">CIS Tax</th>
                   <th class="num">Take Home</th>
                   <th class="num">View</th>
                 </tr>
@@ -12491,6 +12521,215 @@ def my_reports():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
+@app.get("/my-week-report")
+def my_week_report():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    role = session.get("role", "employee")
+    display_name = get_employee_display_name(username)
+
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
+    company_name = str(settings.get("Company_Name") or "Main").strip() or "Main"
+
+    now = datetime.now(TZ)
+    today = now.date()
+
+    wk_offset_raw = (request.args.get("wk", "0") or "0").strip()
+    try:
+        wk_offset = max(0, int(wk_offset_raw))
+    except Exception:
+        wk_offset = 0
+
+    this_monday = today - timedelta(days=today.weekday())
+    selected_week_start = this_monday - timedelta(days=7 * wk_offset)
+    selected_week_end = selected_week_start + timedelta(days=6)
+
+    vals = get_workhours_rows()
+    rows = vals if vals else []
+    headers = rows[0] if rows else []
+
+    def idx(name):
+        return headers.index(name) if name in headers else None
+
+    COL_USER = idx("Username")
+    COL_DATE = idx("Date")
+    COL_HOURS = idx("Hours")
+    COL_PAY = idx("Pay")
+    COL_WP = idx("Workplace_ID")
+
+    allowed_wps = set(_workplace_ids_for_read())
+
+    week_hours = 0.0
+    week_gross = 0.0
+    worked_days = 0
+    overtime_hours = 0.0
+
+    for r in rows[1:]:
+        if COL_USER is None or COL_DATE is None:
+            continue
+
+        row_user = (r[COL_USER] if COL_USER < len(r) else "").strip()
+        if row_user != username:
+            continue
+
+        if COL_WP is not None:
+            row_wp = (r[COL_WP] if COL_WP < len(r) else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+
+        d_str = (r[COL_DATE] if COL_DATE < len(r) else "").strip()
+        if not d_str:
+            continue
+
+        try:
+            d = datetime.strptime(d_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        if d < selected_week_start or d > selected_week_end:
+            continue
+
+        hrs = safe_float((r[COL_HOURS] if COL_HOURS is not None and COL_HOURS < len(r) else "") or "0", 0.0)
+        pay = safe_float((r[COL_PAY] if COL_PAY is not None and COL_PAY < len(r) else "") or "0", 0.0)
+
+        week_hours += hrs
+        week_gross += pay
+
+        if hrs > 0:
+            worked_days += 1
+            if hrs > 8.5:
+                overtime_hours += (hrs - 8.5)
+
+    week_hours = round(week_hours, 2)
+    week_gross = round(week_gross, 2)
+    overtime_hours = round(overtime_hours, 2)
+
+    rate = round(_get_user_rate(username), 2)
+
+    iso = selected_week_start.isocalendar()
+    period_label = f"Week {iso[1]} {selected_week_start.strftime('%Y')}/{str(selected_week_end.year)[-2:]}"
+    full_period = f"{selected_week_start.strftime('%d %b %Y')} – {selected_week_end.strftime('%d %b %Y')}"
+    payment_date = selected_week_end.strftime("%d/%m/%y")
+
+    page_css = """
+    <style>
+      .weekReportShell{
+        max-width: 760px;
+        margin: 0 auto;
+        padding: 8px 0 20px;
+      }
+
+      .weekReportCard{
+        background:#ffffff;
+        border:1px solid rgba(109,40,217,.10);
+        box-shadow:0 18px 36px rgba(41,25,86,.08);
+        padding:20px;
+      }
+
+      .weekReportTitle{
+        font-size:18px;
+        font-weight:900;
+        color:#6d28d9;
+        margin:0 0 18px 0;
+      }
+
+      .weekReportSection{
+        background:#f8f7ff;
+        border:1px solid rgba(109,40,217,.08);
+        padding:16px;
+        margin-top:14px;
+      }
+
+      .weekReportSectionTitle{
+        font-size:15px;
+        font-weight:900;
+        color:#111827;
+        margin:0 0 12px 0;
+      }
+
+      .weekReportGrid{
+        display:grid;
+        grid-template-columns: 140px 1fr;
+        gap:10px 14px;
+        align-items:start;
+      }
+
+      .weekReportLabel{
+        color:#6f6c85;
+        font-weight:500;
+      }
+
+      .weekReportValue{
+        color:#111827;
+        font-weight:600;
+      }
+
+      @media (max-width: 640px){
+        .weekReportGrid{
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+    </style>
+    """
+
+    content = f"""
+      {page_css}
+      {page_back_button("/my-reports", "Back to timesheets")}
+
+      <div class="weekReportShell">
+        <div class="weekReportCard">
+          <h1 class="weekReportTitle">{escape(period_label)}</h1>
+
+          <div class="weekReportSection">
+            <div class="weekReportSectionTitle">General Info</div>
+            <div class="weekReportGrid">
+              <div class="weekReportLabel">Period:</div>
+              <div class="weekReportValue">{escape(full_period)}</div>
+
+              <div class="weekReportLabel">Payment Date:</div>
+              <div class="weekReportValue">{escape(payment_date)}</div>
+
+              <div class="weekReportLabel">Company:</div>
+              <div class="weekReportValue">{escape(company_name)}</div>
+            </div>
+          </div>
+
+          <div class="weekReportSection">
+            <div class="weekReportSectionTitle">Estimated Earnings</div>
+            <div class="weekReportGrid">
+              <div class="weekReportLabel">Hours/Days:</div>
+              <div class="weekReportValue">{escape(fmt_hours(week_hours))}</div>
+
+              <div class="weekReportLabel">Rate:</div>
+              <div class="weekReportValue">{escape(currency)}{escape(f"{rate:.2f}")}</div>
+
+              <div class="weekReportLabel">OT Hours/Days:</div>
+              <div class="weekReportValue">{escape(fmt_hours(overtime_hours))}</div>
+
+              <div class="weekReportLabel">Adjustments:</div>
+              <div class="weekReportValue">{escape(currency)}0.00</div>
+
+              <div class="weekReportLabel">Expenses:</div>
+              <div class="weekReportValue">{escape(currency)}0.00</div>
+
+              <div class="weekReportLabel">Mileage:</div>
+              <div class="weekReportValue">0</div>
+
+              <div class="weekReportLabel">Gross Pay:</div>
+              <div class="weekReportValue">{escape(currency)}{money(week_gross)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    """
+
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content)
+    )
 
 @app.get("/payments")
 def payments_page():
@@ -12822,7 +13061,7 @@ def payments_page():
   <tr>
     <th>Period</th>
     <th class="num">Gross</th>
-    <th class="num">Tax</th>
+    <th class="num">CIS Tax</th>
     <th class="num">Net</th>
     <th class="num">Download</th>
   </tr>
@@ -12952,6 +13191,81 @@ def my_reports_print():
         return gross, tax, net
 
     w_g, w_t, w_n = gross_tax_net(selected_week_pay)
+    payroll_rows = get_payroll_rows()
+    p_headers = payroll_rows[0] if payroll_rows else []
+
+    def pidx(name):
+        return p_headers.index(name) if name in p_headers else None
+
+    i_p_ws = pidx("WeekStart")
+    i_p_we = pidx("WeekEnd")
+    i_p_user = pidx("Username")
+    i_p_gross = pidx("Gross")
+    i_p_tax = pidx("Tax")
+    i_p_paid_at = pidx("PaidAt")
+    i_p_paid = pidx("Paid")
+    i_p_wp = pidx("Workplace_ID")
+
+    ytd_taxable_pay = 0.0
+    ytd_cis_tax = 0.0
+    pay_date_text = ""
+    selected_week_found_in_payroll = False
+
+    for r in payroll_rows[1:]:
+        if i_p_user is None or i_p_ws is None or i_p_we is None:
+            continue
+        if len(r) <= max(i_p_user, i_p_ws, i_p_we):
+            continue
+
+        row_user = (r[i_p_user] or "").strip()
+        if row_user != username:
+            continue
+
+        if i_p_wp is not None:
+            row_wp = (r[i_p_wp] if len(r) > i_p_wp else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+
+        row_ws_str = (r[i_p_ws] or "").strip()
+        row_we_str = (r[i_p_we] or "").strip()
+        if not row_ws_str or not row_we_str:
+            continue
+
+        try:
+            row_ws = datetime.strptime(row_ws_str, "%Y-%m-%d").date()
+            row_we = datetime.strptime(row_we_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        paid_flag = ((r[i_p_paid] if (i_p_paid is not None and len(r) > i_p_paid) else "") or "").strip().lower()
+        paid_at_raw = ((r[i_p_paid_at] if (i_p_paid_at is not None and len(r) > i_p_paid_at) else "") or "").strip()
+
+        if paid_flag not in ("true", "1", "yes", "paid") and not paid_at_raw:
+            continue
+
+        row_gross = safe_float((r[i_p_gross] if (i_p_gross is not None and len(r) > i_p_gross) else "") or "0", 0.0)
+        row_tax = safe_float((r[i_p_tax] if (i_p_tax is not None and len(r) > i_p_tax) else "") or "0", 0.0)
+
+        if row_we <= selected_week_end:
+            ytd_taxable_pay += row_gross
+            ytd_cis_tax += row_tax
+
+        if row_ws == selected_week_start and row_we == selected_week_end:
+            selected_week_found_in_payroll = True
+            pay_date_text = paid_at_raw or row_we_str
+
+    if not selected_week_found_in_payroll:
+        ytd_taxable_pay += w_g
+        ytd_cis_tax += w_t
+        pay_date_text = datetime.now(TZ).strftime("%Y-%m-%d")
+
+    try:
+        pay_date_display = datetime.strptime(pay_date_text, "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
+    except Exception:
+        pay_date_display = (pay_date_text or "")[:10] or datetime.now(TZ).strftime("%Y-%m-%d")
+
+    ytd_taxable_pay = round(ytd_taxable_pay, 2)
+    ytd_cis_tax = round(ytd_cis_tax, 2)
 
     week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
     rows_html = []
@@ -13143,116 +13457,168 @@ def my_reports_print():
         color: #6b7280;
       }
 
-      .statementSummary{
-        display:grid;
-        gap: 6px;
-      }
+      .statementTopGrid{
+  display:grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
+  gap: 42px;
+  align-items:start;
+  margin-bottom: 18px;
+}
 
-      .statementSummaryRow{
-        display:grid;
-        grid-template-columns: 1fr auto;
-        gap: 12px;
-        align-items:end;
-        padding: 2px 0;
-        font-size: 13px;
-        color: #111827;
-      }
+.statementSummary{
+  display:grid;
+  gap: 6px;
+  max-width: 340px;
+}
 
-      .statementSummaryRow .label{
-        color: #4b5563;
-      }
+.statementSummaryRow{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items:end;
+  padding: 2px 0;
+  font-size: 13px;
+  color: #111827;
+}
 
-      .statementSummaryRow .value{
-        font-weight: 800;
-        color: #111827;
-        white-space: nowrap;
-      }
+.statementSummaryRow .label{
+  color: #4b5563;
+  font-weight: 500;
+}
 
-      .statementSummaryRow.total{
-        margin-top: 6px;
-        padding-top: 8px;
-        border-top: 1px solid #e5e7eb;
-      }
+.statementSummaryRow .value{
+  font-weight: 500;
+  color: #111827;
+  white-space: nowrap;
+}
 
-      .statementSummaryRow.total .label,
-      .statementSummaryRow.total .value{
-        font-weight: 900;
-        color: #111827;
-      }
+.statementSummaryRow.total{
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid #e5e7eb;
+}
 
-      .statementTableWrap{
-        margin-top: 8px;
-        border: 1px solid #e5e7eb;
-        border-radius: 0 !important;
-        overflow: hidden;
-      }
+.statementSummaryRow.total .label,
+.statementSummaryRow.total .value{
+  font-weight: 900;
+  color: #111827;
+}
 
-      .statementTable{
-        width: 100%;
-        border-collapse: collapse;
-        table-layout: fixed;
-        background: #ffffff;
-      }
+.statementYtdCol{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
+}
 
-      .statementTable th{
-        background: #f5f6fa;
-        color: #374151;
-        font-size: 11px;
-        font-weight: 900;
-        text-transform: uppercase;
-        letter-spacing: .04em;
-        padding: 10px 10px;
-        border-bottom: 1px solid #e5e7eb;
-        text-align: left;
-      }
+.statementPayDate{
+  margin: 0 0 10px 0;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6d28d9;
+  line-height: 1.2;
+}
 
-      .statementTable td{
-        padding: 9px 10px;
-        font-size: 13px;
-        color: #111827;
-        border-bottom: 1px solid #edf0f5;
-        vertical-align: middle;
-      }
+.statementYtdBox{
+  width: 100%;
+  max-width: 300px;
+  margin: 0;
+}
 
-      .statementTable tbody tr:last-child td{
-        border-bottom: 0;
-      }
+.statementYtdLabel{
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6d28d9;
+  line-height: 1.2;
+}
 
-      .statementTable td.num,
-      .statementTable th.num{
-        text-align: right;
-        font-variant-numeric: tabular-nums;
-      }
+.statementYtdValue{
+  color: #111827;
+  font-weight: 700;
+}
 
-      .statementFooterTotals{
-        margin-top: 16px;
-        display:grid;
-        grid-template-columns: repeat(4, minmax(0,1fr));
-        gap: 12px;
-      }
+.statementYtdRow{
+  display:grid;
+  grid-template-columns: 1fr auto;
+  gap: 10px;
+  align-items:end;
+  margin-top: 4px;
+  font-size: 13px;
+}
 
-      .statementTotalCard{
-        border: 1px solid #e5e7eb;
-        border-radius: 0 !important;
-        background: #ffffff;
-        padding: 10px 12px;
-      }
+.statementYtdRow .label{
+  color: #4b5563;
+  font-weight: 500;
+}
 
-      .statementTotalCard .k{
-        font-size: 11px;
-        font-weight: 900;
-        letter-spacing: .06em;
-        text-transform: uppercase;
-        color: #6b7280;
-      }
+.statementYtdRow .value{
+  color: #111827;
+  font-weight: 500;
+  white-space: nowrap;
+}
 
-      .statementTotalCard .v{
-        margin-top: 4px;
-        font-size: 16px;
-        font-weight: 900;
-        color: #111827;
-        line-height: 1.15;
-      }
+@media (max-width: 860px){
+  .statementTopGrid{
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+
+.statementSummary{
+  display: grid;
+  gap: 6px;
+  margin-bottom: 18px;
+}
+
+.statementYtdBox{
+  width: 100%;
+  max-width: 360px;
+  margin: 0 0 18px 0;
+}
+
+.statementYtdLabel{
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  color: #6d28d9;
+  line-height: 1.2;
+}
+
+.statementYtdValue{
+  color: #111827;
+  font-weight: 900;
+}
+
+.statementYtdRow{
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px;
+  align-items: end;
+  margin-top: 6px;
+  font-size: 13px;
+}
+
+.statementYtdRow .label{
+  color: #4b5563;
+}
+
+.statementYtdRow .value{
+  color: #111827;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 860px){
+  .statementSummaryHead{
+    flex-direction:column;
+    align-items:flex-start;
+  }
+}
 
       .statementBottomBar{
         height: 14px;
@@ -13325,6 +13691,37 @@ def my_reports_print():
       }
     </style>
     """
+    ni_number = ""
+    utr_number = ""
+
+    if USE_DATABASE:
+        allowed_wps = set(_workplace_ids_for_read())
+        onboard_rec = (
+            OnboardingRecord.query
+            .filter(OnboardingRecord.username == username)
+            .filter(OnboardingRecord.workplace_id.in_(allowed_wps))
+            .order_by(OnboardingRecord.id.desc())
+            .first()
+        )
+        if onboard_rec:
+            ni_number = str(getattr(onboard_rec, "national_insurance", "") or "").strip()
+            utr_number = str(getattr(onboard_rec, "utr", "") or "").strip()
+    else:
+        try:
+            allowed_wps = set(_workplace_ids_for_read())
+            for rec in reversed(onboarding_sheet.get_all_records()):
+                rec_user = str(rec.get("Username") or "").strip()
+                rec_wp = str(rec.get("Workplace_ID") or "default").strip() or "default"
+                if rec_user == username and rec_wp in allowed_wps:
+                    ni_number = str(rec.get("NationalInsurance") or "").strip()
+                    utr_number = str(rec.get("UTR") or "").strip()
+                    break
+        except Exception:
+            pass
+
+    ni_number = ni_number or "—"
+    utr_number = utr_number or "—"
+
     content = f"""
       {page_css}
 
@@ -13338,30 +13735,69 @@ def my_reports_print():
           <div class="statementHead" style="padding:18px 24px 12px;">
             <div class="statementHeadGrid" style="grid-template-columns:1.2fr 1fr; gap:18px;">
               <div class="statementCompany">
-                {f'<img src="{escape(company_logo)}" alt="Company logo" class="statementLogo">' if company_logo else ''}
-                <div class="statementCompanyName">{escape(company_name)}</div>
-                <div class="statementCompanySub">
-                  Payroll / Timesheet statement<br>
-                  Generated from weekly records
-                </div>
-              </div>
+  {f'<img src="{escape(company_logo)}" alt="Company logo" class="statementLogo">' if company_logo else ''}
+  <div class="statementCompanyName">{escape(display_name)}</div>
+  <div class="statementCompanySub">
+    <strong>UTR:</strong> {escape(utr_number)}<br>
+    <strong>National Insurance:</strong> {escape(ni_number)}
+  </div>
+</div>
 
-              <div class="statementTitleBlock" style="text-align:right;">
-                <div class="statementTitle">CIS Pay Statement</div>
-                <div class="statementPeriod">{escape(week_label)}</div>
-                <div class="statementMetaRow" style="margin-top:10px;">
-                  <strong>Employee:</strong> {escape(display_name)}
-                </div>
-                <div class="statementMetaRow">
-                  <strong>Generated:</strong> {escape(datetime.now(TZ).strftime("%d/%m/%Y %H:%M"))}
-                </div>
-              </div>
+<div class="statementTitleBlock" style="text-align:right;">
+  <div class="statementTitle">CIS Pay Statement</div>
+  <div class="statementPeriod">{escape(week_label)}</div>
+  <div class="statementMetaRow" style="margin-top:10px;">
+    <strong>Generated:</strong> {escape(datetime.now(TZ).strftime("%d/%m/%Y %H:%M"))}
+  </div>
+</div>
+
             </div>
           </div>
 
           <div class="statementBody" style="padding:14px 24px 16px;">
-            <div class="statementSectionTitle" style="margin-bottom:8px;">Pay summary</div>
-            <div class="statementSummary" style="margin-bottom:14px;">
+          <div class="statementTopGrid">
+  <div>
+    <div class="statementSectionTitle" style="margin-bottom:8px;">Pay summary</div>
+
+    <div class="statementSummary" style="margin-bottom:0;">
+      <div class="statementSummaryRow">
+        <div class="label">Hours worked</div>
+        <div class="value">{escape(fmt_hours(selected_week_hours))}</div>
+      </div>
+      <div class="statementSummaryRow">
+        <div class="label">Gross pay</div>
+        <div class="value">{escape(currency)}{money(w_g)}</div>
+      </div>
+      <div class="statementSummaryRow">
+        <div class="label">Tax</div>
+        <div class="value">{escape(currency)}{money(w_t)}</div>
+      </div>
+      <div class="statementSummaryRow total">
+        <div class="label">Total net pay</div>
+        <div class="value">{escape(currency)}{money(w_n)}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="statementYtdCol">
+    <div class="statementPayDate">Pay Date: <span class="statementYtdValue">{escape(pay_date_display)}</span></div>
+
+    <div class="statementYtdBox">
+      <div class="statementYtdLabel">Year To Date</div>
+
+      <div class="statementYtdRow">
+        <div class="label">Taxable Pay</div>
+        <div class="value">{escape(currency)}{money(ytd_taxable_pay)}</div>
+      </div>
+
+      <div class="statementYtdRow">
+        <div class="label">CIS Tax</div>
+        <div class="value">{escape(currency)}{money(ytd_cis_tax)}</div>
+      </div>
+    </div>
+  </div>
+</div>
+
               <div class="statementSummaryRow">
                 <div class="label">Hours worked</div>
                 <div class="value">{escape(fmt_hours(selected_week_hours))}</div>
@@ -13379,37 +13815,6 @@ def my_reports_print():
                 <div class="value">{escape(currency)}{money(w_n)}</div>
               </div>
             </div>
-
-            <div class="statementSectionTitle" style="margin-bottom:8px;">Weekly breakdown</div>
-
-            <div class="statementTableWrap">
-              <table class="statementTable" style="table-layout:fixed;">
-                <colgroup>
-                  <col style="width:14%;">
-                  <col style="width:18%;">
-                  <col style="width:16%;">
-                  <col style="width:16%;">
-                  <col style="width:12%;">
-                  <col style="width:12%;">
-                  <col style="width:12%;">
-                </colgroup>
-                <thead>
-                  <tr>
-                    <th>Day</th>
-                    <th>Date</th>
-                    <th>Clock In</th>
-                    <th>Clock Out</th>
-                    <th class="num">Hours</th>
-                    <th class="num">Gross</th>
-                    <th class="num">Net</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {''.join(rows_html)}
-                </tbody>
-              </table>
-            </div>
-          </div>
 
           <div class="statementBottomBar"></div>
         </div>
@@ -16175,7 +16580,7 @@ def admin_payroll():
                         <th>Clock Out</th>
                         <th class="num">Hours</th>
                         <th class="num">Gross</th>
-                        <th class="num">Tax</th>
+                        <th class="num">CIS Tax</th>
                         <th class="num">Net</th>
                       </tr>
                     </thead>
