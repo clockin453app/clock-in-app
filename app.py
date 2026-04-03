@@ -12972,12 +12972,12 @@ def payments_page():
 
       .paymentsTable th,
 .paymentsTable td{
-  padding:12px 10px;
+  padding:12px 8px;
 }
 
 .paymentsTable th:nth-child(1),
 .paymentsTable td:nth-child(1){
-  width:44%;
+  width:36%;
   white-space:normal;
   line-height:1.25;
 }
@@ -12988,12 +12988,12 @@ def payments_page():
 .paymentsTable td:nth-child(3),
 .paymentsTable th:nth-child(4),
 .paymentsTable td:nth-child(4){
-  width:16%;
+  width:15%;
 }
 
 .paymentsTable th:nth-child(5),
 .paymentsTable td:nth-child(5){
-  width:8%;
+  width:7%;
 }
 
       .paymentsTable tbody tr:hover td{
@@ -13029,10 +13029,40 @@ def payments_page():
       }
 
       @media (max-width: 820px){
-        .paymentsHeader{
-          flex-direction:column;
-        }
-      }
+  .paymentsHeader{
+    flex-direction:column;
+  }
+
+  .paymentsTable th,
+  .paymentsTable td{
+    padding:10px 6px;
+  }
+
+  .paymentsTable th:nth-child(1),
+  .paymentsTable td:nth-child(1){
+    width:36%;
+    padding-right:4px;
+    line-height:1.15;
+  }
+
+  .paymentsTable th:nth-child(2),
+  .paymentsTable td:nth-child(2){
+    width:19%;
+    padding-left:4px;
+  }
+
+  .paymentsTable th:nth-child(3),
+  .paymentsTable td:nth-child(3),
+  .paymentsTable th:nth-child(4),
+  .paymentsTable td:nth-child(4){
+    width:17%;
+  }
+
+  .paymentsTable th:nth-child(5),
+  .paymentsTable td:nth-child(5){
+    width:11%;
+  }
+}
     </style>
     """
 
@@ -13797,24 +13827,6 @@ def my_reports_print():
     </div>
   </div>
 </div>
-
-              <div class="statementSummaryRow">
-                <div class="label">Hours worked</div>
-                <div class="value">{escape(fmt_hours(selected_week_hours))}</div>
-              </div>
-              <div class="statementSummaryRow">
-                <div class="label">Gross pay</div>
-                <div class="value">{escape(currency)}{money(w_g)}</div>
-              </div>
-              <div class="statementSummaryRow">
-                <div class="label">Tax</div>
-                <div class="value">{escape(currency)}{money(w_t)}</div>
-              </div>
-              <div class="statementSummaryRow total">
-                <div class="label">Total net pay</div>
-                <div class="value">{escape(currency)}{money(w_n)}</div>
-              </div>
-            </div>
 
           <div class="statementBottomBar"></div>
         </div>
