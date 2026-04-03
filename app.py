@@ -6682,6 +6682,182 @@ button{
   transform:translateX(-1px);
 }
 
+.dashboardMiniStatus{
+  display:grid;
+  grid-template-columns:1fr 1.2fr;
+  gap:14px;
+  margin:14px 0 16px;
+}
+
+.dashboardMiniStatusCard{
+  background:linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.97));
+  border:1px solid rgba(109,40,217,.12);
+  box-shadow:0 14px 28px rgba(41,25,86,.07);
+  border-radius:22px;
+  padding:16px;
+}
+
+.dashboardMiniStatusTop{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.dashboardMiniStatusIcon{
+  width:44px;
+  height:44px;
+  border-radius:14px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:rgba(109,40,217,.08);
+  border:1px solid rgba(109,40,217,.12);
+  color:#000;
+  flex:0 0 44px;
+}
+
+.dashboardMiniStatusIcon svg{
+  width:22px;
+  height:22px;
+  display:block;
+}
+
+.dashboardMiniStatusLabel{
+  font-size:15px;
+  font-weight:900;
+  color:#1f2547;
+  line-height:1.1;
+}
+
+.dashboardMiniStatusSub{
+  margin-top:4px;
+  font-size:13px;
+  color:#7a7592;
+  line-height:1.25;
+}
+
+.dashboardMiniStatusValue{
+  display:flex;
+  align-items:center;
+  min-height:38px;
+}
+
+.dashboardMiniTargetRow{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  margin-bottom:8px;
+  color:#1f2547;
+  font-size:16px;
+  font-weight:900;
+}
+
+.dashboardMiniTargetBar{
+  width:100%;
+  height:12px;
+  border-radius:999px;
+  background:rgba(109,40,217,.10);
+  overflow:hidden;
+}
+
+.dashboardMiniTargetBar span{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background:linear-gradient(90deg, #7c3aed 0%, #2563eb 100%);
+  transition:width .25s ease;
+}
+
+@media (max-width: 700px){
+  .dashboardMiniStatus{
+    grid-template-columns:1fr;
+    gap:12px;
+    margin:12px 0 14px;
+  }
+
+  .dashboardMiniStatusCard{
+    padding:14px;
+    border-radius:20px;
+  }
+
+  .dashboardMiniStatusIcon{
+    width:40px;
+    height:40px;
+    border-radius:12px;
+    flex-basis:40px;
+  }
+
+  .dashboardMiniStatusLabel{
+    font-size:14px;
+  }
+
+  .dashboardMiniStatusSub{
+    font-size:12px;
+  }
+}
+
+
+.rangeDetailTable{
+  width:100%;
+  min-width:980px;
+  table-layout:fixed;
+  border-collapse:separate;
+  border-spacing:0;
+}
+
+.rangeDetailTable th,
+.rangeDetailTable td{
+  padding:12px 10px;
+  vertical-align:middle;
+}
+
+.rangeDetailTable th.num,
+.rangeDetailTable td.num{
+  text-align:right;
+  font-variant-numeric: tabular-nums;
+}
+
+.rangeDetailTable th.center,
+.rangeDetailTable td.center{
+  text-align:center;
+}
+
+.rangeDetailTable th:nth-child(1),
+.rangeDetailTable td:nth-child(1){
+  width:18%;
+}
+
+.rangeDetailTable th:nth-child(2),
+.rangeDetailTable td:nth-child(2){
+  width:7%;
+}
+
+.rangeDetailTable th:nth-child(3),
+.rangeDetailTable td:nth-child(3){
+  width:12%;
+}
+
+.rangeDetailTable th:nth-child(4),
+.rangeDetailTable td:nth-child(4),
+.rangeDetailTable th:nth-child(5),
+.rangeDetailTable td:nth-child(5){
+  width:8%;
+}
+
+.rangeDetailTable th:nth-child(6),
+.rangeDetailTable td:nth-child(6){
+  width:7%;
+}
+
+.rangeDetailTable th:nth-child(7),
+.rangeDetailTable td:nth-child(7),
+.rangeDetailTable th:nth-child(8),
+.rangeDetailTable td:nth-child(8),
+.rangeDetailTable th:nth-child(9),
+.rangeDetailTable td:nth-child(9){
+  width:10%;
+}
 </style>
 """
 
@@ -10129,7 +10305,7 @@ def home():
 
         row_user = (r[COL_USER] or "").strip()
 
-        if role not in ("admin", "master_admin") and row_user != username:
+        if row_user != username:
             continue
 
         if wp_idx is not None:
@@ -10411,81 +10587,39 @@ def home():
 </div>
 
       {chart_section_html}
-
-      <div class="dashboardLower">
-        <div class="quickCard plainSection">
-          <div class="sectionHead">
-            <div class="sectionHeadLeft">
-              <div class="sectionIcon">{_svg_clock()}</div>
-              <div>
-                <h2 style="margin:0;">Today&apos;s Summary</h2>
-                <p class="sub" style="margin:4px 0 0 0;">Live attendance and pay summary for this workplace.</p>
-              </div>
-            </div>
-            <div class="sectionBadge">This week</div>
-          </div>
-
-          <div class="quickGrid">
-            <div class="quickMini">
-              <div class="left">
-                <div class="miniIcon">{_svg_clock()}</div>
-                <div class="miniText">Status</div>
-              </div>
-              <div class="chip {status_class}">{status_text}</div>
-            </div>
-
-            <div class="quickMini">
-              <div class="left">
-                <div class="miniIcon">{_svg_clipboard()}</div>
-                <div class="miniText">Today Hours</div>
-              </div>
-              <div class="miniText">{fmt_hours(today_hours)}</div>
-            </div>
-
-            <div class="quickMini">
-              <div class="left">
-                <div class="miniIcon">{_svg_chart()}</div>
-                <div class="miniText">Today Gross</div>
-              </div>
-              <div class="miniText">{escape(currency)}{money(today_pay)}</div>
-            </div>
-
-            <div class="quickMini">
-              <div class="left">
-                <div class="miniIcon">{_svg_grid()}</div>
-                <div class="miniText">Week Hours</div>
-              </div>
-              <div class="miniText">{fmt_hours(week_hours)}</div>
-            </div>
-
-            <div class="quickMini">
-              <div class="left">
-                <div class="miniIcon">{_svg_doc()}</div>
-                <div class="miniText">Days Logged</div>
-              </div>
-              <div class="miniText">{len(week_days)}</div>
-            </div>
-
-            <div class="quickMini">
-              <div class="left">
-                <div class="miniIcon">{_svg_grid()}</div>
-                <div class="miniText">{team_metric_label}</div>
-              </div>
-              <div class="miniText">{team_metric_value}</div>
-            </div>
-          </div>
-
-          <div class="dashboardProgressRow">
-  <div class="dashboardProgressMeta">
-    <span>Weekly hours progress • {fmt_hours(week_hours)} / {fmt_hours(week_target_hours)}</span>
-    <strong>{week_progress_pct}%</strong>
+      
+      <div class="dashboardMiniStatus">
+  <div class="dashboardMiniStatusCard">
+    <div class="dashboardMiniStatusTop">
+      <div class="dashboardMiniStatusIcon">{_svg_clock()}</div>
+      <div>
+        <div class="dashboardMiniStatusLabel">Status</div>
+        <div class="dashboardMiniStatusSub">Live attendance</div>
+      </div>
+    </div>
+    <div class="dashboardMiniStatusValue">
+  <span class="chip {status_class}">{escape(status_text)}</span>
+</div>
   </div>
-  <div class="dashboardProgressBar">
-    <span style="width:{week_progress_pct}%;"></span>
+
+  <div class="dashboardMiniStatusCard">
+    <div class="dashboardMiniStatusTop">
+      <div class="dashboardMiniStatusIcon">{_svg_grid()}</div>
+      <div>
+        <div class="dashboardMiniStatusLabel">Weekly target</div>
+        <div class="dashboardMiniStatusSub">{fmt_hours(week_hours)} / {fmt_hours(week_target_hours)} hours</div>
+      </div>
+    </div>
+
+    <div class="dashboardMiniTargetRow">
+      <strong>{week_progress_pct}%</strong>
+    </div>
+
+    <div class="dashboardMiniTargetBar">
+      <span style="width:{week_progress_pct}%;"></span>
+    </div>
   </div>
 </div>
-        </div>
-      </div>
 
       <div class="dashboardBottom">
         <div class="activityCard plainSection">
@@ -15277,6 +15411,19 @@ def admin_payroll():
     q = (request.args.get("q", "") or "").strip().lower()
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
+    use_range = False
+    range_start = None
+    range_end = None
+
+    if date_from and date_to:
+        try:
+            range_start = date.fromisoformat(date_from)
+            range_end = date.fromisoformat(date_to)
+            use_range = True
+        except ValueError:
+            use_range = False
+            range_start = None
+            range_end = None
 
     rows = get_workhours_rows()
     headers = rows[0] if rows else []
@@ -15455,25 +15602,31 @@ def admin_payroll():
         "#06b6d4", "#84cc16", "#ec4899", "#14b8a6", "#8b5cf6"
     ]
 
-    chart_rows = []
-    for u in current_users:
-        display_name = get_employee_display_name(u)
+    chart_totals = {}
 
-        if q and q not in u.lower() and q not in display_name.lower():
+    for row in filtered:
+        user = (row.get("user") or "").strip()
+        if not user:
             continue
 
-        gross_u = 0.0
-        for rec in (week_lookup.get(u, {}) or {}).values():
-            gross_u += safe_float(rec.get("pay", "0"), 0.0)
+        display_name = get_employee_display_name(user)
+        if q and q not in user.lower() and q not in display_name.lower():
+            continue
 
-        gross_u = round(gross_u, 2)
+        pay_val = safe_float(row.get("pay", "0") or "0", 0.0)
+        if pay_val <= 0:
+            continue
+
+        chart_totals[user] = round(chart_totals.get(user, 0.0) + pay_val, 2)
+
+    chart_rows = []
+    for u, gross_u in chart_totals.items():
         if gross_u <= 0:
             continue
-
         chart_rows.append({
             "user": u,
-            "name": display_name,
-            "gross": gross_u,
+            "name": get_employee_display_name(u),
+            "gross": round(gross_u, 2),
         })
 
     chart_rows = sorted(chart_rows, key=lambda x: x["gross"], reverse=True)
@@ -15889,6 +16042,137 @@ def admin_payroll():
     if request.query_string:
         csv_url += "?" + request.query_string.decode("utf-8", "ignore")
 
+    range_detail_html = ""
+
+    if use_range and range_start and range_end:
+        detail_rows = []
+
+        for r in rows[1:]:
+            if len(r) <= COL_PAY or len(r) <= COL_USER or len(r) <= COL_DATE:
+                continue
+
+            user = (r[COL_USER] or "").strip()
+            d_str = (r[COL_DATE] or "").strip()
+            if not user or not d_str:
+                continue
+
+            if wp_idx is not None:
+                row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+                if row_wp not in allowed_wps:
+                    continue
+            else:
+                if not user_in_same_workplace(user):
+                    continue
+
+            display_name = get_employee_display_name(user)
+            if q and q not in user.lower() and q not in display_name.lower():
+                continue
+
+            try:
+                d_obj = date.fromisoformat(d_str)
+            except Exception:
+                continue
+
+            if d_obj < range_start or d_obj > range_end:
+                continue
+
+            cin = ((r[COL_IN] if len(r) > COL_IN else "") or "").strip()
+            cout = ((r[COL_OUT] if len(r) > COL_OUT else "") or "").strip()
+            hrs = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+            gross = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
+
+            if hrs <= 0 and gross <= 0 and not cin and not cout:
+                continue
+
+            tax = round(gross * tax_rate, 2)
+            net = round(gross - tax, 2)
+
+            detail_rows.append({
+                "employee": display_name,
+                "date_obj": d_obj,
+                "date": d_obj.strftime("%d/%m/%Y"),
+                "day": d_obj.strftime("%a"),
+                "clock_in": cin[:5] if cin else "",
+                "clock_out": cout[:5] if cout else "",
+                "hours": hrs,
+                "gross": gross,
+                "tax": tax,
+                "net": net,
+            })
+
+        detail_rows.sort(key=lambda x: (x["employee"].lower(), x["date_obj"]))
+
+        if detail_rows:
+            body_html = []
+            for item in detail_rows:
+                body_html.append(f"""
+                  <tr>
+                    <td>{escape(item['employee'])}</td>
+                    <td>{escape(item['day'])}</td>
+                    <td>{escape(item['date'])}</td>
+                    <td style="text-align:center;">{escape(item['clock_in'])}</td>
+                    <td style="text-align:center;">{escape(item['clock_out'])}</td>
+                    <td class="num">{escape(fmt_hours(item['hours']))}</td>
+                    <td class="num">{escape(currency)}{escape(money(item['gross']))}</td>
+                    <td class="num">{escape(currency)}{escape(money(item['tax']))}</td>
+                    <td class="num">{escape(currency)}{escape(money(item['net']))}</td>
+                  </tr>
+                """)
+
+            range_detail_html = f"""
+              <div class="card plainSection" style="margin-top:12px; padding:16px;">
+                <div class="sectionHead">
+                  <div class="sectionHeadLeft">
+                    <div class="sectionIcon">{_svg_clipboard()}</div>
+                    <div>
+                      <h2 style="margin:0;">Logged days in selected range</h2>
+                      <p class="sub" style="margin:4px 0 0 0;">
+                        {escape(range_start.strftime("%d %b %Y"))} – {escape(range_end.strftime("%d %b %Y"))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="tablewrap" style="margin-top:12px;">
+                  <table class="rangeDetailTable">
+                    <thead>
+                      <tr>
+                        <th>Employee</th>
+                        <th>Day</th>
+                        <th>Date</th>
+                        <th>Clock In</th>
+                        <th>Clock Out</th>
+                        <th class="num">Hours</th>
+                        <th class="num">Gross</th>
+                        <th class="num">Tax</th>
+                        <th class="num">Net</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {''.join(body_html)}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            """
+        else:
+            range_detail_html = f"""
+              <div class="card plainSection" style="margin-top:12px; padding:16px;">
+                <div class="sectionHead">
+                  <div class="sectionHeadLeft">
+                    <div class="sectionIcon">{_svg_clipboard()}</div>
+                    <div>
+                      <h2 style="margin:0;">Logged days in selected range</h2>
+                      <p class="sub" style="margin:4px 0 0 0;">
+                        {escape(range_start.strftime("%d %b %Y"))} – {escape(range_end.strftime("%d %b %Y"))}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+                <p class="sub" style="margin-top:12px;">No logged days found for this range.</p>
+              </div>
+            """
+
     content = f"""
       <div class="payrollMenuBackdrop" id="payrollMenuBackdrop"></div>
 
@@ -15905,7 +16189,7 @@ def admin_payroll():
         <div class="badge admin">ADMIN</div>
       </div>
 
-      {admin_back_link()}
+      {admin_back_link("/admin/payroll")}
 
             <div class="payrollTopGrid">
         <div class="card payrollFiltersCard">
@@ -15958,8 +16242,11 @@ def admin_payroll():
           </div>
         </div>
       </div>
+      
+      {range_detail_html}
 
-              <div class="payrollWrap" style="margin-top:12px;">
+              {f"""
+      <div class="payrollWrap" style="margin-top:12px;">
         <table class="payrollSheet">
           <thead>
             <tr class="cols">
@@ -15986,6 +16273,7 @@ def admin_payroll():
       {week_nav_html}
 
       {''.join(blocks)}
+""" if not use_range else ""}
 
 
 
