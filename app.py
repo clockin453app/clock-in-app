@@ -2820,6 +2820,45 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   background: rgba(255,255,255,.88);
   transition: transform .16s ease, box-shadow .16s ease;
 }
+.dashboardProgressRow{
+  margin-top: 12px;
+  padding: 12px;
+  border-radius: 16px;
+  border: 1px solid rgba(109,40,217,.10);
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.96));
+}
+
+.dashboardProgressMeta{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-bottom:8px;
+  font-size:13px;
+  font-weight:700;
+  color:#5b5573;
+}
+
+.dashboardProgressMeta strong{
+  color:#2a2540;
+  font-weight:800;
+}
+
+.dashboardProgressBar{
+  width:100%;
+  height:10px;
+  border-radius:999px;
+  background: rgba(109,40,217,.10);
+  overflow:hidden;
+}
+
+.dashboardProgressBar span{
+  display:block;
+  height:100%;
+  border-radius:999px;
+  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
+  transition: width .25s ease;
+}
 .quickMini:hover{
   transform: translateY(-1px);
   box-shadow: var(--shadow2);
@@ -6220,9 +6259,9 @@ h2{
   border-radius: 16px !important;
 }
 .quickMini .miniIcon{
-  color: #5b21b6 !important;
-  background: rgba(109,40,217,.08) !important;
-  border-color: rgba(109,40,217,.10) !important;
+  color: #000000 !important;
+  background: rgba(0,0,0,.06) !important;
+  border-color: rgba(0,0,0,.12) !important;
 }
 .activityRow{
   color: rgba(38,35,58,.88) !important;
@@ -6714,6 +6753,21 @@ def _icon_timelogs(size=22): return _app_icon("timelogs.png", size, "Time Logs")
 
 
 def _icon_timesheets(size=22): return _app_icon("timesheets.png", size, "Timesheets")
+
+def _icon_payments(size=22):
+    return f'''
+    <div style="
+      width:{size}px;
+      height:{size}px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      font-size:{max(12, int(size * 0.82))}px;
+      font-weight:900;
+      line-height:1;
+      color:currentColor;
+    ">£</div>
+    '''
 
 
 def _icon_starter_form(size=22): return _app_icon("starter_form.png", size, "Starter Form")
@@ -9332,6 +9386,7 @@ def sidebar_html(active: str, role: str) -> str:
         ("clock", "/clock", "Clock In & Out", _icon_clock(45)),
         ("times", "/my-times", "Time logs", _icon_timelogs(45)),
         ("reports", "/my-reports", "Timesheets", _icon_timesheets(45)),
+        ("payments", "/payments", "Payments", _icon_payments(45)),
     ]
 
     if role in ("admin", "master_admin"):
@@ -10188,7 +10243,7 @@ def home():
 
     best_week_gross = max(weekly_gross) if weekly_gross else 0.0
     avg_weekly_gross = (sum(weekly_gross) / len(weekly_gross)) if weekly_gross else 0.0
-    week_target_hours = 40.0
+    week_target_hours = 42.5
     week_progress_pct = 0
     if week_target_hours > 0:
         week_progress_pct = int(round(max(0.0, min(1.0, week_hours / week_target_hours)) * 100))
@@ -10346,16 +10401,14 @@ def home():
 
     content = f"""
       <div class="dashboardHero">
-        <div class="dashboardHeroMain">
-          <div class="dashboardEyebrow">Workforce overview</div>
-          <h1>Dashboard</h1>
-          <p class="sub">Welcome back, {escape(display_name)}. Here is a clear view of hours, gross pay and recent activity.</p>
-        </div>
-        <div class="dashboardHeroMeta">
-          <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
-          <div class="dashboardDateChip">{escape(now.strftime("%A • %d %b %Y"))}</div>
-        </div>
-      </div>
+  <div class="dashboardHeroMain">
+    <h1>Dashboard</h1>
+  </div>
+  <div class="dashboardHeroMeta">
+    <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
+    <div class="dashboardDateChip">{escape(now.strftime("%A • %d %b %Y"))}</div>
+  </div>
+</div>
 
       {chart_section_html}
 
@@ -10423,12 +10476,14 @@ def home():
           </div>
 
           <div class="dashboardProgressRow">
-            <div class="dashboardProgressMeta">
-              <span>Weekly hours target progress</span>
-              <strong>{week_progress_pct}%</strong>
-            </div>
-            <div class="dashboardProgressBar"><span style="width:{week_progress_pct}%;"></span></div>
-          </div>
+  <div class="dashboardProgressMeta">
+    <span>Weekly hours progress • {fmt_hours(week_hours)} / {fmt_hours(week_target_hours)}</span>
+    <strong>{week_progress_pct}%</strong>
+  </div>
+  <div class="dashboardProgressBar">
+    <span style="width:{week_progress_pct}%;"></span>
+  </div>
+</div>
         </div>
       </div>
 
@@ -10454,16 +10509,7 @@ def home():
       </div>
 
       <div class="card menu dashboardMainMenu">
-        <div class="sectionHead dashboardMenuHead">
-          <div class="sectionHeadLeft">
-            <div class="sectionIcon">{_svg_grid()}</div>
-            <div>
-              <h2 style="margin:0;">Workspace Shortcuts</h2>
-
-            </div>
-          </div>
-          <div class="sectionBadge">Quick access</div>
-        </div>
+  <div class="sectionHead dashboardMenuHead" style="display:none;"></div>
 
         <div class="dashboardShortcutGrid">
           <a class="menuItem nav-clock" href="/clock">
@@ -10475,13 +10521,17 @@ def home():
             <div class="chev">›</div>
           </a>
           <a class="menuItem nav-reports" href="/my-reports">
-            <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
-            <div class="chev">›</div>
-          </a>
-          <a class="menuItem nav-agreements" href="/onboarding">
-            <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
-            <div class="chev">›</div>
-          </a>
+  <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
+  <div class="chev">›</div>
+</a>
+<a class="menuItem nav-payments" href="/payments">
+  <div class="menuLeft"><div class="icoBox">{_icon_payments(22)}</div><div class="menuText">Payments</div></div>
+  <div class="chev">›</div>
+</a>
+<a class="menuItem nav-agreements" href="/onboarding">
+  <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
+  <div class="chev">›</div>
+</a>
           {admin_item}
           {workplaces_item}
           <a class="menuItem nav-profile" href="/password">
@@ -12290,6 +12340,355 @@ def my_reports():
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
+
+@app.get("/payments")
+def payments_page():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session["username"]
+    role = session.get("role", "employee")
+    display_name = get_employee_display_name(username)
+
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
+    company_name = str(settings.get("Company_Name") or "Main").strip() or "Main"
+
+    now = datetime.now(TZ)
+    today = now.date()
+    this_monday = today - timedelta(days=today.weekday())
+
+    vals = get_payroll_rows()
+    headers = vals[0] if vals else []
+
+    def idx(name):
+        return headers.index(name) if name in headers else None
+
+    i_ws = idx("WeekStart")
+    i_we = idx("WeekEnd")
+    i_u = idx("Username")
+    i_g = idx("Gross")
+    i_t = idx("Tax")
+    i_n = idx("Net")
+    i_pa = idx("PaidAt")
+    i_pb = idx("PaidBy")
+    i_paid = idx("Paid")
+    i_wp = idx("Workplace_ID")
+
+    current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
+    def money_float(v):
+        try:
+            return round(float(str(v or "0").replace("£", "").replace(",", "").strip() or "0"), 2)
+        except Exception:
+            return 0.0
+
+    def fmt_paid_at(raw):
+        raw = str(raw or "").strip()
+        if not raw:
+            return ""
+        try:
+            return datetime.fromisoformat(raw).strftime("%d/%m/%y")
+        except Exception:
+            pass
+        try:
+            return datetime.strptime(raw, "%Y-%m-%d %H:%M:%S").strftime("%d/%m/%y")
+        except Exception:
+            pass
+        return raw[:10]
+
+    paid_rows = []
+
+    for r in vals[1:]:
+        row_user = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
+        if row_user != username:
+            continue
+
+        row_wp = ((r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip() or "default")
+        if row_wp not in allowed_wps:
+            continue
+
+        week_start = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
+        week_end = (r[i_we] if i_we is not None and i_we < len(r) else "").strip()
+        paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
+        paid_by = (r[i_pb] if i_pb is not None and i_pb < len(r) else "").strip()
+        paid_flag = (r[i_paid] if i_paid is not None and i_paid < len(r) else "").strip().lower()
+
+        is_paid = bool(paid_at) or paid_flag in {"true", "yes", "1", "paid"}
+        if not is_paid:
+            continue
+
+        try:
+            monday = date.fromisoformat(week_start)
+            sunday = date.fromisoformat(week_end)
+        except Exception:
+            continue
+
+        gross = money_float(r[i_g] if i_g is not None and i_g < len(r) else "0")
+        tax = money_float(r[i_t] if i_t is not None and i_t < len(r) else "0")
+        net = money_float(r[i_n] if i_n is not None and i_n < len(r) else "0")
+
+        wk_offset = max(0, (this_monday - monday).days // 7)
+        iso = monday.isocalendar()
+        period_label = f"Week {iso[1]} ({monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')})"
+
+        paid_rows.append({
+            "monday": monday,
+            "period": period_label,
+            "paid_at": fmt_paid_at(paid_at),
+            "paid_by": paid_by or "-",
+            "company": company_name,
+            "gross": gross,
+            "tax": tax,
+            "net": net,
+            "wk_offset": wk_offset,
+        })
+
+    paid_rows.sort(key=lambda x: x["monday"], reverse=True)
+
+    row_html = []
+    for item in paid_rows:
+        row_html.append(f"""
+          <tr>
+            <td>{escape(item['period'])}</td>
+            <td class="num">{escape(currency)}{money(item['gross'])}</td>
+            <td class="num">{escape(currency)}{money(item['tax'])}</td>
+            <td class="num">{escape(currency)}{money(item['net'])}</td>
+            <td class="num">
+              <a class="reportsListDownloadBtn" href="/my-reports-print?wk={item['wk_offset']}" target="_blank" rel="noopener" title="Download payslip">↓</a>
+            </td>
+          </tr>
+        """)
+
+    if not row_html:
+        row_html = [
+            "<tr><td colspan='5' style='text-align:center; color:#6f6c85; padding:24px;'>No paid weeks found yet.</td></tr>"
+        ]
+
+    page_css = """
+    <style>
+      .paymentsShell{
+        max-width: 1320px;
+        margin: 0 auto;
+        padding: 6px 0 18px;
+      }
+
+      .paymentsHeader{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:18px;
+        margin-bottom:14px;
+      }
+
+      .paymentsEyebrow{
+        display:inline-flex;
+        align-items:center;
+        padding:8px 14px;
+        border-radius:999px;
+        border:1px solid rgba(109,40,217,.12);
+        background:rgba(109,40,217,.06);
+        color:#6d28d9;
+        font-size:12px;
+        font-weight:800;
+        text-transform:uppercase;
+        letter-spacing:.06em;
+      }
+
+      .paymentsHeader h1{
+        margin:10px 0 8px;
+        font-size:clamp(34px,4vw,46px);
+        line-height:1.02;
+        letter-spacing:-.03em;
+        color:#1f2547;
+        font-weight:900;
+      }
+
+      .paymentsHeader .sub{
+        color:#6f6c85;
+        font-size:15px;
+      }
+
+      .paymentsTableShell{
+        overflow:hidden;
+        border-radius:24px;
+        border:1px solid rgba(109,40,217,.10);
+        background:#ffffff;
+        box-shadow:0 16px 32px rgba(41,25,86,.08);
+      }
+
+      .paymentsTableTop{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:16px 18px;
+        border-bottom:1px solid rgba(109,40,217,.08);
+        background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.98));
+      }
+
+      .paymentsTableTitle{
+        font-size:18px;
+        font-weight:900;
+        color:#1f2547;
+      }
+
+      .paymentsTableMeta{
+        font-size:13px;
+        color:#8a84a3;
+        font-weight:700;
+      }
+
+      .paymentsTableWrap{
+  overflow-x:hidden;
+  overflow-y:visible;
+}
+
+.paymentsTable{
+  width:100%;
+  min-width:0;
+  border-collapse:separate;
+  border-spacing:0;
+  table-layout:fixed;
+}
+
+      .paymentsTable th,
+      .paymentsTable td{
+        padding:14px 16px;
+        border-bottom:1px solid rgba(109,40,217,.08);
+        text-align:left;
+        background:#fff;
+      }
+
+      .paymentsTable th{
+        font-size:12px;
+        text-transform:uppercase;
+        letter-spacing:.06em;
+        color:#7b7693;
+        font-weight:800;
+      }
+
+      .paymentsTable td{
+        color:#1f2547;
+        font-size:14px;
+      }
+
+      .paymentsTable td.num,
+      .paymentsTable th.num{
+        text-align:right;
+      }
+      
+      .paymentsTable th,
+.paymentsTable td{
+  padding:12px 10px;
+}
+
+.paymentsTable th:nth-child(1),
+.paymentsTable td:nth-child(1){
+  width:44%;
+  white-space:normal;
+  line-height:1.25;
+}
+
+.paymentsTable th:nth-child(2),
+.paymentsTable td:nth-child(2),
+.paymentsTable th:nth-child(3),
+.paymentsTable td:nth-child(3),
+.paymentsTable th:nth-child(4),
+.paymentsTable td:nth-child(4){
+  width:16%;
+}
+
+.paymentsTable th:nth-child(5),
+.paymentsTable td:nth-child(5){
+  width:8%;
+}
+
+      .paymentsTable tbody tr:hover td{
+        background:rgba(109,40,217,.03);
+      }
+
+      .reportsListDownloadBtn{
+        width:34px;
+        height:34px;
+        display:inline-flex;
+        align-items:center;
+        justify-content:center;
+        border-radius:999px;
+        border:1px solid rgba(109,40,217,.14);
+        background:rgba(109,40,217,.06);
+        color:#6d28d9;
+        font-size:18px;
+        font-weight:900;
+        text-decoration:none;
+        box-shadow:0 6px 14px rgba(41,25,86,.06);
+      }
+
+      .paymentsFooter{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:12px;
+        padding:12px 18px 16px;
+        border-top:1px solid rgba(109,40,217,.08);
+        background:#ffffff;
+        color:#8a84a3;
+        font-size:13px;
+      }
+
+      @media (max-width: 820px){
+        .paymentsHeader{
+          flex-direction:column;
+        }
+      }
+    </style>
+    """
+
+    content = f"""
+      {page_css}
+      {page_back_button("/", "Back to dashboard")}
+
+      <div class="paymentsShell">
+        <div class="paymentsHeader">
+          <div>
+            <div class="paymentsEyebrow">Payments</div>
+            <h1>Payments</h1>
+            <p class="sub">{escape(display_name)} • {escape(company_name)}</p>
+          </div>
+        </div>
+
+        <div class="paymentsTableShell">
+          <div class="paymentsTableTop">
+            <div class="paymentsTableTitle">Paid weeks</div>
+            <div class="paymentsTableMeta">{len(paid_rows)} paid week(s)</div>
+          </div>
+
+          <div class="paymentsTableWrap">
+            <table class="paymentsTable">
+              <thead>
+  <tr>
+    <th>Period</th>
+    <th class="num">Gross</th>
+    <th class="num">Tax</th>
+    <th class="num">Net</th>
+    <th class="num">Download</th>
+  </tr>
+</thead>
+              <tbody>
+                {''.join(row_html)}
+              </tbody>
+            </table>
+          </div>
+
+          <div class="paymentsFooter">
+            <span>Only weeks already marked as paid appear here.</span>
+          </div>
+        </div>
+      </div>
+    """
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("payments", role, content))
 
 
 @app.get("/my-reports-print")
