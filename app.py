@@ -13093,7 +13093,7 @@ def payments_page():
     <th class="num">Gross</th>
     <th class="num">CIS Tax</th>
     <th class="num">Net</th>
-    <th class="num">Download</th>
+    <th class="num"></th>
   </tr>
 </thead>
               <tbody>
