@@ -2201,7 +2201,7 @@ STYLE = """
   --border:rgba(15,23,42,.10);
   --shadow: 0 10px 28px rgba(15,23,42,.06);
   --shadow2: 0 16px 46px rgba(15,23,42,.10);
-  --radius: 18px;
+  --radius: 0px;
 
   /* Brand (finance blue) */
   --navy:#1e40af;
@@ -2242,7 +2242,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   max-width: 100%;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border-radius: 0 !important;
   box-shadow: var(--shadow);
   transition: transform .16s ease, box-shadow .16s ease, background .16s ease, border-color .16s ease;
 }
@@ -2253,7 +2253,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   justify-content:center;
   padding:6px 12px;
-  border-radius:999px;
+  border-radius: 0 !important;
   font-size:12px;
   font-weight:800;
   letter-spacing:.02em;
@@ -2282,7 +2282,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:center;
   min-height:38px;
   padding:8px 18px;
-  border-radius:16px;
+  border-radius: 0 !important;
   font-size:13px;
   font-weight:800;
   letter-spacing:.04em;
@@ -2316,7 +2316,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  border-radius:999px;
+  border-radius: 0 !important;
   border:1px solid rgba(109,40,217,.10);
   background:rgba(255,255,255,.92);
   color:#6d28d9;
@@ -2335,7 +2335,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   right:0;
   min-width:190px;
   padding:8px;
-  border-radius:18px;
+  border-radius: 0 !important;
   border:1px solid rgba(109,40,217,.10);
   background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,247,255,.98));
   box-shadow:0 18px 36px rgba(41,25,86,.14);
@@ -2353,7 +2353,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:space-between;
   gap:12px;
   padding:12px 14px;
-  border-radius:14px;
+  border-radius: 0 !important;
   text-decoration:none;
   color:#1f2547;
   font-size:14px;
@@ -2398,7 +2398,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .graphCard{
   margin-top: 12px;
   padding: 18px;
-  border-radius: 24px;
+  border-radius: 0 !important;
   border: 1px solid rgba(56,189,248,.14);
   background:
     linear-gradient(180deg, #06142b 0%, #0a2342 55%, #0d2f52 100%);
@@ -2433,7 +2433,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .graphShell{
   margin-top: 14px;
   padding: 14px 14px 10px 14px;
-  border-radius: 22px;
+  border-radius: 0 !important;
   border: 1px solid rgba(56,189,248,.12);
   background:
     linear-gradient(180deg, rgba(3,14,33,.72), rgba(5,23,48,.62)),
@@ -2479,7 +2479,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   display:flex;
   align-items:flex-end;
   justify-content:center;
-  border-radius: 18px;
+  border-radius: 0 !important;
   background:
     linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.01)),
     linear-gradient(180deg, rgba(14,165,233,.06), rgba(14,165,233,0));
@@ -2490,7 +2490,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .bar{
   width: 72%;
   min-width: 24px;
-  border-radius: 18px 18px 12px 12px;
+  border-radius: 0 !important;
   background: linear-gradient(180deg, #155eef 0%, #22d3ee 100%);
   box-shadow:
     0 14px 26px rgba(8,145,178,.22),
@@ -2527,7 +2527,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .graphStat{
   padding: 10px 12px;
-  border-radius: 16px;
+  border-radius: 0 !important;
   border: 1px solid rgba(11,18,32,.08);
   background: rgba(255,255,255,.82);
 }
@@ -2548,7 +2548,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .grossChartCard{
   margin-top: 12px;
   padding: 16px;
-  border-radius: 24px;
+  border-radius: 0 !important;
   border: 1px solid rgba(109,40,217,.12);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,243,255,.98));
   box-shadow: 0 16px 36px rgba(41,25,86,.08);
@@ -2563,7 +2563,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .grossSummaryBox{
   min-width:0;
   padding:14px 16px;
-  border-radius:18px;
+  border-radius: 0 !important;
   border:1px solid rgba(109,40,217,.10);
   background: rgba(255,255,255,.92);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
@@ -2690,7 +2690,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width:100%;
   max-width:52px;
   background:#000;
-  border-radius:0;
+  border-radius: 0 !important;
 }
 
 .grossChartBarLabel{
@@ -2815,7 +2815,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:space-between;
   gap:10px;
   padding:12px 12px;
-  border-radius:16px;
+  border-radius: 0 !important;
   border:1px solid rgba(59,130,246,.12);
   background: rgba(255,255,255,.88);
   transition: transform .16s ease, box-shadow .16s ease;
@@ -2823,7 +2823,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .dashboardProgressRow{
   margin-top: 12px;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 0 !important;
   border: 1px solid rgba(109,40,217,.10);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.96));
 }
@@ -2847,7 +2847,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .dashboardProgressBar{
   width:100%;
   height:10px;
-  border-radius:999px;
+  border-radius: 0 !important;
   background: rgba(109,40,217,.10);
   overflow:hidden;
 }
@@ -2855,7 +2855,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .dashboardProgressBar span{
   display:block;
   height:100%;
-  border-radius:999px;
+  border-radius: 0 !important;
   background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
   transition: width .25s ease;
 }
@@ -2873,7 +2873,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .quickMini .miniIcon{
   width:36px;
   height:36px;
-  border-radius:12px;
+  border-radius: 0 !important;
   display:grid;
   place-items:center;
   color: var(--navy);
@@ -2900,7 +2900,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   gap:8px;
   align-items:center;
   padding:10px 10px;
-  border-radius:14px;
+  border-radius: 0 !important;
   border:1px solid rgba(139,92,246,.12);
   background: rgba(255,255,255,.88);
   font-size:12px;
@@ -2921,7 +2921,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .activityEmpty{
   margin-top:10px;
   padding:14px;
-  border-radius:14px;
+  border-radius: 0 !important;
   border:1px dashed rgba(11,18,32,.14);
   color: var(--muted);
   font-weight:600;
@@ -2949,7 +2949,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .sideInfoCard{
   padding: 14px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   border: 1px solid rgba(11,18,32,.08);
   background: rgba(255,255,255,.82);
 }
@@ -2967,7 +2967,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:space-between;
   gap:10px;
   padding:10px 12px;
-  border-radius:14px;
+  border-radius: 0 !important;
   border:1px solid rgba(34,197,94,.12);
   background: rgba(255,255,255,.88);
 }
@@ -2989,7 +2989,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   table-layout: fixed;
   border-collapse:separate;
   border-spacing:0;
-  border-radius:18px;
+  border-radius: 0 !important;
   background: rgba(255,255,255,.94);
   border:1px solid rgba(96,165,250,.14);
   box-shadow:
@@ -3030,7 +3030,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .payrollSummaryItem{
   padding:12px 14px;
-  border-radius:16px;
+  border-radius: 0 !important;
   border:1px solid rgba(11,18,32,.08);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
   box-shadow: 0 4px 12px rgba(15,23,42,.05);
@@ -3068,7 +3068,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .payrollEmployeeCard .payrollSummaryItem{
   padding: 3px 5px;
-  border-radius: 8px;
+  border-radius: 0 !important;
 }
 
 .payrollEmployeeCard .payrollSummaryItem .k{
@@ -3189,7 +3189,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .sectionIcon{
   width:36px;
   height:36px;
-  border-radius:12px;
+  border-radius: 0 !important;
   display:grid;
   place-items:center;
   border:1px solid rgba(11,18,32,.08);
@@ -3204,7 +3204,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   font-size:12px;
   font-weight:800;
   padding:6px 10px;
-  border-radius:999px;
+  border-radius: 0 !important;
   border:1px solid rgba(11,18,32,.08);
   background: rgba(255,255,255,.88);
   white-space:nowrap;
@@ -3257,7 +3257,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .adminGrid .menuItem{ margin-top: 0; height:100%; }
 .adminToolCard{
   padding: 16px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   border: 1px solid rgba(15,23,42,.10);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
   box-shadow: 0 10px 26px rgba(15,23,42,.08);
@@ -3281,7 +3281,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .adminToolIcon{
   width: 50px;
   height: 50px;
-  border-radius: 14px;
+  border-radius: 0 !important;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -3349,7 +3349,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Admin lower section panels */
 .adminSectionCard{
   padding: 14px;
-  border-radius: 20px;
+  border-radius: 0 !important;
   border: 1px solid rgba(15,23,42,.10);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
   box-shadow: 0 10px 26px rgba(15,23,42,.07);
@@ -3373,7 +3373,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .adminSectionIcon{
   width: 46px;
   height: 46px;
-  border-radius: 14px;
+  border-radius: 0 !important;
   display:grid;
   place-items:center;
   border: 1px solid rgba(15,23,42,.08);
@@ -3423,7 +3423,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   width: 100%;
   padding: 12px;
-  border-radius: 16px;
+  border-radius: 0 !important;
   background: linear-gradient(180deg, rgba(248,250,252,.95), rgba(241,245,249,.92));
   border: 1px solid rgba(15,23,42,.08);
 }
@@ -3431,7 +3431,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .adminActionBar .input{
   width: 100%;
   height: 44px;
-  border-radius: 14px;
+  border-radius: 0 !important;
   background: rgba(255,255,255,.96);
 }
 
@@ -3453,7 +3453,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   padding: 0 18px;
   justify-self: start;
   border: none;
-  border-radius: 14px;
+  border-radius: 0 !important;
   font-weight: 800;
   font-size: 14px;
   cursor: pointer;
@@ -3476,7 +3476,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   gap:6px;
   padding: 7px 11px;
-  border-radius: 999px;
+  border-radius: 0 !important;
   font-size: 12px;
   font-weight: 800;
   background: rgba(30,64,175,.08);
@@ -3493,7 +3493,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:space-between;
   gap:12px;
   padding: 14px 14px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   background: rgba(255,255,255,.85);
   border: 1px solid rgba(11,18,32,.08);
   margin-top: 10px;
@@ -3584,7 +3584,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .menuLeft{ display:flex; align-items:center; gap:12px; }
 .icoBox{
   width: 44px; height: 44px;
-  border-radius: 14px;
+  border-radius: 0 !important;
   background: rgba(255,255,255,.92);
   border: 1px solid rgba(11,18,32,.08);
   display:grid; place-items:center;
@@ -3609,7 +3609,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .input{
   width:100%;
   padding: 12px 12px;
-  border-radius: 16px;
+  border-radius: 0 !important;
   border: 1px solid rgba(11,18,32,.12);
   background: rgba(255,255,255,.92);
   font-size: 15px;
@@ -3624,7 +3624,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 /* Buttons */
 .btn{
   border:none;
-  border-radius: 18px;
+  border-radius: 0 !important;
   padding: 14px 12px;
   font-weight:700;
   font-size: 15px;
@@ -3640,7 +3640,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .btnSoft{
   width:100%;
   border:none;
-  border-radius: 18px;
+  border-radius: 0 !important;
   padding: 12px 12px;
   font-weight:700;
   font-size: 14px;
@@ -3665,7 +3665,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 .btnTiny{
   border: 1px solid rgba(15,23,42,.14);
-  border-radius: 999px;
+  border-radius: 0 !important;
   padding: 6px 10px;
   font-weight:700;
   font-size: 12px;
@@ -3702,7 +3702,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .message{
   margin-top: 12px;
   padding: 12px 14px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   font-weight:700;
   text-align:center;
   background: rgba(22,163,74,.10);
@@ -3717,7 +3717,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   padding:0 12px;
   background:#f8fafc;
   border:1px solid #e2e8f0;
-  border-radius:999px;
+  border-radius: 0 !important;
   color:#334155;
   font-size:13px;
   font-weight:700;
@@ -3748,7 +3748,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   overflow-x: auto;
   overflow-y: hidden;
   -webkit-overflow-scrolling: touch;
-  border-radius: 18px;
+  border-radius: 0 !important;
   border:1px solid rgba(11,18,32,.10);
   background: rgba(255,255,255,.65);
   backdrop-filter: blur(8px);
@@ -3806,7 +3806,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:center;
   gap:6px;
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: 0 !important;
   border: 1px solid rgba(15,23,42,.14);
   background: rgba(30,64,175,.08);
   color: rgba(30,64,175,1);
@@ -4054,7 +4054,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   }
 
   .tablewrap{
-    border-radius: 14px;
+    border-radius: 0 !important;
   }
 }
 /* Status chips */
@@ -4063,7 +4063,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   gap:6px;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: 0 !important;
   font-size: 12px;
   font-weight:700;
   border: 1px solid rgba(11,18,32,.12);
@@ -4091,7 +4091,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .avatar{
   width: 34px;
   height: 34px;
-  border-radius: 999px;
+  border-radius: 0 !important;
   display:grid;
   place-items:center;
   font-weight:800;
@@ -4110,7 +4110,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .weekPill{
   font-size: 12px;
   padding: 7px 10px;
-  border-radius: 999px;
+  border-radius: 0 !important;
   font-weight:700;
   border: 1px solid rgba(11,18,32,.12);
   background: rgba(255,255,255,.75);
@@ -4151,7 +4151,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollWeekBar{
   margin-top: 14px;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   border: 1px solid rgba(129,140,248,.32);
   background:
     radial-gradient(circle at top right, rgba(56,189,248,.16), transparent 34%),
@@ -4178,7 +4178,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width:max-content;
   max-width:100%;
   padding:6px 10px;
-  border-radius:999px;
+  border-radius: 0 !important;
   border:1px solid rgba(125,211,252,.26);
   background: rgba(37,99,235,.18);
   color:#dbeafe;
@@ -4401,7 +4401,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollPie{
   width: 330px;
   height: 330px;
-  border-radius: 999px;
+  border-radius: 50% !important;
   box-shadow:
     inset 0 1px 0 rgba(255,255,255,.28),
     0 18px 34px rgba(37,99,235,.16);
@@ -4511,7 +4511,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .kpiMini{
   padding: 12px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   border: 1px solid rgba(11,18,32,.10);
   background: rgba(255,255,255,.80);
 }
@@ -4520,7 +4520,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 /* Admin summary cards - same theme as dashboard chart */
 .adminStats .adminStatCard{
-  border-radius: 18px;
+  border-radius: 0 !important;
   border: 1px solid rgba(56,189,248,.14);
   box-shadow:
     0 18px 40px rgba(2,6,23,.22),
@@ -4569,7 +4569,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   gap:8px;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: 0 !important;
   border: 1px solid rgba(30,64,175,.18);
   background: rgba(30,64,175,.10);
   color: var(--navy);
@@ -4589,7 +4589,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   display:inline-flex;
   align-items:center;
   padding: 4px 10px;
-  border-radius:999px;
+  border-radius: 0 !important;
   font-size:12px;
   font-weight:800;
   background: rgba(245,158,11,.14);
@@ -4601,7 +4601,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .contractBox{
   margin-top: 12px;
   padding: 12px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   border: 1px solid rgba(11,18,32,.10);
   background: rgba(248,250,252,.90);
   max-height: 320px;
@@ -4710,7 +4710,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     padding: 12px;
     background: linear-gradient(180deg, rgba(255,255,255,.88), rgba(248,250,252,.92));
     border: 1px solid rgba(30,64,175,.10);
-    border-radius: 16px;
+    border-radius: 0 !important;
     box-shadow: 0 10px 30px rgba(15,23,42,.08);
   }
   .sideScroll{
@@ -4730,7 +4730,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     justify-content:space-between;
     gap:10px;
     padding: 10px 11px;
-    border-radius: 14px;
+    border-radius: 0 !important;
     background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(248,250,252,.96));
     border: 1px solid rgba(30,64,175,.08);
     margin-top: 8px;
@@ -4756,7 +4756,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     top:10px;
     bottom:10px;
     width:4px;
-    border-radius: 999px;
+    border-radius: 0 !important;
     background: linear-gradient(180deg, rgba(30,64,175,1), rgba(30,64,175,.55));
     box-shadow: 0 0 0 3px rgba(30,64,175,.10);
   }
@@ -4766,7 +4766,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   .sideIcon{
   width: 40px;
   height: 40px;
-  border-radius: 12px;
+  border-radius: 0 !important;
   background: linear-gradient(180deg, rgba(239,246,255,.95), rgba(219,234,254,.90));
   border: 1px solid rgba(30,64,175,.12);
   display:flex;
@@ -4887,7 +4887,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   min-width:0;
   background: linear-gradient(180deg, rgba(248,251,255,.99), rgba(243,248,255,.99));
   border:1px solid rgba(96,165,250,.16);
-  border-radius:22px;
+  border-radius: 0 !important;
   overflow-x:auto;
   overflow-y:hidden;
   -webkit-overflow-scrolling:touch;
@@ -5038,7 +5038,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   min-height:74px;
   justify-content:flex-start;
   padding:0;
-  border-radius:0;
+  border-radius: 0 !important;
   background:transparent;
   border:none;
   box-shadow:none;
@@ -5074,7 +5074,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   font-size:20px;
   font-weight:700;
   color:rgba(100,116,139,.55);
-  border-radius:0;
+  border-radius: 0 !important;
   border:none;
   background:transparent;
 }
@@ -5082,7 +5082,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .payrollDayCellOT{
   background:rgba(255,247,237,.92) !important;
   box-shadow:inset 0 0 0 1px rgba(251,191,36,.20);
-  border-radius:12px;
+  border-radius: 0 !important;
 }
 
 .payrollSheet tbody tr:hover td.payrollDayCellOT,
@@ -5116,7 +5116,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   line-height:22px;
   padding:0 2px 0 0;
   border:none;
-  border-radius:8px;
+  border-radius: 0 !important;
   background:transparent;
   box-shadow:none;
   font-size:13px;
@@ -5221,7 +5221,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   gap:6px;
   min-height:34px;
   padding:0 12px;
-  border-radius:12px;
+  border-radius: 0 !important;
   background:linear-gradient(180deg, rgba(220,252,231,.96), rgba(209,250,229,.96));
   border:1px solid rgba(34,197,94,.18);
   color:rgba(21,128,61,.98);
@@ -5245,7 +5245,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   min-height:38px;
   padding:7px 12px;
   border:1px solid rgba(251,191,36,.26);
-  border-radius:12px;
+  border-radius: 0 !important;
   background:linear-gradient(180deg, rgba(255,247,237,.98), rgba(254,243,199,.96));
   color:rgba(15,23,42,.96);
   font-size:12px;
@@ -5277,7 +5277,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   margin:0;
   min-height:20px;
   padding:0 8px;
-  border-radius:999px;
+  border-radius: 0 !important;
   font-size:10px;
   font-weight:900;
   color:rgba(146,64,14,.95);
@@ -5443,7 +5443,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items: center;
   justify-content: center;
   border: 1px solid rgba(220,38,38,.22);
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 !important;
   background: linear-gradient(180deg, rgba(254,242,242,.98), rgba(252,231,243,.96));
   color: transparent;
   font-size: 0;
@@ -5571,7 +5571,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
   .payrollEmployeeCard .payrollSummaryItem{
   padding: 3px 5px;
-  border-radius: 8px;
+  border-radius: 0 !important;
 }
 
 .payrollEmployeeCard .payrollSummaryItem .k{
@@ -5631,7 +5631,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   right:10px;
   bottom:6px;
   height:4px;
-  border-radius:999px;
+  border-radius: 0 !important;
   background:linear-gradient(90deg, #60a5fa, #2563eb);
   box-shadow:0 0 0 3px rgba(59,130,246,.12);
 }
@@ -5651,7 +5651,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   background:transparent !important;
   border:0 !important;
   box-shadow:none !important;
-  border-radius:0 !important;
+  border-radius: 0 !important;
   padding:0 !important;
   display:flex !important;
   align-items:center !important;
@@ -5691,7 +5691,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width: 32px !important;
   height: 32px !important;
   padding: 0 !important;
-  border-radius: 999px !important;
+  border-radius: 0 !important;
   border: 1px solid rgba(148,163,184,.34) !important;
   background: rgba(255,255,255,.96) !important;
   color: transparent !important;
@@ -5823,7 +5823,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   --border:rgba(107,70,193,.12) !important;
   --shadow:0 12px 30px rgba(41,25,86,.08) !important;
   --shadow2:0 20px 42px rgba(41,25,86,.12) !important;
-  --radius:18px !important;
+  --radius:0px;
 
   /* Re-map existing theme vars without touching app logic */
   --navy:#6d28d9 !important;
@@ -5863,7 +5863,7 @@ body{
 .icoBox{
   background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(250,248,255,.98)) !important;
   border: 1px solid rgba(109,40,217,.10) !important;
-  border-radius: 18px !important;
+  border-radius: 0 !important;
   box-shadow: 0 12px 28px rgba(41,25,86,.08) !important;
   color: var(--text) !important;
 }
@@ -5905,7 +5905,7 @@ body{
 .tablewrap,
 .payrollWrap,
 .contractBox{
-  border-radius: 16px !important;
+  border-radius: 0 !important;
 }
 
 /* brand badges / pills */
@@ -5962,7 +5962,7 @@ textarea.input{
   background: rgba(255,255,255,.98) !important;
   color: #27253a !important;
   border: 1px solid rgba(148,163,184,.34) !important;
-  border-radius: 14px !important;
+  border-radius: 0 !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.75) !important;
 }
 .input::placeholder,
@@ -6180,7 +6180,7 @@ h2{
 .sidebar{
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,241,255,.96)) !important;
   border: 1px solid rgba(109,40,217,.10) !important;
-  border-radius: 20px !important;
+  border-radius: 0 !important;
   box-shadow: 0 18px 40px rgba(41,25,86,.08) !important;
 }
 .sideTitle,
@@ -6192,7 +6192,7 @@ h2{
 .menuItem{
   background: rgba(255,255,255,.82) !important;
   border: 1px solid rgba(109,40,217,.08) !important;
-  border-radius: 16px !important;
+  border-radius: 0 !important;
   box-shadow: none !important;
 }
 .sideItem:hover,
@@ -6256,7 +6256,7 @@ h2{
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.96)) !important;
   border: 1px solid rgba(109,40,217,.10) !important;
   box-shadow: 0 10px 22px rgba(41,25,86,.06) !important;
-  border-radius: 16px !important;
+  border-radius: 0 !important;
 }
 .quickMini .miniIcon{
   color: #000000 !important;
@@ -6657,7 +6657,7 @@ button{
   min-width:32px;
   padding:0;
   border:1px solid rgba(148,163,184,.34);
-  border-radius:999px;
+  border-radius: 0 !important;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -6693,7 +6693,7 @@ button{
   background:linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.97));
   border:1px solid rgba(109,40,217,.12);
   box-shadow:0 14px 28px rgba(41,25,86,.07);
-  border-radius:22px;
+  border-radius: 0 !important;
   padding:16px;
 }
 
@@ -6707,7 +6707,7 @@ button{
 .dashboardMiniStatusIcon{
   width:44px;
   height:44px;
-  border-radius:14px;
+  border-radius: 0 !important;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -6756,7 +6756,7 @@ button{
 .dashboardMiniTargetBar{
   width:100%;
   height:12px;
-  border-radius:999px;
+  border-radius: 0 !important;
   background:rgba(109,40,217,.10);
   overflow:hidden;
 }
@@ -6764,7 +6764,7 @@ button{
 .dashboardMiniTargetBar span{
   display:block;
   height:100%;
-  border-radius:999px;
+  border-radius: 0 !important;
   background:linear-gradient(90deg, #7c3aed 0%, #2563eb 100%);
   transition:width .25s ease;
 }
@@ -6778,13 +6778,13 @@ button{
 
   .dashboardMiniStatusCard{
     padding:14px;
-    border-radius:20px;
+    border-radius: 0 !important;
   }
 
   .dashboardMiniStatusIcon{
     width:40px;
     height:40px;
-    border-radius:12px;
+    border-radius: 0 !important;
     flex-basis:40px;
   }
 
@@ -6929,6 +6929,7 @@ def _icon_timelogs(size=22): return _app_icon("timelogs.png", size, "Time Logs")
 
 
 def _icon_timesheets(size=22): return _app_icon("timesheets.png", size, "Timesheets")
+
 
 def _icon_payments(size=22):
     return f'''
@@ -9815,7 +9816,7 @@ def login():
 
       .loginCardPro{
         overflow: hidden;
-        border-radius: 28px !important;
+        border-radius: 0 !important;
         border: 1px solid rgba(109,40,217,.10) !important;
         background:
           radial-gradient(circle at top right, rgba(109,40,217,.05), transparent 32%),
@@ -9838,7 +9839,7 @@ def login():
         display: inline-flex;
         align-items: center;
         padding: 8px 14px;
-        border-radius: 999px;
+        border-radius: 0 !important;
         border: 1px solid rgba(109,40,217,.12);
         background: rgba(109,40,217,.06);
         color: #7c3aed;
@@ -9873,7 +9874,7 @@ def login():
         justify-content: center;
         min-height: 48px;
         padding: 0 18px;
-        border-radius: 18px;
+        border-radius: 0 !important;
         border: 1px solid rgba(37,99,235,.10);
         background: linear-gradient(180deg, #f3f7ff, #edf2ff);
         color: #4f46e5;
@@ -9914,7 +9915,7 @@ def login():
         margin-top: 0 !important;
         height: 56px !important;
         padding: 0 16px !important;
-        border-radius: 18px !important;
+        border-radius: 0 !important;
         border: 1px solid rgba(109,40,217,.12) !important;
         background: #ffffff !important;
         color: #1f2547 !important;
@@ -9936,7 +9937,7 @@ def login():
         width: 100%;
         min-height: 58px;
         border: 0;
-        border-radius: 18px;
+        border-radius: 0 !important;
         background: linear-gradient(90deg, #2563eb, #5b8cff);
         color: #ffffff;
         font-size: 17px;
@@ -9965,7 +9966,7 @@ def login():
 
       .loginMetaCard{
         padding: 14px 16px;
-        border-radius: 20px;
+        border-radius: 0 !important;
         border: 1px solid rgba(109,40,217,.10);
         background: linear-gradient(180deg, #ffffff, #f8f7ff);
         box-shadow: 0 10px 24px rgba(41,25,86,.06);
@@ -10587,7 +10588,7 @@ def home():
 </div>
 
       {chart_section_html}
-      
+
       <div class="dashboardMiniStatus">
   <div class="dashboardMiniStatusCard">
     <div class="dashboardMiniStatusTop">
@@ -11038,7 +11039,7 @@ def clock_page():
 .clockInlineMsg {{
   margin: 0 0 18px;
   padding: 14px 16px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   border: 1px solid rgba(220,38,38,.16);
   background: linear-gradient(180deg, #fff5f5, #ffffff);
   color: #b91c1c;
@@ -11053,7 +11054,7 @@ def clock_page():
 
 .clockStep {{
   padding: 28px 22px 30px;
-  border-radius: 30px;
+  border-radius: 0 !important;
   border: 1px solid rgba(109,40,217,.10);
   background:
     radial-gradient(circle at top right, rgba(109,40,217,.05), transparent 34%),
@@ -11081,7 +11082,7 @@ def clock_page():
 }}
 
 .clockStageCard {{
-  border-radius: 24px;
+  border-radius: 0 !important;
   border: 1px solid rgba(109,40,217,.10);
   overflow: hidden;
   background: #ffffff;
@@ -11125,7 +11126,7 @@ def clock_page():
   display: none;
   width: 100%;
   min-height: 320px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   object-fit: cover;
   background: #e9eefb;
   border: 1px solid rgba(109,40,217,.10);
@@ -11145,7 +11146,7 @@ def clock_page():
 .clockSecondaryAction,
 .clockGhostBtn {{
   border: 0;
-  border-radius: 18px;
+  border-radius: 0 !important;
   font-weight: 800;
   transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease, filter .18s ease;
 }}
@@ -11195,7 +11196,7 @@ def clock_page():
   margin: 20px auto 16px;
   max-width: 520px;
   padding: 14px 18px;
-  border-radius: 18px;
+  border-radius: 0 !important;
   text-align: center;
   border: 1px solid rgba(220,38,38,.14);
   background: linear-gradient(180deg, #fff7f7, #ffffff);
@@ -11232,7 +11233,7 @@ def clock_page():
 }}
 
 .clockMapShell {{
-  border-radius: 24px;
+  border-radius: 0 !important;
   overflow: hidden;
   border: 1px solid rgba(109,40,217,.10);
   box-shadow: 0 14px 30px rgba(41,25,86,.08);
@@ -11275,7 +11276,7 @@ def clock_page():
   height: 32px;
   display: inline-grid;
   place-items: center;
-  border-radius: 999px;
+  border-radius: 0 !important;
   background: rgba(109,40,217,.10);
   color: #6d28d9;
   font-size: 18px;
@@ -11286,7 +11287,7 @@ def clock_page():
   width: min(220px, 52vw);
   aspect-ratio: 1 / 1;
   margin: 0 auto 28px;
-  border-radius: 22px;
+  border-radius: 0 !important;
   object-fit: cover;
   background: #ffffff;
   border: 1px solid rgba(109,40,217,.10);
@@ -11389,7 +11390,7 @@ def clock_page():
   .clockFlowWrap {{ padding-top: 10px; }}
   .clockStep {{
     padding: 22px 14px 24px;
-    border-radius: 24px;
+    border-radius: 0 !important;
   }}
   .clockHeroTitle {{
     font-size: 28px;
@@ -11418,7 +11419,7 @@ def clock_page():
     min-height: 72px;
     font-size: 20px;
   }}
-}} .clockFlowWrap {{ padding-top: 10px; }} .clockStep {{ padding: 22px 14px 24px; border-radius: 24px; }} .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }} .clockSelfieStage {{ min-height: 240px; padding: 16px; }} .clockSelfieVideo {{ min-height: 240px; }} .clockCaptureBar {{ flex-direction: column; }} .clockGhostBtn {{ width: 100%; min-height: 58px; }} .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }} .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }} }}
+}} .clockFlowWrap {{ padding-top: 10px; }} .clockStep {{ padding: 22px 14px 24px; border-radius: 0 !important; }} .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }} .clockSelfieStage {{ min-height: 240px; padding: 16px; }} .clockSelfieVideo {{ min-height: 240px; }} .clockCaptureBar {{ flex-direction: column; }} .clockGhostBtn {{ width: 100%; min-height: 58px; }} .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }} .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }} }}
 
       </style>
 
@@ -11836,7 +11837,7 @@ def my_times():
       .timeLogsPageShell{ display:grid; gap:14px; }
       .timeLogsHero{
         padding:18px;
-        border-radius:24px;
+        border-radius: 0 !important;
         border:1px solid rgba(96,165,250,.16);
         background:linear-gradient(180deg, rgba(245,243,255,.98), rgba(255,255,255,.98));
         box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
@@ -11848,16 +11849,16 @@ def my_times():
         box-shadow:0 14px 30px rgba(15,23,42,.06);
       }
       .timeLogsHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#6d28d9; background:rgba(139,92,246,.10); border:1px solid rgba(139,92,246,.16); }
+      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius: 0 !important; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#6d28d9; background:rgba(139,92,246,.10); border:1px solid rgba(139,92,246,.16); }
       .timeLogsHero h1{ margin:12px 0 0; font-size:clamp(34px, 5vw, 46px); color:var(--text); }
       .timeLogsHero .sub{ color:var(--muted); }
       .timeLogsSummaryGrid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
-      .timeLogsSummaryCard{ padding:14px 16px; border-radius:20px; }
+      .timeLogsSummaryCard{ padding:14px 16px; border-radius: 0 !important; }
       .timeLogsSummaryCard .k{ font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#64748b; }
       .timeLogsSummaryCard .v{ margin-top:8px; font-size:clamp(24px, 3vw, 34px); font-weight:800; color:var(--text); }
       .timeLogsSummaryCard .sub{ margin-top:6px; color:var(--muted); }
-      .timeLogsTableCard{ padding:12px; border-radius:24px; }
-      .timeLogsTable{ width:100%; min-width:720px; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid rgba(15,23,42,.08); border-radius:18px; background:rgba(255,255,255,.98); }
+      .timeLogsTableCard{ padding:12px; border-radius: 0 !important; }
+      .timeLogsTable{ width:100%; min-width:720px; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid rgba(15,23,42,.08); border-radius: 0 !important; background:rgba(255,255,255,.98); }
       .timeLogsTable thead th{ padding:14px 16px; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#475569; background:linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.98)); border-bottom:1px solid rgba(15,23,42,.08); }
       .timeLogsTable tbody td{ padding:16px; color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; border-bottom:1px solid rgba(15,23,42,.08); }
       .timeLogsTable tbody tr:nth-child(even) td{ background:rgba(248,250,252,.92); }
@@ -11865,7 +11866,7 @@ def my_times():
       .timeLogsTable td.num, .timeLogsTable th.num{ text-align:right; }
       .timeLogsTable tbody tr:last-child td{ border-bottom:0; }
       @media (max-width: 960px){ .timeLogsSummaryGrid{ grid-template-columns:1fr 1fr; } }
-      @media (max-width: 700px){ .timeLogsSummaryGrid{ grid-template-columns:1fr; } .timeLogsHero{ padding:16px; border-radius:20px; } .timeLogsTableCard{ padding:10px; border-radius:20px; } }
+      @media (max-width: 700px){ .timeLogsSummaryGrid{ grid-template-columns:1fr; } .timeLogsHero{ padding:16px; border-radius: 0 !important; } .timeLogsTableCard{ padding:10px; border-radius: 0 !important; } }
     </style>
     """
 
@@ -12157,7 +12158,7 @@ def my_reports():
         display:inline-flex;
         align-items:center;
         padding:8px 14px;
-        border-radius:999px;
+        border-radius: 0 !important;
         border:1px solid rgba(109,40,217,.12);
         background:rgba(109,40,217,.06);
         color:#6d28d9;
@@ -12195,7 +12196,7 @@ def my_reports():
         justify-content:center;
         min-height:46px;
         padding:0 16px;
-        border-radius:14px;
+        border-radius: 0 !important;
         font-weight:800;
         background:#ffffff;
         border:1px solid rgba(109,40,217,.12);
@@ -12210,7 +12211,7 @@ def my_reports():
         justify-content:center;
         min-height:46px;
         padding:0 18px;
-        border-radius:14px;
+        border-radius: 0 !important;
         font-weight:800;
         color:#ffffff;
         background:linear-gradient(90deg, #6d28d9, #2563eb);
@@ -12219,7 +12220,7 @@ def my_reports():
 
       .reportsListTableShell{
         border:1px solid rgba(109,40,217,.10);
-        border-radius:24px;
+        border-radius: 0 !important;
         overflow:hidden;
         background:linear-gradient(180deg, #ffffff, #fbfaff);
         box-shadow:0 18px 36px rgba(41,25,86,.08);
@@ -12332,7 +12333,7 @@ def my_reports():
         justify-content:center;
         width:34px;
         height:34px;
-        border-radius:999px;
+        border-radius: 0 !important;
         border:1px solid rgba(109,40,217,.14);
         background:rgba(109,40,217,.06);
         color:#6d28d9;
@@ -12447,7 +12448,7 @@ def my_reports():
           </div>
 
         </div>
-        
+
         <div class="reportsListTableShell">
           <div class="reportsListTableTop">
             <div class="reportsListTableTitle">All weekly timesheets</div>
@@ -12484,11 +12485,12 @@ def my_reports():
             </table>
           </div>
 
-        
+
         </div>
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
+
 
 @app.get("/payments")
 def payments_page():
@@ -12636,7 +12638,7 @@ def payments_page():
         display:inline-flex;
         align-items:center;
         padding:8px 14px;
-        border-radius:999px;
+        border-radius: 0 !important;
         border:1px solid rgba(109,40,217,.12);
         background:rgba(109,40,217,.06);
         color:#6d28d9;
@@ -12662,7 +12664,7 @@ def payments_page():
 
       .paymentsTableShell{
         overflow:hidden;
-        border-radius:24px;
+        border-radius: 0 !important;
         border:1px solid rgba(109,40,217,.10);
         background:#ffffff;
         box-shadow:0 16px 32px rgba(41,25,86,.08);
@@ -12728,7 +12730,7 @@ def payments_page():
       .paymentsTable th.num{
         text-align:right;
       }
-      
+
       .paymentsTable th,
 .paymentsTable td{
   padding:12px 10px;
@@ -12765,7 +12767,7 @@ def payments_page():
         display:inline-flex;
         align-items:center;
         justify-content:center;
-        border-radius:999px;
+        border-radius: 0 !important;
         border:1px solid rgba(109,40,217,.14);
         background:rgba(109,40,217,.06);
         color:#6d28d9;
@@ -12831,7 +12833,7 @@ def payments_page():
             </table>
           </div>
 
-          
+
         </div>
       </div>
     """
@@ -13019,7 +13021,7 @@ def my_reports_print():
       .printCard{
         background: #ffffff;
         border: 1px solid #e6e8f0;
-        border-radius: 0;
+        border-radius: 0 !important;
         box-shadow: 0 18px 40px rgba(15,23,42,.08);
         overflow: hidden;
       }
@@ -13181,7 +13183,7 @@ def my_reports_print():
       .statementTableWrap{
         margin-top: 8px;
         border: 1px solid #e5e7eb;
-        border-radius: 0;
+        border-radius: 0 !important;
         overflow: hidden;
       }
 
@@ -13231,7 +13233,7 @@ def my_reports_print():
 
       .statementTotalCard{
         border: 1px solid #e5e7eb;
-        border-radius: 0;
+        border-radius: 0 !important;
         background: #ffffff;
         padding: 10px 12px;
       }
@@ -14050,17 +14052,17 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
           box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
         }
-        .onboardIntroCard{ padding:18px; border-radius:24px; margin-bottom:12px; }
+        .onboardIntroCard{ padding:18px; border-radius: 0 !important; margin-bottom:12px; }
         .onboardHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-        .onboardEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1d4ed8; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
+        .onboardEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius: 0 !important; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1d4ed8; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px; }
         .onboardIntroCard h1{ color:var(--text); margin:0; }
         .onboardIntroCard .sub{ color:var(--muted); }
         .onboardMiniGrid{ display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:12px; margin-top:14px; }
-        .onboardMiniStat{ padding:12px 14px; border-radius:18px; background:linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.98)); border:1px solid rgba(15,23,42,.08); }
+        .onboardMiniStat{ padding:12px 14px; border-radius: 0 !important; background:linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.98)); border:1px solid rgba(15,23,42,.08); }
         .onboardMiniStat .k{ font-size:11px; font-weight:800; text-transform:uppercase; letter-spacing:.05em; color:#64748b; }
         .onboardMiniStat .v{ margin-top:6px; font-size:15px; font-weight:700; color:var(--text); }
-        .onboardShell{ padding:16px; border-radius:24px; }
-        .onboardShell form > h2{ margin:18px 0 10px; padding:10px 14px; border-radius:16px; background:linear-gradient(180deg, rgba(241,245,249,.98), rgba(226,232,240,.96)); border:1px solid rgba(148,163,184,.18); color:var(--text); font-size:18px; font-weight:800; }
+        .onboardShell{ padding:16px; border-radius: 0 !important; }
+        .onboardShell form > h2{ margin:18px 0 10px; padding:10px 14px; border-radius: 0 !important; background:linear-gradient(180deg, rgba(241,245,249,.98), rgba(226,232,240,.96)); border:1px solid rgba(148,163,184,.18); color:var(--text); font-size:18px; font-weight:800; }
         .onboardShell .sub, .onboardShell label{ color:#64748b; }
         .onboardShell .uploadTitle{ margin-top:12px; font-size:13px; font-weight:800; letter-spacing:.03em; color:var(--text); }
         .onboardShell .row2{ display:grid; grid-template-columns:repeat(2, minmax(0,1fr)); gap:12px; align-items:start; }
@@ -14068,7 +14070,7 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
         .onboardShell .input::placeholder{ color:#94a3b8; }
         .onboardShell .input:focus{ border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.10); }
         .onboardShell .contractBox{ background:rgba(248,250,252,.96); border:1px solid rgba(15,23,42,.08); color:var(--text); }
-        .onboardActionRow{ position:sticky; bottom:10px; z-index:3; margin-top:18px !important; padding:12px; border-radius:18px; background:rgba(255,255,255,.92); border:1px solid rgba(15,23,42,.08); box-shadow:0 18px 36px rgba(15,23,42,.08); backdrop-filter:blur(10px); }
+        .onboardActionRow{ position:sticky; bottom:10px; z-index:3; margin-top:18px !important; padding:12px; border-radius: 0 !important; background:rgba(255,255,255,.92); border:1px solid rgba(15,23,42,.08); box-shadow:0 18px 36px rgba(15,23,42,.08); backdrop-filter:blur(10px); }
         .onboardDraftBtn, .onboardFinalBtn{ min-height:52px; width:100%; }
         .onboardDraftBtn{ background:rgba(255,255,255,.96); color:#1e40af; border:1px solid rgba(30,64,175,.14); }
         .onboardFinalBtn{ background:linear-gradient(90deg, #2563eb, #4f7cff) !important; color:#fff; box-shadow:0 14px 28px rgba(37,99,235,.20); }
@@ -14693,18 +14695,18 @@ def admin():
           background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
           box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
         }}
-        .adminHeroCard{{padding:18px; border-radius:24px; margin-bottom:12px;}}
+        .adminHeroCard{{padding:18px; border-radius: 0 !important; margin-bottom:12px;}}
         .adminHeroTop{{display:flex; justify-content:space-between; gap:16px; align-items:flex-start; flex-wrap:wrap;}}
-        .adminHeroEyebrow{{display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius:999px; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1d4ed8; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px;}}
+        .adminHeroEyebrow{{display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius: 0 !important; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#1d4ed8; background:rgba(59,130,246,.10); border:1px solid rgba(96,165,250,.18); margin-bottom:10px;}}
         .adminHeroCard h1{{color:var(--text); margin:0;}}
         .adminHeroCard .sub{{color:var(--muted);}}
-        .adminForceCard{{margin-top:12px; padding:16px; border-radius:24px;}}
+        .adminForceCard{{margin-top:12px; padding:16px; border-radius: 0 !important;}}
         .adminActionBar{{background:rgba(248,250,252,.96); border:1px solid rgba(15,23,42,.08);}}
         .adminActionBar .input{{background:rgba(255,255,255,.96); border:1px solid rgba(15,23,42,.10); color:var(--text); box-shadow:none;}}
         .adminActionBar .input:focus{{border-color:rgba(96,165,250,.34); box-shadow:0 0 0 3px rgba(37,99,235,.10);}}
         .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.20);}}
       </style>
-      
+
       {admin_back_link("/")}
 
       <div class="adminHeroCard plainSection">
@@ -14861,7 +14863,7 @@ def admin_back_link(href: str = "/admin") -> str:
              justify-content:center;
              width:32px;
              height:32px;
-             border-radius:999px;
+             border-radius: 0 !important;
              background:#ffffff;
              border:1px solid #cbd5e1;
              color:#64748b;
@@ -15570,13 +15572,13 @@ def admin_payroll():
 
     week_nav_html = f"""
       <form method="GET"
-            style="margin-top:14px; display:flex; flex-wrap:wrap; gap:16px; align-items:end; justify-content:space-between; padding:18px 20px; border-radius:24px; border:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#f8f7ff); box-shadow:0 14px 30px rgba(41,25,86,.08);">
+            style="margin-top:14px; display:flex; flex-wrap:wrap; gap:16px; align-items:end; justify-content:space-between; padding:18px 20px; border-radius: 0 !important; border:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#f8f7ff); box-shadow:0 14px 30px rgba(41,25,86,.08);">
         <input type="hidden" name="q" value="{escape(q)}">
         <input type="hidden" name="from" value="{escape(date_from)}">
         <input type="hidden" name="to" value="{escape(date_to)}">
 
         <div style="flex:1 1 320px; min-width:260px;">
-          <div style="display:inline-flex; align-items:center; padding:8px 14px; border-radius:999px; border:1px solid rgba(109,40,217,.12); background:rgba(109,40,217,.06); color:#4338ca; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;">
+          <div style="display:inline-flex; align-items:center; padding:8px 14px; border-radius: 0 !important; border:1px solid rgba(109,40,217,.12); background:rgba(109,40,217,.06); color:#4338ca; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;">
             Employee detail tables
           </div>
           <div style="margin-top:10px; color:#6f6c85; font-size:15px;">
@@ -15590,7 +15592,7 @@ def admin_payroll():
             Week
           </label>
           <select id="payroll-week-select" class="input" name="wk" onchange="this.form.submit()"
-                  style="margin-top:0; height:56px; border-radius:18px; border:1px solid rgba(109,40,217,.14); background:#ffffff; color:#1f2547; font-weight:800; box-shadow:0 8px 20px rgba(41,25,86,.06);">
+                  style="margin-top:0; height:56px; border-radius: 0 !important; border:1px solid rgba(109,40,217,.14); background:#ffffff; color:#1f2547; font-weight:800; box-shadow:0 8px 20px rgba(41,25,86,.06);">
             {''.join(week_options)}
           </select>
         </div>
@@ -15872,25 +15874,25 @@ def admin_payroll():
 
         sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
 
-        sheet_rows.append(f"""
-              <tr class="payrollFooterRow">
-                <td colspan="8" style="font-weight:900; text-align:right; background:rgba(248,250,252,.98);">
-                  Totals
-                </td>
-                <td class="num payrollSummaryTotal" style="font-weight:900; background:rgba(248,250,252,.98);">
-                  {fmt_hours(grand_hours)}
-                </td>
-                <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
-                  {escape(currency)}{money(grand_gross)}
-                </td>
-                <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
-                  {escape(currency)}{money(grand_tax)}
-                </td>
-                <td class="num payrollSummaryMoney net" style="font-weight:900; background:rgba(248,250,252,.98);">
-                  {escape(currency)}{money(grand_net)}
-                </td>
-              </tr>
-            """)
+    sheet_rows.append(f"""
+                  <tr class="payrollFooterRow">
+                    <td colspan="8" style="font-weight:900; text-align:right; background:rgba(248,250,252,.98);">
+                      Totals
+                    </td>
+                    <td class="num payrollSummaryTotal" style="font-weight:900; background:rgba(248,250,252,.98);">
+                      {fmt_hours(grand_hours)}
+                    </td>
+                    <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
+                      {escape(currency)}{money(grand_gross)}
+                    </td>
+                    <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
+                      {escape(currency)}{money(grand_tax)}
+                    </td>
+                    <td class="num payrollSummaryMoney net" style="font-weight:900; background:rgba(248,250,252,.98);">
+                      {escape(currency)}{money(grand_net)}
+                    </td>
+                  </tr>
+                """)
 
     sheet_html = "".join(sheet_rows)
 
@@ -16222,7 +16224,32 @@ def admin_payroll():
 
       {admin_back_link(back_href)}
 
-            <div class="payrollTopGrid">
+      {f"""
+      <div class="payrollWrap" style="margin-top:12px;">
+        <table class="payrollSheet">
+          <thead>
+            <tr class="cols">
+              <th>Employee</th>
+              <th>Mon</th>
+              <th>Tue</th>
+              <th>Wed</th>
+              <th>Thu</th>
+              <th>Fri</th>
+              <th>Sat</th>
+              <th>Sun</th>
+              <th class="payrollSummaryTotal">Total</th>
+              <th class="payrollSummaryMoney">Gross</th>
+              <th class="payrollSummaryMoney">Tax</th>
+              <th class="payrollSummaryMoney">Net</th>
+            </tr>
+          </thead>
+          <tbody>
+            {sheet_html}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="payrollTopGrid" style="margin-top:12px;">
         <div class="card payrollFiltersCard">
           <form method="GET">
             <div>
@@ -16235,13 +16262,13 @@ def admin_payroll():
             <div style="margin-top:10px;">
               <label class="sub">Date range (summary table only)</label>
               <div class="row2 payrollDateRow">
-  <div>
-    <input class="input" type="date" name="from" value="{escape(date_from)}">
-  </div>
-  <div>
-    <input class="input" type="date" name="to" value="{escape(date_to)}">
-  </div>
-</div>
+                <div>
+                  <input class="input" type="date" name="from" value="{escape(date_from)}">
+                </div>
+                <div>
+                  <input class="input" type="date" name="to" value="{escape(date_to)}">
+                </div>
+              </div>
             </div>
 
             <input type="hidden" name="wk" value="{wk_offset}">
@@ -16273,38 +16300,65 @@ def admin_payroll():
           </div>
         </div>
       </div>
-      
-      {range_detail_html}
-
-              {f"""
-      <div class="payrollWrap" style="margin-top:12px;">
-        <table class="payrollSheet">
-          <thead>
-            <tr class="cols">
-              <th>Employee</th>
-              <th>Mon</th>
-              <th>Tue</th>
-              <th>Wed</th>
-              <th>Thu</th>
-              <th>Fri</th>
-              <th>Sat</th>
-              <th>Sun</th>
-              <th class="payrollSummaryTotal">Total</th>
-              <th class="payrollSummaryMoney">Gross</th>
-              <th class="payrollSummaryMoney">Tax</th>
-              <th class="payrollSummaryMoney">Net</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sheet_html}
-          </tbody>
-        </table>
-      </div>
 
       {week_nav_html}
 
       {''.join(blocks)}
-""" if not use_range else ""}
+      """ if not use_range else f"""
+      <div class="payrollTopGrid">
+        <div class="card payrollFiltersCard">
+          <form method="GET">
+            <div>
+              <label class="sub">Employee</label>
+              <select class="input" name="q">
+                {''.join(employee_options)}
+              </select>
+            </div>
+
+            <div style="margin-top:10px;">
+              <label class="sub">Date range (summary table only)</label>
+              <div class="row2 payrollDateRow">
+                <div>
+                  <input class="input" type="date" name="from" value="{escape(date_from)}">
+                </div>
+                <div>
+                  <input class="input" type="date" name="to" value="{escape(date_to)}">
+                </div>
+              </div>
+            </div>
+
+            <input type="hidden" name="wk" value="{wk_offset}">
+            <button class="btnSoft" type="submit" style="margin-top:12px;">Apply</button>
+          </form>
+
+          {kpi_strip}
+
+          <div style="margin-top:10px;">
+            <a href="{csv_url}">
+              <button class="btnTiny csvDownload" type="button">Download CSV</button>
+            </a>
+          </div>
+        </div>
+
+        <div class="payrollChartCard plainSection">
+          <div class="sectionHead">
+            <div class="sectionHeadLeft">
+              <div class="sectionIcon">{_svg_chart()}</div>
+              <div>
+                <h2 style="margin:0;">Payroll Split</h2>
+                <p class="sub" style="margin:4px 0 0 0;">Gross by employee for current filters.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="payrollPieSection">
+            {pie_html}
+          </div>
+        </div>
+      </div>
+
+      {range_detail_html}
+      """}
 
 
 
@@ -16887,7 +16941,7 @@ def admin_onboarding_download(username):
           justify-content: center;
           min-height: 44px;
           padding: 0 16px;
-          border-radius: 14px;
+          border-radius: 0 !important;
           text-decoration: none;
           font-weight: 800;
           border: 1px solid rgba(109,40,217,.12);
@@ -16925,7 +16979,7 @@ def admin_onboarding_download(username):
           display: inline-flex;
           align-items: center;
           padding: 8px 12px;
-          border-radius: 999px;
+          border-radius: 0 !important;
           border: 1px solid rgba(109,40,217,.12);
           background: rgba(109,40,217,.06);
           color: #6d28d9;
@@ -17210,7 +17264,7 @@ def admin_locations():
               <div class="card" style="padding:12px; margin-top:12px;">
                 <h2>Map preview</h2>
                 <div class="sub" style="margin-top:6px;">{escape(chosen.get('name', ''))} • {escape(chosen.get('lat', ''))}, {escape(chosen.get('lon', ''))}</div>
-                <div style="margin-top:12px; border-radius:18px; overflow:hidden; border:1px solid rgba(11,18,32,.10);">
+                <div style="margin-top:12px; border-radius: 0 !important; overflow:hidden; border:1px solid rgba(11,18,32,.10);">
                   <iframe title="map" src="{osm}" style="width:100%; height:320px; border:0;" loading="lazy"></iframe>
                 </div>
                 <div style="margin-top:10px; display:flex; gap:10px; flex-wrap:wrap;">
