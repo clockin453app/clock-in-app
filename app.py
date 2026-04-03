@@ -15746,6 +15746,11 @@ def admin_payroll():
 
         day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
+    grand_hours = 0.0
+    grand_gross = 0.0
+    grand_tax = 0.0
+    grand_net = 0.0
+
     sheet_rows = []
 
     for u in sorted(all_users, key=lambda s: get_employee_display_name(s).lower()):
@@ -15860,8 +15865,32 @@ def admin_payroll():
                """)
         else:
             cells.append("<td class='num payrollSummaryMoney'></td>")
+        grand_hours += total_hours
+        grand_gross += gross
+        grand_tax += tax
+        grand_net += net
 
         sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
+
+        sheet_rows.append(f"""
+              <tr class="payrollFooterRow">
+                <td colspan="8" style="font-weight:900; text-align:right; background:rgba(248,250,252,.98);">
+                  Totals
+                </td>
+                <td class="num payrollSummaryTotal" style="font-weight:900; background:rgba(248,250,252,.98);">
+                  {fmt_hours(grand_hours)}
+                </td>
+                <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
+                  {escape(currency)}{money(grand_gross)}
+                </td>
+                <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
+                  {escape(currency)}{money(grand_tax)}
+                </td>
+                <td class="num payrollSummaryMoney net" style="font-weight:900; background:rgba(248,250,252,.98);">
+                  {escape(currency)}{money(grand_net)}
+                </td>
+              </tr>
+            """)
 
     sheet_html = "".join(sheet_rows)
 
