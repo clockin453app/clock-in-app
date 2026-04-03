@@ -16173,6 +16173,8 @@ def admin_payroll():
               </div>
             """
 
+    back_href = f"/admin/payroll?wk={wk_offset}" if use_range else "/admin"
+
     content = f"""
       <div class="payrollMenuBackdrop" id="payrollMenuBackdrop"></div>
 
@@ -16189,7 +16191,7 @@ def admin_payroll():
         <div class="badge admin">ADMIN</div>
       </div>
 
-      {admin_back_link("/admin/payroll")}
+      {admin_back_link(back_href)}
 
             <div class="payrollTopGrid">
         <div class="card payrollFiltersCard">
