@@ -11987,10 +11987,14 @@ def my_reports():
             <td class="num">{escape(currency)}{money(item['tax'])}</td>
             <td class="num">{escape(currency)}{money(item['net'])}</td>
             <td class="num">
-              <a class="reportsListDownloadBtn" href="/my-reports-print?wk={item['wk_offset']}" target="_blank" rel="noopener" title="Download payslip">
-                ↓
-              </a>
-            </td>
+  <a class="reportsListDownloadBtn"
+     href="/my-reports-print?wk={item['wk_offset']}"
+     target="_blank"
+     rel="noopener"
+     title="View slip">
+    &#8250;
+  </a>
+</td>
           </tr>
         """)
 
@@ -12279,6 +12283,22 @@ def my_reports():
     """
     week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
 
+    rows_html = []
+    for i in range(7):
+        d = selected_week_start + timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        item = week_map[d_str]
+
+        hours_val = round(item["hours"], 2)
+        gross_val = round(item["gross"], 2)
+
+        row_class = "overtimeRow" if hours_val > OVERTIME_HOURS else ""
+
+        cin_txt = item["first_in"] if item["first_in"] else ""
+        cout_txt = item["last_out"] if item["last_out"] else ""
+        hrs_txt = fmt_hours(hours_val) if hours_val > 0 else ""
+        gross_txt = money(gross_val) if gross_val > 0 else ""
+
     content = f"""
       {page_css}
 
@@ -12292,11 +12312,8 @@ def my_reports():
             <p class="sub">{escape(display_name)} • {escape(company_name)}</p>
           </div>
 
-          <div class="reportsListTopActions noPrint">
-            <a class="btnPrimary" href="/my-reports-print?wk={wk_offset}" target="_blank" rel="noopener">Download pay summary</a>
-          </div>
         </div>
-
+        
         <div class="reportsListTableShell">
           <div class="reportsListTableTop">
             <div class="reportsListTableTitle">All weekly timesheets</div>
@@ -12324,7 +12341,7 @@ def my_reports():
                   <th class="num">Gross Pay</th>
                   <th class="num">Tax</th>
                   <th class="num">Take Home</th>
-                  <th class="num">Download</th>
+                  <th class="num">View</th>
                 </tr>
               </thead>
               <tbody>
@@ -12801,6 +12818,32 @@ def my_reports_print():
     w_g, w_t, w_n = gross_tax_net(selected_week_pay)
 
     week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
+    rows_html = []
+    for i in range(7):
+        d = selected_week_start + timedelta(days=i)
+        d_str = d.strftime("%Y-%m-%d")
+        item = week_map[d_str]
+
+        hours_val = round(item["hours"], 2)
+        gross_val = round(item["gross"], 2)
+
+        row_class = "overtimeRow" if hours_val > OVERTIME_HOURS else ""
+
+        cin_txt = item["first_in"] if item["first_in"] else ""
+        cout_txt = item["last_out"] if item["last_out"] else ""
+        hrs_txt = fmt_hours(hours_val) if hours_val > 0 else ""
+        gross_txt = money(gross_val) if gross_val > 0 else ""
+
+        rows_html.append(f"""
+          <tr class="{row_class}">
+            <td><b>{escape(item['day'])}</b></td>
+            <td>{escape(item['display_date'])}</td>
+            <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
+            <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
+            <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
+            <td class="num" style="font-weight:700;">{escape(gross_txt)}</td>
+          </tr>
+        """)
 
     rows_html = []
     for i in range(7):
