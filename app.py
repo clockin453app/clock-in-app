@@ -2334,11 +2334,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   justify-content:center;
   border-radius: 0 !important;
-  border:1px solid rgba(109,40,217,.10);
+  border:1px solid rgba(68,130,195,.10);
   background:rgba(255,255,255,.92);
-  color:#6d28d9;
+  color:#3b74ad;
   cursor:pointer;
-  box-shadow:0 8px 18px rgba(41,25,86,.08);
+  box-shadow:0 8px 18px rgba(15,23,42,.08);
 }
 
 .topAccountTrigger svg{
@@ -2353,9 +2353,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   min-width:190px;
   padding:8px;
   border-radius: 0 !important;
-  border:1px solid rgba(109,40,217,.10);
-  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(249,247,255,.98));
-  box-shadow:0 18px 36px rgba(41,25,86,.14);
+  border:1px solid rgba(68,130,195,.10);
+  background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,250,253,.98));
+  box-shadow:0 18px 36px rgba(15,23,42,.14);
   display:none;
   z-index:700;
 }
@@ -2378,7 +2378,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .topAccountMenuItem:hover{
-  background:rgba(109,40,217,.06);
+  background:rgba(68,130,195,.06);
 }
 
 .topAccountMenuItem.danger{
@@ -2566,9 +2566,9 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   margin-top: 12px;
   padding: 16px;
   border-radius: 0 !important;
-  border: 1px solid rgba(109,40,217,.12);
+  border: 1px solid rgba(68,130,195,.12);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(246,243,255,.98));
-  box-shadow: 0 16px 36px rgba(41,25,86,.08);
+  box-shadow: 0 16px 36px rgba(15,23,42,.08);
 }
 
 .grossChartSummaryRow{
@@ -2581,7 +2581,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   min-width:0;
   padding:14px 16px;
   border-radius: 0 !important;
-  border:1px solid rgba(109,40,217,.10);
+  border:1px solid rgba(68,130,195,.10);
   background: rgba(255,255,255,.92);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.9);
 }
@@ -2665,14 +2665,14 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 .grossChartCanvas{
   position:relative;
   height:230px;
-  border-bottom:1px solid rgba(109,40,217,.16);
+  border-bottom:1px solid rgba(68,130,195,.16);
 }
 
 .grossChartGridLine{
   position:absolute;
   left:0;
   right:0;
-  border-top:1px dashed rgba(109,40,217,.18);
+  border-top:1px dashed rgba(68,130,195,.18);
 }
 
 .grossChartBars{
@@ -2797,8 +2797,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 .activityCard{
   background:
-    linear-gradient(180deg, rgba(245,243,255,.96), rgba(255,255,255,.96));
-  border: 1px solid rgba(139,92,246,.14);
+    linear-gradient(180deg, rgba(242,247,251,.96), rgba(255,255,255,.96));
+  border: 1px solid rgba(68,130,195,.14);
 }
 
 .sideInfoCard{
@@ -2812,7 +2812,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .activityCard h2{
-  color: #7c3aed;
+  color: #4482c3;
 }
 
 .sideInfoCard h2{
@@ -2841,7 +2841,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   margin-top: 12px;
   padding: 12px;
   border-radius: 0 !important;
-  border: 1px solid rgba(109,40,217,.10);
+  border: 1px solid rgba(68,130,195,.10);
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.96));
 }
 
@@ -2865,7 +2865,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width:100%;
   height:10px;
   border-radius: 0 !important;
-  background: rgba(109,40,217,.10);
+  background: rgba(68,130,195,.10);
   overflow:hidden;
 }
 
@@ -2873,7 +2873,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   display:block;
   height:100%;
   border-radius: 0 !important;
-  background: linear-gradient(90deg, #7c3aed 0%, #5b21b6 100%);
+  background: linear-gradient(90deg, #4f89c7 0%, #3b74ad 100%);
   transition: width .25s ease;
 }
 .quickMini:hover{
@@ -2918,7 +2918,7 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   align-items:center;
   padding:10px 10px;
   border-radius: 0 !important;
-  border:1px solid rgba(139,92,246,.12);
+  border:1px solid rgba(68,130,195,.12);
   background: rgba(255,255,255,.88);
   font-size:12px;
   font-weight:700;
@@ -3228,15 +3228,15 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .activityCard .sectionIcon{
-  background: rgba(139,92,246,.14);
-  color: #7c3aed;
-  border-color: rgba(139,92,246,.18);
+  background: rgba(68,130,195,.14);
+  color: #4482c3;
+  border-color: rgba(68,130,195,.18);
 }
 
 .activityCard .sectionBadge{
-  color: #7c3aed;
-  border-color: rgba(139,92,246,.18);
-  background: rgba(139,92,246,.08);
+  color: #4482c3;
+  border-color: rgba(68,130,195,.18);
+  background: rgba(68,130,195,.08);
 }
 
 .sideInfoCard .sectionIcon{
@@ -5860,19 +5860,19 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 /* ===== LIGHT BRAND THEME (PURPLE / BLUE / GREEN) ===== */
 :root{
-  --bg:#f6f5fb !important;
+  --bg:#ffffff !important;
   --card:#ffffff !important;
-  --text:#26233a !important;
-  --muted:#6f6c85 !important;
-  --border:rgba(107,70,193,.12) !important;
-  --shadow:0 12px 30px rgba(41,25,86,.08) !important;
-  --shadow2:0 20px 42px rgba(41,25,86,.12) !important;
+  --text:#1f2a37 !important;
+  --muted:#6b7280 !important;
+  --border:rgba(15,23,42,.08) !important;
+  --shadow:0 8px 20px rgba(15,23,42,.04) !important;
+  --shadow2:0 12px 28px rgba(15,23,42,.06) !important;
   --radius:0px;
 
   /* Re-map existing theme vars without touching app logic */
-  --navy:#6d28d9 !important;
-  --navy2:#2563eb !important;
-  --navySoft:rgba(109,40,217,.10) !important;
+  --navy:#3b74ad !important;
+  --navy2:#3b74ad !important;
+  --navySoft:rgba(59,116,173,.08) !important;
   --green:#16a34a !important;
   --red:#dc2626 !important;
   --amber:#d97706 !important;
@@ -5880,11 +5880,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
 /* page background */
 body{
-  background:
-    radial-gradient(980px 540px at 0% 0%, rgba(109,40,217,.08) 0%, rgba(109,40,217,0) 48%),
-    radial-gradient(860px 520px at 100% 0%, rgba(37,99,235,.08) 0%, rgba(37,99,235,0) 48%),
-    radial-gradient(880px 580px at 50% 100%, rgba(34,197,94,.05) 0%, rgba(34,197,94,0) 45%),
-    linear-gradient(180deg, #fbfaff 0%, #f5f4fb 52%, #f1f5ff 100%) !important;
+  background:#ffffff !important;
+  background-image:none !important;
   color: var(--text) !important;
 }
 
@@ -5905,27 +5902,31 @@ body{
 .adminSectionIcon,
 .sideIcon,
 .icoBox{
-  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(250,248,255,.98)) !important;
-  border: 1px solid rgba(109,40,217,.10) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  border: 1px solid rgba(15,23,42,.08) !important;
   border-radius: 0 !important;
-  box-shadow: 0 12px 28px rgba(41,25,86,.08) !important;
+  box-shadow: 0 6px 16px rgba(15,23,42,.04) !important;
   color: var(--text) !important;
 }
 
 /* module tinting */
 .quickCard{
-  background: linear-gradient(180deg, rgba(245,243,255,.98), rgba(255,255,255,.98)) !important;
-  border: 1px solid rgba(109,40,217,.14) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  border: 1px solid rgba(15,23,42,.08) !important;
   color: var(--text) !important;
 }
 .activityCard{
-  background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(255,255,255,.98)) !important;
-  border: 1px solid rgba(37,99,235,.14) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  border: 1px solid rgba(15,23,42,.08) !important;
   color: var(--text) !important;
 }
 .sideInfoCard{
-  background: linear-gradient(180deg, rgba(240,253,244,.98), rgba(255,255,255,.98)) !important;
-  border: 1px solid rgba(34,197,94,.16) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  border: 1px solid rgba(15,23,42,.08) !important;
   color: var(--text) !important;
 }
 
@@ -5956,10 +5957,11 @@ body{
 .badge,
 .badge.admin,
 .weekPill{
-  background: linear-gradient(180deg, rgba(109,40,217,.12), rgba(37,99,235,.10)) !important;
-  color: #5b21b6 !important;
-  border: 1px solid rgba(109,40,217,.16) !important;
-  box-shadow: 0 4px 12px rgba(109,40,217,.08) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  color: #315f8f !important;
+  border: 1px solid rgba(59,116,173,.18) !important;
+  box-shadow:none !important;
 }
 
 /* brand button system */
@@ -5967,15 +5969,17 @@ body{
 .btnSoft,
 .adminPrimaryBtn,
 .payrollMenuToggle{
-  background: linear-gradient(135deg, #7c3aed 0%, #2563eb 100%) !important;
+  background:#3b74ad !important;
+  background-image:none !important;
   color: #ffffff !important;
-  border: 1px solid rgba(124,58,237,.14) !important;
-  box-shadow: 0 12px 24px rgba(109,40,217,.18) !important;
+  border: 1px solid #3b74ad !important;
+  box-shadow:none !important;
 }
 .btnTiny{
-  background: rgba(109,40,217,.08) !important;
-  color: #5b21b6 !important;
-  border: 1px solid rgba(109,40,217,.14) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  color: #315f8f !important;
+  border: 1px solid rgba(59,116,173,.18) !important;
   box-shadow: none !important;
 }
 .btnTiny:hover,
@@ -5983,19 +5987,20 @@ body{
 .btn:hover,
 .adminPrimaryBtn:hover,
 .payrollMenuToggle:hover{
-  filter: brightness(1.03) !important;
-  box-shadow: 0 16px 28px rgba(109,40,217,.20) !important;
+  filter: brightness(.98) !important;
+  box-shadow:none !important;
 }
 
 /* top badges / company pill */
 .topBrandBadge{
-  color: #312e81 !important;
-  border: 1px solid rgba(109,40,217,.12) !important;
-  background: linear-gradient(180deg, rgba(255,255,255,.96), rgba(245,243,255,.96)) !important;
-  box-shadow: 0 10px 24px rgba(41,25,86,.08) !important;
+  color: #315f8f !important;
+  border: 1px solid rgba(15,23,42,.08) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  box-shadow:none !important;
 }
 .topBrandBadge:hover{
-  border-color: rgba(109,40,217,.20) !important;
+  border-color: rgba(68,130,195,.20) !important;
 }
 
 /* inputs */
@@ -6017,8 +6022,8 @@ textarea.input::placeholder{
 select.input:focus,
 input.input:focus,
 textarea.input:focus{
-  border-color: rgba(124,58,237,.40) !important;
-  box-shadow: 0 0 0 4px rgba(124,58,237,.10) !important;
+  border-color: rgba(68,130,195,.40) !important;
+  box-shadow: 0 0 0 4px rgba(68,130,195,.10) !important;
 }
 
 /* labels + values */
@@ -6033,7 +6038,7 @@ textarea.input:focus{
 .adminToolSub,
 .adminSectionSub,
 .activityHead{
-  color: #7a7592 !important;
+  color: #6b7785 !important;
 }
 .kpiMini .v,
 .kpi .value,
@@ -6045,52 +6050,51 @@ textarea.input:focus{
 .quickMini .miniText,
 h1,
 h2{
-  color: #26233a !important;
+  color: #1f2a37 !important;
 }
 
 /* graph / dashboard */
 .graphCard{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,243,255,.98)) !important;
-  border: 1px solid rgba(109,40,217,.14) !important;
-  box-shadow: 0 16px 36px rgba(41,25,86,.08) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  border: 1px solid rgba(15,23,42,.08) !important;
+  box-shadow: 0 6px 16px rgba(15,23,42,.04) !important;
 }
 .graphTitle{
-  color: #2f2851 !important;
+  color: #23364a !important;
 }
 .graphCard .sub{
-  color: #7a7592 !important;
+  color: #6b7785 !important;
 }
 .graphRange{
-  color: #5b21b6 !important;
+  color: #315f8f !important;
 }
 .graphShell{
-  background:
-    linear-gradient(180deg, rgba(249,247,255,.98), rgba(240,247,255,.96)),
-    radial-gradient(circle at top right, rgba(109,40,217,.08), transparent 40%),
-    radial-gradient(circle at top left, rgba(37,99,235,.08), transparent 40%) !important;
-  border: 1px solid rgba(109,40,217,.10) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,.85), 0 10px 24px rgba(41,25,86,.06) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  border: 1px solid rgba(15,23,42,.08) !important;
+  box-shadow:none !important;
 }
 .barValue{
-  color: #6d28d9 !important;
+  color: #3b74ad !important;
   text-shadow: none !important;
 }
 .barTrack{
-  background:
-    linear-gradient(180deg, rgba(109,40,217,.04), rgba(109,40,217,.01)),
-    linear-gradient(180deg, rgba(37,99,235,.03), rgba(37,99,235,0)) !important;
-  box-shadow: inset 0 0 0 1px rgba(109,40,217,.06) !important;
+  background:rgba(148,163,184,.14) !important;
+  background-image:none !important;
+  box-shadow: inset 0 0 0 1px rgba(15,23,42,.06) !important;
 }
 .bar{
-  background: linear-gradient(180deg, #7c3aed 0%, #38bdf8 100%) !important;
-  box-shadow: 0 12px 24px rgba(109,40,217,.16), 0 0 16px rgba(56,189,248,.10) !important;
+  background:#3b74ad !important;
+  background-image:none !important;
+  box-shadow:none !important;
 }
 .barLabels{
   color: #6f6c85 !important;
 }
 .graphStat{
   background: rgba(255,255,255,.92) !important;
-  border: 1px solid rgba(109,40,217,.08) !important;
+  border: 1px solid rgba(68,130,195,.08) !important;
 }
 
 /* tables */
@@ -6099,15 +6103,16 @@ h2{
 .payrollSheet,
 .timeLogsTable{
   background: rgba(255,255,255,.98) !important;
-  color: #26233a !important;
+  color: #1f2a37 !important;
 }
 .tablewrap th,
 .weeklyEditTable thead th,
 .payrollSheet thead th,
 .timeLogsTable th{
-  background: linear-gradient(180deg, rgba(244,241,255,.99), rgba(236,245,255,.99)) !important;
-  color: rgba(38,35,58,.88) !important;
-  border-bottom: 1px solid rgba(148,163,184,.18) !important;
+  background:#3b74ad !important;
+  background-image:none !important;
+  color:#ffffff !important;
+  border-bottom: 1px solid #315f8f !important;
 }
 .tablewrap td,
 .weeklyEditTable tbody td,
@@ -6121,30 +6126,34 @@ h2{
 .weeklyEditTable tbody tr:nth-child(even) td,
 .payrollSheet tbody tr:nth-child(even) td,
 .timeLogsTable tbody tr:nth-child(even) td{
-  background: rgba(249,247,255,.86) !important;
+  background: rgba(248,250,252,.90) !important;
 }
 .tablewrap table tbody tr:hover,
 .weeklyEditTable tbody tr:hover td,
 .payrollSheet tbody tr:hover td,
 .timeLogsTable tbody tr:hover td{
-  background: rgba(241,245,255,.96) !important;
+  background: rgba(241,245,249,.96) !important;
 }
 .weeklyEditTable tbody td:nth-child(2){
-  color: #7a7592 !important;
+  color: #6b7785 !important;
 }
 
+
+/* flat white override */
+body, .card, .kpiMini, .kpi, .graphCard, .graphShell, .payrollFiltersCard, .payrollChartCard, .adminToolCard, .adminSectionCard, .payrollSummaryItem, .contractBox, .tablewrap, .payrollWrap, .quickCard, .activityCard, .sideInfoCard, .topBrandBadge, .menuItem, .sideItem, .btn, .btnSoft, .btnTiny, .adminPrimaryBtn, .payrollMenuToggle{ background-image:none !important; }
 /* payroll-specific light treatment */
 .payrollWrap,
 .tablewrap{
-  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(247,249,255,.98)) !important;
-  border-color: rgba(109,40,217,.10) !important;
+  background:#ffffff !important;
+  background-image:none !important;
+  border-color: rgba(15,23,42,.08) !important;
 }
 .payrollSheet{
   background: transparent !important;
 }
 .payrollSheet tbody td:first-child,
 .payrollSheet thead th:first-child{
-  box-shadow: 10px 0 18px rgba(41,25,86,.06) !important;
+  box-shadow: 10px 0 18px rgba(15,23,42,.06) !important;
 }
 .payrollSheet .emp{
   color: rgba(38,35,58,.98) !important;
@@ -6172,8 +6181,8 @@ h2{
 .payrollEmployeeCard .payrollSummaryItem:nth-child(4),
 .payrollEmployeeCard .payrollSummaryItem:nth-child(5){
   background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.97)) !important;
-  border: 1px solid rgba(109,40,217,.10) !important;
-  box-shadow: 0 8px 18px rgba(41,25,86,.06), inset 0 1px 0 rgba(255,255,255,.90) !important;
+  border: 1px solid rgba(68,130,195,.10) !important;
+  box-shadow: 0 8px 18px rgba(15,23,42,.06), inset 0 1px 0 rgba(255,255,255,.90) !important;
 }
 .payrollSummaryItem .k,
 .payrollEmployeeCard .payrollSummaryItem .k,
@@ -6197,10 +6206,10 @@ h2{
 
 /* employee detail cards */
 .payrollEmployeeCard{
-  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(245,243,255,.98)) !important;
-  border: 1px solid rgba(109,40,217,.12) !important;
-  box-shadow: 0 18px 34px rgba(41,25,86,.08), inset 0 1px 0 rgba(255,255,255,.90) !important;
-  color: #26233a !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(242,247,251,.98)) !important;
+  border: 1px solid rgba(68,130,195,.12) !important;
+  box-shadow: 0 18px 34px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.90) !important;
+  color: #1f2a37 !important;
 }
 .payrollEmployeeHead{
   display:flex;
@@ -6216,7 +6225,7 @@ h2{
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: 0;
-  color: #26233a !important;
+  color: #1f2a37 !important;
   text-shadow: none !important;
 }
 
@@ -6231,55 +6240,55 @@ h2{
 /* sidebar */
 .sidebar{
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(244,241,255,.96)) !important;
-  border: 1px solid rgba(109,40,217,.10) !important;
+  border: 1px solid rgba(68,130,195,.10) !important;
   border-radius: 0 !important;
-  box-shadow: 0 18px 40px rgba(41,25,86,.08) !important;
+  box-shadow: 0 18px 40px rgba(15,23,42,.08) !important;
 }
 .sideTitle,
 .sideText,
 .menuText{
-  color: #26233a !important;
+  color: #1f2a37 !important;
 }
 .sideItem,
 .menuItem{
   background: rgba(255,255,255,.82) !important;
-  border: 1px solid rgba(109,40,217,.08) !important;
+  border: 1px solid rgba(68,130,195,.08) !important;
   border-radius: 0 !important;
   box-shadow: none !important;
 }
 .sideItem:hover,
 .menuItem:hover{
-  background: rgba(124,58,237,.05) !important;
-  border-color: rgba(124,58,237,.16) !important;
+  background: rgba(68,130,195,.05) !important;
+  border-color: rgba(68,130,195,.16) !important;
 }
 .sideItem.active,
 .menuItem.active{
-  background: linear-gradient(180deg, rgba(124,58,237,.10), rgba(37,99,235,.06)) !important;
-  border-color: rgba(124,58,237,.20) !important;
+  background: linear-gradient(180deg, rgba(68,130,195,.10), rgba(59,116,173,.06)) !important;
+  border-color: rgba(68,130,195,.20) !important;
   box-shadow: inset 0 -3px 0 rgba(37,99,235,.35) !important;
 }
 .chev{
-  color: #5b21b6 !important;
+  color: #315f8f !important;
 }
 .navIcon,
 .sideIcon,
 .icoBox,
 .adminToolIcon,
 .adminSectionIcon{
-  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(245,243,255,.98)) !important;
-  color: #5b21b6 !important;
-  border-color: rgba(109,40,217,.10) !important;
+  background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(242,247,251,.98)) !important;
+  color: #315f8f !important;
+  border-color: rgba(68,130,195,.10) !important;
 }
 
 /* admin shells */
 .adminToolsShell{
   background: linear-gradient(180deg, rgba(248,246,255,.98), rgba(255,255,255,.98)) !important;
-  border: 1px solid rgba(109,40,217,.10) !important;
-  box-shadow: 0 18px 40px rgba(41,25,86,.08) !important;
+  border: 1px solid rgba(68,130,195,.10) !important;
+  box-shadow: 0 18px 40px rgba(15,23,42,.08) !important;
 }
 .adminToolCard:hover{
   transform: translateY(-2px);
-  box-shadow: 0 18px 34px rgba(41,25,86,.12) !important;
+  box-shadow: 0 18px 34px rgba(15,23,42,.12) !important;
 }
 .adminToolCard.payroll .adminToolIcon{
   background: linear-gradient(180deg, rgba(239,246,255,.98), rgba(219,234,254,.98)) !important;
@@ -6287,9 +6296,9 @@ h2{
   border-color: rgba(37,99,235,.16) !important;
 }
 .adminToolCard.company .adminToolIcon{
-  background: linear-gradient(180deg, rgba(245,243,255,.98), rgba(237,233,254,.98)) !important;
-  color: #6d28d9 !important;
-  border-color: rgba(109,40,217,.16) !important;
+  background: linear-gradient(180deg, rgba(242,247,251,.98), rgba(231,239,247,.98)) !important;
+  color: #3b74ad !important;
+  border-color: rgba(68,130,195,.16) !important;
 }
 .adminToolCard.onboarding .adminToolIcon,
 .adminToolCard.employees .adminToolIcon{
@@ -6306,8 +6315,8 @@ h2{
 .adminStats .adminStatCard,
 .adminSectionCard{
   background: linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.96)) !important;
-  border: 1px solid rgba(109,40,217,.10) !important;
-  box-shadow: 0 10px 22px rgba(41,25,86,.06) !important;
+  border: 1px solid rgba(68,130,195,.10) !important;
+  box-shadow: 0 10px 22px rgba(15,23,42,.06) !important;
   border-radius: 0 !important;
 }
 .quickMini .miniIcon{
@@ -6319,9 +6328,9 @@ h2{
   color: rgba(38,35,58,.88) !important;
 }
 .activityEmpty{
-  color: #7a7592 !important;
+  color: #6b7785 !important;
   background: rgba(255,255,255,.82) !important;
-  border: 1px dashed rgba(109,40,217,.16) !important;
+  border: 1px dashed rgba(68,130,195,.16) !important;
 }
 .sideInfoRow{
   background: rgba(255,255,255,.84) !important;
@@ -6336,8 +6345,8 @@ h2{
 
 /* messages */
 .message{
-  background: rgba(124,58,237,.08) !important;
-  border: 1px solid rgba(124,58,237,.14) !important;
+  background: rgba(68,130,195,.08) !important;
+  border: 1px solid rgba(68,130,195,.14) !important;
   color: #312e81 !important;
 }
 .message.error{
@@ -6350,8 +6359,8 @@ h2{
 .myReportsWeekTable.plainSection,
 .payrollEmployeeCard.plainSection{
   background: linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.98)) !important;
-  border: 1px solid rgba(109,40,217,.12) !important;
-  box-shadow: 0 16px 32px rgba(41,25,86,.08) !important;
+  border: 1px solid rgba(68,130,195,.12) !important;
+  box-shadow: 0 16px 32px rgba(15,23,42,.08) !important;
 }
 .myReportsWeekTable.plainSection .sub,
 .payrollEmployeeCard.plainSection .sub,
@@ -6377,8 +6386,8 @@ h2{
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(3) .v,
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(4) .v,
 .payrollEmployeeCard.plainSection .payrollSummaryItem:nth-child(5) .v{
-  color: #26233a !important;
-  -webkit-text-fill-color: #26233a !important;
+  color: #1f2a37 !important;
+  -webkit-text-fill-color: #1f2a37 !important;
   text-shadow: none !important;
 }
 
@@ -6395,16 +6404,16 @@ h2{
 .timeLogsTable tbody tr:nth-child(odd) td,
 .timeLogsTable tbody tr:nth-child(even) td{
   background: #ffffff !important;
-  color: #26233a !important;
-  -webkit-text-fill-color: #26233a !important;
+  color: #1f2a37 !important;
+  -webkit-text-fill-color: #1f2a37 !important;
   text-shadow: none !important;
   border-bottom: 1px solid rgba(226,232,240,.90) !important;
 }
 
 .timeLogsTable tbody tr:hover td{
   background: #f5f3ff !important;
-  color: #26233a !important;
-  -webkit-text-fill-color: #26233a !important;
+  color: #1f2a37 !important;
+  -webkit-text-fill-color: #1f2a37 !important;
 }
 
 /* 2) EMPLOYEE SITES + LOCATIONS: keep table form controls clean */
@@ -6416,9 +6425,9 @@ h2{
 .tablewrap td form textarea,
 .tablewrap td form textarea.input{
   background: #ffffff !important;
-  color: #26233a !important;
-  -webkit-text-fill-color: #26233a !important;
-  caret-color: #26233a !important;
+  color: #1f2a37 !important;
+  -webkit-text-fill-color: #1f2a37 !important;
+  caret-color: #1f2a37 !important;
   border: 1px solid rgba(148,163,184,.36) !important;
   box-shadow: none !important;
   font-weight: 600 !important;
@@ -6427,20 +6436,20 @@ h2{
 .tablewrap td form .input::placeholder,
 .tablewrap td form input::placeholder,
 .tablewrap td form textarea::placeholder{
-  color: #7a7592 !important;
-  -webkit-text-fill-color: #7a7592 !important;
+  color: #6b7785 !important;
+  -webkit-text-fill-color: #6b7785 !important;
 }
 
 .tablewrap td form select option,
 .tablewrap td form select optgroup{
   background: #ffffff !important;
-  color: #26233a !important;
+  color: #1f2a37 !important;
 }
 
 /* keep plain numeric/location cells readable */
 .tablewrap td.num{
-  color: #26233a !important;
-  -webkit-text-fill-color: #26233a !important;
+  color: #1f2a37 !important;
+  -webkit-text-fill-color: #1f2a37 !important;
 }
 
 /* 3) DISTINCT STATUS COLORS */
@@ -6558,7 +6567,7 @@ label.sub,
   font-size:12.5px !important;
   font-weight:500 !important;
   line-height:1.45 !important;
-  color:#7a7592 !important;
+  color:#6b7785 !important;
 }
 
 .badge,
@@ -6594,7 +6603,7 @@ label.sub,
   font-size:11.5px !important;
   font-weight:500 !important;
   letter-spacing:.01em !important;
-  color:#7a7592 !important;
+  color:#6b7785 !important;
 }
 
 .kpi .value,
@@ -6743,8 +6752,8 @@ button{
 
 .dashboardMiniStatusCard{
   background:linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.97));
-  border:1px solid rgba(109,40,217,.12);
-  box-shadow:0 14px 28px rgba(41,25,86,.07);
+  border:1px solid rgba(68,130,195,.12);
+  box-shadow:0 14px 28px rgba(15,23,42,.07);
   border-radius: 0 !important;
   padding:16px;
 }
@@ -6763,8 +6772,8 @@ button{
   display:flex;
   align-items:center;
   justify-content:center;
-  background:rgba(109,40,217,.08);
-  border:1px solid rgba(109,40,217,.12);
+  background:rgba(68,130,195,.08);
+  border:1px solid rgba(68,130,195,.12);
   color:#000;
   flex:0 0 44px;
 }
@@ -6785,7 +6794,7 @@ button{
 .dashboardMiniStatusSub{
   margin-top:4px;
   font-size:13px;
-  color:#7a7592;
+  color:#6b7785;
   line-height:1.25;
 }
 
@@ -6809,7 +6818,7 @@ button{
   width:100%;
   height:12px;
   border-radius: 0 !important;
-  background:rgba(109,40,217,.10);
+  background:rgba(68,130,195,.10);
   overflow:hidden;
 }
 
@@ -6817,7 +6826,7 @@ button{
   display:block;
   height:100%;
   border-radius: 0 !important;
-  background:linear-gradient(90deg, #7c3aed 0%, #2563eb 100%);
+  background:linear-gradient(90deg, #4482c3 0%, #2563eb 100%);
   transition:width .25s ease;
 }
 
@@ -6911,6 +6920,84 @@ button{
   width:10%;
 }
 </style>
+
+<style id="timiq-corporate-blue-override">
+:root{
+  --navy:#4482c3 !important;
+  --navy2:#3b74ad !important;
+  --navySoft:rgba(68,130,195,.10) !important;
+  --text:#1f2a37 !important;
+  --muted:#6b7785 !important;
+  --shadow:0 10px 24px rgba(15,23,42,.06) !important;
+  --shadow2:0 16px 34px rgba(15,23,42,.10) !important;
+}
+.btn,
+.btnSoft,
+.adminPrimaryBtn,
+.payrollMenuToggle{
+  background: linear-gradient(135deg, #4f89c7 0%, #3b74ad 100%) !important;
+  border-color: rgba(68,130,195,.16) !important;
+  box-shadow: 0 10px 18px rgba(15,23,42,.10) !important;
+}
+.btn:hover,
+.btnSoft:hover,
+.adminPrimaryBtn:hover,
+.payrollMenuToggle:hover{
+  transform: translateY(-1px);
+  box-shadow: 0 12px 22px rgba(15,23,42,.12) !important;
+}
+.badge,
+.badge.admin,
+.weekPill{
+  background: linear-gradient(180deg, rgba(68,130,195,.12), rgba(59,116,173,.08)) !important;
+  color:#315f8f !important;
+  border-color: rgba(68,130,195,.16) !important;
+  box-shadow: 0 4px 10px rgba(15,23,42,.05) !important;
+}
+.graphCard,
+.tablewrap,
+.payrollWrap,
+.card,
+.kpiMini,
+.kpi,
+.adminToolCard,
+.adminSectionCard,
+.payrollSummaryItem,
+.contractBox{
+  box-shadow: 0 12px 26px rgba(15,23,42,.07) !important;
+}
+.bar{
+  background: linear-gradient(180deg, #5d98cf 0%, #3b74ad 100%) !important;
+  box-shadow: 0 10px 18px rgba(15,23,42,.08) !important;
+}
+.input:focus,
+select.input:focus,
+input.input:focus,
+textarea.input:focus{
+  border-color: rgba(68,130,195,.34) !important;
+  box-shadow: 0 0 0 4px rgba(68,130,195,.10) !important;
+}
+
+/* readable solid-blue table headers */
+.tablewrap th,
+.weeklyEditTable thead th,
+.payrollSheet thead th,
+.timeLogsTable th,
+.rangeDetailTable th{
+  background:#4f89c7 !important;
+  color:#ffffff !important;
+  border-bottom:1px solid rgba(49,95,143,.30) !important;
+  text-shadow:none !important;
+}
+.tablewrap th *,
+.weeklyEditTable thead th *,
+.payrollSheet thead th *,
+.timeLogsTable th *,
+.rangeDetailTable th *{
+  color:#ffffff !important;
+}
+</style>
+
 """
 
 
@@ -9884,14 +9971,14 @@ def login():
       .loginCardPro{
         overflow: hidden;
         border-radius: 0 !important;
-        border: 1px solid rgba(109,40,217,.10) !important;
+        border: 1px solid rgba(68,130,195,.10) !important;
         background:
-          radial-gradient(circle at top right, rgba(109,40,217,.05), transparent 32%),
+          radial-gradient(circle at top right, rgba(68,130,195,.05), transparent 32%),
           radial-gradient(circle at top left, rgba(37,99,235,.05), transparent 28%),
-          linear-gradient(180deg, #ffffff 0%, #fbfaff 100%) !important;
-        box-shadow: 0 24px 60px rgba(41,25,86,.10) !important;
+          linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%) !important;
+        box-shadow: 0 24px 60px rgba(15,23,42,.10) !important;
       }
-      
+
       .loginBrandWrap{
   display:flex;
   flex-direction:column;
@@ -9912,7 +9999,7 @@ def login():
         justify-content: space-between;
         gap: 18px;
         padding: 26px 28px 20px 28px;
-        border-bottom: 1px solid rgba(109,40,217,.08);
+        border-bottom: 1px solid rgba(68,130,195,.08);
         background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(248,247,255,.96));
       }
 
@@ -9921,9 +10008,9 @@ def login():
         align-items: center;
         padding: 8px 14px;
         border-radius: 0 !important;
-        border: 1px solid rgba(109,40,217,.12);
-        background: rgba(109,40,217,.06);
-        color: #7c3aed;
+        border: 1px solid rgba(68,130,195,.12);
+        background: rgba(68,130,195,.06);
+        color: #4482c3;
         font-size: 13px;
         font-weight: 800;
         letter-spacing: .05em;
@@ -9963,7 +10050,7 @@ def login():
         font-weight: 800;
         letter-spacing: .05em;
         text-transform: uppercase;
-        box-shadow: 0 8px 20px rgba(41,25,86,.06);
+        box-shadow: 0 8px 20px rgba(15,23,42,.06);
       }
 
       .loginFormWrap{
@@ -9997,10 +10084,10 @@ def login():
         height: 56px !important;
         padding: 0 16px !important;
         border-radius: 0 !important;
-        border: 1px solid rgba(109,40,217,.12) !important;
+        border: 1px solid rgba(68,130,195,.12) !important;
         background: #ffffff !important;
         color: #1f2547 !important;
-        box-shadow: 0 6px 18px rgba(41,25,86,.04);
+        box-shadow: 0 6px 18px rgba(15,23,42,.04);
       }
 
       .loginInput::placeholder{
@@ -10009,7 +10096,7 @@ def login():
 
       .loginInput:focus{
         border-color: rgba(79,70,229,.35) !important;
-        box-shadow: 0 0 0 4px rgba(109,40,217,.08), 0 8px 24px rgba(41,25,86,.08) !important;
+        box-shadow: 0 0 0 4px rgba(68,130,195,.08), 0 8px 24px rgba(15,23,42,.08) !important;
         outline: none;
       }
 
@@ -10048,9 +10135,9 @@ def login():
       .loginMetaCard{
         padding: 14px 16px;
         border-radius: 0 !important;
-        border: 1px solid rgba(109,40,217,.10);
+        border: 1px solid rgba(68,130,195,.10);
         background: linear-gradient(180deg, #ffffff, #f8f7ff);
-        box-shadow: 0 10px 24px rgba(41,25,86,.06);
+        box-shadow: 0 10px 24px rgba(15,23,42,.06);
       }
 
       .loginMetaLabel{
@@ -11114,7 +11201,7 @@ def clock_page():
   border: 1px solid rgba(220,38,38,.16);
   background: linear-gradient(180deg, #fff5f5, #ffffff);
   color: #b91c1c;
-  box-shadow: 0 10px 24px rgba(41,25,86,.08);
+  box-shadow: 0 10px 24px rgba(15,23,42,.08);
 }}
 
 .clockInlineMsg.ok {{
@@ -11126,12 +11213,12 @@ def clock_page():
 .clockStep {{
   padding: 28px 22px 30px;
   border-radius: 0 !important;
-  border: 1px solid rgba(109,40,217,.10);
+  border: 1px solid rgba(68,130,195,.10);
   background:
-    radial-gradient(circle at top right, rgba(109,40,217,.05), transparent 34%),
+    radial-gradient(circle at top right, rgba(68,130,195,.05), transparent 34%),
     radial-gradient(circle at top left, rgba(37,99,235,.05), transparent 30%),
-    linear-gradient(180deg, #ffffff 0%, #fbfaff 100%);
-  box-shadow: 0 18px 42px rgba(41,25,86,.10);
+    linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%);
+  box-shadow: 0 18px 42px rgba(15,23,42,.10);
 }}
 
 .clockStepLabel {{
@@ -11154,10 +11241,10 @@ def clock_page():
 
 .clockStageCard {{
   border-radius: 0 !important;
-  border: 1px solid rgba(109,40,217,.10);
+  border: 1px solid rgba(68,130,195,.10);
   overflow: hidden;
   background: #ffffff;
-  box-shadow: 0 14px 34px rgba(41,25,86,.08);
+  box-shadow: 0 14px 34px rgba(15,23,42,.08);
 }}
 
 .clockSelfieStage {{
@@ -11200,7 +11287,7 @@ def clock_page():
   border-radius: 0 !important;
   object-fit: cover;
   background: #e9eefb;
-  border: 1px solid rgba(109,40,217,.10);
+  border: 1px solid rgba(68,130,195,.10);
 }}
 
 .clockCaptureBar {{
@@ -11209,7 +11296,7 @@ def clock_page():
   padding: 18px;
   align-items: center;
   background: linear-gradient(180deg, #ffffff, #f8f9ff);
-  border-top: 1px solid rgba(109,40,217,.08);
+  border-top: 1px solid rgba(68,130,195,.08);
 }}
 
 .clockPrimaryBtn,
@@ -11224,7 +11311,7 @@ def clock_page():
 
 .clockPrimaryBtn,
 .clockPrimaryAction {{
-  background: linear-gradient(90deg, #6d28d9, #2563eb);
+  background: linear-gradient(90deg, #4f89c7, #3b74ad);
   color: #ffffff;
   box-shadow: 0 12px 26px rgba(79,70,229,.22);
 }}
@@ -11258,8 +11345,8 @@ def clock_page():
   min-height: 72px;
   padding: 0 22px;
   background: #f8f7ff;
-  color: #6d28d9;
-  border: 1px solid rgba(109,40,217,.12);
+  color: #3b74ad;
+  border: 1px solid rgba(68,130,195,.12);
   box-shadow: inset 0 1px 0 rgba(255,255,255,.8);
 }}
 
@@ -11271,7 +11358,7 @@ def clock_page():
   text-align: center;
   border: 1px solid rgba(220,38,38,.14);
   background: linear-gradient(180deg, #fff7f7, #ffffff);
-  box-shadow: 0 10px 24px rgba(41,25,86,.06);
+  box-shadow: 0 10px 24px rgba(15,23,42,.06);
 }}
 
 .clockDistanceAlertTitle {{
@@ -11306,8 +11393,8 @@ def clock_page():
 .clockMapShell {{
   border-radius: 0 !important;
   overflow: hidden;
-  border: 1px solid rgba(109,40,217,.10);
-  box-shadow: 0 14px 30px rgba(41,25,86,.08);
+  border: 1px solid rgba(68,130,195,.10);
+  box-shadow: 0 14px 30px rgba(15,23,42,.08);
   background: #ffffff;
 }}
 
@@ -11319,7 +11406,7 @@ def clock_page():
 }}
 
 .clockFooterNote strong {{
-  color: #26233a;
+  color: #1f2a37;
 }}
 
 .clockHidden {{
@@ -11336,7 +11423,7 @@ def clock_page():
   display: inline-flex;
   align-items: center;
   gap: 10px;
-  color: #26233a;
+  color: #1f2a37;
   font-size: 18px;
   font-weight: 700;
   margin-bottom: 22px;
@@ -11348,8 +11435,8 @@ def clock_page():
   display: inline-grid;
   place-items: center;
   border-radius: 0 !important;
-  background: rgba(109,40,217,.10);
-  color: #6d28d9;
+  background: rgba(68,130,195,.10);
+  color: #3b74ad;
   font-size: 18px;
   font-weight: 900;
 }}
@@ -11361,8 +11448,8 @@ def clock_page():
   border-radius: 0 !important;
   object-fit: cover;
   background: #ffffff;
-  border: 1px solid rgba(109,40,217,.10);
-  box-shadow: 0 14px 30px rgba(41,25,86,.10);
+  border: 1px solid rgba(68,130,195,.10);
+  box-shadow: 0 14px 30px rgba(15,23,42,.10);
   display: none;
 }}
 
@@ -11388,7 +11475,7 @@ def clock_page():
   font-size: clamp(54px, 11vw, 80px) !important;
   line-height: 1 !important;
   letter-spacing: 1.5px !important;
-  color: #26233a !important;
+  color: #1f2a37 !important;
   margin: 0 !important;
   font-weight: 800 !important;
 }}
@@ -11436,7 +11523,7 @@ def clock_page():
 .clockTextLink {{
   display: inline-block;
   margin-top: 18px;
-  color: #6d28d9;
+  color: #3b74ad;
   font-weight: 700;
   text-decoration: none;
 }}
@@ -11445,7 +11532,7 @@ def clock_page():
   margin-top: 16px;
   background: transparent;
   border: 0;
-  color: #6d28d9;
+  color: #3b74ad;
   font-weight: 700;
   cursor: pointer;
 }}
@@ -11910,7 +11997,7 @@ def my_times():
         padding:18px;
         border-radius: 0 !important;
         border:1px solid rgba(96,165,250,.16);
-        background:linear-gradient(180deg, rgba(245,243,255,.98), rgba(255,255,255,.98));
+        background:linear-gradient(180deg, rgba(242,247,251,.98), rgba(255,255,255,.98));
         box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
       }
       .timeLogsSummaryCard,
@@ -11920,7 +12007,7 @@ def my_times():
         box-shadow:0 14px 30px rgba(15,23,42,.06);
       }
       .timeLogsHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius: 0 !important; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#6d28d9; background:rgba(139,92,246,.10); border:1px solid rgba(139,92,246,.16); }
+      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius: 0 !important; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#3b74ad; background:rgba(68,130,195,.10); border:1px solid rgba(68,130,195,.16); }
       .timeLogsHero h1{ margin:12px 0 0; font-size:clamp(34px, 5vw, 46px); color:var(--text); }
       .timeLogsHero .sub{ color:var(--muted); }
       .timeLogsSummaryGrid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
@@ -12229,9 +12316,9 @@ def my_reports():
         align-items:center;
         padding:8px 14px;
         border-radius: 0 !important;
-        border:1px solid rgba(109,40,217,.12);
-        background:rgba(109,40,217,.06);
-        color:#6d28d9;
+        border:1px solid rgba(68,130,195,.12);
+        background:rgba(68,130,195,.06);
+        color:#3b74ad;
         font-size:12px;
         font-weight:800;
         text-transform:uppercase;
@@ -12269,9 +12356,9 @@ def my_reports():
         border-radius: 0 !important;
         font-weight:800;
         background:#ffffff;
-        border:1px solid rgba(109,40,217,.12);
+        border:1px solid rgba(68,130,195,.12);
         color:#4338ca;
-        box-shadow:0 8px 18px rgba(41,25,86,.06);
+        box-shadow:0 8px 18px rgba(15,23,42,.06);
       }
 
       .reportsListTopActions .btnPrimary{
@@ -12284,16 +12371,16 @@ def my_reports():
         border-radius: 0 !important;
         font-weight:800;
         color:#ffffff;
-        background:linear-gradient(90deg, #6d28d9, #2563eb);
+        background:linear-gradient(90deg, #4f89c7, #3b74ad);
         box-shadow:0 12px 24px rgba(79,70,229,.20);
       }
 
       .reportsListTableShell{
-        border:1px solid rgba(109,40,217,.10);
+        border:1px solid rgba(68,130,195,.10);
         border-radius: 0 !important;
         overflow:hidden;
-        background:linear-gradient(180deg, #ffffff, #fbfaff);
-        box-shadow:0 18px 36px rgba(41,25,86,.08);
+        background:linear-gradient(180deg, #ffffff, #f8fbfe);
+        box-shadow:0 18px 36px rgba(15,23,42,.08);
       }
 
       .reportsListTableTop{
@@ -12302,8 +12389,8 @@ def my_reports():
         justify-content:space-between;
         gap:12px;
         padding:14px 18px;
-        border-bottom:1px solid rgba(109,40,217,.08);
-        background:linear-gradient(180deg, rgba(109,40,217,.04), rgba(255,255,255,.85));
+        border-bottom:1px solid rgba(68,130,195,.08);
+        background:linear-gradient(180deg, rgba(68,130,195,.04), rgba(255,255,255,.85));
       }
 
       .reportsListTableTitle{
@@ -12427,20 +12514,20 @@ def my_reports():
         width:34px;
         height:34px;
         border-radius: 0 !important;
-        border:1px solid rgba(109,40,217,.14);
-        background:rgba(109,40,217,.06);
-        color:#6d28d9;
+        border:1px solid rgba(68,130,195,.14);
+        background:rgba(68,130,195,.06);
+        color:#3b74ad;
         font-size:18px;
         font-weight:900;
         text-decoration:none;
-        box-shadow:0 6px 14px rgba(41,25,86,.06);
+        box-shadow:0 6px 14px rgba(15,23,42,.06);
         transition:transform .16s ease, box-shadow .16s ease, background .16s ease;
       }
 
       .reportsListDownloadBtn:hover{
         transform:translateY(-1px);
-        background:rgba(109,40,217,.10);
-        box-shadow:0 10px 18px rgba(41,25,86,.10);
+        background:rgba(68,130,195,.10);
+        box-shadow:0 10px 18px rgba(15,23,42,.10);
       }
 
       .reportsListFooter{
@@ -12449,7 +12536,7 @@ def my_reports():
         justify-content:space-between;
         gap:12px;
         padding:12px 18px 16px;
-        border-top:1px solid rgba(109,40,217,.08);
+        border-top:1px solid rgba(68,130,195,.08);
         background:#ffffff;
         color:#8a84a3;
         font-size:13px;
@@ -12602,6 +12689,7 @@ def my_reports():
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
 
+
 @app.get("/my-week-report")
 def my_week_report():
     gate = require_login()
@@ -12706,21 +12794,21 @@ def my_week_report():
 
       .weekReportCard{
         background:#ffffff;
-        border:1px solid rgba(109,40,217,.10);
-        box-shadow:0 18px 36px rgba(41,25,86,.08);
+        border:1px solid rgba(68,130,195,.10);
+        box-shadow:0 18px 36px rgba(15,23,42,.08);
         padding:20px;
       }
 
       .weekReportTitle{
         font-size:18px;
         font-weight:900;
-        color:#6d28d9;
+        color:#3b74ad;
         margin:0 0 18px 0;
       }
 
       .weekReportSection{
         background:#f8f7ff;
-        border:1px solid rgba(109,40,217,.08);
+        border:1px solid rgba(68,130,195,.08);
         padding:16px;
         margin-top:14px;
       }
@@ -12811,6 +12899,7 @@ def my_week_report():
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content)
     )
+
 
 @app.get("/payments")
 def payments_page():
@@ -12959,9 +13048,9 @@ def payments_page():
         align-items:center;
         padding:8px 14px;
         border-radius: 0 !important;
-        border:1px solid rgba(109,40,217,.12);
-        background:rgba(109,40,217,.06);
-        color:#6d28d9;
+        border:1px solid rgba(68,130,195,.12);
+        background:rgba(68,130,195,.06);
+        color:#3b74ad;
         font-size:12px;
         font-weight:800;
         text-transform:uppercase;
@@ -12985,9 +13074,9 @@ def payments_page():
       .paymentsTableShell{
         overflow:hidden;
         border-radius: 0 !important;
-        border:1px solid rgba(109,40,217,.10);
+        border:1px solid rgba(68,130,195,.10);
         background:#ffffff;
-        box-shadow:0 16px 32px rgba(41,25,86,.08);
+        box-shadow:0 16px 32px rgba(15,23,42,.08);
       }
 
       .paymentsTableTop{
@@ -12996,7 +13085,7 @@ def payments_page():
         justify-content:space-between;
         gap:12px;
         padding:16px 18px;
-        border-bottom:1px solid rgba(109,40,217,.08);
+        border-bottom:1px solid rgba(68,130,195,.08);
         background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,246,255,.98));
       }
 
@@ -13028,7 +13117,7 @@ def payments_page():
       .paymentsTable th,
       .paymentsTable td{
         padding:14px 16px;
-        border-bottom:1px solid rgba(109,40,217,.08);
+        border-bottom:1px solid rgba(68,130,195,.08);
         text-align:left;
         background:#fff;
       }
@@ -13078,7 +13167,7 @@ def payments_page():
 }
 
       .paymentsTable tbody tr:hover td{
-        background:rgba(109,40,217,.03);
+        background:rgba(68,130,195,.03);
       }
 
       .reportsListDownloadBtn{
@@ -13088,13 +13177,13 @@ def payments_page():
         align-items:center;
         justify-content:center;
         border-radius: 0 !important;
-        border:1px solid rgba(109,40,217,.14);
-        background:rgba(109,40,217,.06);
-        color:#6d28d9;
+        border:1px solid rgba(68,130,195,.14);
+        background:rgba(68,130,195,.06);
+        color:#3b74ad;
         font-size:18px;
         font-weight:900;
         text-decoration:none;
-        box-shadow:0 6px 14px rgba(41,25,86,.06);
+        box-shadow:0 6px 14px rgba(15,23,42,.06);
       }
 
       .paymentsFooter{
@@ -13103,7 +13192,7 @@ def payments_page():
         justify-content:space-between;
         gap:12px;
         padding:12px 18px 16px;
-        border-top:1px solid rgba(109,40,217,.08);
+        border-top:1px solid rgba(68,130,195,.08);
         background:#ffffff;
         color:#8a84a3;
         font-size:13px;
@@ -13555,7 +13644,7 @@ def my_reports_print():
         font-weight: 900;
         letter-spacing: .08em;
         text-transform: uppercase;
-        color: #6d28d9;
+        color: #3b74ad;
       }
 
       .statementInfoLines{
@@ -13628,7 +13717,7 @@ def my_reports_print():
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: #6d28d9;
+  color: #3b74ad;
   line-height: 1.2;
 }
 
@@ -13643,7 +13732,7 @@ def my_reports_print():
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: #6d28d9;
+  color: #3b74ad;
   line-height: 1.2;
 }
 
@@ -13696,7 +13785,7 @@ def my_reports_print():
   font-weight: 900;
   text-transform: uppercase;
   letter-spacing: .04em;
-  color: #6d28d9;
+  color: #3b74ad;
   line-height: 1.2;
 }
 
@@ -13733,7 +13822,7 @@ def my_reports_print():
 
       .statementBottomBar{
         height: 14px;
-        background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 40%, #5b21b6 100%);
+        background: linear-gradient(90deg, #4482c3 0%, #3b74ad 40%, #315f8f 100%);
       }
 
       @media (max-width: 860px){
@@ -16083,7 +16172,7 @@ def admin_payroll():
             <button type="submit"
                     title="Previous week"
                     aria-label="Previous week"
-                    style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#fff; color:#6d28d9; font-size:22px; font-weight:900; cursor:pointer;">
+                    style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#fff; color:#3b74ad; font-size:22px; font-weight:900; cursor:pointer;">
               ‹
             </button>
           </form>
@@ -16099,7 +16188,7 @@ def admin_payroll():
 
             <select name="wk"
                     onchange="this.form.submit()"
-                    style="min-width:320px; max-width:100%; height:40px; padding:0 12px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#fff; color:#1f2547; font-size:14px; font-weight:400;">
+                    style="min-width:320px; max-width:100%; height:40px; padding:0 12px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#fff; color:#1f2547; font-size:14px; font-weight:400;">
               {''.join(week_options)}
             </select>
           </form>
@@ -16112,8 +16201,8 @@ def admin_payroll():
             <button type="submit"
                     title="Next week"
                     aria-label="Next week"
-                    style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#fff; color:#6d28d9; font-size:22px; font-weight:900; cursor:pointer;"
-                    {"disabled style='width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#f8f7ff; color:#c4b5fd; font-size:22px; font-weight:900; cursor:not-allowed;'" if wk_offset == 0 else ""}
+                    style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#fff; color:#3b74ad; font-size:22px; font-weight:900; cursor:pointer;"
+                    {"disabled style='width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#f8f7ff; color:#c4b5fd; font-size:22px; font-weight:900; cursor:not-allowed;'" if wk_offset == 0 else ""}
             >
               ›
             </button>
@@ -16127,8 +16216,8 @@ def admin_payroll():
     """
     # Payroll donut chart data (gross by employee for current filtered view)
     chart_palette = [
-        "#2563eb", "#7c3aed", "#16a34a", "#f59e0b", "#ef4444",
-        "#06b6d4", "#84cc16", "#ec4899", "#14b8a6", "#8b5cf6"
+        "#2563eb", "#4482c3", "#16a34a", "#f59e0b", "#ef4444",
+        "#06b6d4", "#84cc16", "#ec4899", "#14b8a6", "#5b95cb"
     ]
 
     chart_totals = {}
@@ -16467,7 +16556,6 @@ def admin_payroll():
 
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
-
         rows_html = []
         for di in range(7):
             d_dt = week_start + timedelta(days=di)
@@ -16763,7 +16851,7 @@ def admin_payroll():
     </tbody>
   </table>
 
-  <div style="padding:14px 18px; border-top:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#faf8ff);">
+  <div style="padding:14px 18px; border-top:1px solid rgba(15,23,42,.08); background:#ffffff;">
     {payroll_week_bar_html}
   </div>
 </div>
@@ -17229,9 +17317,9 @@ def admin_onboarding_list():
                 f"<td><a href='/admin/onboarding/{escape(u)}' style='color:var(--navy);font-weight:600;'>{escape(name)}</a></td>"
                 f"<td>{escape(u)}</td>"
                 f"<td>{escape(sub)}</td>"
-                f"<td style='text-align:center; white-space:nowrap;'><a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a></td>"
+                f"<td style='text-align:center; white-space:nowrap;'><a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#3b74ad; line-height:1;'>PDF</a></td>"
                 f"<a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' "
-                f"style='display:inline; margin:0; padding:0; border:0; background:none; box-shadow:none; text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; line-height:1;'>PDF</a>"
+                f"style='display:inline; margin:0; padding:0; border:0; background:none; box-shadow:none; text-decoration:none; font-size:12px; font-weight:700; color:#3b74ad; line-height:1;'>PDF</a>"
                 f"</td>"
                 f"</tr>"
             )
@@ -17329,7 +17417,7 @@ def admin_onboarding_detail(username):
       <div class="card" style="padding:12px;">
         <div class="actionRow" style="margin-bottom:12px; grid-template-columns:1fr auto;">
   <div class="sub">Share or save this form as PDF even if no images were uploaded.</div>
-  <a href="/admin/onboarding/{escape(username)}/download" target="_blank" rel="noopener" style="text-decoration:none; font-size:12px; font-weight:700; color:#6d28d9; white-space:nowrap;">PDF</a>
+  <a href="/admin/onboarding/{escape(username)}/download" target="_blank" rel="noopener" style="text-decoration:none; font-size:12px; font-weight:700; color:#3b74ad; white-space:nowrap;">PDF</a>
 </div>
 
         <div class="tablewrap">
@@ -17461,16 +17549,16 @@ def admin_onboarding_download(username):
           border-radius: 0 !important;
           text-decoration: none;
           font-weight: 800;
-          border: 1px solid rgba(109,40,217,.12);
+          border: 1px solid rgba(68,130,195,.12);
           background: #fff;
           color: #4338ca;
-          box-shadow: 0 8px 18px rgba(41,25,86,.06);
+          box-shadow: 0 8px 18px rgba(15,23,42,.06);
         }}
 
         .btnPrimary {{
           color: #fff;
           border: 0;
-          background: linear-gradient(90deg, #6d28d9, #2563eb);
+          background: linear-gradient(90deg, #4f89c7, #3b74ad);
           box-shadow: 0 12px 24px rgba(79,70,229,.20);
         }}
 
@@ -17497,9 +17585,9 @@ def admin_onboarding_download(username):
           align-items: center;
           padding: 8px 12px;
           border-radius: 0 !important;
-          border: 1px solid rgba(109,40,217,.12);
-          background: rgba(109,40,217,.06);
-          color: #6d28d9;
+          border: 1px solid rgba(68,130,195,.12);
+          background: rgba(68,130,195,.06);
+          color: #3b74ad;
           font-size: 12px;
           font-weight: 800;
           text-transform: uppercase;
@@ -17538,7 +17626,7 @@ def admin_onboarding_download(username):
 
         .sectionTitle {{
           margin: 0 0 10px 0;
-          color: #6d28d9;
+          color: #3b74ad;
           font-size: 12px;
           font-weight: 900;
           letter-spacing: .07em;
@@ -17579,7 +17667,7 @@ def admin_onboarding_download(username):
 
         .bar {{
           height: 12px;
-          background: linear-gradient(90deg, #7c3aed 0%, #6d28d9 40%, #2563eb 100%);
+          background: linear-gradient(90deg, #4482c3 0%, #3b74ad 40%, #2563eb 100%);
         }}
 
         @media (max-width: 760px) {{
