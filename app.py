@@ -4215,13 +4215,21 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   background: rgba(255,255,255,.12);
   border: 1px solid rgba(191,219,254,.22);
   color:#f8fafc;
-  font-weight:700;
+  font-weight:400;
   box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+}
+
+.payrollWeekBar .input option{
+  font-weight:400;
 }
 
 .payrollWeekBar .input:focus{
   border-color: rgba(96,165,250,.7);
   box-shadow: 0 0 0 4px rgba(37,99,235,.18);
+}
+.payrollWeekBar select,
+.payrollWeekBar select option{
+  font-weight:400 !important;
 }
 
 
@@ -6168,12 +6176,20 @@ h2{
   border-bottom:1px solid rgba(148,163,184,.18);
 }
 .payrollEmployeeName{
-  font-size: clamp(28px, 3vw, 40px);
-  line-height: 1.05;
-  font-weight: 900;
-  letter-spacing: -.03em;
+  font-size: 18px;
+  line-height: 1.2;
+  font-weight: 700;
+  letter-spacing: 0;
   color: #26233a !important;
   text-shadow: none !important;
+}
+
+.payrollEmployeeMeta{
+  margin-top: 4px;
+  font-size: 13px;
+  line-height: 1.2;
+  font-weight: 500;
+  color: rgba(111,108,133,.92) !important;
 }
 
 /* sidebar */
@@ -15998,33 +16014,62 @@ def admin_payroll():
             f"<option value='{i}' {selected}>{escape(week_label(d0))}</option>"
         )
 
-    week_nav_html = f"""
-      <form method="GET"
-            style="margin-top:14px; display:flex; flex-wrap:wrap; gap:16px; align-items:end; justify-content:space-between; padding:18px 20px; border-radius: 0 !important; border:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#f8f7ff); box-shadow:0 14px 30px rgba(41,25,86,.08);">
-        <input type="hidden" name="q" value="{escape(q)}">
-        <input type="hidden" name="from" value="{escape(date_from)}">
-        <input type="hidden" name="to" value="{escape(date_to)}">
+    prev_wk = min(51, wk_offset + 1)
+    next_wk = max(0, wk_offset - 1)
 
-        <div style="flex:1 1 320px; min-width:260px;">
-          <div style="display:inline-flex; align-items:center; padding:8px 14px; border-radius: 0 !important; border:1px solid rgba(109,40,217,.12); background:rgba(109,40,217,.06); color:#4338ca; font-size:13px; font-weight:800; text-transform:uppercase; letter-spacing:.05em;">
-            Employee detail tables
-          </div>
-          <div style="margin-top:10px; color:#6f6c85; font-size:15px;">
-            Choose the week shown in the individual employee tables below.
-          </div>
+    payroll_week_bar_html = f"""
+      <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+
+          <form method="GET" style="margin:0;">
+            <input type="hidden" name="q" value="{escape(q)}">
+            <input type="hidden" name="from" value="{escape(date_from)}">
+            <input type="hidden" name="to" value="{escape(date_to)}">
+            <input type="hidden" name="wk" value="{prev_wk}">
+            <button type="submit"
+                    title="Previous week"
+                    aria-label="Previous week"
+                    style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#fff; color:#6d28d9; font-size:22px; font-weight:900; cursor:pointer;">
+              ‹
+            </button>
+          </form>
+
+          <form method="GET" style="margin:0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+            <input type="hidden" name="q" value="{escape(q)}">
+            <input type="hidden" name="from" value="{escape(date_from)}">
+            <input type="hidden" name="to" value="{escape(date_to)}">
+
+            <div style="font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6f6c85;">
+              Week
+            </div>
+
+            <select name="wk"
+                    onchange="this.form.submit()"
+                    style="min-width:320px; max-width:100%; height:40px; padding:0 12px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#fff; color:#1f2547; font-size:14px; font-weight:400;">
+              {''.join(week_options)}
+            </select>
+          </form>
+
+          <form method="GET" style="margin:0;">
+            <input type="hidden" name="q" value="{escape(q)}">
+            <input type="hidden" name="from" value="{escape(date_from)}">
+            <input type="hidden" name="to" value="{escape(date_to)}">
+            <input type="hidden" name="wk" value="{next_wk}">
+            <button type="submit"
+                    title="Next week"
+                    aria-label="Next week"
+                    style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#fff; color:#6d28d9; font-size:22px; font-weight:900; cursor:pointer;"
+                    {"disabled style='width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(109,40,217,.14); background:#f8f7ff; color:#c4b5fd; font-size:22px; font-weight:900; cursor:not-allowed;'" if wk_offset == 0 else ""}
+            >
+              ›
+            </button>
+          </form>
         </div>
 
-        <div style="flex:0 1 360px; min-width:260px; display:flex; flex-direction:column; gap:8px;">
-          <label for="payroll-week-select"
-                 style="font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6f6c85;">
-            Week
-          </label>
-          <select id="payroll-week-select" class="input" name="wk" onchange="this.form.submit()"
-                  style="margin-top:0; height:56px; border-radius: 0 !important; border:1px solid rgba(109,40,217,.14); background:#ffffff; color:#1f2547; font-weight:800; box-shadow:0 8px 20px rgba(41,25,86,.06);">
-            {''.join(week_options)}
-          </select>
+        <div style="font-size:13px; color:#6f6c85;">
+          Browse the weekly history shown in the payroll table.
         </div>
-      </form>
+      </div>
     """
     # Payroll donut chart data (gross by employee for current filtered view)
     chart_palette = [
@@ -16368,6 +16413,7 @@ def admin_payroll():
 
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
+
         rows_html = []
         for di in range(7):
             d_dt = week_start + timedelta(days=di)
@@ -16654,30 +16700,21 @@ def admin_payroll():
 
       {f"""
       <div class="payrollWrap" style="margin-top:12px;">
-        <table class="payrollSheet">
-          <thead>
-            <tr class="cols">
-              <th>Employee</th>
-              <th>Mon</th>
-              <th>Tue</th>
-              <th>Wed</th>
-              <th>Thu</th>
-              <th>Fri</th>
-              <th>Sat</th>
-              <th>Sun</th>
-              <th class="payrollSummaryTotal">Total</th>
-              <th class="payrollSummaryMoney">Gross</th>
-              <th class="payrollSummaryMoney">Tax</th>
-              <th class="payrollSummaryMoney">Net</th>
-            </tr>
-          </thead>
-          <tbody>
-            {sheet_html}
-          </tbody>
-        </table>
-      </div>
+  <table class="payrollSheet">
+    <thead>
+      ...
+    </thead>
+    <tbody>
+      {sheet_html}
+    </tbody>
+  </table>
 
-      <div class="payrollTopGrid" style="margin-top:12px;">
+  <div style="padding:14px 18px; border-top:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#faf8ff);">
+    {payroll_week_bar_html}
+  </div>
+</div>
+
+<div class="payrollTopGrid" style="margin-top:12px;">
         <div class="card payrollFiltersCard">
           <form method="GET">
             <div>
@@ -16728,8 +16765,6 @@ def admin_payroll():
           </div>
         </div>
       </div>
-
-      {week_nav_html}
 
       {''.join(blocks)}
       """ if not use_range else f"""
