@@ -2011,7 +2011,8 @@ def manifest():
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 PWA_TAGS = """
 <title>Timiq</title>
-<link rel="icon" type="image/png" href="/static/icon-192.png?v=3">
+<link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=1">
+<link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png?v=1">
 <link rel="apple-touch-icon" href="/static/icon-192.png?v=3">
 <meta name="theme-color" content="#1f2d63">
 <meta name="apple-mobile-web-app-capable" content="yes">
