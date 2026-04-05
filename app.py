@@ -10331,6 +10331,72 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+@app.get("/api/dashboard-snapshot")
+def api_dashboard_snapshot():
+    gate = require_login()
+    if gate:
+        return gate
+
+    if session.get("role") not in ("admin", "master_admin"):
+        abort(403)
+
+    current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
+    employee_count = 0
+    clocked_in_count = 0
+    active_locations_count = 0
+    onboarding_pending_count = 0
+
+    try:
+        emp_vals = employees_sheet.get_all_values()
+        if emp_vals:
+            emp_headers = emp_vals[0]
+            i_user = emp_headers.index("Username") if "Username" in emp_headers else None
+            i_wp = emp_headers.index("Workplace_ID") if "Workplace_ID" in emp_headers else None
+            i_onb = emp_headers.index("OnboardingCompleted") if "OnboardingCompleted" in emp_headers else None
+
+            for r in emp_vals[1:]:
+                if i_user is None or i_user >= len(r):
+                    continue
+
+                u = (r[i_user] or "").strip()
+                if not u:
+                    continue
+
+                if i_wp is not None:
+                    row_wp = (r[i_wp] if i_wp < len(r) else "").strip() or "default"
+                    if row_wp not in allowed_wps:
+                        continue
+
+                employee_count += 1
+
+                if i_onb is not None:
+                    done_flag = (r[i_onb] if i_onb < len(r) else "").strip().lower()
+                    if done_flag not in ("true", "1", "yes"):
+                        onboarding_pending_count += 1
+    except Exception:
+        pass
+
+    try:
+        clocked_in_count = sum(1 for _ in _get_open_shifts())
+    except Exception:
+        clocked_in_count = 0
+
+    try:
+        active_locations_count = len(_get_active_locations())
+    except Exception:
+        active_locations_count = 0
+
+    return jsonify({
+        "employee_count": employee_count,
+        "clocked_in_count": clocked_in_count,
+        "active_locations_count": active_locations_count,
+        "onboarding_pending_count": onboarding_pending_count,
+        "updated_at": datetime.now(TZ).strftime("%H:%M:%S"),
+    })
+
+
 
 # ---------- DASHBOARD ----------
 @app.get("/")
@@ -10754,7 +10820,7 @@ def home():
     snapshot_html = ""
     if role in ("admin", "master_admin"):
         snapshot_html = f"""
-          <div class="sideInfoCard plainSection">
+          <div class="sideInfoCard plainSection" id="businessSnapshotCard">
             <div class="sectionHead">
               <div class="sectionHeadLeft">
                 <div class="sectionIcon">{_svg_grid()}</div>
@@ -10763,89 +10829,155 @@ def home():
                   <p class="sub" style="margin:4px 0 0 0;">Live workforce and workplace setup overview.</p>
                 </div>
               </div>
-              <div class="sectionBadge">Live</div>
+              <div class="sectionBadge" id="snapshotLiveBadge">Live</div>
             </div>
 
             <div class="sideInfoList">
               <div class="sideInfoRow">
                 <div class="sideInfoLabel">Employees</div>
-                <div class="sideInfoValue">{employee_count}</div>
+                <div class="sideInfoValue" id="snapshotEmployees">{employee_count}</div>
               </div>
 
               <div class="sideInfoRow">
                 <div class="sideInfoLabel">Clocked In Now</div>
-                <div class="sideInfoValue">{clocked_in_count}</div>
+                <div class="sideInfoValue" id="snapshotClockedIn">{clocked_in_count}</div>
               </div>
 
               <div class="sideInfoRow">
                 <div class="sideInfoLabel">Active Locations</div>
-                <div class="sideInfoValue">{active_locations_count}</div>
+                <div class="sideInfoValue" id="snapshotLocations">{active_locations_count}</div>
               </div>
 
               <div class="sideInfoRow">
                 <div class="sideInfoLabel">Onboarding Pending</div>
-                <div class="sideInfoValue">{onboarding_pending_count}</div>
+                <div class="sideInfoValue" id="snapshotOnboarding">{onboarding_pending_count}</div>
               </div>
             </div>
 
-            <div class="snapshotFoot">Monitor staffing, access setup and onboarding completion from one place.</div>
+            <div class="snapshotFoot">
+              Monitor staffing, access setup and onboarding completion from one place.
+              <span id="snapshotUpdatedAt" style="margin-left:8px; opacity:.7;"></span>
+            </div>
           </div>
+
+          <script>
+          (function(){{
+            const employeesEl = document.getElementById("snapshotEmployees");
+            const clockedEl = document.getElementById("snapshotClockedIn");
+            const locationsEl = document.getElementById("snapshotLocations");
+            const onboardingEl = document.getElementById("snapshotOnboarding");
+            const updatedEl = document.getElementById("snapshotUpdatedAt");
+            const badgeEl = document.getElementById("snapshotLiveBadge");
+
+            if (!employeesEl || !clockedEl || !locationsEl || !onboardingEl) return;
+
+            let busy = false;
+
+            async function refreshSnapshot(){{
+              if (busy) return;
+              busy = true;
+
+              try {{
+                const res = await fetch("/api/dashboard-snapshot", {{
+                  method: "GET",
+                  credentials: "same-origin",
+                  cache: "no-store",
+                  headers: {{
+                    "X-Requested-With": "XMLHttpRequest"
+                  }}
+                }});
+
+                if (!res.ok) return;
+
+                const data = await res.json();
+
+                employeesEl.textContent = String(data.employee_count ?? 0);
+                clockedEl.textContent = String(data.clocked_in_count ?? 0);
+                locationsEl.textContent = String(data.active_locations_count ?? 0);
+                onboardingEl.textContent = String(data.onboarding_pending_count ?? 0);
+
+                if (updatedEl && data.updated_at) {{
+                  updatedEl.textContent = "Updated " + data.updated_at;
+                }}
+
+                if (badgeEl) {{
+                  badgeEl.textContent = "Live";
+                  badgeEl.style.opacity = "1";
+                  setTimeout(function(){{
+                    if (badgeEl) badgeEl.style.opacity = ".88";
+                  }}, 250);
+                }}
+              }} catch (e) {{
+                console.error("snapshot refresh failed", e);
+              }} finally {{
+                busy = false;
+              }}
+            }}
+
+            refreshSnapshot();
+            setInterval(refreshSnapshot, 10000);
+
+            document.addEventListener("visibilitychange", function(){{
+              if (!document.hidden) refreshSnapshot();
+            }});
+          }})();
+          </script>
         """
 
     content = f"""
       <div class="dashboardHero">
-  <div class="dashboardHeroMain">
-    <h1>Dashboard</h1>
-  </div>
-  <div class="dashboardHeroMeta">
-    <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
-    <div class="dashboardDateChip">{escape(now.strftime("%A • %d %b %Y"))}</div>
-  </div>
-</div>
+        <div class="dashboardHeroMain">
+          <h1>Dashboard</h1>
+        </div>
+        <div class="dashboardHeroMeta">
+          <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
+          <div class="dashboardDateChip">{escape(now.strftime("%A • %d %b %Y"))}</div>
+        </div>
+      </div>
 
       {chart_section_html}
 
       <div class="dashboardMiniStatus">
-  <div class="dashboardMiniStatusCard">
-    <div class="dashboardMiniStatusSplit">
+        <div class="dashboardMiniStatusCard">
+          <div class="dashboardMiniStatusSplit">
 
-      <div class="dashboardMiniStatusPane">
-        <div class="dashboardMiniStatusTop">
-          <div class="dashboardMiniStatusIcon">{_svg_clock()}</div>
-          <div>
-            <div class="dashboardMiniStatusLabel">Status</div>
-            <div class="dashboardMiniStatusSub">Live attendance</div>
+            <div class="dashboardMiniStatusPane">
+              <div class="dashboardMiniStatusTop">
+                <div class="dashboardMiniStatusIcon">{_svg_clock()}</div>
+                <div>
+                  <div class="dashboardMiniStatusLabel">Status</div>
+                  <div class="dashboardMiniStatusSub">Live attendance</div>
+                </div>
+              </div>
+              <div class="dashboardMiniStatusValue">
+                {dashboard_status_html}
+              </div>
+            </div>
+
+            <div class="dashboardMiniDivider"></div>
+
+            <div class="dashboardMiniStatusPane">
+              <div class="dashboardMiniStatusTop">
+                <div class="dashboardMiniStatusIcon">{_svg_grid()}</div>
+                <div>
+                  <div class="dashboardMiniStatusLabel">Weekly target</div>
+                  <div class="dashboardMiniStatusSub">{fmt_hours(week_hours)} / {fmt_hours(week_target_hours)} hours</div>
+                </div>
+              </div>
+
+              <div class="dashboardMiniTargetRow">
+                <span>Progress</span>
+                <strong>{week_progress_pct}%</strong>
+              </div>
+
+              <div class="dashboardMiniTargetBar">
+                <span style="width:{week_progress_pct}%;"></span>
+              </div>
+            </div>
+
           </div>
         </div>
-        <div class="dashboardMiniStatusValue">
-          <span class="chip {status_class}">{escape(status_text)}</span>
-        </div>
       </div>
-
-      <div class="dashboardMiniDivider"></div>
-
-      <div class="dashboardMiniStatusPane">
-        <div class="dashboardMiniStatusTop">
-          <div class="dashboardMiniStatusIcon">{_svg_grid()}</div>
-          <div>
-            <div class="dashboardMiniStatusLabel">Weekly target</div>
-            <div class="dashboardMiniStatusSub">{fmt_hours(week_hours)} / {fmt_hours(week_target_hours)} hours</div>
-          </div>
-        </div>
-
-        <div class="dashboardMiniTargetRow">
-          <span>Progress</span>
-          <strong>{week_progress_pct}%</strong>
-        </div>
-
-        <div class="dashboardMiniTargetBar">
-          <span style="width:{week_progress_pct}%;"></span>
-        </div>
-      </div>
-
-    </div>
-  </div>
-</div>
 
       <div class="dashboardBottom">
         <div class="activityCard plainSection">
@@ -10867,34 +10999,11 @@ def home():
 
         {snapshot_html}
       </div>
-
-      <div class="card menu dashboardMainMenu">
-  <div class="sectionHead dashboardMenuHead" style="display:none;"></div>
-
-        <div class="dashboardShortcutGrid">
-          <a class="menuItem nav-clock" href="/clock">
-            <div class="menuLeft"><div class="icoBox">{_icon_clock(22)}</div><div class="menuText">Clock In & Out</div></div>
-            <div class="chev">›</div>
-          </a>
-          <a class="menuItem nav-times" href="/my-times">
-            <div class="menuLeft"><div class="icoBox">{_icon_timelogs(22)}</div><div class="menuText">Time logs</div></div>
-            <div class="chev">›</div>
-          </a>
-          <a class="menuItem nav-reports" href="/my-reports">
-  <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
-  <div class="chev">›</div>
-</a>
-<a class="menuItem nav-payments" href="/payments">
-  <div class="menuLeft"><div class="icoBox">{_icon_payments(22)}</div><div class="menuText">Payments</div></div>
-  <div class="chev">›</div>
-</a>
-          {admin_item}
-          {workplaces_item}
-        </div>
-      </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content))
 
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content)
+    )
 
 # ---------- CLOCK PAGE ----------
 @app.route("/clock", methods=["GET", "POST"])
