@@ -9674,8 +9674,8 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     company_bar = f"""
       <div class="topBarFixed">
         <a href="/" class="mobileTopLogo" aria-label="Timiq home">
-          <img src="/static/timiq-logo.png" alt="Timiq">
-        </a>
+  <img src="/static/original-logo.png" alt="Timiq">
+</a>
         <span class="topBrandBadge">{escape(company_name)}</span>
         <div class="topAccountWrap">
           <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
@@ -9891,6 +9891,20 @@ def login():
           linear-gradient(180deg, #ffffff 0%, #fbfaff 100%) !important;
         box-shadow: 0 24px 60px rgba(41,25,86,.10) !important;
       }
+      
+      .loginBrandWrap{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+}
+
+.loginBrandLogo{
+  width:220px;
+  max-width:100%;
+  height:auto;
+  display:block;
+  margin:0 0 10px 0;
+}
 
       .loginHeroPro{
         display: flex;
@@ -10068,6 +10082,10 @@ def login():
         .loginShellPro{
           max-width: 100%;
           padding-top: 10px;
+          .loginBrandLogo{
+  width:170px;
+  margin:0 0 8px 0;
+}
         }
 
         .loginHeroPro{
@@ -10092,6 +10110,9 @@ def login():
       @media (max-width: 560px){
         .loginHeroPro h1{
           font-size: 40px;
+          .loginBrandLogo{
+  width:150px;
+}
         }
 
         .loginLead{
@@ -10121,13 +10142,11 @@ def login():
 
         <div class="card loginCardPro">
           <div class="loginHeroPro">
-            <div>
-              <div class="loginEyebrow">Secure Timiq access</div>
-<h1>Timiq</h1>
-<p class="sub loginLead">Clock-in, attendance and payroll in one secure workspace.</p>
-            </div>
-            <div class="loginHeroBadge">Secure sign in</div>
-          </div>
+  <div class="loginBrandWrap">
+    <img src="/static/original-logo.png" alt="Timiq" class="loginBrandLogo">
+    <p class="sub loginLead">Clock-in, attendance and payroll in one secure workspace.</p>
+  </div>
+</div>
 
           <div class="loginFormWrap">
             <div class="loginSectionTitle">Sign in to continue</div>
@@ -10153,21 +10172,6 @@ def login():
             </form>
 
             {("<div class='message error loginMessageWrap'>" + escape(msg) + "</div>") if msg else ""}
-
-            <div class="loginMetaGrid">
-              <div class="loginMetaCard">
-                <span class="loginMetaLabel">Platform</span>
-                <span class="loginMetaValue">Payroll and attendance workspace</span>
-              </div>
-              <div class="loginMetaCard">
-                <span class="loginMetaLabel">Access</span>
-                <span class="loginMetaValue">Role-based secure session</span>
-              </div>
-              <div class="loginMetaCard">
-                <span class="loginMetaLabel">Sign-in</span>
-                <span class="loginMetaValue">Use your workplace ID and password</span>
-              </div>
-            </div>
 
             <div class="loginFooterNote">Use the same credentials provided by your administrator. After sign-in you can access clock-in, timesheets and payroll tools based on your role.</div>
           </div>
