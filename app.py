@@ -9710,7 +9710,31 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
 
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
-    return ""
+    items = [
+        ("home", "/", "Home", _icon_dashboard(20)),
+        ("clock", "/clock", "Clock", _icon_clock(20)),
+        ("times", "/my-times", "Logs", _icon_timelogs(20)),
+        ("reports", "/my-reports", "Sheets", _icon_timesheets(20)),
+        ("payments", "/payments", "Pay", _icon_payments(20)),
+    ]
+
+    if role in ("admin", "master_admin"):
+        items.append(("admin", "/admin", "Admin", _icon_admin(20)))
+
+    links = []
+    for key, href, label, icon in items:
+        links.append(f"""
+          <a class="bottomNavItem {'active' if active == key else ''}" href="{href}">
+            <div class="bottomNavIcon">{icon}</div>
+            <div class="bottomNavText">{escape(label)}</div>
+          </a>
+        """)
+
+    return f"""
+      <nav class="bottomNav">
+        {''.join(links)}
+      </nav>
+    """
 
 
 def sidebar_html(active: str, role: str) -> str:
@@ -11171,6 +11195,8 @@ def clock_page():
                                 msg = f"Clocked in successfully (counted from 08:00) • {cfg['name']} ({int(dist_m)}m)"
                             else:
                                 msg = f"Clocked in successfully • {cfg['name']} ({int(dist_m)}m)"
+
+                            return redirect(url_for("home"))
 
                     elif action == "out":
                         osf = find_open_shift(rows, username)
@@ -16328,6 +16354,16 @@ def admin_payroll():
     prev_wk = min(51, wk_offset + 1)
     next_wk = max(0, wk_offset - 1)
 
+    payroll_refresh_url = url_for(
+        "admin_payroll",
+        q=q,
+        **{
+            "from": date_from,
+            "to": date_to,
+            "wk": wk_offset,
+        }
+    )
+
     payroll_week_bar_html = f"""
       <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
         <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
@@ -16610,10 +16646,10 @@ def admin_payroll():
                  <td class="payrollDayCell {day_cls}">
                    {day_inner}
                    <form id="{form_id}" method="POST" action="/admin/save-shift" style="display:none;">
-                     <input type="hidden" name="csrf" value="{escape(csrf)}">
-                     <input type="hidden" name="user" value="{escape(u)}">
-                     <input type="hidden" name="date" value="{escape(d_str)}">
-                   </form>
+  <input type="hidden" name="csrf" value="{escape(csrf)}">
+  <input type="hidden" name="user" value="{escape(u)}">
+  <input type="hidden" name="date" value="{escape(d_str)}">
+</form>
                  </td>
                """)
 
@@ -16987,6 +17023,15 @@ def admin_payroll():
                 <p class="sub" style="margin-top:12px;">No logged days found for this range.</p>
               </div>
             """
+    payroll_refresh_url = url_for(
+        "admin_payroll",
+        q=q,
+        **{
+            "from": date_from,
+            "to": date_to,
+            "wk": wk_offset,
+        }
+    )
 
     back_href = f"/admin/payroll?wk={wk_offset}" if use_range else "/admin"
 
@@ -17009,17 +17054,33 @@ def admin_payroll():
       {admin_back_link(back_href)}
 
       {f"""
-      <div class="payrollWrap" style="margin-top:12px;">
+      <div id="payrollLiveRegion"
+           data-refresh-url="{escape(payroll_refresh_url)}"
+           data-refresh-ms="10000">
+        <div class="payrollWrap" style="margin-top:12px;">
   <table class="payrollSheet">
     <thead>
-      ...
-    </thead>
+  <tr>
+    <th>Employee</th>
+    <th class="payrollDayCell">Mon</th>
+    <th class="payrollDayCell">Tue</th>
+    <th class="payrollDayCell">Wed</th>
+    <th class="payrollDayCell">Thu</th>
+    <th class="payrollDayCell">Fri</th>
+    <th class="payrollDayCell">Sat</th>
+    <th class="payrollDayCell">Sun</th>
+    <th class="payrollSummaryTotal">Hours</th>
+    <th class="payrollSummaryMoney">Gross</th>
+    <th class="payrollSummaryMoney">CIS Tax</th>
+    <th class="payrollSummaryMoney">Net</th>
+  </tr>
+</thead>
     <tbody>
       {sheet_html}
     </tbody>
   </table>
 
-  <div style="padding:14px 18px; border-top:1px solid rgba(15,23,42,.08); background:#ffffff;">
+  <div style="padding:14px 18px; border-top:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#faf8ff);">
     {payroll_week_bar_html}
   </div>
 </div>
@@ -17076,7 +17137,8 @@ def admin_payroll():
         </div>
       </div>
 
-      {''.join(blocks)}
+            {''.join(blocks)}
+      </div>
       """ if not use_range else f"""
       <div class="payrollTopGrid">
         <div class="card payrollFiltersCard">
@@ -17130,92 +17192,189 @@ def admin_payroll():
         </div>
       </div>
 
-      {range_detail_html}
+            {range_detail_html}
       """}
 
-
-
 <script>
 (function(){{
-  const tbody = document.querySelector(".payrollWrap .payrollSheet tbody");
-  if(!tbody) return;
+  const region = document.getElementById("payrollLiveRegion");
+  if (!region) return;
 
-  let selected = null;
+  const refreshUrl = region.getAttribute("data-refresh-url");
+  const refreshMs = parseInt(region.getAttribute("data-refresh-ms") || "10000", 10);
 
-  tbody.querySelectorAll("tr").forEach((tr) => {{
-    tr.style.cursor = "pointer";
-
-    tr.addEventListener("click", (e) => {{
-      if (e.target.closest("input, button, form, a, select")) return;
-
-      if (selected === tr) {{
-        tr.classList.remove("is-selected");
-        selected = null;
-        return;
-      }}
-
-      if (selected) selected.classList.remove("is-selected");
-      tr.classList.add("is-selected");
-      selected = tr;
-    }});
-  }});
-}})();
-</script>
-
-<script>
-(function(){{
+  let busy = false;
+  let pendingAutosave = 0;
   const timers = new WeakMap();
+
+  function syncPendingAutosaveFlag(){{
+    region.setAttribute("data-pending-autosave", pendingAutosave > 0 ? "1" : "0");
+  }}
 
   function clearTimer(input){{
     if (timers.has(input)) {{
       clearTimeout(timers.get(input));
       timers.delete(input);
+      pendingAutosave = Math.max(0, pendingAutosave - 1);
+      syncPendingAutosaveFlag();
     }}
   }}
 
   function submitLater(input, delay){{
     const formId = input.getAttribute("form");
     if (!formId) return;
+
     const form = document.getElementById(formId);
     if (!form) return;
 
     clearTimer(input);
 
+    pendingAutosave += 1;
+    syncPendingAutosaveFlag();
+
     const t = setTimeout(function(){{
+      timers.delete(input);
+      pendingAutosave = Math.max(0, pendingAutosave - 1);
+      syncPendingAutosaveFlag();
+
       if (!document.body.contains(input)) return;
       if (document.activeElement === input) return;
+
       form.submit();
     }}, delay);
 
     timers.set(input, t);
   }}
 
-  document.querySelectorAll('.payrollTimeInput[data-autosave="1"]').forEach(function(input){{
-    input.addEventListener("focus", function(){{
-      clearTimer(input);
-    }});
+  function bindRowSelection(root){{
+    const tbody = root.querySelector(".payrollWrap .payrollSheet tbody");
+    if (!tbody) return;
 
-    input.addEventListener("input", function(){{
-      clearTimer(input);
-    }});
+    let selected = null;
 
-    input.addEventListener("change", function(){{
-      clearTimer(input);
-    }});
+    tbody.querySelectorAll("tr").forEach(function(tr){{
+      if (tr.dataset.rowBound === "1") return;
+      tr.dataset.rowBound = "1";
 
-    input.addEventListener("keydown", function(e){{
-      if (e.key === "Enter") {{
-        e.preventDefault();
-        submitLater(input, 80);
+      tr.style.cursor = "pointer";
+
+      tr.addEventListener("click", function(e){{
+        if (e.target.closest("input, button, form, a, select")) return;
+
+        if (selected === tr) {{
+          tr.classList.remove("is-selected");
+          selected = null;
+          return;
+        }}
+
+        if (selected) selected.classList.remove("is-selected");
+        tr.classList.add("is-selected");
+        selected = tr;
+      }});
+    }});
+  }}
+
+  function bindAutosave(root){{
+    root.querySelectorAll('.payrollTimeInput[data-autosave="1"]').forEach(function(input){{
+      if (input.dataset.autosaveBound === "1") return;
+      input.dataset.autosaveBound = "1";
+
+      input.addEventListener("focus", function(){{
+        clearTimer(input);
+      }});
+
+      input.addEventListener("input", function(){{
+        clearTimer(input);
+      }});
+
+      input.addEventListener("change", function(){{
+        clearTimer(input);
+      }});
+
+      input.addEventListener("keydown", function(e){{
+        if (e.key === "Enter") {{
+          e.preventDefault();
+          submitLater(input, 80);
+        }}
+      }});
+
+      input.addEventListener("blur", function(){{
+        const v = (input.value || "").trim();
+        if (v === "" || v.length >= 4) {{
+          submitLater(input, 120);
+        }}
+      }});
+    }});
+  }}
+
+  function bindPayrollRegion(root){{
+    bindRowSelection(root);
+    bindAutosave(root);
+  }}
+
+  function hasActiveEditing(){{
+    const active = document.activeElement;
+    if (!active) return false;
+    if (!region.contains(active)) return false;
+    return active.classList && active.classList.contains("payrollTimeInput");
+  }}
+
+  async function refreshPayrollRegion(){{
+    if (!refreshUrl) return;
+    if (busy) return;
+    if (document.hidden) return;
+    if (hasActiveEditing()) return;
+    if (region.getAttribute("data-pending-autosave") === "1") return;
+
+    busy = true;
+
+    const currentWrap = region.querySelector(".payrollWrap");
+    const scrollLeft = currentWrap ? currentWrap.scrollLeft : 0;
+    const scrollTop = currentWrap ? currentWrap.scrollTop : 0;
+
+    try {{
+      const res = await fetch(refreshUrl, {{
+        method: "GET",
+        credentials: "same-origin",
+        cache: "no-store",
+        headers: {{
+          "X-Requested-With": "XMLHttpRequest"
+        }}
+      }});
+
+      if (!res.ok) return;
+
+      const html = await res.text();
+      const doc = new DOMParser().parseFromString(html, "text/html");
+      const incoming = doc.getElementById("payrollLiveRegion");
+      if (!incoming) return;
+
+      region.innerHTML = incoming.innerHTML;
+      syncPendingAutosaveFlag();
+
+      const newWrap = region.querySelector(".payrollWrap");
+      if (newWrap) {{
+        newWrap.scrollLeft = scrollLeft;
+        newWrap.scrollTop = scrollTop;
       }}
-    }});
 
-    input.addEventListener("blur", function(){{
-      const v = (input.value || "").trim();
-      if (v === "" || v.length >= 4) {{
-        submitLater(input, 120);
-      }}
-    }});
+      bindPayrollRegion(region);
+    }} catch (err) {{
+      console.error("Payroll live refresh failed:", err);
+    }} finally {{
+      busy = false;
+    }}
+  }}
+
+  bindPayrollRegion(region);
+  syncPendingAutosaveFlag();
+
+  setInterval(refreshPayrollRegion, refreshMs);
+
+  document.addEventListener("visibilitychange", function(){{
+    if (!document.hidden) {{
+      refreshPayrollRegion();
+    }}
   }});
 }})();
 </script>
