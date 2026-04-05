@@ -10880,16 +10880,8 @@ def home():
   <div class="menuLeft"><div class="icoBox">{_icon_payments(22)}</div><div class="menuText">Payments</div></div>
   <div class="chev">›</div>
 </a>
-<a class="menuItem nav-agreements" href="/onboarding">
-  <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
-  <div class="chev">›</div>
-</a>
           {admin_item}
           {workplaces_item}
-          <a class="menuItem nav-profile" href="/password">
-            <div class="menuLeft"><div class="icoBox">{_icon_profile(22)}</div><div class="menuText">Profile</div></div>
-            <div class="chev">›</div>
-          </a>
         </div>
       </div>
     """
