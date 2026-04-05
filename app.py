@@ -7012,6 +7012,105 @@ textarea.input:focus{
 .rangeDetailTable th *{
   color:#ffffff !important;
 }
+
+:root{
+  --bottom-nav-height: 74px;
+  --bottom-nav-offset: 0px;
+}
+
+@media (max-width: 979px){
+  body{
+    padding-bottom: calc(var(--bottom-nav-height) + var(--bottom-nav-offset) + env(safe-area-inset-bottom));
+  }
+
+  .sidebar{
+    display:none !important;
+  }
+
+  .bottomNav{
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1200;
+    transform: translateY(calc(-1 * var(--bottom-nav-offset)));
+    display: flex !important;
+    align-items: stretch;
+    justify-content: space-between;
+    gap: 2px;
+    padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
+    background: rgba(255,255,255,.98);
+    border-top: 1px solid #d9e4f1;
+    box-shadow: 0 -10px 30px rgba(15,23,42,.10);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .bottomNav::-webkit-scrollbar{
+    display:none;
+  }
+
+  .bottomNavItem{
+    flex: 1 0 64px;
+    min-width: 64px;
+    min-height: 58px;
+    display: flex !important;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    text-decoration: none !important;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.05;
+    text-align: center;
+    border-radius: 14px;
+    padding: 4px 2px;
+  }
+
+  .bottomNavItem:hover,
+  .bottomNavItem:active{
+    background: rgba(59,116,173,.06);
+  }
+
+  .bottomNavItem.active{
+    color: #1f2d63;
+    background: rgba(59,116,173,.08);
+  }
+
+  .bottomNavIcon{
+    width: 22px;
+    height: 22px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex: 0 0 auto;
+  }
+
+  .bottomNavIcon svg{
+    width: 20px;
+    height: 20px;
+    display:block;
+  }
+
+  .bottomNavText{
+    display:block;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.05;
+    white-space: nowrap;
+  }
+}
+
+@media (min-width: 980px){
+  .bottomNav{
+    display:none !important;
+  }
+}
 </style>
 
 """
@@ -11003,7 +11102,7 @@ def home():
         </div>
       </div>
 
-      <div class="dashboardBottom">
+            <div class="dashboardBottom">
         <div class="activityCard plainSection">
           <div class="sectionHead">
             <div class="sectionHeadLeft">
@@ -11022,6 +11121,45 @@ def home():
         </div>
 
         {snapshot_html}
+      </div>
+
+      <div class="card menu dashboardMainMenu">
+        <div class="sectionHead dashboardMenuHead" style="display:none;"></div>
+
+        <div class="dashboardShortcutGrid">
+          <a class="menuItem nav-clock" href="/clock">
+            <div class="menuLeft"><div class="icoBox">{_icon_clock(22)}</div><div class="menuText">Clock In & Out</div></div>
+            <div class="chev">›</div>
+          </a>
+
+          <a class="menuItem nav-times" href="/my-times">
+            <div class="menuLeft"><div class="icoBox">{_icon_timelogs(22)}</div><div class="menuText">Time logs</div></div>
+            <div class="chev">›</div>
+          </a>
+
+          <a class="menuItem nav-reports" href="/my-reports">
+            <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
+            <div class="chev">›</div>
+          </a>
+
+          <a class="menuItem nav-payments" href="/payments">
+            <div class="menuLeft"><div class="icoBox">{_icon_payments(22)}</div><div class="menuText">Payments</div></div>
+            <div class="chev">›</div>
+          </a>
+
+          <a class="menuItem nav-agreements" href="/onboarding">
+            <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
+            <div class="chev">›</div>
+          </a>
+
+          {admin_item}
+          {workplaces_item}
+
+          <a class="menuItem nav-profile" href="/password">
+            <div class="menuLeft"><div class="icoBox">{_icon_profile(22)}</div><div class="menuText">Profile</div></div>
+            <div class="chev">›</div>
+          </a>
+        </div>
       </div>
     """
 
