@@ -2002,8 +2002,8 @@ def manifest():
         "background_color": "#1f2d63",
         "theme_color": "#1f2d63",
         "icons": [
-            {"src": "/static/icon-192.png?v=2", "sizes": "192x192", "type": "image/png"},
-            {"src": "/static/icon-512.png?v=2", "sizes": "512x512", "type": "image/png"},
+            {"src": "/static/icon-192.png?v=3", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icon-512.png?v=3", "sizes": "512x512", "type": "image/png"},
         ],
     }, 200, {"Content-Type": "application/manifest+json"}
 
@@ -2011,8 +2011,8 @@ def manifest():
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 PWA_TAGS = """
 <title>Timiq</title>
-<link rel="icon" type="image/png" href="/static/icon-192.png?v=2">
-<link rel="apple-touch-icon" href="/static/icon-192.png?v=2">
+<link rel="icon" type="image/png" href="/static/icon-192.png?v=3">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=3">
 <meta name="theme-color" content="#1f2d63">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
