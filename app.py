@@ -6803,6 +6803,23 @@ button{
   align-items:center;
   min-height:38px;
 }
+.dashboardLiveClockWrap{
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:8px;
+}
+.dashboardLiveTimer{
+  font-size:28px;
+  line-height:1;
+  font-weight:800;
+  letter-spacing:.06em;
+  color:#1f2547;
+}
+.dashboardLiveHint{
+  font-size:12px;
+  color:#6b7785;
+}
 
 .dashboardMiniTargetRow{
   display:flex;
@@ -10531,6 +10548,48 @@ def home():
     is_clocked_in = latest_user_open
     status_text = "Clocked In" if is_clocked_in else "Clocked Out"
     status_class = "ok" if is_clocked_in else "warn"
+
+    dashboard_active_start_iso = ""
+    dashboard_active_start_label = ""
+    dashboard_open_shift = find_open_shift(rows, username)
+    if dashboard_open_shift:
+        _, d, t = dashboard_open_shift
+        try:
+            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+            dashboard_active_start_iso = start_dt.isoformat()
+            dashboard_active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+        except Exception:
+            pass
+
+    if dashboard_active_start_iso:
+        dashboard_status_html = f"""
+          <div class="dashboardLiveClockWrap">
+            <span class="chip ok">Clocked In</span>
+            <div class="dashboardLiveTimer" id="dashboardLiveTimer">00:00:00</div>
+            <div class="dashboardLiveHint">Started at {escape(dashboard_active_start_label)}</div>
+          </div>
+          <script>
+            (function() {{
+              const startIso = "{escape(dashboard_active_start_iso)}";
+              const start = new Date(startIso);
+              const el = document.getElementById("dashboardLiveTimer");
+              function pad(n) {{ return String(n).padStart(2, "0"); }}
+              function tick() {{
+                const now = new Date();
+                let diff = Math.floor((now - start) / 1000);
+                if (diff < 0) diff = 0;
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+                if (el) el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+              }}
+              tick(); setInterval(tick, 1000);
+            }})();
+          </script>
+        """
+    else:
+        dashboard_status_html = f'<span class="chip {status_class}">{escape(status_text)}</span>'
+
     employee_count = 0
     clocked_in_count = 0
     active_locations_count = 0
@@ -10757,7 +10816,7 @@ def home():
       </div>
     </div>
     <div class="dashboardMiniStatusValue">
-  <span class="chip {status_class}">{escape(status_text)}</span>
+  {dashboard_status_html}
 </div>
   </div>
 
