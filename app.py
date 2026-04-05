@@ -1995,23 +1995,25 @@ OVERTIME_HOURS = 8.5
 @app.get("/manifest.webmanifest")
 def manifest():
     return {
-        "name": "WorkHours",
-        "short_name": "WorkHours",
+        "name": "Timiq",
+        "short_name": "Timiq",
         "start_url": "/",
         "display": "standalone",
-        "background_color": "#f6f8fb",
-        "theme_color": "#ffffff",
+        "background_color": "#1f2d63",
+        "theme_color": "#1f2d63",
         "icons": [
-            {"src": "/static/icon-192.png", "sizes": "192x192", "type": "image/png"},
-            {"src": "/static/icon-512.png", "sizes": "512x512", "type": "image/png"},
+            {"src": "/static/icon-192.png?v=2", "sizes": "192x192", "type": "image/png"},
+            {"src": "/static/icon-512.png?v=2", "sizes": "512x512", "type": "image/png"},
         ],
     }, 200, {"Content-Type": "application/manifest+json"}
 
 
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 PWA_TAGS = """
-<link rel="manifest" href="/manifest.webmanifest">
-<meta name="theme-color" content="#ffffff">
+<title>Timiq</title>
+<link rel="icon" type="image/png" href="/static/icon-192.png?v=2">
+<link rel="apple-touch-icon" href="/static/icon-192.png?v=2">
+<meta name="theme-color" content="#1f2d63">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
@@ -2304,6 +2306,20 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   justify-content:flex-end;
   gap:10px;
   margin-bottom:10px;
+}
+
+.mobileTopLogo{
+  display:none;
+  align-items:center;
+  justify-content:center;
+  text-decoration:none;
+  margin-right:auto;
+}
+
+.mobileTopLogo img{
+  width:88px;
+  height:auto;
+  display:block;
 }
 
 .topAccountWrap{
@@ -5293,6 +5309,25 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 /* mobile */
+@media (max-width: 979px){
+  .mobileTopLogo{
+    display:flex;
+  }
+
+  .topBarFixed{
+    justify-content:space-between;
+    gap:8px;
+    margin-bottom:12px;
+  }
+
+  .topBrandBadge{
+    min-height:34px;
+    padding:6px 12px;
+    font-size:11px;
+    letter-spacing:.03em;
+  }
+}
+
 @media (max-width: 979px){
   .payrollSheet{
     min-width:1120px;
@@ -9603,7 +9638,18 @@ def sidebar_html(active: str, role: str) -> str:
 
     return f"""
       <div class="sidebar">
-        <div class="sideMenuTitle">Menu</div>
+        <div style="padding:8px 0 6px; display:flex; justify-content:center; align-items:center;">
+          <img
+            src="/static/original-logo.png"
+            alt="Timiq"
+            style="
+              width:250px;
+              max-width:250px;
+              height:auto;
+              display:block;
+            "
+          >
+        </div>
         {''.join(links)}
       </div>
     """
@@ -9626,6 +9672,9 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
 
     company_bar = f"""
       <div class="topBarFixed">
+        <a href="/" class="mobileTopLogo" aria-label="Timiq home">
+          <img src="/static/original-logo.png" alt="Timiq">
+        </a>
         <span class="topBrandBadge">{escape(company_name)}</span>
         <div class="topAccountWrap">
           <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
@@ -10072,9 +10121,9 @@ def login():
         <div class="card loginCardPro">
           <div class="loginHeroPro">
             <div>
-              <div class="loginEyebrow">Secure workforce access</div>
-              <h1>WorkHours</h1>
-              <p class="sub loginLead">Payroll, attendance and site clock-in in one secure workspace.</p>
+              <div class="loginEyebrow">Secure Timiq access</div>
+<h1>Timiq</h1>
+<p class="sub loginLead">Clock-in, attendance and payroll in one secure workspace.</p>
             </div>
             <div class="loginHeroBadge">Secure sign in</div>
           </div>
