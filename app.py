@@ -7111,6 +7111,64 @@ textarea.input:focus{
     display:none !important;
   }
 }
+
+@media (min-width: 980px){
+  .shell{
+    grid-template-columns: 198px minmax(0, 1fr) !important;
+    gap: 14px !important;
+  }
+
+  .sidebar{
+    padding: 12px !important;
+  }
+
+  .sidebar > div:first-child{
+    padding: 6px 0 4px !important;
+  }
+
+  .sidebar > div:first-child img{
+    width: 178px !important;
+    max-width: 100% !important;
+    height: auto !important;
+    display: block !important;
+  }
+
+  .menu{
+    margin-top: 12px !important;
+    padding: 10px !important;
+  }
+
+  .sideItem{
+    padding: 10px 12px !important;
+    min-height: 56px !important;
+  }
+
+  .sideLeft{
+    gap: 10px !important;
+    align-items: center !important;
+  }
+
+  .sideIcon{
+    width: 34px !important;
+    height: 34px !important;
+    flex: 0 0 34px !important;
+  }
+
+  .sideIcon svg,
+  .sideIcon img{
+    width: 22px !important;
+    height: 22px !important;
+  }
+
+  .sideText{
+    font-size: 15px !important;
+    line-height: 1.2 !important;
+  }
+
+  .chev{
+    font-size: 20px !important;
+  }
+}
 </style>
 
 """
@@ -9809,31 +9867,7 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
 
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
-    items = [
-        ("home", "/", "Home", _icon_dashboard(20)),
-        ("clock", "/clock", "Clock", _icon_clock(20)),
-        ("times", "/my-times", "Logs", _icon_timelogs(20)),
-        ("reports", "/my-reports", "Sheets", _icon_timesheets(20)),
-        ("payments", "/payments", "Pay", _icon_payments(20)),
-    ]
-
-    if role in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Admin", _icon_admin(20)))
-
-    links = []
-    for key, href, label, icon in items:
-        links.append(f"""
-          <a class="bottomNavItem {'active' if active == key else ''}" href="{href}">
-            <div class="bottomNavIcon">{icon}</div>
-            <div class="bottomNavText">{escape(label)}</div>
-          </a>
-        """)
-
-    return f"""
-      <nav class="bottomNav">
-        {''.join(links)}
-      </nav>
-    """
+    return ""
 
 
 def sidebar_html(active: str, role: str) -> str:
@@ -9943,7 +9977,6 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
           <div class="safeBottom"></div>
         </div>
       </div>
-      {bottom_nav(active if active in ('home', 'clock', 'times', 'reports', 'profile', 'admin', 'workplaces') else 'home', role)}
     """
 
 
