@@ -6744,37 +6744,52 @@ button{
 }
 
 .dashboardMiniStatus{
-  display:grid;
-  grid-template-columns:1fr 1.2fr;
-  gap:14px;
+  display:block;
   margin:14px 0 16px;
 }
 
 .dashboardMiniStatusCard{
-  background:linear-gradient(180deg, rgba(255,255,255,.99), rgba(248,246,255,.97));
-  border:1px solid rgba(68,130,195,.12);
-  box-shadow:0 14px 28px rgba(15,23,42,.07);
-  border-radius: 0 !important;
-  padding:16px;
+  background:#fff;
+  border:1px solid rgba(148,163,184,.20);
+  box-shadow:none;
+  border-radius:0 !important;
+  padding:16px 18px;
+}
+
+.dashboardMiniStatusSplit{
+  display:grid;
+  grid-template-columns:minmax(260px, 1fr) minmax(300px, 1.25fr);
+  gap:18px;
+  align-items:center;
+}
+
+.dashboardMiniStatusPane{
+  min-width:0;
+}
+
+.dashboardMiniDivider{
+  width:1px;
+  align-self:stretch;
+  background:rgba(148,163,184,.22);
 }
 
 .dashboardMiniStatusTop{
   display:flex;
   align-items:center;
   gap:12px;
-  margin-bottom:12px;
+  margin-bottom:10px;
 }
 
 .dashboardMiniStatusIcon{
   width:44px;
   height:44px;
-  border-radius: 0 !important;
+  border-radius:0 !important;
   display:flex;
   align-items:center;
   justify-content:center;
-  background:rgba(68,130,195,.08);
-  border:1px solid rgba(68,130,195,.12);
-  color:#000;
+  background:rgba(59,130,246,.08);
+  border:1px solid rgba(59,130,246,.16);
+  color:#0f172a;
   flex:0 0 44px;
 }
 
@@ -6787,14 +6802,14 @@ button{
 .dashboardMiniStatusLabel{
   font-size:15px;
   font-weight:900;
-  color:#1f2547;
+  color:#0f172a;
   line-height:1.1;
 }
 
 .dashboardMiniStatusSub{
   margin-top:4px;
   font-size:13px;
-  color:#6b7785;
+  color:#64748b;
   line-height:1.25;
 }
 
@@ -6803,30 +6818,14 @@ button{
   align-items:center;
   min-height:38px;
 }
-.dashboardLiveClockWrap{
-  display:flex;
-  flex-direction:column;
-  align-items:flex-start;
-  gap:8px;
-}
-.dashboardLiveTimer{
-  font-size:28px;
-  line-height:1;
-  font-weight:800;
-  letter-spacing:.06em;
-  color:#1f2547;
-}
-.dashboardLiveHint{
-  font-size:12px;
-  color:#6b7785;
-}
 
 .dashboardMiniTargetRow{
   display:flex;
   align-items:center;
-  justify-content:flex-end;
-  margin-bottom:8px;
-  color:#1f2547;
+  justify-content:space-between;
+  gap:12px;
+  margin:8px 0 8px;
+  color:#0f172a;
   font-size:16px;
   font-weight:900;
 }
@@ -6834,35 +6833,36 @@ button{
 .dashboardMiniTargetBar{
   width:100%;
   height:12px;
-  border-radius: 0 !important;
-  background:rgba(68,130,195,.10);
+  border-radius:0 !important;
+  background:#dbeafe;
   overflow:hidden;
 }
 
 .dashboardMiniTargetBar span{
   display:block;
   height:100%;
-  border-radius: 0 !important;
-  background:linear-gradient(90deg, #4482c3 0%, #2563eb 100%);
+  border-radius:0 !important;
+  background:#4f86c6;
   transition:width .25s ease;
 }
 
 @media (max-width: 700px){
-  .dashboardMiniStatus{
-    grid-template-columns:1fr;
-    gap:12px;
-    margin:12px 0 14px;
-  }
-
   .dashboardMiniStatusCard{
     padding:14px;
-    border-radius: 0 !important;
+  }
+
+  .dashboardMiniStatusSplit{
+    grid-template-columns:1fr;
+    gap:14px;
+  }
+
+  .dashboardMiniDivider{
+    display:none;
   }
 
   .dashboardMiniStatusIcon{
     width:40px;
     height:40px;
-    border-radius: 0 !important;
     flex-basis:40px;
   }
 
@@ -6874,7 +6874,6 @@ button{
     font-size:12px;
   }
 }
-
 
 .rangeDetailTable{
   width:100%;
@@ -10808,33 +10807,42 @@ def home():
 
       <div class="dashboardMiniStatus">
   <div class="dashboardMiniStatusCard">
-    <div class="dashboardMiniStatusTop">
-      <div class="dashboardMiniStatusIcon">{_svg_clock()}</div>
-      <div>
-        <div class="dashboardMiniStatusLabel">Status</div>
-        <div class="dashboardMiniStatusSub">Live attendance</div>
+    <div class="dashboardMiniStatusSplit">
+
+      <div class="dashboardMiniStatusPane">
+        <div class="dashboardMiniStatusTop">
+          <div class="dashboardMiniStatusIcon">{_svg_clock()}</div>
+          <div>
+            <div class="dashboardMiniStatusLabel">Status</div>
+            <div class="dashboardMiniStatusSub">Live attendance</div>
+          </div>
+        </div>
+        <div class="dashboardMiniStatusValue">
+          <span class="chip {status_class}">{escape(status_text)}</span>
+        </div>
       </div>
-    </div>
-    <div class="dashboardMiniStatusValue">
-  {dashboard_status_html}
-</div>
-  </div>
 
-  <div class="dashboardMiniStatusCard">
-    <div class="dashboardMiniStatusTop">
-      <div class="dashboardMiniStatusIcon">{_svg_grid()}</div>
-      <div>
-        <div class="dashboardMiniStatusLabel">Weekly target</div>
-        <div class="dashboardMiniStatusSub">{fmt_hours(week_hours)} / {fmt_hours(week_target_hours)} hours</div>
+      <div class="dashboardMiniDivider"></div>
+
+      <div class="dashboardMiniStatusPane">
+        <div class="dashboardMiniStatusTop">
+          <div class="dashboardMiniStatusIcon">{_svg_grid()}</div>
+          <div>
+            <div class="dashboardMiniStatusLabel">Weekly target</div>
+            <div class="dashboardMiniStatusSub">{fmt_hours(week_hours)} / {fmt_hours(week_target_hours)} hours</div>
+          </div>
+        </div>
+
+        <div class="dashboardMiniTargetRow">
+          <span>Progress</span>
+          <strong>{week_progress_pct}%</strong>
+        </div>
+
+        <div class="dashboardMiniTargetBar">
+          <span style="width:{week_progress_pct}%;"></span>
+        </div>
       </div>
-    </div>
 
-    <div class="dashboardMiniTargetRow">
-      <strong>{week_progress_pct}%</strong>
-    </div>
-
-    <div class="dashboardMiniTargetBar">
-      <span style="width:{week_progress_pct}%;"></span>
     </div>
   </div>
 </div>
