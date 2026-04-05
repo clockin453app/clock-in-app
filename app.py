@@ -9674,7 +9674,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     company_bar = f"""
       <div class="topBarFixed">
         <a href="/" class="mobileTopLogo" aria-label="Timiq home">
-          <img src="/static/original-logo.png" alt="Timiq">
+          <img src="/static/timiq-logo.png" alt="Timiq">
         </a>
         <span class="topBrandBadge">{escape(company_name)}</span>
         <div class="topAccountWrap">
