@@ -15566,7 +15566,8 @@ def admin():
         .adminPrimaryBtn{{box-shadow:0 14px 28px rgba(37,99,235,.20);}}
       </style>
 
-      {admin_back_link("/")}
+      {admin_back_link("/")} 
+      
 
       <div class="adminHeroCard plainSection">
         <div class="adminHeroTop">
