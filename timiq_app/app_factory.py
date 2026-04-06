@@ -9,6 +9,16 @@ from .route_groups import register_all_routes
 from .routes import finalize_app, init_runtime
 
 
+from pathlib import Path
+
+from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
+
+from .config import Settings
+from .extensions import db
+from .routes import init_app
+
+
 def create_app() -> Flask:
     base_dir = Path(__file__).resolve().parent.parent
 
@@ -22,9 +32,7 @@ def create_app() -> Flask:
 
     db.init_app(app)
     _register_security_headers(app)
-    init_runtime(app)
-    register_all_routes(app)
-    finalize_app(app)
+    init_app(app)
     return app
 
 

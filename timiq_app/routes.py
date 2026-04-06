@@ -104,7 +104,7 @@ if gspread is None:
 
 
     gspread = _FallbackGspread()
-
+from sqlalchemy import and_, or_, inspect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
@@ -251,6 +251,7 @@ BASE_DIR = str(Settings.BASE_DIR)
 APP_ENV = Settings.APP_ENV
 DEBUG_MODE = Settings.DEBUG_MODE
 IS_PRODUCTION = Settings.IS_PRODUCTION
+SECRET_KEY = Settings.SECRET_KEY
 DB_DEBUG_EXPORTS_ENABLED = Settings.DB_DEBUG_EXPORTS_ENABLED
 DESTRUCTIVE_ADMIN_CONFIRM_VALUE = Settings.DESTRUCTIVE_ADMIN_CONFIRM_VALUE
 MAX_CLOCK_LOCATION_ACCURACY_M = Settings.MAX_CLOCK_LOCATION_ACCURACY_M
@@ -701,7 +702,7 @@ def db_test():
         return gate
 
     try:
-        tables = db.inspect(db.engine).get_table_names()
+        tables = inspect(db.engine).get_table_names()
         return {"database": "connected", "tables": tables}
     except Exception as e:
         return {"database": "error", "message": str(e)}, 500
@@ -1437,6 +1438,29 @@ raw_settings_sheet = None
 raw_audit_sheet = None
 raw_locations_sheet = None
 
+def _get_import_sheet(sheet_name: str):
+    key = str(sheet_name or "").strip().lower()
+
+    mapping = {
+        "employees": employees_sheet,
+        "workhours": work_sheet,
+        "payroll": payroll_sheet,
+        "onboarding": onboarding_sheet,
+        "settings": settings_sheet,
+        "audit": audit_sheet,
+        "locations": locations_sheet,
+    }
+
+    ws = mapping.get(key)
+    if ws is not None:
+        return ws
+
+    raise RuntimeError(
+        f"Google Sheets worksheet '{sheet_name}' is not available. "
+        f"This runtime is DB-backed or Sheets import is disabled."
+    )
+
+
 if ENABLE_GOOGLE_SHEETS:
     if gspread is None or SACredentials is None:
         raise RuntimeError("Google Sheets runtime/import is enabled but required Google libraries are not installed.")
@@ -1941,8 +1965,8 @@ OVERTIME_HOURS = 8.5
 @routes.get("/manifest.webmanifest")
 def manifest():
     return {
-        "name": "Timiq",
-        "short_name": "Timiq",
+        "name": "TimIQ",
+        "short_name": "TimIQ",
         "start_url": "/",
         "display": "standalone",
         "background_color": "#1f2d63",
@@ -1956,7 +1980,7 @@ def manifest():
 
 VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 PWA_TAGS = """
-<title>Timiq</title>
+<title>TimIQ</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=1">
 <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon-16.png?v=1">
 <link rel="apple-touch-icon" href="/static/icon-192.png?v=3">
@@ -9785,7 +9809,7 @@ def sidebar_html(active: str, role: str) -> str:
         <div style="padding:8px 0 6px; display:flex; justify-content:center; align-items:center;">
           <img
             src="/static/original-logo.png"
-            alt="Timiq"
+            alt="TimIQ"
             style="
               width:250px;
               max-width:250px;
@@ -9816,8 +9840,8 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
 
     company_bar = f"""
       <div class="topBarFixed">
-        <a href="/" class="mobileTopLogo" aria-label="Timiq home">
-  <img src="/static/original-logo.png" alt="Timiq">
+        <a href="/" class="mobileTopLogo" aria-label="TimIQ home">
+  <img src="/static/original-logo.png" alt="TimIQ">
 </a>
         <span class="topBrandBadge">{escape(company_name)}</span>
         <div class="topAccountWrap">
@@ -15547,7 +15571,6 @@ def admin():
       <div class="adminHeroCard plainSection">
         <div class="adminHeroTop">
           <div>
-            <div class="adminHeroEyebrow">Admin workspace</div>
             <h1>Admin</h1>
             <p class="sub">Payroll, onboarding, employees and workplace controls.</p>
           </div>
@@ -20563,14 +20586,19 @@ def _append_paid_record_safe(week_start: str, week_end: str, username: str, gros
 
 def _patch_admin_only_endpoints(app):
     protected = [
-        "db_view_employees", "db_view_workhours", "db_view_audit", "db_view_payroll", "db_view_onboarding",
-        "db_view_locations", "db_view_settings",
+        "db_view_employees", "db_view_workhours", "db_view_audit", "db_view_payroll",
+        "db_view_onboarding", "db_view_locations", "db_view_settings",
         "db_upgrade_employees_table", "db_upgrade_onboarding_table",
-        "import_employees", "import_locations", "import_settings", "import_audit", "import_payroll",
-        "import_onboarding", "import_workhours",
     ]
-    import_endpoints = {"import_employees", "import_locations", "import_settings", "import_audit", "import_payroll",
-                        "import_onboarding", "import_workhours"}
+
+    import_endpoints = set()
+    if ENABLE_GOOGLE_SHEETS:
+        import_endpoints = {
+            "import_employees", "import_locations", "import_settings",
+            "import_audit", "import_payroll", "import_onboarding", "import_workhours",
+        }
+        protected.extend(sorted(import_endpoints))
+
     for endpoint in protected:
         original = app.view_functions.get(endpoint)
         if not original:
@@ -20581,8 +20609,10 @@ def _patch_admin_only_endpoints(app):
             if gate:
                 return gate
             if _endpoint in import_endpoints and not ENABLE_GOOGLE_SHEETS:
-                return {"status": "error",
-                        "message": "Google Sheets import is disabled. Set ENABLE_SHEETS_IMPORT=1 for one-time import."}, 400
+                return {
+                    "status": "error",
+                    "message": "Google Sheets import is disabled. Set ENABLE_SHEETS_IMPORT=1 for one-time import.",
+                }, 400
             return _original(*args, **kwargs)
 
         app.view_functions[endpoint] = wrapped
