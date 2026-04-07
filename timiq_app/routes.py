@@ -6557,7 +6557,7 @@ label.sub,
 
 .sideText,
 .menuText{
-  font-size:13px !important;
+  font-size:18px !important;
   font-weight:600 !important;
 }
 
@@ -7076,6 +7076,7 @@ textarea.input:focus{
     white-space: nowrap;
   }
 }
+
 </style>
 
 """
@@ -11068,27 +11069,27 @@ def home():
 
         <div class="dashboardShortcutGrid">
           <a class="menuItem nav-clock" href="/clock">
-            <div class="menuLeft"><div class="icoBox">{_icon_clock(22)}</div><div class="menuText">Clock In & Out</div></div>
+            <div class="menuLeft"><div class="icoBox">{_icon_clock(35)}</div><div class="menuText">Clock In & Out</div></div>
             <div class="chev">›</div>
           </a>
 
           <a class="menuItem nav-times" href="/my-times">
-            <div class="menuLeft"><div class="icoBox">{_icon_timelogs(22)}</div><div class="menuText">Time logs</div></div>
+            <div class="menuLeft"><div class="icoBox">{_icon_timelogs(35)}</div><div class="menuText">Time logs</div></div>
             <div class="chev">›</div>
           </a>
 
           <a class="menuItem nav-reports" href="/my-reports">
-            <div class="menuLeft"><div class="icoBox">{_icon_timesheets(22)}</div><div class="menuText">Timesheets</div></div>
+            <div class="menuLeft"><div class="icoBox">{_icon_timesheets(35)}</div><div class="menuText">Timesheets</div></div>
             <div class="chev">›</div>
           </a>
 
           <a class="menuItem nav-payments" href="/payments">
-            <div class="menuLeft"><div class="icoBox">{_icon_payments(22)}</div><div class="menuText">Payments</div></div>
+            <div class="menuLeft"><div class="icoBox">{_icon_payments(35)}</div><div class="menuText">Payments</div></div>
             <div class="chev">›</div>
           </a>
 
           <a class="menuItem nav-agreements" href="/onboarding">
-            <div class="menuLeft"><div class="icoBox">{_icon_starter_form(22)}</div><div class="menuText">Starter Form</div></div>
+            <div class="menuLeft"><div class="icoBox">{_icon_starter_form(35)}</div><div class="menuText">Starter Form</div></div>
             <div class="chev">›</div>
           </a>
 
@@ -11096,7 +11097,7 @@ def home():
           {workplaces_item}
 
           <a class="menuItem nav-profile" href="/password">
-            <div class="menuLeft"><div class="icoBox">{_icon_profile(22)}</div><div class="menuText">Profile</div></div>
+            <div class="menuLeft"><div class="icoBox">{_icon_profile(35)}</div><div class="menuText">Profile</div></div>
             <div class="chev">›</div>
           </a>
         </div>
