@@ -12255,6 +12255,19 @@ def my_times():
             "hours": hours_val,
             "pay": pay_val,
         })
+    def _time_log_sort_key(rec):
+        d = str(rec.get("date") or "").strip()
+        t = str(rec.get("clock_in") or "00:00:00").strip()
+
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M"):
+            try:
+                return datetime.strptime(f"{d} {t}", fmt)
+            except Exception:
+                pass
+
+        return datetime.min
+
+    records.sort(key=_time_log_sort_key, reverse=True)
 
     table_rows = []
     for rec in records:
