@@ -4074,6 +4074,21 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   border-color: rgba(220,38,38,.20);
   color: rgba(185,28,28,.98);
 }
+.statusLink{
+  display:inline-flex;
+  text-decoration:none;
+  cursor:pointer;
+}
+
+.statusLink:hover .chip,
+.statusLink:focus .chip{
+  filter: brightness(.98);
+  transform: translateY(-1px);
+}
+
+.statusLink .chip{
+  transition: transform .12s ease, filter .12s ease;
+}
 
 /* Avatar */
 .avatar{
@@ -9273,6 +9288,38 @@ def migrate_password_if_plain(username: str, stored: str, provided: str, workpla
     if stored and not _password_is_hashed(stored):
         _ensure_password_hash_for_user(username, stored, workplace_id=workplace_id)
 
+def _ensure_onboarding_workplace_header():
+    """Ensure legacy Onboarding sheet has the expected headers, including Workplace_ID."""
+    if not onboarding_sheet:
+        return
+
+    required = [
+        "Username", "Workplace_ID", "FirstName", "LastName", "BirthDate", "PhoneCountryCode", "PhoneNumber", "Email",
+        "StreetAddress", "City", "Postcode", "EmergencyContactName", "EmergencyContactPhoneCountryCode",
+        "EmergencyContactPhoneNumber", "MedicalCondition", "MedicalDetails", "Position", "CSCSNumber",
+        "CSCSExpiryDate", "EmploymentType", "RightToWorkUK", "NationalInsurance", "UTR", "StartDate",
+        "BankAccountNumber", "SortCode", "AccountHolderName", "CompanyTradingName", "CompanyRegistrationNo",
+        "DateOfContract", "SiteAddress", "PassportOrBirthCertLink", "CSCSFrontBackLink", "PublicLiabilityLink",
+        "ShareCodeLink", "ContractAccepted", "SignatureName", "SignatureDateTime", "SubmittedAt",
+    ]
+
+    try:
+        vals = onboarding_sheet.get_all_values()
+        if not vals:
+            onboarding_sheet.append_row(required)
+            return
+
+        headers = vals[0]
+        if not headers or "Username" not in headers:
+            onboarding_sheet.insert_row(required, 1)
+            return
+
+        if headers[:len(required)] != required:
+            new_headers = required + [h for h in headers if h not in required]
+            end_col = gspread.utils.rowcol_to_a1(1, len(new_headers)).replace("1", "")
+            onboarding_sheet.update(f"A1:{end_col}1", [new_headers])
+    except Exception:
+        return
 
 def update_or_append_onboarding(username: str, data: dict):
     current_wp = _session_workplace_id()
@@ -10693,7 +10740,9 @@ def home():
     if dashboard_active_start_iso:
         dashboard_status_html = f"""
           <div class="dashboardLiveClockWrap">
-            <span class="chip ok">Clocked In</span>
+            <a href="/clock" class="statusLink" title="Open clock page">
+              <span class="chip ok">Clocked In</span>
+            </a>
             <div class="dashboardLiveTimer" id="dashboardLiveTimer">00:00:00</div>
             <div class="dashboardLiveHint">Started at {escape(dashboard_active_start_label)}</div>
           </div>
@@ -10717,7 +10766,7 @@ def home():
           </script>
         """
     else:
-        dashboard_status_html = f'<span class="chip {status_class}">{escape(status_text)}</span>'
+        dashboard_status_html = f'<a href="/clock" class="statusLink" title="Open clock page"><span class="chip {status_class}">{escape(status_text)}</span></a>'
 
     employee_count = 0
     clocked_in_count = 0
@@ -12528,6 +12577,37 @@ def my_reports():
 
         if d > rec["payment_date"]:
             rec["payment_date"] = d
+    payroll_vals = get_payroll_rows()
+    payroll_headers = payroll_vals[0] if payroll_vals else []
+
+    def pidx(name):
+        return payroll_headers.index(name) if name in payroll_headers else None
+
+    p_ws = pidx("WeekStart")
+    p_u = pidx("Username")
+    p_pa = pidx("PaidAt")
+    p_paid = pidx("Paid")
+    p_wp = pidx("Workplace_ID")
+
+    paid_week_keys = set()
+
+    for r in payroll_vals[1:]:
+        row_user = (r[p_u] if p_u is not None and p_u < len(r) else "").strip()
+        if row_user != username:
+            continue
+
+        row_wp = ((r[p_wp] if p_wp is not None and p_wp < len(r) else "").strip() or "default")
+        if row_wp not in allowed_wps:
+            continue
+
+        week_start = (r[p_ws] if p_ws is not None and p_ws < len(r) else "").strip()
+        paid_at = (r[p_pa] if p_pa is not None and p_pa < len(r) else "").strip()
+        paid_flag = (r[p_paid] if p_paid is not None and p_paid < len(r) else "").strip().lower()
+
+        is_paid = bool(paid_at) or paid_flag in {"true", "yes", "1", "paid"}
+        if is_paid and week_start:
+            paid_week_keys.add(week_start)
+
 
     weekly_list = []
     for key in sorted(week_summaries.keys(), reverse=True):
@@ -12540,7 +12620,6 @@ def my_reports():
 
         iso = monday.isocalendar()
         period_label = f"Week {iso[1]} • {monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')}"
-        payment_date = rec["payment_date"].strftime("%d/%m/%y")
         wk_link_offset = max(0, (this_monday - monday).days // 7)
 
         weekly_list.append({
@@ -12551,29 +12630,29 @@ def my_reports():
             "tax": tax,
             "net": net,
             "wk_offset": wk_link_offset,
+            "is_paid": key in paid_week_keys,
         })
 
     list_rows_html = []
     for item in weekly_list:
         list_rows_html.append(f"""
           <tr>
-            <tr>
-  <td>{escape(item['period'])}</td>
-  <td class="num">{escape(fmt_hours(item['hours']))}</td>
-  <td class="num">{escape(currency)}{money(item['gross'])}</td>
-  <td class="num">{escape(currency)}{money(item['tax'])}</td>
-  <td class="num">{escape(currency)}{money(item['net'])}</td>
-  <td>{escape(item['company'])}</td>
-  <td class="num">
-    <a class="reportsListDownloadBtn"
-       href="/my-week-report?wk={item['wk_offset']}"
-       target="_blank"
-       rel="noopener"
-       title="View slip">
-      &#8250;
-    </a>
-  </td>
-</tr>
+            <td>{escape(item['period'])}{" <span title='Paid' style='display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;margin-left:8px;border-radius:999px;background:rgba(22,163,74,.12);color:#169c2f;font-size:12px;font-weight:900;vertical-align:middle;'>£</span>" if item['is_paid'] else ""}</td>
+            <td class="num">{escape(fmt_hours(item['hours']))}</td>
+            <td class="num">{escape(currency)}{money(item['gross'])}</td>
+            <td class="num">{escape(currency)}{money(item['tax'])}</td>
+            <td class="num">{escape(currency)}{money(item['net'])}</td>
+            <td>{escape(item['company'])}</td>
+            <td class="num">
+              <a class="reportsListDownloadBtn"
+                 href="/my-week-report?wk={item['wk_offset']}"
+                 target="_blank"
+                 rel="noopener"
+                 title="View slip">
+                &#8250;
+              </a>
+            </td>
+          </tr>
         """)
 
     if not list_rows_html:
