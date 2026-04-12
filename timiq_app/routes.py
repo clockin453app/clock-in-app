@@ -10952,9 +10952,26 @@ def home():
               </div>
 
               <div class="sideInfoRow">
-                <div class="sideInfoLabel">Clocked In Now</div>
-                <div class="sideInfoValue" id="snapshotClockedIn">{clocked_in_count}</div>
-              </div>
+  <div class="sideInfoLabel">Clocked In Now</div>
+  <div class="sideInfoValue" style="display:flex; align-items:center; justify-content:flex-end; gap:8px;">
+    <span id="snapshotClockedIn">{clocked_in_count}</span>
+    <span
+      id="snapshotClockedInLive"
+      style="
+        display:{'inline-flex' if int(clocked_in_count or 0) > 0 else 'none'};
+        align-items:center;
+        padding:4px 8px;
+        border-radius:999px;
+        font-size:11px;
+        font-weight:700;
+        letter-spacing:.02em;
+        background:rgba(34,197,94,.12);
+        color:#15803d;
+        border:1px solid rgba(34,197,94,.24);
+      "
+    >live</span>
+  </div>
+</div>
 
               <div class="sideInfoRow">
                 <div class="sideInfoLabel">Active Locations</div>
@@ -10977,6 +10994,7 @@ def home():
           (function(){{
             const employeesEl = document.getElementById("snapshotEmployees");
             const clockedEl = document.getElementById("snapshotClockedIn");
+            const clockedLiveEl = document.getElementById("snapshotClockedInLive");
             const locationsEl = document.getElementById("snapshotLocations");
             const onboardingEl = document.getElementById("snapshotOnboarding");
             const updatedEl = document.getElementById("snapshotUpdatedAt");
@@ -11005,7 +11023,14 @@ def home():
                 const data = await res.json();
 
                 employeesEl.textContent = String(data.employee_count ?? 0);
-                clockedEl.textContent = String(data.clocked_in_count ?? 0);
+
+                 const liveCount = Number(data.clocked_in_count ?? 0);
+                 clockedEl.textContent = String(liveCount);
+
+                 if (clockedLiveEl) {{
+                 clockedLiveEl.style.display = liveCount > 0 ? "inline-flex" : "none";
+                 }}
+
                 locationsEl.textContent = String(data.active_locations_count ?? 0);
                 onboardingEl.textContent = String(data.onboarding_pending_count ?? 0);
 
@@ -11036,6 +11061,8 @@ def home():
           }})();
           </script>
         """
+
+          
 
     content = f"""
       <div class="dashboardHero">
@@ -20710,17 +20737,6 @@ def _patch_admin_only_endpoints(app):
             return _original(*args, **kwargs)
 
         app.view_functions[endpoint] = wrapped
-
-
-
-
-
-
-
-
-
-
-
 
 def init_runtime(app):
     _ensure_database_schema(app)
