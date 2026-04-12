@@ -10596,6 +10596,8 @@ def home():
           <div class="chev">›</div>
         </a>
         """
+    show_employee_col = role in ("admin", "master_admin")
+
     recent_rows = []
     for r in rows[1:]:
         if len(r) <= COL_PAY:
@@ -10616,34 +10618,79 @@ def home():
             if not user_in_same_workplace(row_user):
                 continue
 
+        cin = (r[COL_IN] if len(r) > COL_IN else "") or ""
+        cout = (r[COL_OUT] if len(r) > COL_OUT else "") or ""
+        hours = (r[COL_HOURS] if len(r) > COL_HOURS else "") or ""
+        pay = (r[COL_PAY] if len(r) > COL_PAY else "") or ""
+
+        if cin and not cout:
+            status = "Live"
+        elif cin and cout:
+            status = "Complete"
+        elif cin or cout or hours or pay:
+            status = "Partial"
+        else:
+            status = "Blank"
+
         recent_rows.append({
+            "user": row_user,
             "date": (r[COL_DATE] if len(r) > COL_DATE else "") or "",
-            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
-            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
-            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
-            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
+            "cin": cin,
+            "cout": cout,
+            "hours": hours,
+            "pay": pay,
+            "status": status,
         })
 
-    recent_rows = sorted(recent_rows, key=lambda x: x["date"], reverse=True)[:5]
+    recent_rows = sorted(
+        recent_rows,
+        key=lambda x: ((x["date"] or ""), (x["cin"] or ""), (x["user"] or "")),
+        reverse=True,
+    )[:5]
 
     if recent_rows:
-        activity_html = """
-          <div class="activityRow activityHead">
-            <div>Date</div><div>In</div><div>Out</div><div>Hours</div><div>Pay</div>
+        header_employee = "<th style='width:18%;'>Employee</th>" if show_employee_col else ""
+        body_rows = ""
+
+        for rr in recent_rows:
+            employee_td = f"<td style='width:18%;'>{escape(rr['user'])}</td>" if show_employee_col else ""
+
+            body_rows += f"""
+              <tr>
+                {employee_td}
+                <td style="width:16%;">{escape(rr['date'])}</td>
+                <td style="width:10%; text-align:center;">{escape((rr['cin'] or '')[:5])}</td>
+                <td style="width:10%; text-align:center;">{escape((rr['cout'] or '')[:5])}</td>
+                <td class="num" style="width:10%;">{escape(fmt_hours(rr['hours']))}</td>
+                <td class="num" style="width:14%;">{escape(currency)}{escape(rr['pay'])}</td>
+                <td style="width:12%; text-align:center;">{escape(rr['status'])}</td>
+              </tr>
+            """
+
+        activity_html = f"""
+          <div class="tablewrap">
+            <table class="timeLogsTable logActivitiesPreviewTable" style="width:100%; min-width:0; table-layout:fixed;">
+              <thead>
+                <tr>
+                  {header_employee}
+                  <th style="width:16%;">Date</th>
+                  <th style="width:10%; text-align:center;">In</th>
+                  <th style="width:10%; text-align:center;">Out</th>
+                  <th class="num" style="width:10%;">Hours</th>
+                  <th class="num" style="width:14%;">Pay</th>
+                  <th style="width:12%; text-align:center;">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {body_rows}
+              </tbody>
+            </table>
           </div>
         """
-        for rr in recent_rows:
-            activity_html += f"""
-              <div class="activityRow">
-                <div>{escape(rr['date'])}</div>
-                <div>{escape((rr['cin'] or '')[:5])}</div>
-                <div>{escape((rr['cout'] or '')[:5])}</div>
-                <div>{escape(fmt_hours(rr['hours']))}</div>
-                <div>{escape(currency)}{escape(rr['pay'])}</div>
-              </div>
-            """
     else:
-        activity_html = "<div class='activityEmpty'>No recent activity yet.</div>"
+        activity_html = "<div class='activityEmpty'>No log activity yet.</div>"
+
+
     today_hours = 0.0
     today_pay = 0.0
     week_hours = 0.0
@@ -10942,7 +10989,7 @@ def home():
                   <p class="sub" style="margin:4px 0 0 0;">Live workforce and workplace setup overview.</p>
                 </div>
               </div>
-              <div class="sectionBadge" id="snapshotLiveBadge">Live</div>
+              <div class="sectionBadge">Latest 5</div>
             </div>
 
             <div class="sideInfoList">
@@ -11062,7 +11109,11 @@ def home():
           </script>
         """
 
-          
+        activity_cta_html = (
+            '<a class="btnTiny" href="/admin/log-activities">View all logs</a>'
+            if role in ("admin", "master_admin")
+            else '<a class="btnTiny" href="/my-times">View all logs</a>'
+        )
 
     content = f"""
       <div class="dashboardHero">
@@ -11119,17 +11170,17 @@ def home():
         </div>
       </div>
 
-            <div class="dashboardBottom">
+                              <div class="dashboardBottom">
         <div class="activityCard plainSection">
           <div class="sectionHead">
             <div class="sectionHeadLeft">
               <div class="sectionIcon">{_svg_clipboard()}</div>
               <div>
-                <h2 style="margin:0;">Recent Activity</h2>
-                <p class="sub" style="margin:4px 0 0 0;">Latest logged work entries.</p>
+                <h2 style="margin:0;">Log Activities</h2>
+                <p class="sub" style="margin:4px 0 0 0;">All employee clock logs and work activity.</p>
               </div>
             </div>
-            <div class="sectionBadge">Last 5 rows</div>
+            {activity_cta_html}
           </div>
 
           <div class="activityList">
@@ -12353,42 +12404,42 @@ def my_times():
     table = "".join(table_rows) if table_rows else "<tr><td colspan='5'>No records yet.</td></tr>"
 
     page_css = """
-    <style>
-      .timeLogsPageShell{ display:grid; gap:14px; }
-      .timeLogsHero{
-        padding:18px;
-        border-radius: 0 !important;
-        border:1px solid rgba(96,165,250,.16);
-        background:linear-gradient(180deg, rgba(242,247,251,.98), rgba(255,255,255,.98));
-        box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
-      }
-      .timeLogsSummaryCard,
-      .timeLogsTableCard{
-        border:1px solid rgba(15,23,42,.08);
-        background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
-        box-shadow:0 14px 30px rgba(15,23,42,.06);
-      }
-      .timeLogsHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
-      .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius: 0 !important; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#3b74ad; background:rgba(68,130,195,.10); border:1px solid rgba(68,130,195,.16); }
-      .timeLogsHero h1{ margin:12px 0 0; font-size:clamp(34px, 5vw, 46px); color:var(--text); }
-      .timeLogsHero .sub{ color:var(--muted); }
-      .timeLogsSummaryGrid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
-      .timeLogsSummaryCard{ padding:14px 16px; border-radius: 0 !important; }
-      .timeLogsSummaryCard .k{ font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#64748b; }
-      .timeLogsSummaryCard .v{ margin-top:8px; font-size:clamp(24px, 3vw, 34px); font-weight:800; color:var(--text); }
-      .timeLogsSummaryCard .sub{ margin-top:6px; color:var(--muted); }
-      .timeLogsTableCard{ padding:12px; border-radius: 0 !important; }
-      .timeLogsTable{ width:100%; min-width:720px; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid rgba(15,23,42,.08); border-radius: 0 !important; background:rgba(255,255,255,.98); }
-      .timeLogsTable thead th{ padding:14px 16px; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#475569; background:linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.98)); border-bottom:1px solid rgba(15,23,42,.08); }
-      .timeLogsTable tbody td{ padding:16px; color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; border-bottom:1px solid rgba(15,23,42,.08); }
-      .timeLogsTable tbody tr:nth-child(even) td{ background:rgba(248,250,252,.92); }
-      .timeLogsTable tbody tr:hover td{ background:rgba(59,130,246,.06); }
-      .timeLogsTable td.num, .timeLogsTable th.num{ text-align:right; }
-      .timeLogsTable tbody tr:last-child td{ border-bottom:0; }
-      @media (max-width: 960px){ .timeLogsSummaryGrid{ grid-template-columns:1fr 1fr; } }
-      @media (max-width: 700px){ .timeLogsSummaryGrid{ grid-template-columns:1fr; } .timeLogsHero{ padding:16px; border-radius: 0 !important; } .timeLogsTableCard{ padding:10px; border-radius: 0 !important; } }
-    </style>
-    """
+        <style>
+          .timeLogsPageShell{ display:grid; gap:14px; }
+          .timeLogsHero{
+            padding:18px;
+            border-radius: 0 !important;
+            border:1px solid rgba(96,165,250,.16);
+            background:linear-gradient(180deg, rgba(242,247,251,.98), rgba(255,255,255,.98));
+            box-shadow:0 18px 40px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.78);
+          }
+          .timeLogsSummaryCard,
+          .timeLogsTableCard{
+            border:1px solid rgba(15,23,42,.08);
+            background:linear-gradient(180deg, rgba(255,255,255,.98), rgba(248,250,252,.96));
+            box-shadow:0 14px 30px rgba(15,23,42,.06);
+          }
+          .timeLogsHeroTop{ display:flex; justify-content:space-between; gap:14px; align-items:flex-start; flex-wrap:wrap; }
+          .timeLogsEyebrow{ display:inline-flex; align-items:center; gap:8px; padding:7px 12px; border-radius: 0 !important; font-size:12px; font-weight:800; letter-spacing:.05em; text-transform:uppercase; color:#3b74ad; background:rgba(68,130,195,.10); border:1px solid rgba(68,130,195,.16); }
+          .timeLogsHero h1{ margin:12px 0 0; font-size:clamp(34px, 5vw, 46px); color:var(--text); }
+          .timeLogsHero .sub{ color:var(--muted); }
+          .timeLogsSummaryGrid{ display:grid; grid-template-columns:repeat(4, minmax(0,1fr)); gap:12px; }
+          .timeLogsSummaryCard{ padding:14px 16px; border-radius: 0 !important; }
+          .timeLogsSummaryCard .k{ font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#64748b; }
+          .timeLogsSummaryCard .v{ margin-top:8px; font-size:clamp(24px, 3vw, 34px); font-weight:800; color:var(--text); }
+          .timeLogsSummaryCard .sub{ margin-top:6px; color:var(--muted); }
+          .timeLogsTableCard{ padding:12px; border-radius: 0 !important; }
+          .timeLogsTable{ width:100%; min-width:720px; border-collapse:separate; border-spacing:0; overflow:hidden; border:1px solid rgba(15,23,42,.08); border-radius: 0 !important; background:rgba(255,255,255,.98); }
+          .timeLogsTable thead th{ padding:14px 16px; font-size:12px; font-weight:800; letter-spacing:.04em; text-transform:uppercase; color:#475569; background:linear-gradient(180deg, rgba(248,250,252,.98), rgba(241,245,249,.98)); border-bottom:1px solid rgba(15,23,42,.08); }
+          .timeLogsTable tbody td{ padding:16px; color:var(--text); font-weight:700; font-variant-numeric:tabular-nums; border-bottom:1px solid rgba(15,23,42,.08); }
+          .timeLogsTable tbody tr:nth-child(even) td{ background:rgba(248,250,252,.92); }
+          .timeLogsTable tbody tr:hover td{ background:rgba(59,130,246,.06); }
+          .timeLogsTable td.num, .timeLogsTable th.num{ text-align:right; }
+          .timeLogsTable tbody tr:last-child td{ border-bottom:0; }
+          @media (max-width: 960px){ .timeLogsSummaryGrid{ grid-template-columns:1fr 1fr; } }
+          @media (max-width: 700px){ .timeLogsSummaryGrid{ grid-template-columns:1fr; } .timeLogsHero{ padding:16px; border-radius: 0 !important; } .timeLogsTableCard{ padding:10px; border-radius: 0 !important; } }
+        </style>
+        """
 
     content = f"""
       {page_css}
@@ -12424,6 +12475,237 @@ def my_times():
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("times", role, content))
+
+@routes.get("/admin/log-activities")
+def admin_log_activities():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    role = session.get("role", "admin")
+    settings = get_company_settings()
+    currency = str(settings.get("Currency_Symbol", "£") or "£")
+
+    rows = get_workhours_rows()
+    allowed_wps = set(_workplace_ids_for_read())
+
+    wp_idx = None
+    if rows and len(rows) > 0:
+        headers = rows[0]
+        wp_idx = headers.index("Workplace_ID") if "Workplace_ID" in headers else None
+
+    records = []
+    for r in rows[1:]:
+        if len(r) <= COL_PAY or len(r) <= COL_USER:
+            continue
+
+        row_user = (r[COL_USER] or "").strip()
+        if not row_user:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+        else:
+            if not user_in_same_workplace(row_user):
+                continue
+
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "") or ""
+        cin = (r[COL_IN] if len(r) > COL_IN else "") or ""
+        cout = (r[COL_OUT] if len(r) > COL_OUT else "") or ""
+        hours = (r[COL_HOURS] if len(r) > COL_HOURS else "") or ""
+        pay = (r[COL_PAY] if len(r) > COL_PAY else "") or ""
+
+        if cin and not cout:
+            status = "Live"
+        elif cin and cout:
+            status = "Complete"
+        elif cin or cout or hours or pay:
+            status = "Partial"
+        else:
+            status = "Blank"
+
+        records.append({
+            "user": row_user,
+            "date": d_str,
+            "cin": cin,
+            "cout": cout,
+            "hours": hours,
+            "pay": pay,
+            "status": status,
+        })
+
+    records = sorted(
+        records,
+        key=lambda x: ((x["date"] or ""), (x["cin"] or ""), (x["user"] or "")),
+        reverse=True,
+    )
+
+    if records:
+        table_rows = ""
+        for rec in records:
+            table_rows += f"""
+              <tr>
+                <td>{escape(rec['user'])}</td>
+                <td>{escape(rec['date'])}</td>
+                <td>{escape((rec['cin'] or '')[:5])}</td>
+                <td>{escape((rec['cout'] or '')[:5])}</td>
+                <td class="num">{escape(fmt_hours(rec['hours']))}</td>
+                <td class="num">{escape(currency)}{escape(rec['pay'])}</td>
+                <td>{escape(rec['status'])}</td>
+              </tr>
+            """
+    else:
+        table_rows = """
+          <tr>
+            <td colspan="7" style="padding:16px; color:rgba(15,23,42,.65); font-weight:600;">
+              No log activity found.
+            </td>
+          </tr>
+        """
+
+    page_css = """
+    <style>
+      .logActivitiesPageShell{
+        display:flex;
+        flex-direction:column;
+        gap:16px;
+      }
+
+      .logActivitiesHero{
+        padding:16px;
+      }
+
+      .logActivitiesHeroTop{
+        display:flex;
+        align-items:flex-start;
+        justify-content:space-between;
+        gap:12px;
+        flex-wrap:wrap;
+      }
+
+      .logActivitiesEyebrow{
+        font-size:12px;
+        font-weight:800;
+        letter-spacing:.08em;
+        text-transform:uppercase;
+        color:#315f8f;
+        margin-bottom:6px;
+      }
+
+      .logActivitiesTableCard{
+        padding:16px;
+      }
+
+      .logActivitiesTableCard .tablewrap{
+        overflow-x:auto;
+      }
+
+      .logActivitiesTable{
+        width:100% !important;
+        min-width:1100px;
+        table-layout:fixed !important;
+      }
+
+      .logActivitiesTable th,
+      .logActivitiesTable td{
+        white-space:nowrap;
+        overflow:hidden;
+        text-overflow:ellipsis;
+      }
+
+      .logActivitiesTable th:nth-child(1),
+      .logActivitiesTable td:nth-child(1){
+        width:20% !important;
+        text-align:left !important;
+      }
+
+      .logActivitiesTable th:nth-child(2),
+      .logActivitiesTable td:nth-child(2){
+        width:16% !important;
+        text-align:center !important;
+      }
+
+      .logActivitiesTable th:nth-child(3),
+      .logActivitiesTable td:nth-child(3){
+        width:10% !important;
+        text-align:center !important;
+      }
+
+      .logActivitiesTable th:nth-child(4),
+      .logActivitiesTable td:nth-child(4){
+        width:10% !important;
+        text-align:center !important;
+      }
+
+      .logActivitiesTable th:nth-child(5),
+      .logActivitiesTable td:nth-child(5){
+        width:10% !important;
+        text-align:right !important;
+      }
+
+      .logActivitiesTable th:nth-child(6),
+      .logActivitiesTable td:nth-child(6){
+        width:14% !important;
+        text-align:right !important;
+      }
+
+      .logActivitiesTable th:nth-child(7),
+      .logActivitiesTable td:nth-child(7){
+        width:20% !important;
+        text-align:center !important;
+      }
+
+      @media (max-width: 900px){
+        .logActivitiesTable{
+          min-width:980px;
+        }
+      }
+    </style>
+    """
+
+    content = f"""
+      {page_css}
+      {page_back_button("/", "Back to dashboard")}
+
+      <div class="logActivitiesPageShell">
+        <div class="logActivitiesHero plainSection">
+          <div class="logActivitiesHeroTop">
+            <div>
+              <div class="logActivitiesEyebrow">Admin logs</div>
+              <h1 style="margin:0;">Log Activities</h1>
+              <p class="sub" style="margin:6px 0 0 0;">All employee clock logs and work activity for the current workplace scope.</p>
+            </div>
+            <div class="badge admin">ALL LOGS</div>
+          </div>
+        </div>
+
+        <div class="logActivitiesTableCard plainSection">
+          <div class="tablewrap">
+            <table class="timeLogsTable logActivitiesTable">
+              <thead>
+                <tr>
+                  <th>Employee</th>
+                  <th>Date</th>
+                  <th>In</th>
+                  <th>Out</th>
+                  <th class="num">Hours</th>
+                  <th class="num">Pay</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {table_rows}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    """
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("admin", role, content)
+    )
 
 
 # ---------- MY REPORTS ----------
