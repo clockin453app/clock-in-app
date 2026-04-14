@@ -10976,6 +10976,11 @@ def home():
         </div>
       </div>
     """
+    activity_cta_html = (
+        '<a class="btnTiny" href="/admin/log-activities">View all logs</a>'
+        if role in ("admin", "master_admin")
+        else '<a class="btnTiny" href="/my-times">View all logs</a>'
+    )
 
     snapshot_html = ""
     if role in ("admin", "master_admin"):
@@ -11109,12 +11114,6 @@ def home():
           </script>
         """
 
-        activity_cta_html = (
-            '<a class="btnTiny" href="/admin/log-activities">View all logs</a>'
-            if role in ("admin", "master_admin")
-            else '<a class="btnTiny" href="/my-times">View all logs</a>'
-        )
-
     content = f"""
       <div class="dashboardHero">
         <div class="dashboardHeroMain">
@@ -11176,8 +11175,8 @@ def home():
             <div class="sectionHeadLeft">
               <div class="sectionIcon">{_svg_clipboard()}</div>
               <div>
-                <h2 style="margin:0;">Log Activities</h2>
-                <p class="sub" style="margin:4px 0 0 0;">All employee clock logs and work activity.</p>
+                <h2 style="margin:0;">{"Log Activities" if role in ("admin", "master_admin") else "My Log Activity"}</h2>
+                <p class="sub" style="margin:4px 0 0 0;">{"All employee clock logs and work activity." if role in ("admin", "master_admin") else "Your latest clock logs and work activity."}</p>
               </div>
             </div>
             {activity_cta_html}
