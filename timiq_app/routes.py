@@ -641,7 +641,8 @@ def get_payroll_rows():
     if not DB_MIGRATION_MODE:
         return payroll_sheet.get_all_values()
 
-    headers = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "PaidAt", "PaidBy", "Paid", "Workplace_ID"]
+    headers = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "DisplayTax", "DisplayNet", "PaymentMode",
+               "PaidAt", "PaidBy", "Paid", "Workplace_ID"]
     out = [headers]
     allowed_wps = set(_workplace_ids_for_read())
 
@@ -684,6 +685,9 @@ def get_payroll_rows():
             "" if getattr(rec, "gross", None) is None else str(getattr(rec, "gross")),
             "" if getattr(rec, "tax", None) is None else str(getattr(rec, "tax")),
             "" if getattr(rec, "net", None) is None else str(getattr(rec, "net")),
+            "" if getattr(rec, "display_tax", None) is None else str(getattr(rec, "display_tax")),
+            "" if getattr(rec, "display_net", None) is None else str(getattr(rec, "display_net")),
+            str(getattr(rec, "payment_mode", "") or "").strip(),
             _dt_str(getattr(rec, "paid_at", None)),
             str(getattr(rec, "paid_by", "") or "").strip(),
             str(getattr(rec, "paid", "") or "").strip(),
@@ -1437,6 +1441,7 @@ raw_onboarding_sheet = None
 raw_settings_sheet = None
 raw_audit_sheet = None
 raw_locations_sheet = None
+
 
 def _get_import_sheet(sheet_name: str):
     key = str(sheet_name or "").strip().lower()
@@ -9288,6 +9293,7 @@ def migrate_password_if_plain(username: str, stored: str, provided: str, workpla
     if stored and not _password_is_hashed(stored):
         _ensure_password_hash_for_user(username, stored, workplace_id=workplace_id)
 
+
 def _ensure_onboarding_workplace_header():
     """Ensure legacy Onboarding sheet has the expected headers, including Workplace_ID."""
     if not onboarding_sheet:
@@ -9320,6 +9326,7 @@ def _ensure_onboarding_workplace_header():
             onboarding_sheet.update(f"A1:{end_col}1", [new_headers])
     except Exception:
         return
+
 
 def update_or_append_onboarding(username: str, data: dict):
     current_wp = _session_workplace_id()
@@ -9627,7 +9634,8 @@ def _login_rate_limit_clear(ip):
 
 # ================= ADMIN / SHEET HELPERS =================
 AUDIT_HEADERS = ["Timestamp", "Actor", "Action", "Username", "Date", "Details", "Workplace_ID"]
-PAYROLL_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "PaidAt", "PaidBy", "Paid",
+PAYROLL_HEADERS = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "DisplayTax", "DisplayNet", "PaymentMode",
+                   "PaidAt", "PaidBy", "Paid",
                    "Workplace_ID"]
 
 
@@ -9785,24 +9793,32 @@ def _legacy_append_paid_record_safe_before_db_patch(week_start: str, week_end: s
         return
 
 
-def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
-    """Return (is_paid, paid_at)."""
+def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> dict:
     try:
         _ensure_payroll_headers()
         vals = get_payroll_rows()
         if not vals or len(vals) < 2:
-            return (False, "")
+            return {"paid": False, "paid_at": "", "gross": 0.0, "tax": 0.0, "net": 0.0, "display_tax": 0.0,
+                    "display_net": 0.0, "payment_mode": "net"}
+
         headers = vals[0]
 
         def idx(name):
             return headers.index(name) if name in headers else None
 
-        i_ws = idx("WeekStart");
-        i_we = idx("WeekEnd");
-        i_u = idx("Username");
-        i_pa = idx("PaidAt");
+        i_ws = idx("WeekStart")
+        i_we = idx("WeekEnd")
+        i_u = idx("Username")
+        i_g = idx("Gross")
+        i_t = idx("Tax")
+        i_n = idx("Net")
+        i_dt = idx("DisplayTax")
+        i_dn = idx("DisplayNet")
+        i_pm = idx("PaymentMode")
+        i_pa = idx("PaidAt")
+        i_paid = idx("Paid")
         i_wp = idx("Workplace_ID")
-        paid_at = ""
+
         current_wp = _session_workplace_id()
         allowed_wps = set(_workplace_ids_for_read(current_wp))
 
@@ -9812,12 +9828,47 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
             uu = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
             wp = ((r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip() or "default")
 
-            if ws == week_start and we == week_end and uu == username and wp == current_wp:
-                paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
-                return (paid_at != "", paid_at)
-        return (False, "")
+            if ws != week_start or we != week_end or uu != username or wp not in allowed_wps:
+                continue
+
+            paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
+            paid_flag = (r[i_paid] if i_paid is not None and i_paid < len(r) else "").strip().lower()
+            is_paid = bool(paid_at) or paid_flag in {"true", "1", "yes", "paid"}
+            if not is_paid:
+                continue
+
+            gross = safe_float(r[i_g] if i_g is not None and i_g < len(r) else "0", 0.0)
+            tax = safe_float(r[i_t] if i_t is not None and i_t < len(r) else "0", 0.0)
+            net = safe_float(r[i_n] if i_n is not None and i_n < len(r) else "0", 0.0)
+
+            display_tax = safe_float(r[i_dt] if i_dt is not None and i_dt < len(r) else "", tax)
+            display_net = safe_float(r[i_dn] if i_dn is not None and i_dn < len(r) else "", net)
+            payment_mode = (r[i_pm] if i_pm is not None and i_pm < len(r) else "").strip().lower()
+
+            if payment_mode not in {"gross", "net"}:
+                payment_mode = "gross" if abs(display_tax) < 0.005 and abs(display_net - gross) < 0.005 else "net"
+
+            return {
+                "paid": True,
+                "paid_at": paid_at,
+                "gross": round(gross, 2),
+                "tax": round(tax, 2),
+                "net": round(net, 2),
+                "display_tax": round(display_tax, 2),
+                "display_net": round(display_net, 2),
+                "payment_mode": payment_mode,
+            }
+
+        return {"paid": False, "paid_at": "", "gross": 0.0, "tax": 0.0, "net": 0.0, "display_tax": 0.0,
+                "display_net": 0.0, "payment_mode": "net"}
     except Exception:
-        return (False, "")
+        return {"paid": False, "paid_at": "", "gross": 0.0, "tax": 0.0, "net": 0.0, "display_tax": 0.0,
+                "display_net": 0.0, "payment_mode": "net"}
+
+
+def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
+    rec = _get_paid_record_for_week(week_start, week_end, username)
+    return (bool(rec.get("paid")), str(rec.get("paid_at") or ""))
 
 
 # ================= NAV / LAYOUT =================
@@ -10442,6 +10493,7 @@ def logout():
     session.clear()
     return redirect(url_for("login"))
 
+
 @routes.get("/api/dashboard-snapshot")
 def api_dashboard_snapshot():
     gate = require_login()
@@ -10506,7 +10558,6 @@ def api_dashboard_snapshot():
         "onboarding_pending_count": onboarding_pending_count,
         "updated_at": datetime.now(TZ).strftime("%H:%M:%S"),
     })
-
 
 
 # ---------- DASHBOARD ----------
@@ -10689,7 +10740,6 @@ def home():
         """
     else:
         activity_html = "<div class='activityEmpty'>No log activity yet.</div>"
-
 
     today_hours = 0.0
     today_pay = 0.0
@@ -11233,6 +11283,7 @@ def home():
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content)
     )
+
 
 # ---------- CLOCK PAGE ----------
 @routes.route("/clock", methods=["GET", "POST"])
@@ -12381,6 +12432,7 @@ def my_times():
             "hours": hours_val,
             "pay": pay_val,
         })
+
     def _time_log_sort_key(rec):
         d = str(rec.get("date") or "").strip()
         t = str(rec.get("clock_in") or "00:00:00").strip()
@@ -12474,6 +12526,7 @@ def my_times():
       </div>
     """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("times", role, content))
+
 
 @routes.get("/admin/log-activities")
 def admin_log_activities():
@@ -12915,7 +12968,6 @@ def my_reports():
         is_paid = bool(paid_at) or paid_flag in {"true", "yes", "1", "paid"}
         if is_paid and week_start:
             paid_week_keys.add(week_start)
-
 
     weekly_list = []
     for key in sorted(week_summaries.keys(), reverse=True):
@@ -13604,6 +13656,9 @@ def payments_page():
     i_g = idx("Gross")
     i_t = idx("Tax")
     i_n = idx("Net")
+    i_dt = idx("DisplayTax")
+    i_dn = idx("DisplayNet")
+    i_pm = idx("PaymentMode")
     i_pa = idx("PaidAt")
     i_pb = idx("PaidBy")
     i_paid = idx("Paid")
@@ -13663,6 +13718,12 @@ def payments_page():
         tax = money_float(r[i_t] if i_t is not None and i_t < len(r) else "0")
         net = money_float(r[i_n] if i_n is not None and i_n < len(r) else "0")
 
+        display_tax = money_float(r[i_dt] if i_dt is not None and i_dt < len(r) else tax)
+        display_net = money_float(r[i_dn] if i_dn is not None and i_dn < len(r) else net)
+        payment_mode = ((r[i_pm] if i_pm is not None and i_pm < len(r) else "") or "").strip().lower()
+        if payment_mode not in {"gross", "net"}:
+            payment_mode = "gross" if abs(display_tax) < 0.005 and abs(display_net - gross) < 0.005 else "net"
+
         wk_offset = max(0, (this_monday - monday).days // 7)
         iso = monday.isocalendar()
         period_label = f"Week {iso[1]} • {monday.strftime('%d %b')} – {sunday.strftime('%d %b %Y')}"
@@ -13674,8 +13735,9 @@ def payments_page():
             "paid_by": paid_by or "-",
             "company": company_name,
             "gross": gross,
-            "tax": tax,
-            "net": net,
+            "tax": display_tax,
+            "net": display_net,
+            "payment_mode": payment_mode,
             "wk_offset": wk_offset,
         })
 
@@ -14064,6 +14126,8 @@ def my_reports_print():
         return gross, tax, net
 
     w_g, w_t, w_n = gross_tax_net(selected_week_pay)
+    selected_week_payment_mode = "net"
+
     payroll_rows = get_payroll_rows()
     p_headers = payroll_rows[0] if payroll_rows else []
 
@@ -14075,6 +14139,9 @@ def my_reports_print():
     i_p_user = pidx("Username")
     i_p_gross = pidx("Gross")
     i_p_tax = pidx("Tax")
+    i_p_dt = pidx("DisplayTax")
+    i_p_dn = pidx("DisplayNet")
+    i_p_pm = pidx("PaymentMode")
     i_p_paid_at = pidx("PaidAt")
     i_p_paid = pidx("Paid")
     i_p_wp = pidx("Workplace_ID")
@@ -14118,14 +14185,25 @@ def my_reports_print():
 
         row_gross = safe_float((r[i_p_gross] if (i_p_gross is not None and len(r) > i_p_gross) else "") or "0", 0.0)
         row_tax = safe_float((r[i_p_tax] if (i_p_tax is not None and len(r) > i_p_tax) else "") or "0", 0.0)
+        row_display_tax = safe_float((r[i_p_dt] if (i_p_dt is not None and len(r) > i_p_dt) else "") or "", row_tax)
+        row_display_net = safe_float((r[i_p_dn] if (i_p_dn is not None and len(r) > i_p_dn) else "") or "",
+                                     round(row_gross - row_tax, 2))
+        row_payment_mode = ((r[i_p_pm] if (i_p_pm is not None and len(r) > i_p_pm) else "") or "").strip().lower()
+        if row_payment_mode not in {"gross", "net"}:
+            row_payment_mode = "gross" if abs(row_display_tax) < 0.005 and abs(
+                row_display_net - row_gross) < 0.005 else "net"
 
         if row_we <= selected_week_end:
             ytd_taxable_pay += row_gross
-            ytd_cis_tax += row_tax
+            ytd_cis_tax += row_display_tax
 
         if row_ws == selected_week_start and row_we == selected_week_end:
             selected_week_found_in_payroll = True
             pay_date_text = paid_at_raw or row_we_str
+            w_g = round(row_gross, 2)
+            w_t = round(row_display_tax, 2)
+            w_n = round(row_display_net, 2)
+            selected_week_payment_mode = row_payment_mode
 
     if not selected_week_found_in_payroll:
         ytd_taxable_pay += w_g
@@ -14176,7 +14254,10 @@ def my_reports_print():
 
         hours_val = round(item["hours"], 2)
         gross_val = round(item["gross"], 2)
-        net_val = round(gross_val - (gross_val * tax_rate), 2)
+        if selected_week_payment_mode == "gross":
+            net_val = gross_val
+        else:
+            net_val = round(gross_val - (gross_val * tax_rate), 2)
 
         row_class = "overtimeRow" if hours_val > OVERTIME_HOURS else ""
 
@@ -15968,7 +16049,7 @@ def admin():
       </style>
 
       {admin_back_link("/")} 
-      
+
 
       <div class="adminHeroCard plainSection">
         <div class="adminHeroTop">
@@ -16643,10 +16724,25 @@ def admin_mark_paid():
         tax = safe_float(request.form.get("tax", "0") or "0", 0.0)
         net = safe_float(request.form.get("net", "0") or "0", 0.0)
 
+        payment_mode = (request.form.get("payment_mode") or "net").strip().lower()
+        display_tax = safe_float(request.form.get("display_tax", "") or "", tax)
+        display_net = safe_float(request.form.get("display_net", "") or "", net)
+
         paid_by = session.get("username", "admin")
 
         if week_start and week_end and username:
-            _append_paid_record_safe(week_start, week_end, username, gross, tax, net, paid_by)
+            _append_paid_record_safe(
+                week_start,
+                week_end,
+                username,
+                gross,
+                tax,
+                net,
+                paid_by,
+                payment_mode=payment_mode,
+                display_tax=display_tax,
+                display_net=display_net,
+            )
     except Exception:
         pass
 
@@ -17144,24 +17240,52 @@ def admin_payroll():
             f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(gross)) if gross > 0 else ''}</td>")
         cells.append(f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(tax)) if tax > 0 else ''}</td>")
 
+        paid_rec = _get_paid_record_for_week(week_start_str, week_end_str, u)
+        paid = bool(paid_rec.get("paid"))
+        paid_display_net = round(float(paid_rec.get("display_net", 0.0) or 0.0), 2)
+        paid_mode = str(paid_rec.get("payment_mode") or "net").strip().lower()
+
         if paid:
+            paid_label = "Gross Paid" if paid_mode == "gross" else "Paid"
             cells.append(
-                f"<td class='num payrollSummaryMoney net paidNetCell'><span class='paidNetBadge'>{escape(currency)}{money(net)} · Paid</span></td>")
+                f"<td class='num payrollSummaryMoney net paidNetCell'><span class='paidNetBadge'>{escape(currency)}{money(paid_display_net)} · {escape(paid_label)}</span></td>"
+            )
         elif gross > 0:
             cells.append(f"""
                  <td class='num payrollSummaryMoney net'>
-                   <form method="POST" action="/admin/mark-paid" class="payCellForm">
-                     <input type="hidden" name="csrf" value="{escape(csrf)}">
-                     <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                     <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                     <input type="hidden" name="user" value="{escape(u)}">
-                     <input type="hidden" name="gross" value="{gross}">
-                     <input type="hidden" name="tax" value="{tax}">
-                     <input type="hidden" name="net" value="{net}">
-                     <button class="payCellBtn" type="submit">
-                       {escape(currency)}{money(net)} <span class="payLabel">Pay</span>
-                     </button>
-                   </form>
+                   <div style="display:flex; flex-direction:column; gap:8px;">
+                     <form method="POST" action="/admin/mark-paid" class="payCellForm">
+                       <input type="hidden" name="csrf" value="{escape(csrf)}">
+                       <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                       <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                       <input type="hidden" name="user" value="{escape(u)}">
+                       <input type="hidden" name="gross" value="{gross}">
+                       <input type="hidden" name="tax" value="{tax}">
+                       <input type="hidden" name="net" value="{net}">
+                       <input type="hidden" name="payment_mode" value="net">
+                       <input type="hidden" name="display_tax" value="{tax}">
+                       <input type="hidden" name="display_net" value="{net}">
+                       <button class="payCellBtn" type="submit">
+                         {escape(currency)}{money(net)} <span class="payLabel">Pay</span>
+                       </button>
+                     </form>
+
+                     <form method="POST" action="/admin/mark-paid" class="payCellForm">
+                       <input type="hidden" name="csrf" value="{escape(csrf)}">
+                       <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                       <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                       <input type="hidden" name="user" value="{escape(u)}">
+                       <input type="hidden" name="gross" value="{gross}">
+                       <input type="hidden" name="tax" value="{tax}">
+                       <input type="hidden" name="net" value="{net}">
+                       <input type="hidden" name="payment_mode" value="gross">
+                       <input type="hidden" name="display_tax" value="0">
+                       <input type="hidden" name="display_net" value="{gross}">
+                       <button class="payCellBtn" type="submit">
+                         {escape(currency)}{money(gross)} <span class="payLabel">Pay Gross</span>
+                       </button>
+                     </form>
+                   </div>
                  </td>
                """)
         else:
@@ -20909,6 +21033,9 @@ def _ensure_database_schema(app):
             "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS date_text VARCHAR(50)",
             "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS details TEXT",
             "ALTER TABLE audit_logs ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
+            "ALTER TABLE payroll_reports ADD COLUMN IF NOT EXISTS display_tax NUMERIC(10,2)",
+            "ALTER TABLE payroll_reports ADD COLUMN IF NOT EXISTS display_net NUMERIC(10,2)",
+            "ALTER TABLE payroll_reports ADD COLUMN IF NOT EXISTS payment_mode VARCHAR(20)",
             "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_datetime VARCHAR(100)",
             "ALTER TABLE workplace_settings ADD COLUMN IF NOT EXISTS company_logo_url TEXT",
         ]
@@ -20954,33 +21081,78 @@ def log_audit(action: str, actor: str = "", username: str = "", date_str: str = 
             pass
 
 
-def _append_paid_record_safe(week_start: str, week_end: str, username: str, gross: float, tax: float, net: float,
-                             paid_by: str):
+def _append_paid_record_safe(
+        week_start: str,
+        week_end: str,
+        username: str,
+        gross: float,
+        tax: float,
+        net: float,
+        paid_by: str,
+        payment_mode: str = "net",
+        display_tax: float | None = None,
+        display_net: float | None = None,
+):
     try:
         _ensure_payroll_headers()
         paid, _ = _is_paid_for_week(week_start, week_end, username)
         if paid:
             return
+
+        payment_mode = (payment_mode or "net").strip().lower()
+        if payment_mode not in {"gross", "net"}:
+            payment_mode = "net"
+
+        gross = round(float(gross or 0.0), 2)
+        tax = round(float(tax or 0.0), 2)
+        net = round(float(net or 0.0), 2)
+
+        if display_tax is None:
+            display_tax = 0.0 if payment_mode == "gross" else tax
+        if display_net is None:
+            display_net = gross if payment_mode == "gross" else net
+
+        display_tax = round(float(display_tax or 0.0), 2)
+        display_net = round(float(display_net or 0.0), 2)
+
         paid_at = datetime.now(TZ)
+
         if DATABASE_ENABLED:
             db.session.add(
                 PayrollReport(
                     username=username,
                     week_start=datetime.strptime(week_start, "%Y-%m-%d").date(),
                     week_end=datetime.strptime(week_end, "%Y-%m-%d").date(),
-                    gross=Decimal(str(round(gross, 2))),
-                    tax=Decimal(str(round(tax, 2))),
-                    net=Decimal(str(round(net, 2))),
+                    gross=Decimal(str(gross)),
+                    tax=Decimal(str(tax)),
+                    net=Decimal(str(net)),
+                    display_tax=Decimal(str(display_tax)),
+                    display_net=Decimal(str(display_net)),
+                    payment_mode=payment_mode,
                     paid_at=paid_at,
                     paid_by=paid_by,
-                    paid="",
+                    paid="TRUE",
                     workplace_id=_session_workplace_id(),
                 )
             )
             db.session.commit()
             return
-        payroll_sheet.append_row([week_start, week_end, username, money(gross), money(tax), money(net),
-                                  paid_at.strftime("%Y-%m-%d %H:%M:%S"), paid_by, "", _session_workplace_id()])
+
+        payroll_sheet.append_row([
+            week_start,
+            week_end,
+            username,
+            money(gross),
+            money(tax),
+            money(net),
+            money(display_tax),
+            money(display_net),
+            payment_mode,
+            paid_at.strftime("%Y-%m-%d %H:%M:%S"),
+            paid_by,
+            "TRUE",
+            _session_workplace_id(),
+        ])
     except Exception:
         if DATABASE_ENABLED:
             db.session.rollback()
@@ -21018,6 +21190,7 @@ def _patch_admin_only_endpoints(app):
             return _original(*args, **kwargs)
 
         app.view_functions[endpoint] = wrapped
+
 
 def init_runtime(app):
     _ensure_database_schema(app)
