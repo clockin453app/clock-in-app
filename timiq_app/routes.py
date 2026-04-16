@@ -638,18 +638,18 @@ def get_workhours_rows():
 
 
 def get_payroll_rows():
-    if not DB_MIGRATION_MODE:
-        return payroll_sheet.get_all_values()
+    target_headers = [
+        "WeekStart", "WeekEnd", "Username",
+        "Gross", "Tax", "Net",
+        "DisplayTax", "DisplayNet", "PaymentMode",
+        "PaidAt", "PaidBy", "Paid", "Workplace_ID",
+    ]
 
-    headers = ["WeekStart", "WeekEnd", "Username", "Gross", "Tax", "Net", "DisplayTax", "DisplayNet", "PaymentMode",
-               "PaidAt", "PaidBy", "Paid", "Workplace_ID"]
-    out = [headers]
-    allowed_wps = set(_workplace_ids_for_read())
-
-    try:
-        rows = PayrollReport.query.all()
-    except Exception:
-        return out
+    old_headers = [
+        "WeekStart", "WeekEnd", "Username",
+        "Gross", "Tax", "Net",
+        "PaidAt", "PaidBy", "Paid", "Workplace_ID",
+    ]
 
     def _date_str(v):
         if not v:
@@ -670,6 +670,76 @@ def get_payroll_rows():
             except Exception:
                 return str(v)
 
+    def _normalize_old_sheet_row(row):
+        r = list(row[:10])
+        while len(r) < 10:
+            r.append("")
+        # old row layout:
+        # WeekStart, WeekEnd, Username, Gross, Tax, Net, PaidAt, PaidBy, Paid, Workplace_ID
+        # new row layout:
+        # WeekStart, WeekEnd, Username, Gross, Tax, Net, DisplayTax, DisplayNet, PaymentMode, PaidAt, PaidBy, Paid, Workplace_ID
+        return r[:6] + ["", "", ""] + r[6:10]
+
+    def _normalize_current_sheet_row(row):
+        r = list(row[:13])
+        while len(r) < 13:
+            r.append("")
+        return r
+
+    if not DB_MIGRATION_MODE:
+        vals = payroll_sheet.get_all_values() if payroll_sheet else []
+        if not vals:
+            return [target_headers]
+
+        raw_headers = [str(h or "").strip() for h in (vals[0] or [])]
+        out = [target_headers]
+
+        # Case 1: sheet still has the original old header
+        if raw_headers[:len(old_headers)] == old_headers:
+            for row in vals[1:]:
+                out.append(_normalize_old_sheet_row(row))
+            return out
+
+        # Case 2: sheet has the new header, but some historic rows are still old 10-col rows
+        if raw_headers[:len(target_headers)] == target_headers:
+            for row in vals[1:]:
+                r = list(row)
+
+                # old historic row still stored in old layout
+                if len(r) <= 10:
+                    out.append(_normalize_old_sheet_row(r))
+                    continue
+
+                # defensive check: sometimes a legacy row can still look old even if padded
+                raw_col7 = str(r[6] if len(r) > 6 else "").strip()
+                raw_col8 = str(r[7] if len(r) > 7 else "").strip()
+                raw_col9 = str(r[8] if len(r) > 8 else "").strip().lower()
+
+                looks_like_legacy_paidat = ("-" in raw_col7 and ":" in raw_col7) or ("/" in raw_col7 and ":" in raw_col7)
+                looks_like_legacy_paidflag = raw_col9 in {"", "true", "false", "yes", "no", "paid", "1", "0"}
+
+                if len(r) < 13 and (looks_like_legacy_paidat or looks_like_legacy_paidflag):
+                    out.append(_normalize_old_sheet_row(r))
+                else:
+                    out.append(_normalize_current_sheet_row(r))
+            return out
+
+        # Fallback: unknown header, but try to read rows safely
+        for row in vals[1:]:
+            r = list(row)
+            if len(r) <= 10:
+                out.append(_normalize_old_sheet_row(r))
+            else:
+                out.append(_normalize_current_sheet_row(r))
+        return out
+
+    out = [target_headers]
+
+    try:
+        rows = PayrollReport.query.all()
+    except Exception:
+        return out
+
     items = []
     for rec in rows:
         row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
@@ -678,16 +748,32 @@ def get_payroll_rows():
         if row_wp not in allowed_wps:
             continue
 
+        gross = getattr(rec, "gross", None)
+        tax = getattr(rec, "tax", None)
+        net = getattr(rec, "net", None)
+
+        payment_mode = str(getattr(rec, "payment_mode", "") or "").strip().lower()
+        display_tax = getattr(rec, "display_tax", None)
+        display_net = getattr(rec, "display_net", None)
+
+        if payment_mode not in {"gross", "net"}:
+            payment_mode = "net"
+
+        if display_tax is None:
+            display_tax = tax
+        if display_net is None:
+            display_net = net
+
         items.append([
             str(getattr(rec, "week_start", "") and _date_str(getattr(rec, "week_start")) or ""),
             str(getattr(rec, "week_end", "") and _date_str(getattr(rec, "week_end")) or ""),
             str(getattr(rec, "username", "") or "").strip(),
-            "" if getattr(rec, "gross", None) is None else str(getattr(rec, "gross")),
-            "" if getattr(rec, "tax", None) is None else str(getattr(rec, "tax")),
-            "" if getattr(rec, "net", None) is None else str(getattr(rec, "net")),
-            "" if getattr(rec, "display_tax", None) is None else str(getattr(rec, "display_tax")),
-            "" if getattr(rec, "display_net", None) is None else str(getattr(rec, "display_net")),
-            str(getattr(rec, "payment_mode", "") or "").strip(),
+            "" if gross is None else str(gross),
+            "" if tax is None else str(tax),
+            "" if net is None else str(net),
+            "" if display_tax is None else str(display_tax),
+            "" if display_net is None else str(display_net),
+            payment_mode,
             _dt_str(getattr(rec, "paid_at", None)),
             str(getattr(rec, "paid_by", "") or "").strip(),
             str(getattr(rec, "paid", "") or "").strip(),
