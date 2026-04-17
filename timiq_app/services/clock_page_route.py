@@ -955,7 +955,7 @@ def clock_page_impl(core):
               }}
 
               function setSelfieData(dataUrl) {{
-                selfieDataEl.value = dataUrl or "";
+                selfieDataEl.value = dataUrl || "";
                 if (dataUrl) {{
                   retakeSelfieBtn.disabled = false;
                   selfieStatus.textContent = "Selfie captured.";
@@ -969,7 +969,7 @@ def clock_page_impl(core):
               }}
 
               function captureSelfieFrame() {{
-                if (!selfieVideo or !selfieVideo.videoWidth or !selfieVideo.videoHeight) {{
+                if (!selfieVideo || !selfieVideo.videoWidth || !selfieVideo.videoHeight) {{
                   selfieStatus.textContent = "Open the camera first, then capture your selfie.";
                   return;
                 }}
@@ -989,7 +989,7 @@ def clock_page_impl(core):
               let map = null;
               let youMarker = null;
 
-              function initMap() {{
+                            function initMap() {{
                 const start = SITE ? [SITE.lat, SITE.lon] : [51.505, -0.09];
                 map = L.map("map", {{ zoomControl: true }}).setView(start, SITE ? 16 : 5);
                 L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
@@ -997,7 +997,137 @@ def clock_page_impl(core):
                   attribution: "&copy; OpenStreetMap"
                 }}).addTo(map);
 
-              ...
+                if (SITE) {{
+                  L.marker([SITE.lat, SITE.lon]).addTo(map).bindPopup(SITE.name);
+                  L.circle([SITE.lat, SITE.lon], {{ radius: SITE.radius }}).addTo(map);
+                }}
+              }}
+
+              function haversineMeters(lat1, lon1, lat2, lon2) {{
+                const R = 6371000;
+                const toRad = (x) => x * Math.PI / 180;
+                const dLat = toRad(lat2 - lat1);
+                const dLon = toRad(lon2 - lon1);
+                const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+                          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+                          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+                return R * c;
+              }}
+
+              function updateStatus(lat, lon, acc) {{
+                if (!SITE) {{
+                  statusEl.textContent = "Location captured (no site configured).";
+                  geoAlert.className = "clockDistanceAlert is-ok";
+                  geoAlertTitle.textContent = "📍 Location captured";
+                  geoAlertMeta.textContent = "No active site radius is configured for this account.";
+                  return;
+                }}
+                const dist = haversineMeters(lat, lon, SITE.lat, SITE.lon);
+                const ok = dist <= SITE.radius;
+                statusEl.textContent = ok
+                  ? `Location OK: ${{SITE.name}} (${{Math.round(dist)}}m)`
+                  : `Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
+                geoAlert.className = `clockDistanceAlert ${{ok ? 'is-ok' : 'is-error'}}`;
+                geoAlertTitle.textContent = ok ? "📍 You are at the correct site" : "📍 You are too far from the site";
+                geoAlertMeta.textContent = `Distance: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
+              }}
+
+              function updateYouMarker(lat, lon) {{
+                if (!map) return;
+                if (!youMarker) {{
+                  youMarker = L.marker([lat, lon]).addTo(map);
+                }} else {{
+                  youMarker.setLatLng([lat, lon]);
+                }}
+              }}
+
+              function requestLocationAndSubmit(actionValue) {{
+                if (!selfieDataEl.value) {{
+                  syncSteps();
+                  selfieStatus.textContent = "Selfie required before clocking in or out.";
+                  return;
+                }}
+
+                stopSelfieCamera();
+
+                if (!navigator.geolocation) {{
+                  alert("Geolocation is not supported on this device/browser.");
+                  return;
+                }}
+
+                setDisabled(true);
+                statusEl.textContent = "Getting your location…";
+
+                navigator.geolocation.getCurrentPosition((pos) => {{
+                  const lat = pos.coords.latitude;
+                  const lon = pos.coords.longitude;
+                  const acc = pos.coords.accuracy;
+
+                  latEl.value = lat;
+                  lonEl.value = lon;
+                  accEl.value = acc;
+                  geoTsEl.value = String(Date.now());
+
+                  updateStatus(lat, lon, acc);
+                  updateYouMarker(lat, lon);
+
+                  act.value = actionValue;
+                  form.submit();
+                }}, (err) => {{
+                  console.log(err);
+                  alert("Location is required to clock in or out. Please allow location permission and try again.");
+                  statusEl.textContent = "Location required. Please allow permission.";
+                  setDisabled(false);
+                }}, {{ enableHighAccuracy: true, timeout: 12000, maximumAge: 0 }});
+              }}
+
+              initMap();
+
+              if (navigator.geolocation) {{
+                navigator.geolocation.getCurrentPosition((pos) => {{
+                  const lat = pos.coords.latitude;
+                  const lon = pos.coords.longitude;
+                  updateStatus(lat, lon, pos.coords.accuracy);
+                  updateYouMarker(lat, lon);
+                }}, () => {{
+                  geoAlert.className = "clockDistanceAlert is-error";
+                  geoAlertTitle.textContent = "📍 Location permission needed";
+                  geoAlertMeta.textContent = "Allow location access so we can verify your site.";
+                }}, {{ enableHighAccuracy: true, timeout: 8000, maximumAge: 0 }});
+              }}
+
+              takeSelfieBtn.addEventListener("click", async () => {{
+                const hasLiveCamera = !!(selfieStream || (selfieVideo && selfieVideo.srcObject));
+                if (!hasLiveCamera) {{
+                  await startSelfieCamera();
+                  return;
+                }}
+                captureSelfieFrame();
+              }});
+
+              retakeSelfieBtn.addEventListener("click", async () => {{
+                setSelfieData("");
+                await startSelfieCamera();
+              }});
+
+              backToStepOneBtn.addEventListener("click", async () => {{
+                setSelfieData("");
+                await startSelfieCamera();
+              }});
+
+              window.addEventListener("pagehide", stopSelfieCamera);
+              window.addEventListener("beforeunload", stopSelfieCamera);
+              document.addEventListener("visibilitychange", () => {{
+                if (document.hidden) stopSelfieCamera();
+              }});
+
+              btnIn.addEventListener("click", () => requestLocationAndSubmit("in"));
+              btnOut.addEventListener("click", () => requestLocationAndSubmit("out"));
+
+              updateCaptureUi(false);
+syncSteps();
+            }})();
           </script>
         """
     return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("clock", role, content))
