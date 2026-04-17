@@ -1,3 +1,4 @@
+# Legacy route wrapper. Not part of the active startup path.
 from .utils import add_route
 from .. import routes as core
 

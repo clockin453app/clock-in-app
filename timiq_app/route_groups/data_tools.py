@@ -1,6 +1,6 @@
+# Legacy route wrapper. Not part of the active startup path.
 from .utils import add_route
 from .. import routes as core
-
 
 def register_data_tool_routes(app) -> None:
     add_route(app, '/db-test', core.db_test, methods=['GET'])

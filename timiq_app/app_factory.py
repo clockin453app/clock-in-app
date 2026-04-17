@@ -5,17 +5,6 @@ from werkzeug.middleware.proxy_fix import ProxyFix
 
 from .config import Settings
 from .extensions import db
-from .route_groups import register_all_routes
-from .routes import finalize_app, init_runtime
-
-
-from pathlib import Path
-
-from flask import Flask
-from werkzeug.middleware.proxy_fix import ProxyFix
-
-from .config import Settings
-from .extensions import db
 from .routes import init_app
 
 
