@@ -4,14 +4,14 @@ def my_reports_print_impl(core):
     get_employee_display_name = core["get_employee_display_name"]
     get_company_settings = core["get_company_settings"]
     datetime = core["datetime"]
-    tz = core["tz"]
+    TZ = core["TZ"]
     request = core["request"]
     timedelta = core["timedelta"]
     get_workhours_rows = core["get_workhours_rows"]
     get_payroll_rows = core["get_payroll_rows"]
     _session_workplace_id = core["_session_workplace_id"]
     _workplace_ids_for_read = core["_workplace_ids_for_read"]
-    col_pay = core["col_pay"]
+    COL_PAY = core["COL_PAY"]
     COL_USER = core["COL_USER"]
     COL_DATE = core["COL_DATE"]
     COL_IN = core["COL_IN"]
@@ -34,7 +34,6 @@ def my_reports_print_impl(core):
     OnboardingRecord = core["OnboardingRecord"]
     onboarding_sheet = core["onboarding_sheet"]
 
-    # PASTE ONLY THE BODY OF my_reports_print() BELOW THIS LINE
     gate = require_login()
     if gate:
         return gate
@@ -53,7 +52,7 @@ def my_reports_print_impl(core):
     except Exception:
         tax_rate = 0.20
 
-    now = datetime.now(tz)
+    now = datetime.now(TZ)
     today = now.date()
 
     try:
@@ -92,7 +91,7 @@ def my_reports_print_impl(core):
         }
 
     for r in rows[1:]:
-        if len(r) <= col_pay:
+        if len(r) <= COL_PAY:
             continue
 
         row_user = (r[COL_USER] or "").strip()
@@ -116,7 +115,7 @@ def my_reports_print_impl(core):
         cin = ((r[COL_IN] if len(r) > COL_IN else "") or "").strip()
         cout = ((r[COL_OUT] if len(r) > COL_OUT else "") or "").strip()
         hrs = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
-        pay = safe_float((r[col_pay] if len(r) > col_pay else "") or "0", 0.0)
+        pay = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
 
         if selected_week_start <= d <= selected_week_end:
             selected_week_hours += hrs
@@ -205,12 +204,13 @@ def my_reports_print_impl(core):
         row_gross = safe_float((r[i_p_gross] if (i_p_gross is not None and len(r) > i_p_gross) else "") or "0", 0.0)
         row_tax = safe_float((r[i_p_tax] if (i_p_tax is not None and len(r) > i_p_tax) else "") or "0", 0.0)
         row_display_tax = safe_float((r[i_p_dt] if (i_p_dt is not None and len(r) > i_p_dt) else "") or "", row_tax)
-        row_display_net = safe_float((r[i_p_dn] if (i_p_dn is not None and len(r) > i_p_dn) else "") or "",
-                                     round(row_gross - row_tax, 2))
+        row_display_net = safe_float(
+            (r[i_p_dn] if (i_p_dn is not None and len(r) > i_p_dn) else "") or "",
+            round(row_gross - row_tax, 2),
+        )
         row_payment_mode = ((r[i_p_pm] if (i_p_pm is not None and len(r) > i_p_pm) else "") or "").strip().lower()
         if row_payment_mode not in {"gross", "net"}:
-            row_payment_mode = "gross" if abs(row_display_tax) < 0.005 and abs(
-                row_display_net - row_gross) < 0.005 else "net"
+            row_payment_mode = "gross" if abs(row_display_tax) < 0.005 and abs(row_display_net - row_gross) < 0.005 else "net"
 
         if row_we <= selected_week_end:
             ytd_taxable_pay += row_gross
@@ -227,43 +227,17 @@ def my_reports_print_impl(core):
     if not selected_week_found_in_payroll:
         ytd_taxable_pay += w_g
         ytd_cis_tax += w_t
-        pay_date_text = datetime.now(tz).strftime("%Y-%m-%d")
+        pay_date_text = datetime.now(TZ).strftime("%Y-%m-%d")
 
     try:
         pay_date_display = datetime.strptime(pay_date_text, "%Y-%m-%d %H:%M:%S").strftime("%Y-%m-%d")
     except Exception:
-        pay_date_display = (pay_date_text or "")[:10] or datetime.now(tz).strftime("%Y-%m-%d")
+        pay_date_display = (pay_date_text or "")[:10] or datetime.now(TZ).strftime("%Y-%m-%d")
 
     ytd_taxable_pay = round(ytd_taxable_pay, 2)
     ytd_cis_tax = round(ytd_cis_tax, 2)
 
     week_label = f"Week {selected_week_start.isocalendar()[1]} ({selected_week_start.strftime('%d %b')} – {selected_week_end.strftime('%d %b %Y')})"
-    rows_html = []
-    for i in range(7):
-        d = selected_week_start + timedelta(days=i)
-        d_str = d.strftime("%Y-%m-%d")
-        item = week_map[d_str]
-
-        hours_val = round(item["hours"], 2)
-        gross_val = round(item["gross"], 2)
-
-        row_class = "overtimeRow" if hours_val > OVERTIME_HOURS else ""
-
-        cin_txt = item["first_in"] if item["first_in"] else ""
-        cout_txt = item["last_out"] if item["last_out"] else ""
-        hrs_txt = fmt_hours(hours_val) if hours_val > 0 else ""
-        gross_txt = money(gross_val) if gross_val > 0 else ""
-
-        rows_html.append(f"""
-              <tr class="{row_class}">
-                <td><b>{escape(item['day'])}</b></td>
-                <td>{escape(item['display_date'])}</td>
-                <td style="font-weight:700; text-align:center;">{escape(cin_txt)}</td>
-                <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
-                <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
-                <td class="num" style="font-weight:700;">{escape(gross_txt)}</td>
-              </tr>
-            """)
 
     rows_html = []
     for i in range(7):
@@ -431,167 +405,167 @@ def my_reports_print_impl(core):
           }
 
           .statementTopGrid{
-      display:grid;
-      grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
-      gap: 42px;
-      align-items:start;
-      margin-bottom: 18px;
-    }
+            display:grid;
+            grid-template-columns: minmax(0, 1.1fr) minmax(280px, .9fr);
+            gap: 42px;
+            align-items:start;
+            margin-bottom: 18px;
+          }
 
-    .statementSummary{
-      display:grid;
-      gap: 6px;
-      max-width: 340px;
-    }
+          .statementSummary{
+            display:grid;
+            gap: 6px;
+            max-width: 340px;
+          }
 
-    .statementSummaryRow{
-      display:grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items:end;
-      padding: 2px 0;
-      font-size: 13px;
-      color: #111827;
-    }
+          .statementSummaryRow{
+            display:grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items:end;
+            padding: 2px 0;
+            font-size: 13px;
+            color: #111827;
+          }
 
-    .statementSummaryRow .label{
-      color: #4b5563;
-      font-weight: 500;
-    }
+          .statementSummaryRow .label{
+            color: #4b5563;
+            font-weight: 500;
+          }
 
-    .statementSummaryRow .value{
-      font-weight: 500;
-      color: #111827;
-      white-space: nowrap;
-    }
+          .statementSummaryRow .value{
+            font-weight: 500;
+            color: #111827;
+            white-space: nowrap;
+          }
 
-    .statementSummaryRow.total{
-      margin-top: 6px;
-      padding-top: 8px;
-      border-top: 1px solid #e5e7eb;
-    }
+          .statementSummaryRow.total{
+            margin-top: 6px;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+          }
 
-    .statementSummaryRow.total .label,
-    .statementSummaryRow.total .value{
-      font-weight: 900;
-      color: #111827;
-    }
+          .statementSummaryRow.total .label,
+          .statementSummaryRow.total .value{
+            font-weight: 900;
+            color: #111827;
+          }
 
-    .statementYtdCol{
-      display:flex;
-      flex-direction:column;
-      align-items:flex-start;
-      justify-content:flex-start;
-    }
+          .statementYtdCol{
+            display:flex;
+            flex-direction:column;
+            align-items:flex-start;
+            justify-content:flex-start;
+          }
 
-    .statementPayDate{
-      margin: 0 0 10px 0;
-      font-size: 12px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      color: #3b74ad;
-      line-height: 1.2;
-    }
+          .statementPayDate{
+            margin: 0 0 10px 0;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #3b74ad;
+            line-height: 1.2;
+          }
 
-    .statementYtdBox{
-      width: 100%;
-      max-width: 300px;
-      margin: 0;
-    }
+          .statementYtdBox{
+            width: 100%;
+            max-width: 300px;
+            margin: 0;
+          }
 
-    .statementYtdLabel{
-      font-size: 12px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      color: #3b74ad;
-      line-height: 1.2;
-    }
+          .statementYtdLabel{
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #3b74ad;
+            line-height: 1.2;
+          }
 
-    .statementYtdValue{
-      color: #111827;
-      font-weight: 700;
-    }
+          .statementYtdValue{
+            color: #111827;
+            font-weight: 700;
+          }
 
-    .statementYtdRow{
-      display:grid;
-      grid-template-columns: 1fr auto;
-      gap: 10px;
-      align-items:end;
-      margin-top: 4px;
-      font-size: 13px;
-    }
+          .statementYtdRow{
+            display:grid;
+            grid-template-columns: 1fr auto;
+            gap: 10px;
+            align-items:end;
+            margin-top: 4px;
+            font-size: 13px;
+          }
 
-    .statementYtdRow .label{
-      color: #4b5563;
-      font-weight: 500;
-    }
+          .statementYtdRow .label{
+            color: #4b5563;
+            font-weight: 500;
+          }
 
-    .statementYtdRow .value{
-      color: #111827;
-      font-weight: 500;
-      white-space: nowrap;
-    }
+          .statementYtdRow .value{
+            color: #111827;
+            font-weight: 500;
+            white-space: nowrap;
+          }
 
-    @media (max-width: 860px){
-      .statementTopGrid{
-        grid-template-columns: 1fr;
-        gap: 20px;
-      }
-    }
+          @media (max-width: 860px){
+            .statementTopGrid{
+              grid-template-columns: 1fr;
+              gap: 20px;
+            }
+          }
 
-    .statementSummary{
-      display: grid;
-      gap: 6px;
-      margin-bottom: 18px;
-    }
+          .statementSummary{
+            display: grid;
+            gap: 6px;
+            margin-bottom: 18px;
+          }
 
-    .statementYtdBox{
-      width: 100%;
-      max-width: 360px;
-      margin: 0 0 18px 0;
-    }
+          .statementYtdBox{
+            width: 100%;
+            max-width: 360px;
+            margin: 0 0 18px 0;
+          }
 
-    .statementYtdLabel{
-      font-size: 12px;
-      font-weight: 900;
-      text-transform: uppercase;
-      letter-spacing: .04em;
-      color: #3b74ad;
-      line-height: 1.2;
-    }
+          .statementYtdLabel{
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: .04em;
+            color: #3b74ad;
+            line-height: 1.2;
+          }
 
-    .statementYtdValue{
-      color: #111827;
-      font-weight: 900;
-    }
+          .statementYtdValue{
+            color: #111827;
+            font-weight: 900;
+          }
 
-    .statementYtdRow{
-      display: grid;
-      grid-template-columns: 1fr auto;
-      gap: 12px;
-      align-items: end;
-      margin-top: 6px;
-      font-size: 13px;
-    }
+          .statementYtdRow{
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 12px;
+            align-items: end;
+            margin-top: 6px;
+            font-size: 13px;
+          }
 
-    .statementYtdRow .label{
-      color: #4b5563;
-    }
+          .statementYtdRow .label{
+            color: #4b5563;
+          }
 
-    .statementYtdRow .value{
-      color: #111827;
-      font-weight: 800;
-      white-space: nowrap;
-    }
+          .statementYtdRow .value{
+            color: #111827;
+            font-weight: 800;
+            white-space: nowrap;
+          }
 
-    @media (max-width: 860px){
-      .statementSummaryHead{
-        flex-direction:column;
-        align-items:flex-start;
-      }
-    }
+          @media (max-width: 860px){
+            .statementSummaryHead{
+              flex-direction:column;
+              align-items:flex-start;
+            }
+          }
 
           .statementBottomBar{
             height: 14px;
@@ -664,6 +638,7 @@ def my_reports_print_impl(core):
           }
         </style>
         """
+
     ni_number = ""
     utr_number = ""
 
@@ -720,7 +695,7 @@ def my_reports_print_impl(core):
       <div class="statementTitle">CIS Pay Statement</div>
       <div class="statementPeriod">{escape(week_label)}</div>
       <div class="statementMetaRow" style="margin-top:10px;">
-        <strong>Generated:</strong> {escape(datetime.now(tz).strftime("%d/%m/%Y %H:%M"))}
+        <strong>Generated:</strong> {escape(datetime.now(TZ).strftime("%d/%m/%Y %H:%M"))}
       </div>
     </div>
 
@@ -728,50 +703,51 @@ def my_reports_print_impl(core):
               </div>
 
               <div class="statementBody" style="padding:14px 24px 16px;">
-              <div class="statementTopGrid">
-      <div>
-        <div class="statementSectionTitle" style="margin-bottom:8px;">Pay summary</div>
+                <div class="statementTopGrid">
+                  <div>
+                    <div class="statementSectionTitle" style="margin-bottom:8px;">Pay summary</div>
 
-        <div class="statementSummary" style="margin-bottom:0;">
-          <div class="statementSummaryRow">
-            <div class="label">Hours worked</div>
-            <div class="value">{escape(fmt_hours(selected_week_hours))}</div>
-          </div>
-          <div class="statementSummaryRow">
-            <div class="label">Gross pay</div>
-            <div class="value">{escape(currency)}{money(w_g)}</div>
-          </div>
-          <div class="statementSummaryRow">
-            <div class="label">Tax</div>
-            <div class="value">{escape(currency)}{money(w_t)}</div>
-          </div>
-          <div class="statementSummaryRow total">
-            <div class="label">Total net pay</div>
-            <div class="value">{escape(currency)}{money(w_n)}</div>
-          </div>
-        </div>
-      </div>
+                    <div class="statementSummary" style="margin-bottom:0;">
+                      <div class="statementSummaryRow">
+                        <div class="label">Hours worked</div>
+                        <div class="value">{escape(fmt_hours(selected_week_hours))}</div>
+                      </div>
+                      <div class="statementSummaryRow">
+                        <div class="label">Gross pay</div>
+                        <div class="value">{escape(currency)}{money(w_g)}</div>
+                      </div>
+                      <div class="statementSummaryRow">
+                        <div class="label">Tax</div>
+                        <div class="value">{escape(currency)}{money(w_t)}</div>
+                      </div>
+                      <div class="statementSummaryRow total">
+                        <div class="label">Total net pay</div>
+                        <div class="value">{escape(currency)}{money(w_n)}</div>
+                      </div>
+                    </div>
+                  </div>
 
-      <div class="statementYtdCol">
-        <div class="statementPayDate">Pay Date: <span class="statementYtdValue">{escape(pay_date_display)}</span></div>
+                  <div class="statementYtdCol">
+                    <div class="statementPayDate">Pay Date: <span class="statementYtdValue">{escape(pay_date_display)}</span></div>
 
-        <div class="statementYtdBox">
-          <div class="statementYtdLabel">Year To Date</div>
+                    <div class="statementYtdBox">
+                      <div class="statementYtdLabel">Year To Date</div>
 
-          <div class="statementYtdRow">
-            <div class="label">Taxable Pay</div>
-            <div class="value">{escape(currency)}{money(ytd_taxable_pay)}</div>
-          </div>
+                      <div class="statementYtdRow">
+                        <div class="label">Taxable Pay</div>
+                        <div class="value">{escape(currency)}{money(ytd_taxable_pay)}</div>
+                      </div>
 
-          <div class="statementYtdRow">
-            <div class="label">CIS Tax</div>
-            <div class="value">{escape(currency)}{money(ytd_cis_tax)}</div>
-          </div>
-        </div>
-      </div>
-    </div>
+                      <div class="statementYtdRow">
+                        <div class="label">CIS Tax</div>
+                        <div class="value">{escape(currency)}{money(ytd_cis_tax)}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
 
-              <div class="statementBottomBar"></div>
+                <div class="statementBottomBar"></div>
+              </div>
             </div>
           </div>
         """
