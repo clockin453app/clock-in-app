@@ -50,12 +50,7 @@ def home_impl(core):
     username = session["username"]
     role = session.get("role", "employee")
 
-    gate = require_login()
-    if gate:
-        return gate
 
-    username = session["username"]
-    role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
