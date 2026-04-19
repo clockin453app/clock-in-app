@@ -42,6 +42,8 @@ def home_impl(core):
     PWA_TAGS = core["PWA_TAGS"]
     layout_shell = core["layout_shell"]
     render_template_string = core["render_template_string"]
+    request = core["request"]
+    url_for = core["url_for"]
 
     gate = require_login()
     if gate:
@@ -71,6 +73,13 @@ def home_impl(core):
         return yy, ww
 
     dashboard_weeks = 8
+    chart_window = 5
+
+    try:
+        chart_offset = max(0, int((request.args.get("chart") or "0").strip()))
+    except Exception:
+        chart_offset = 0
+
     week_keys = [week_key_for_n(i) for i in range(dashboard_weeks - 1, -1, -1)]
     week_labels = [str(k[1]) for k in week_keys]
     weekly_gross = [0.0] * dashboard_weeks
@@ -106,11 +115,21 @@ def home_impl(core):
             if yy == yy2 and ww == ww2:
                 weekly_gross[idx] += safe_float(r[COL_PAY], 0.0)
 
-    max_g = max(weekly_gross) if weekly_gross else 0.0
+    max_chart_offset = max(0, len(week_labels) - chart_window)
+    if chart_offset > max_chart_offset:
+        chart_offset = max_chart_offset
+
+    end_idx = len(week_labels) - chart_offset
+    start_idx = max(0, end_idx - chart_window)
+
+    chart_week_labels = week_labels[start_idx:end_idx]
+    chart_weekly_gross = weekly_gross[start_idx:end_idx]
+
+    max_g = max(chart_weekly_gross) if chart_weekly_gross else 0.0
     max_g = max(max_g, 1.0)
 
-    prev_gross = round(weekly_gross[-2], 2) if len(weekly_gross) >= 2 else 0.0
-    curr_gross = round(weekly_gross[-1], 2)
+    prev_gross = round(chart_weekly_gross[-2], 2) if len(chart_weekly_gross) >= 2 else 0.0
+    curr_gross = round(chart_weekly_gross[-1], 2) if chart_weekly_gross else 0.0
 
     admin_item = ""
     if role in ("admin", "master_admin"):
@@ -442,8 +461,6 @@ def home_impl(core):
             return str(int(round(value)))
         return f"{value:.1f}".rstrip("0").rstrip(".")
 
-    chart_week_labels = week_labels[-5:] if len(week_labels) >= 5 else list(week_labels)
-    chart_weekly_gross = weekly_gross[-5:] if len(weekly_gross) >= 5 else list(weekly_gross)
     chart_y_max = _nice_chart_axis_max(max(chart_weekly_gross) if chart_weekly_gross else 0.0)
     chart_tick_values = [round(chart_y_max * (i / 5.0), 1) for i in range(5, -1, -1)]
     chart_ticks_html = "".join(
@@ -473,6 +490,20 @@ def home_impl(core):
     chart_delta_class = "up" if week_delta_pct >= 0 else "down"
     chart_range_label = f"Weeks {chart_week_labels[0]} – {chart_week_labels[-1]}" if chart_week_labels else "Weeks"
 
+    older_chart_offset = min(max_chart_offset, chart_offset + 1)
+    newer_chart_offset = max(0, chart_offset - 1)
+
+    chart_prev_html = (
+        f'<a class="grossChartArrow" href="{escape(url_for("home", chart=older_chart_offset))}" aria-label="Older weeks" style="text-decoration:none;">‹</a>'
+        if chart_offset < max_chart_offset else
+        '<span class="grossChartArrow" style="opacity:.25; pointer-events:none;">‹</span>'
+    )
+
+    chart_next_html = (
+        f'<a class="grossChartArrow" href="{escape(url_for("home", chart=newer_chart_offset))}" aria-label="Newer weeks" style="text-decoration:none;">›</a>'
+        if chart_offset > 0 else
+        '<span class="grossChartArrow" style="opacity:.25; pointer-events:none;">›</span>'
+    )
     chart_section_html = f"""
           <div class=\"grossChartCard plainSection\">
             <div class=\"grossChartSummaryRow\">
@@ -488,10 +519,10 @@ def home_impl(core):
               </div>
             </div>
 
-            <div class=\"grossChartNav\">
-              <div class=\"grossChartArrow\">‹</div>
+                        <div class=\"grossChartNav\">
+              {chart_prev_html}
               <div class=\"grossChartRangeTitle\">{escape(chart_range_label)}</div>
-              <div class=\"grossChartArrow\" style=\"opacity:.55;\">›</div>
+              {chart_next_html}
             </div>
 
             <div class=\"grossChartPlot\">
