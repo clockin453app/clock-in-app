@@ -22,14 +22,6 @@ def admin_force_clockin_impl(core):
     session = core["session"]
     log_audit = core["log_audit"]
 
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
-
-    username = (request.form.get("user") or "").strip()
-    in_time = (request.form.get("in_time") or "").strip()
-    date_str = (request.form.get("date") or "").strip()
 
     gate = require_admin()
     if gate:

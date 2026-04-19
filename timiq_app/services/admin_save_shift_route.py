@@ -23,18 +23,6 @@ def admin_save_shift_impl(core):
     COL_PAY = core["COL_PAY"]
     _gs_write_with_retry = core["_gs_write_with_retry"]
 
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
-
-    username = (request.form.get("user") or request.form.get("username") or "").strip()
-    date_str = (request.form.get("date") or "").strip()
-    cin = (request.form.get("cin") or request.form.get("clock_in") or "").strip()
-    cout = (request.form.get("cout") or request.form.get("clock_out") or "").strip()
-    hours_in = (request.form.get("hours") or "").strip()
-    pay_in = (request.form.get("pay") or "").strip()
-    recalc = (request.form.get("recalc") == "yes")
 
     gate = require_admin()
     if gate:

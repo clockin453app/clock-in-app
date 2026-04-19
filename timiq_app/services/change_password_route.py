@@ -26,14 +26,6 @@ def change_password_impl(core):
     role = session.get("role", "employee")
     display_name = get_employee_display_name(username)
 
-    gate = require_login()
-    if gate:
-        return gate
-
-    csrf = get_csrf()
-    username = session["username"]
-    role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
 
     details_html = onboarding_details_block(username)
 

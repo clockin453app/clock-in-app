@@ -16,15 +16,6 @@ def admin_employee_sites_save_impl(core):
     log_audit = core["log_audit"]
     redirect = core["redirect"]
 
-    gate = require_admin()
-    if gate:
-        return gate
-
-    require_csrf()
-
-    u = (request.form.get("user") or "").strip()
-    s1 = (request.form.get("site1") or "").strip()
-    s2 = (request.form.get("site2") or "").strip()
 
     gate = require_admin()
     if gate:

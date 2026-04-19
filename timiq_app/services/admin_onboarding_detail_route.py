@@ -21,13 +21,6 @@ def admin_onboarding_detail_impl(core, username):
     if not rec:
         abort(404)
 
-    gate = require_admin()
-    if gate:
-        return gate
-    rec = get_onboarding_record(username)
-    if not rec:
-        abort(404)
-    # Tenant-safe: ensure the record is for the current workplace (if field exists)
     rec_wp = (rec.get("Workplace_ID") or "").strip() or "default"
     if rec_wp != _session_workplace_id():
         abort(404)

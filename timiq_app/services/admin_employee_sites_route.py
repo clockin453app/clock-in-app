@@ -24,14 +24,6 @@ def admin_employee_sites_impl(core):
     sites = _get_active_locations()
     site_names = [s["name"] for s in sites] if sites else []
 
-    gate = require_admin()
-    if gate:
-        return gate
-
-    csrf = get_csrf()
-
-    sites = _get_active_locations()
-    site_names = [s["name"] for s in sites] if sites else []
 
     rows_html = []
     employee_rows = get_employees_compat()

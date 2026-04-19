@@ -24,13 +24,6 @@ def admin_force_clockout_impl(core):
     session = core["session"]
     log_audit = core["log_audit"]
 
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
-
-    username = (request.form.get("user") or "").strip()
-    out_time = (request.form.get("out_time") or "").strip()
 
     gate = require_admin()
     if gate:

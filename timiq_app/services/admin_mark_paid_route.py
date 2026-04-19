@@ -11,9 +11,6 @@ def admin_mark_paid_impl(core):
     if gate:
         return gate
 
-    gate = require_admin()
-    if gate:
-        return gate
 
     try:
         require_csrf()

@@ -18,13 +18,6 @@ def admin_payroll_report_csv_impl(core):
     io = core["io"]
     send_file = core["send_file"]
 
-    gate = require_admin()
-    if gate:
-        return gate
-
-    username_q = (request.args.get("q") or "").strip().lower()
-    date_from = (request.args.get("from") or "").strip()
-    date_to = (request.args.get("to") or "").strip()
 
     gate = require_admin()
     if gate:
@@ -48,7 +41,6 @@ def admin_payroll_report_csv_impl(core):
 
     wp = _session_workplace_id()
 
-    allowed_wps = set(_workplace_ids_for_read(wp))
     allowed_wps = set(_workplace_ids_for_read(wp))
     week_start, week_end = _get_week_range(wk_offset)
 

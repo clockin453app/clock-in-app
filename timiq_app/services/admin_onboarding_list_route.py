@@ -16,11 +16,6 @@ def admin_onboarding_list_impl(core):
     layout_shell = core["layout_shell"]
     session = core["session"]
 
-    gate = require_admin()
-    if gate:
-        return gate
-
-    q = (request.args.get("q", "") or "").strip().lower()
 
     gate = require_admin()
     if gate:

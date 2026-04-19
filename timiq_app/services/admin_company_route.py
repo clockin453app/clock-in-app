@@ -30,15 +30,6 @@ def admin_company_impl(core):
     wp = _session_workplace_id()
     allowed_wps = set(_workplace_ids_for_read(wp))
 
-    gate = require_admin()
-    if gate:
-        return gate
-
-    csrf = get_csrf()
-    role = session.get("role", "admin")
-    wp = _session_workplace_id()
-    allowed_wps = set(_workplace_ids_for_read(wp))
-
     settings = get_company_settings()
     current_name = (settings.get("Company_Name") or "").strip() or "Main"
     current_logo = (settings.get("Company_Logo_URL") or "").strip()
