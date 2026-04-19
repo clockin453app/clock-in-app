@@ -24,6 +24,7 @@ def admin_force_clockout_impl(core):
     session = core["session"]
     log_audit = core["log_audit"]
     _calculate_shift_pay = core["_calculate_shift_pay"]
+    _get_canonical_workhour_for_day = core["_get_canonical_workhour_for_day"]
 
 
 
@@ -63,31 +64,19 @@ def admin_force_clockout_impl(core):
             if clock_out_dt < clock_in_dt_check:
                 clock_out_dt = clock_out_dt + timedelta(days=1)
 
-            db_row = _workhour_query_for_user(username, _session_workplace_id()).filter(
-                WorkHour.date == shift_date
-            ).order_by(WorkHour.id.desc()).first()
+            db_row = _get_canonical_workhour_for_day(
+                username,
+                shift_date,
+                _session_workplace_id(),
+            )
 
-            if db_row:
-                if not getattr(db_row, "clock_in", None):
-                    db_row.clock_in = clock_in_dt_check
-                db_row.clock_out = clock_out_dt
-                db_row.hours = computed_hours
-                db_row.pay = pay
-                db_row.workplace = _session_workplace_id()
-                db_row.workplace_id = _session_workplace_id()
-            else:
-                db.session.add(
-                    WorkHour(
-                        employee_email=username,
-                        date=shift_date,
-                        clock_in=clock_in_dt_check,
-                        clock_out=clock_out_dt,
-                        hours=computed_hours,
-                        pay=pay,
-                        workplace=_session_workplace_id(),
-                        workplace_id=_session_workplace_id(),
-                    )
-                )
+            if not getattr(db_row, "clock_in", None):
+                db_row.clock_in = clock_in_dt_check
+            db_row.clock_out = clock_out_dt
+            db_row.hours = computed_hours
+            db_row.pay = pay
+            db_row.workplace = _session_workplace_id()
+            db_row.workplace_id = _session_workplace_id()
             db.session.commit()
         except Exception as e:
             db.session.rollback()

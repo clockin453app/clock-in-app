@@ -21,6 +21,7 @@ def admin_force_clockin_impl(core):
     COL_PAY = core["COL_PAY"]
     session = core["session"]
     log_audit = core["log_audit"]
+    _get_canonical_workhour_for_day = core["_get_canonical_workhour_for_day"]
 
 
     gate = require_admin()
@@ -46,30 +47,18 @@ def admin_force_clockin_impl(core):
         try:
             shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
             clock_in_dt = datetime.strptime(f"{date_str} {in_time}", "%Y-%m-%d %H:%M:%S")
-            db_row = _workhour_query_for_user(username, _session_workplace_id()).filter(
-                WorkHour.date == shift_date
-            ).order_by(WorkHour.id.desc()).first()
+            db_row = _get_canonical_workhour_for_day(
+                username,
+                shift_date,
+                _session_workplace_id(),
+            )
 
-            if db_row:
-                db_row.clock_in = clock_in_dt
-                db_row.clock_out = None
-                db_row.hours = None
-                db_row.pay = None
-                db_row.workplace = _session_workplace_id()
-                db_row.workplace_id = _session_workplace_id()
-            else:
-                db.session.add(
-                    WorkHour(
-                        employee_email=username,
-                        date=shift_date,
-                        clock_in=clock_in_dt,
-                        clock_out=None,
-                        hours=None,
-                        pay=None,
-                        workplace=_session_workplace_id(),
-                        workplace_id=_session_workplace_id(),
-                    )
-                )
+            db_row.clock_in = clock_in_dt
+            db_row.clock_out = None
+            db_row.hours = None
+            db_row.pay = None
+            db_row.workplace = _session_workplace_id()
+            db_row.workplace_id = _session_workplace_id()
             db.session.commit()
         except Exception as e:
             db.session.rollback()

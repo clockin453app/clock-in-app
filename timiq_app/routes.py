@@ -958,6 +958,67 @@ def _workhour_query_for_user(username: str, workplace_id: str | None = None):
             ),
         )
     )
+def _get_canonical_workhour_for_day(username: str, shift_date, workplace_id: str | None = None):
+    wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+
+    rows = (
+        _workhour_query_for_user(username, wp)
+        .filter(WorkHour.date == shift_date)
+        .order_by(WorkHour.id.asc())
+        .all()
+    )
+
+    if not rows:
+        rec = WorkHour(
+            employee_email=username,
+            date=shift_date,
+            workplace=wp,
+            workplace_id=wp,
+        )
+        db.session.add(rec)
+        return rec
+
+    keep = rows[-1]  # keep newest row
+
+    def copy_if_missing(attr: str):
+        current = getattr(keep, attr, None)
+        if current not in (None, ""):
+            return
+        for old in reversed(rows[:-1]):
+            val = getattr(old, attr, None)
+            if val not in (None, ""):
+                setattr(keep, attr, val)
+                return
+
+    for attr in (
+        "clock_in",
+        "clock_out",
+        "hours",
+        "pay",
+        "in_lat",
+        "in_lon",
+        "in_acc",
+        "in_site",
+        "in_dist_m",
+        "in_selfie_url",
+        "out_lat",
+        "out_lon",
+        "out_acc",
+        "out_site",
+        "out_dist_m",
+        "out_selfie_url",
+    ):
+        copy_if_missing(attr)
+
+    keep.employee_email = username
+    keep.date = shift_date
+    keep.workplace = wp
+    keep.workplace_id = wp
+
+    for old in rows[:-1]:
+        db.session.delete(old)
+
+    return keep
 
 
 def _payroll_query_for_user(username: str, workplace_id: str | None = None):

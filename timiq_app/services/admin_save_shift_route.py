@@ -23,6 +23,7 @@ def admin_save_shift_impl(core):
     COL_PAY = core["COL_PAY"]
     _gs_write_with_retry = core["_gs_write_with_retry"]
     _calculate_shift_pay = core["_calculate_shift_pay"]
+    _get_canonical_workhour_for_day = core["_get_canonical_workhour_for_day"]
 
 
     gate = require_admin()
@@ -90,18 +91,11 @@ def admin_save_shift_impl(core):
     if DB_MIGRATION_MODE:
         try:
             shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
-            db_row = _workhour_query_for_user(username, _session_workplace_id()).filter(
-                WorkHour.date == shift_date
-            ).order_by(WorkHour.id.desc()).first()
-
-            if not db_row:
-                db_row = WorkHour(
-                    employee_email=username,
-                    date=shift_date,
-                    workplace=_session_workplace_id(),
-                    workplace_id=_session_workplace_id(),
-                )
-                db.session.add(db_row)
+            db_row = _get_canonical_workhour_for_day(
+                username,
+                shift_date,
+                _session_workplace_id(),
+            )
 
             clock_in_dt = None
             clock_out_dt = None
