@@ -205,27 +205,23 @@ def admin_locations_impl(core):
 
 def admin_back_link(href: str = "/admin") -> str:
     return f"""
-      <div style="margin:8px 0 14px;">
-        <a href="{href}"
-           aria-label="Back"
-           title="Back"
-           style="
-             display:inline-flex;
-             align-items:center;
-             justify-content:center;
-             width:32px;
-             height:32px;
-             border-radius: 0 !important;
-             background:#ffffff;
-             border:1px solid #cbd5e1;
-             color:#64748b;
-             text-decoration:none;
-             box-shadow:0 1px 2px rgba(15,23,42,.06);
-             font-size:18px;
-             font-weight:700;
-             line-height:1;
-           ">
-          &#8249;
-        </a>
-      </div>
+    <div style="margin:8px 0 14px;">
+      <a href="{href}"
+         aria-label="Back"
+         title="Back"
+         style="
+           display:inline-block;
+           color:#000;
+           text-decoration:none;
+           font-size:14px;
+           font-weight:400;
+           line-height:1.2;
+           background:none;
+           border:0;
+           padding:0;
+           box-shadow:none;
+         ">
+        Back
+      </a>
+    </div>
     """
