@@ -1,21 +1,4 @@
-# ===================== app.py (FULL - Premium UI + Dashboard + Desktop Wide Layout + Admin Payroll Edit + Paid + Overtime + Dark Mode + Live Admin Timers) =====================
-# Notes:
-# - NO reportlab usage in app runtime (Render-friendly).
-# - Admin Payroll page printable in browser (Ctrl+P / Save as PDF).
-# - Starter Form (Onboarding) is at /onboarding and viewable by Admin.
-# - Profile shows onboarding details (text only) + change password.
-# - Logout separated at bottom of desktop sidebar; on mobile it's a small icon in bottom nav.
-#
-# ✅ Added:
-# - Desktop layout uses full screen width (no small centered UI).
-# - Payroll: KPI strip, better numeric formatting, row emphasis, weekly net badge.
-# - Overtime highlight > 8.5h/day.
-# - Dark mode toggle (localStorage)
-# - Admin dashboard: live timers for currently clocked-in employees.
-# - Unpaid break deduction: subtract 0.5h on shifts >= 6h (so 8am–5pm => 8.5h recorded).
-#
-# ✅ Fix:
-# - Escaped JS curly braces inside f-strings to avoid Render SyntaxError.
+# routes.py
 
 import os
 import json
@@ -107,13 +90,7 @@ from sqlalchemy import and_, or_, inspect
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 
-# ================= PERFORMANCE: gspread caching (TTL) =================
-# Google Sheets reads are slow plus rate-limited. This monkeypatch caches common
-# full-sheet reads for a short TTL and invalidates cache on writes.
-#
-# Configure with env vars:
-#   SHEETS_CACHE_TTL_SECONDS (default 15)
-#   SHEETS_CACHE_MAX_ENTRIES (default 256)
+# ================= PERFORMANCE: gspread caching =================
 import time as _time
 from collections import OrderedDict as _OrderedDict
 
@@ -210,7 +187,6 @@ try:
                "insert_row", "insert_rows", "clear"):
         _wrap_invalidate(_m)
 except Exception:
-    # If gspread internals change, app still runs without caching.
     pass
 
 
@@ -885,14 +861,7 @@ def _make_oauth_flow():
 
 
 # ---- Drive OAuth token storage (SERVER-SIDE) ----
-# Avoid storing OAuth tokens in Flask sessions (client-side cookies by default).
-# We keep tokens server-side in an encrypted file (recommended) or plaintext file as fallback.
-#
-# Env vars:
-#   DRIVE_TOKEN_STORE_PATH (default: ./instance/drive_token.enc)
-#   DRIVE_TOKEN_ENCRYPTION_KEY (recommended): urlsafe base64 32-byte key (Fernet).
-#   DRIVE_TOKEN_JSON (optional): bootstrap token JSON (e.g., for migration), but prefer file store.
-#   If DRIVE_TOKEN_ENCRYPTION_KEY is not set, the app derives an encryption key from SECRET_KEY.
+
 try:
     from cryptography.fernet import Fernet, InvalidToken
 except Exception:
@@ -1025,10 +994,10 @@ _ALLOWED_CLOCK_SELFIE_MIMES = {"image/jpeg", "image/png", "image/webp"}
 
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
-    # First try OAuth user Drive (connected via /connect-drive by master admin)
+
     drive_service = get_user_drive_service()
 
-    # Fallback to service account only if no user token exists
+
     if not drive_service:
         drive_service = get_service_account_drive_service()
 
@@ -1202,14 +1171,6 @@ def manifest():
             {"src": "/static/icon-512.png?v=3", "sizes": "512x512", "type": "image/png"},
         ],
     }, 200, {"Content-Type": "application/manifest+json"}
-
-
-
-
-
-
-
-
 
 
 # ================= HELPERS =================
@@ -1727,12 +1688,6 @@ def linkify(url: str) -> str:
 
 
 # ================= GEOLOCATION (GEOFENCE) =================
-# Employees sheet: optional column "Site" that assigns an employee to a site name in Locations sheet.
-# Locations sheet headers (recommended):
-#   SiteName | Lat | Lon | RadiusMeters | Active
-#
-# WorkHours sheet (optional extra columns):
-#   InLat, InLon, InAcc, InSite, InDistM, InSelfieURL, OutLat, OutLon, OutAcc, OutSite, OutDistM, OutSelfieURL
 
 WORKHOURS_GEO_HEADERS = [
     "InLat", "InLon", "InAcc", "InSite", "InDistM", "InSelfieURL",
@@ -2126,8 +2081,7 @@ def has_any_row_today(rows, username: str, today_str: str) -> bool:
 
 
 def find_open_shift(rows, username: str):
-    # Find the most recent row for this user where ClockOut is still blank.
-    # Workplace-safe: if WorkHours has Workplace_ID, require it to match session workplace.
+
     u = (username or "").strip()
 
     headers = rows[0] if rows else []
