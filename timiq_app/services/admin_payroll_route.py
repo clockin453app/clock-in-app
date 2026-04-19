@@ -1069,11 +1069,15 @@ def admin_payroll_impl(core):
         bindAutosave(root);
       }}
 
-      function hasActiveEditing(){{
+           function hasActiveEditing(){{
         const active = document.activeElement;
         if (!active) return false;
         if (!region.contains(active)) return false;
-        return active.classList && active.classList.contains("payrollTimeInput");
+
+        if (active.matches("input, select, textarea")) return true;
+        if (active.closest("form")) return true;
+
+        return false;
       }}
 
       async function refreshPayrollRegion(){{
