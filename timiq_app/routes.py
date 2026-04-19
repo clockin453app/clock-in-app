@@ -3402,11 +3402,52 @@ def sidebar_html(active: str, role: str) -> str:
 
 
 def page_back_button(href: str | None = None, label: str = "Back") -> str:
-    icon = '<span aria-hidden="true">‹</span>'
+    text = escape(label or "Back")
     if href:
-        return f'<div class="pageBackRow"><a class="pageBackBtn" href="{escape(href)}" aria-label="{escape(label)}" title="{escape(label)}">{icon}</a></div>'
-    return f'<div class="pageBackRow"><button type="button" class="pageBackBtn" aria-label="{escape(label)}" title="{escape(label)}" onclick="window.history.back()">{icon}</button></div>'
-
+        return f'''
+        <div class="pageBackRow">
+          <a href="{escape(href)}"
+             aria-label="{text}"
+             title="{text}"
+             style="
+               display:inline-block;
+               color:#000;
+               text-decoration:none;
+               font-size:14px;
+               font-weight:400;
+               line-height:1.2;
+               background:none;
+               border:0;
+               padding:0;
+               box-shadow:none;
+             ">
+            Back
+          </a>
+        </div>
+        '''
+    return f'''
+    <div class="pageBackRow">
+      <button type="button"
+              aria-label="{text}"
+              title="{text}"
+              onclick="window.history.back()"
+              style="
+                display:inline-block;
+                color:#000;
+                text-decoration:none;
+                font-size:14px;
+                font-weight:400;
+                line-height:1.2;
+                background:none;
+                border:0;
+                padding:0;
+                box-shadow:none;
+                cursor:pointer;
+              ">
+        Back
+      </button>
+    </div>
+    '''
 
 def layout_shell(active: str, role: str, content_html: str, shell_class: str = "") -> str:
     extra = f" {shell_class}" if shell_class else ""
@@ -4063,22 +4104,18 @@ def admin_back_link(href: str = "/admin") -> str:
            aria-label="Back"
            title="Back"
            style="
-             display:inline-flex;
-             align-items:center;
-             justify-content:center;
-             width:32px;
-             height:32px;
-             border-radius: 0 !important;
-             background:#ffffff;
-             border:1px solid #cbd5e1;
-             color:#64748b;
+             display:inline-block;
+             color:#000;
              text-decoration:none;
-             box-shadow:0 1px 2px rgba(15,23,42,.06);
-             font-size:18px;
-             font-weight:700;
-             line-height:1;
+             font-size:14px;
+             font-weight:400;
+             line-height:1.2;
+             background:none;
+             border:0;
+             padding:0;
+             box-shadow:none;
            ">
-          &#8249;
+          Back
         </a>
       </div>
     """

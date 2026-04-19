@@ -4719,34 +4719,34 @@ button{
 .pageBackBtn,
 .pageBackBtn:link,
 .pageBackBtn:visited{
-  width:32px;
-  height:32px;
-  min-width:32px;
+  display:inline-block;
+  width:auto;
+  height:auto;
+  min-width:0;
   padding:0;
-  border:1px solid rgba(148,163,184,.34);
-  border-radius: 0 !important;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  background:rgba(255,255,255,.96);
-  color:#64748b;
+  border:0;
+  border-radius:0 !important;
+  background:none;
+  color:#000;
   text-decoration:none;
-  box-shadow:0 6px 16px rgba(15,23,42,.08), inset 0 1px 0 rgba(255,255,255,.82);
-  transition:transform .16s ease, box-shadow .16s ease, border-color .16s ease, background .16s ease;
+  box-shadow:none;
   cursor:pointer;
+  font-size:14px;
+  font-weight:400;
+  line-height:1.2;
 }
 .pageBackBtn:hover{
-  transform:translateY(-1px);
-  border-color:rgba(99,102,241,.28);
-  box-shadow:0 10px 20px rgba(15,23,42,.12), inset 0 1px 0 rgba(255,255,255,.9);
-  background:rgba(255,255,255,.99);
+  transform:none;
+  border:0;
+  box-shadow:none;
+  background:none;
 }
 .pageBackBtn span{
-  display:block;
-  font-size:20px;
-  font-weight:800;
-  line-height:1;
-  transform:translateX(-1px);
+  display:inline;
+  font-size:inherit;
+  font-weight:inherit;
+  line-height:inherit;
+  transform:none;
 }
 
 .dashboardMiniStatus{
