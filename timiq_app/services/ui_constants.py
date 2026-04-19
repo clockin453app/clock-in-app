@@ -5112,6 +5112,53 @@ textarea.input:focus{
   }
 }
 
+@media (min-width:980px){
+  .shell:has(.sidebar){
+    display:grid !important;
+    grid-template-columns: 220px minmax(0, 1fr) !important;
+    gap:14px !important;
+    align-items:start !important;
+    max-width:none !important;
+  }
+
+  .sidebar{
+    display:block !important;
+    width:220px !important;
+    min-width:220px !important;
+    padding:10px 8px !important;
+  }
+
+  .sideItem{
+    padding:10px 12px !important;
+    min-height:50px !important;
+    margin-top:8px !important;
+  }
+
+  .sideLeft{
+    gap:10px !important;
+  }
+
+  .sideIcon{
+    width:24px !important;
+    height:24px !important;
+  }
+
+  .sideIcon svg,
+  .sideIcon img{
+    width:24px !important;
+    height:24px !important;
+  }
+
+  .sideText{
+    font-size:14px !important;
+    font-weight:500 !important;
+  }
+
+  .chev{
+    font-size:20px !important;
+  }
+}
+
 </style>
 
 """

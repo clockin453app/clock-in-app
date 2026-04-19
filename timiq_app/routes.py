@@ -3357,18 +3357,18 @@ def bottom_nav(active: str, role: str) -> str:
 
 def sidebar_html(active: str, role: str) -> str:
     items = [
-        ("home", "/", "Dashboard", _icon_dashboard(45)),
-        ("clock", "/clock", "Clock In & Out", _icon_clock(45)),
-        ("times", "/my-times", "Time logs", _icon_timelogs(45)),
-        ("reports", "/my-reports", "Timesheets", _icon_timesheets(45)),
-        ("payments", "/payments", "Payments", _icon_payments(45)),
+        ("home", "/", "Dashboard", _icon_dashboard(28)),
+        ("clock", "/clock", "Clock In & Out", _icon_clock(28)),
+        ("times", "/my-times", "Time logs", _icon_timelogs(28)),
+        ("reports", "/my-reports", "Timesheets", _icon_timesheets(28)),
+        ("payments", "/payments", "Payments", _icon_payments(28)),
     ]
 
     if role in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Admin", _icon_admin(45)))
+        items.append(("admin", "/admin", "Admin", _icon_admin(28)))
 
     if role == "master_admin":
-        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(45)))
+        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(28)))
 
     links = []
     for key, href, label, icon in items:
@@ -3384,13 +3384,13 @@ def sidebar_html(active: str, role: str) -> str:
 
     return f"""
       <div class="sidebar">
-        <div style="padding:8px 0 6px; display:flex; justify-content:center; align-items:center;">
+        <div style="padding:4px 0 4px; display:flex; justify-content:center; align-items:center;">
           <img
             src="/static/original-logo.png"
             alt="TimIQ"
             style="
-              width:250px;
-              max-width:250px;
+              width:180px;
+              max-width:180px;
               height:auto;
               display:block;
             "
