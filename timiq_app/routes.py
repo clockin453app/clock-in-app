@@ -1567,58 +1567,119 @@ def get_company_settings() -> dict:
         "Currency_Symbol": "£",
         "Company_Name": "Main",
         "Company_Logo_URL": "",
+        "Overtime_After_Hours": 8.5,
+        "Overtime_Multiplier": 1.5,
     }
 
     current_wp = _session_workplace_id()
-
-    allowed_wps = set(_workplace_ids_for_read(current_wp))
+    preferred_wps = _workplace_ids_for_read(current_wp)
 
     try:
         records = WorkplaceSetting.query.all() if DB_MIGRATION_MODE else (get_settings() or [])
 
+        best = None
+        best_rank = 999
+
         for rec in records:
             if isinstance(rec, dict):
                 row_wp = str(rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip() or "default"
-                if row_wp not in allowed_wps:
-                    continue
-
                 tax_raw = str(rec.get("Tax_Rate") or rec.get("tax_rate") or "").strip()
                 cur = str(
-                    rec.get("Currency_Symbol") or rec.get("currency_symbol") or defaults["Currency_Symbol"]).strip() or \
-                      defaults["Currency_Symbol"]
-                name = str(rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]).strip() or \
-                       defaults["Company_Name"]
+                    rec.get("Currency_Symbol") or rec.get("currency_symbol") or defaults["Currency_Symbol"]
+                ).strip() or defaults["Currency_Symbol"]
+                name = str(
+                    rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]
+                ).strip() or defaults["Company_Name"]
                 logo = str(rec.get("Company_Logo_URL") or rec.get("company_logo_url") or "").strip()
+                overtime_after_raw = str(
+                    rec.get("Overtime_After_Hours") or rec.get("overtime_after_hours") or ""
+                ).strip()
+                overtime_mult_raw = str(
+                    rec.get("Overtime_Multiplier") or rec.get("overtime_multiplier") or ""
+                ).strip()
             else:
                 row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
-                if row_wp not in allowed_wps:
-                    continue
-
                 tax_val = getattr(rec, "tax_rate", None)
                 tax_raw = "" if tax_val is None else str(tax_val).strip()
-                cur = str(getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults[
-                    "Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
+                cur = str(
+                    getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults["Currency_Symbol"]
+                ).strip() or defaults["Currency_Symbol"]
                 name = str(
-                    getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]).strip() or \
-                       defaults["Company_Name"]
+                    getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]
+                ).strip() or defaults["Company_Name"]
                 logo = str(getattr(rec, "company_logo_url", "") or "").strip()
+                overtime_after_val = getattr(rec, "overtime_after_hours", None)
+                overtime_mult_val = getattr(rec, "overtime_multiplier", None)
+                overtime_after_raw = "" if overtime_after_val is None else str(overtime_after_val).strip()
+                overtime_mult_raw = "" if overtime_mult_val is None else str(overtime_mult_val).strip()
+
+            if row_wp not in preferred_wps:
+                continue
+
+            rank = preferred_wps.index(row_wp)
+            if rank >= best_rank:
+                continue
 
             try:
                 tax = float(tax_raw) if tax_raw != "" else defaults["Tax_Rate"]
             except Exception:
                 tax = defaults["Tax_Rate"]
 
-            return {
+            try:
+                overtime_after = float(overtime_after_raw) if overtime_after_raw != "" else defaults["Overtime_After_Hours"]
+            except Exception:
+                overtime_after = defaults["Overtime_After_Hours"]
+
+            try:
+                overtime_mult = float(overtime_mult_raw) if overtime_mult_raw != "" else defaults["Overtime_Multiplier"]
+            except Exception:
+                overtime_mult = defaults["Overtime_Multiplier"]
+
+            best = {
                 "Workplace_ID": current_wp,
                 "Tax_Rate": tax,
                 "Currency_Symbol": cur,
                 "Company_Name": name,
                 "Company_Logo_URL": logo,
+                "Overtime_After_Hours": overtime_after,
+                "Overtime_Multiplier": overtime_mult,
             }
+            best_rank = rank
 
-        return defaults
+        return best or defaults
     except Exception:
         return defaults
+
+
+def _calculate_shift_pay(hours_value: float, rate_value: float) -> float:
+    settings = get_company_settings()
+
+    try:
+        hours_num = max(0.0, float(hours_value or 0.0))
+    except Exception:
+        hours_num = 0.0
+
+    try:
+        rate_num = max(0.0, float(rate_value or 0.0))
+    except Exception:
+        rate_num = 0.0
+
+    try:
+        overtime_after = max(0.0, float(settings.get("Overtime_After_Hours", 8.5) or 8.5))
+    except Exception:
+        overtime_after = 8.5
+
+    try:
+        overtime_mult = max(1.0, float(settings.get("Overtime_Multiplier", 1.5) or 1.5))
+    except Exception:
+        overtime_mult = 1.5
+
+    normal_hours = min(hours_num, overtime_after)
+    overtime_hours = max(0.0, hours_num - overtime_after)
+
+    total = (normal_hours * rate_num) + (overtime_hours * rate_num * overtime_mult)
+    return round(total, 2)
+
 
 
 def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
@@ -4285,6 +4346,7 @@ def _db_bool_text(v, default="TRUE"):
 def _db_workhour_metrics(rec):
     hours_val = getattr(rec, "hours", None)
     pay_val = getattr(rec, "pay", None)
+
     hours_txt = "" if hours_val in (None, "") else str(hours_val)
     pay_txt = "" if pay_val in (None, "") else str(pay_val)
 
@@ -4293,10 +4355,20 @@ def _db_workhour_metrics(rec):
             raw_hours = max(0.0, (rec.clock_out - rec.clock_in).total_seconds() / 3600.0)
             computed_hours = _round_to_half_hour(_apply_unpaid_break(raw_hours))
             hours_txt = str(computed_hours)
-            if pay_txt == "":
-                pay_txt = str(round(computed_hours * float(_get_user_rate(rec.employee_email or "")), 2))
         except Exception:
             pass
+
+    if pay_txt == "" and hours_txt != "":
+        try:
+            pay_txt = str(
+                _calculate_shift_pay(
+                    float(hours_txt),
+                    _get_user_rate(rec.employee_email or "")
+                )
+            )
+        except Exception:
+            pass
+
     return hours_txt, pay_txt
 
 
@@ -4468,12 +4540,22 @@ class _EmployeesProxy(_ProxySheetBase):
 
 
 class _SettingsProxy(_ProxySheetBase):
-    headers = ["Workplace_ID", "Tax_Rate", "Currency_Symbol", "Company_Name"]
+    headers = [
+        "Workplace_ID",
+        "Tax_Rate",
+        "Currency_Symbol",
+        "Company_Name",
+        "Company_Logo_URL",
+        "Overtime_After_Hours",
+        "Overtime_Multiplier",
+    ]
     model = WorkplaceSetting
 
     def _records(self):
-        return sorted(WorkplaceSetting.query.all(),
-                      key=lambda r: (str(getattr(r, "workplace_id", "") or ""), getattr(r, "id", 0)))
+        return sorted(
+            WorkplaceSetting.query.all(),
+            key=lambda r: (str(getattr(r, "workplace_id", "") or ""), getattr(r, "id", 0))
+        )
 
     def _row_from_record(self, rec):
         return [
@@ -4481,6 +4563,9 @@ class _SettingsProxy(_ProxySheetBase):
             _db_format_decimal(getattr(rec, "tax_rate", None)),
             str(getattr(rec, "currency_symbol", "") or ""),
             str(getattr(rec, "company_name", "") or ""),
+            str(getattr(rec, "company_logo_url", "") or ""),
+            _db_format_decimal(getattr(rec, "overtime_after_hours", None)),
+            _db_format_decimal(getattr(rec, "overtime_multiplier", None)),
         ]
 
     def append_row(self, row, value_input_option=None):
@@ -4496,11 +4581,21 @@ class _SettingsProxy(_ProxySheetBase):
 
     def _apply_data(self, rec, data):
         rec.workplace_id = str(
-            data.get("Workplace_ID") or getattr(rec, "workplace_id", "default") or "default").strip() or "default"
+            data.get("Workplace_ID") or getattr(rec, "workplace_id", "default") or "default"
+        ).strip() or "default"
+
         tax_txt = str(data.get("Tax_Rate") or "").strip()
         rec.tax_rate = Decimal(tax_txt) if tax_txt else Decimal("20")
+
         rec.currency_symbol = str(data.get("Currency_Symbol") or getattr(rec, "currency_symbol", "£") or "£")
         rec.company_name = str(data.get("Company_Name") or getattr(rec, "company_name", "Main") or "Main")
+        rec.company_logo_url = str(data.get("Company_Logo_URL") or getattr(rec, "company_logo_url", "") or "")
+
+        overtime_after_txt = str(data.get("Overtime_After_Hours") or "").strip()
+        rec.overtime_after_hours = Decimal(overtime_after_txt) if overtime_after_txt else Decimal("8.5")
+
+        overtime_mult_txt = str(data.get("Overtime_Multiplier") or "").strip()
+        rec.overtime_multiplier = Decimal(overtime_mult_txt) if overtime_mult_txt else Decimal("1.5")
 
     def _set_field(self, rec, column, value):
         data = {self.headers[i]: self._row_from_record(rec)[i] for i in range(len(self.headers))}

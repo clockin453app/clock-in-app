@@ -42,6 +42,8 @@ def admin_payroll_impl(core):
     VIEWPORT = core["VIEWPORT"]
     PWA_TAGS = core["PWA_TAGS"]
     layout_shell = core["layout_shell"]
+    _calculate_shift_pay = core["_calculate_shift_pay"]
+    _get_user_rate = core["_get_user_rate"]
 
     gate = require_admin()
     if gate:
@@ -57,6 +59,32 @@ def admin_payroll_impl(core):
         tax_rate = float(settings.get("Tax_Rate", 20.0)) / 100.0
     except Exception:
         tax_rate = 0.20
+
+    try:
+        overtime_after = float(settings.get("Overtime_After_Hours", 8.5) or 8.5)
+    except Exception:
+        overtime_after = 8.5
+
+    try:
+        overtime_multiplier = max(1.0, float(settings.get("Overtime_Multiplier", 1.5) or 1.5))
+    except Exception:
+        overtime_multiplier = 1.5
+
+    def calc_o_hours(hours_value):
+        h = _round_to_half_hour(safe_float(hours_value, 0.0))
+        if h <= overtime_after or overtime_multiplier <= 1.0:
+            return 0.0
+        extra = (h - overtime_after) * (overtime_multiplier - 1.0)
+        return round(extra, 2)
+
+    def calc_day_gross(username, hours_value, stored_pay=""):
+        h = _round_to_half_hour(safe_float(hours_value, 0.0))
+        if h <= 0:
+            return 0.0
+        try:
+            return round(_calculate_shift_pay(h, _get_user_rate(username)), 2)
+        except Exception:
+            return round(safe_float(stored_pay, 0.0), 2)
 
     q = (request.args.get("q", "") or "").strip().lower()
     date_from = (request.args.get("from", "") or "").strip()
@@ -141,28 +169,38 @@ def admin_payroll_impl(core):
         if q and q not in user.lower():
             continue
 
-        filtered.append({
+        row_data = {
             "user": user,
             "date": d,
             "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
             "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
             "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
             "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
-        })
+        }
+        if row_data["hours"] != "":
+            row_data["pay"] = str(calc_day_gross(user, row_data["hours"], row_data["pay"]))
+        filtered.append(row_data)
 
     by_user = {}
     overall_hours = 0.0
+    overall_o = 0.0
     overall_gross = 0.0
 
     for row in filtered:
         u = row["user"] or "Unknown"
-        by_user.setdefault(u, {"hours": 0.0, "gross": 0.0})
+        by_user.setdefault(u, {"hours": 0.0, "o": 0.0, "gross": 0.0})
         if row["hours"] != "":
-            h = _round_to_half_hour(safe_float(row["hours"], 0.0))
+            worked_h = _round_to_half_hour(safe_float(row["hours"], 0.0))
+            o_h = calc_o_hours(worked_h)
+            paid_h = worked_h + o_h
             g = safe_float(row["pay"], 0.0)
-            by_user[u]["hours"] += h
+
+            by_user[u]["hours"] += paid_h
+            by_user[u]["o"] += o_h
             by_user[u]["gross"] += g
-            overall_hours += h
+
+            overall_hours += paid_h
+            overall_o += o_h
             overall_gross += g
 
     overall_tax = round(overall_gross * tax_rate, 2)
@@ -188,12 +226,17 @@ def admin_payroll_impl(core):
         if d < week_start_str or d > week_end_str:
             continue
 
+        row_hours = (r[COL_HOURS] if len(r) > COL_HOURS else "") or ""
+        row_pay = (r[COL_PAY] if len(r) > COL_PAY else "") or ""
+        if row_hours != "":
+            row_pay = str(calc_day_gross(user, row_hours, row_pay))
+
         week_lookup.setdefault(user, {})
         week_lookup[user][d] = {
             "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
             "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
-            "hours": (r[COL_HOURS] if len(r) > COL_HOURS else "") or "",
-            "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
+            "hours": row_hours,
+            "pay": row_pay,
         }
 
     all_users = sorted(set(current_users) | set(week_lookup.keys()), key=lambda s: s.lower())
@@ -345,6 +388,7 @@ def admin_payroll_impl(core):
         day_names = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
 
     grand_hours = 0.0
+    grand_o = 0.0
     grand_gross = 0.0
     grand_tax = 0.0
     grand_net = 0.0
@@ -356,6 +400,7 @@ def admin_payroll_impl(core):
         user_days = week_lookup.get(u, {})
 
         total_hours = 0.0
+        total_o = 0.0
         gross = 0.0
 
         def show_num(v):
@@ -380,8 +425,10 @@ def admin_payroll_impl(core):
             hrs = _round_to_half_hour(
                 safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0))
             pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), default=0.0)
+            o_hours = calc_o_hours(hrs)
 
-            total_hours += hrs
+            total_o += o_hours
+            total_hours += (hrs + o_hours)
             gross += pay
 
             form_id = f"payroll_{re.sub(r'[^a-zA-Z0-9]+', '_', u)}_{d_str.replace('-', '_')}"
@@ -435,6 +482,8 @@ def admin_payroll_impl(core):
 
         paid, _paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
 
+        cells.append(
+            f"<td class='num payrollSummaryTotal' style='color:#7c3aed !important; font-weight:900;'>{show_num(total_o)}</td>")
         cells.append(
             f"<td class='num payrollSummaryTotal' style='color:#1d4ed8 !important; font-weight:900;'>{show_num(total_hours)}</td>")
         cells.append(
@@ -492,6 +541,7 @@ def admin_payroll_impl(core):
         else:
             cells.append("<td class='num payrollSummaryMoney'></td>")
 
+        grand_o += total_o
         grand_hours += total_hours
         grand_gross += gross
         grand_tax += tax
@@ -499,25 +549,6 @@ def admin_payroll_impl(core):
 
         sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
 
-    sheet_rows.append(f"""
-                      <tr class="payrollFooterRow">
-                        <td colspan="8" style="font-weight:900; text-align:right; background:rgba(248,250,252,.98);">
-                          Totals
-                        </td>
-                        <td class="num payrollSummaryTotal" style="font-weight:900; background:rgba(248,250,252,.98);">
-                          {fmt_hours(grand_hours)}
-                        </td>
-                        <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
-                          {escape(currency)}{money(grand_gross)}
-                        </td>
-                        <td class="num payrollSummaryMoney" style="font-weight:900; background:rgba(248,250,252,.98);">
-                          {escape(currency)}{money(grand_tax)}
-                        </td>
-                        <td class="num payrollSummaryMoney net" style="font-weight:900; background:rgba(248,250,252,.98);">
-                          {escape(currency)}{money(grand_net)}
-                        </td>
-                      </tr>
-                    """)
 
     sheet_html = "".join(sheet_rows)
 
@@ -817,7 +848,7 @@ def admin_payroll_impl(core):
             <div class="payrollWrap" style="margin-top:12px;">
       <table class="payrollSheet">
         <thead>
-      <tr>
+            <tr>
         <th>Employee</th>
         <th class="payrollDayCell">Mon</th>
         <th class="payrollDayCell">Tue</th>
@@ -826,6 +857,7 @@ def admin_payroll_impl(core):
         <th class="payrollDayCell">Fri</th>
         <th class="payrollDayCell">Sat</th>
         <th class="payrollDayCell">Sun</th>
+        <th class="payrollSummaryTotal">O</th>
         <th class="payrollSummaryTotal">Hours</th>
         <th class="payrollSummaryMoney">Gross</th>
         <th class="payrollSummaryMoney">CIS Tax</th>

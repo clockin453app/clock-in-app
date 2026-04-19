@@ -160,5 +160,7 @@ class WorkplaceSetting(db.Model):
     currency_symbol = db.Column(db.String(20))
     company_name = db.Column(db.String(255))
     company_logo_url = db.Column(db.Text)
+    overtime_after_hours = db.Column(db.Numeric(10, 2))
+    overtime_multiplier = db.Column(db.Numeric(10, 2))
 
 

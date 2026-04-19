@@ -22,6 +22,7 @@ def admin_save_shift_impl(core):
     COL_HOURS = core["COL_HOURS"]
     COL_PAY = core["COL_PAY"]
     _gs_write_with_retry = core["_gs_write_with_retry"]
+    _calculate_shift_pay = core["_calculate_shift_pay"]
 
 
     gate = require_admin()
@@ -75,15 +76,13 @@ def admin_save_shift_impl(core):
     hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
     pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
 
-    auto_calc = recalc or (cin and cout and hours_in == "" and pay_in == "")
-    if cin and cout and auto_calc:
+    if cin and cout:
         computed = _compute_hours_from_times(date_str, cin, cout)
         if computed is not None:
             hours_val = computed
-            pay_val = round(computed * rate, 2)
-
-    if hours_in != "" and pay_in == "":
-        pay_val = round(safe_float(hours_in, 0.0) * rate, 2)
+            pay_val = _calculate_shift_pay(computed, rate)
+    elif hours_in != "":
+        pay_val = _calculate_shift_pay(safe_float(hours_in, 0.0), rate)
 
     hours_cell = "" if hours_val is None else str(hours_val)
     pay_cell = "" if pay_val is None else str(pay_val)

@@ -23,6 +23,8 @@ def admin_force_clockout_impl(core):
     _gs_write_with_retry = core["_gs_write_with_retry"]
     session = core["session"]
     log_audit = core["log_audit"]
+    _calculate_shift_pay = core["_calculate_shift_pay"]
+
 
 
     gate = require_admin()
@@ -51,7 +53,7 @@ def admin_force_clockout_impl(core):
     if computed_hours is None:
         return redirect(request.referrer or "/admin")
 
-    pay = round(computed_hours * rate, 2)
+    pay = _calculate_shift_pay(computed_hours, rate)
 
     if DB_MIGRATION_MODE:
         try:
