@@ -659,9 +659,8 @@ from .services.admin_force_clockin_route import admin_force_clockin_impl
 from .services.admin_force_clockout_route import admin_force_clockout_impl
 from .services.admin_mark_paid_route import admin_mark_paid_impl
 from .services.admin_payroll_report_csv_route import admin_payroll_report_csv_impl
-
-
-
+from .services.admin_locations_save_route import admin_locations_save_impl
+from .services.admin_locations_deactivate_route import admin_locations_deactivate_impl
 
 
 @routes.post("/import-locations")
@@ -4101,6 +4100,8 @@ def _get_open_shifts() -> list[dict]:
 @routes.get("/admin")
 def admin():
     return admin_impl(core=globals())
+
+
 def admin_back_link(href: str = "/admin") -> str:
     return f"""
       <div style="margin:8px 0 14px;">
@@ -4188,6 +4189,8 @@ def admin_onboarding_download(username):
 @routes.get("/admin/locations")
 def admin_locations():
     return admin_locations_impl(core=globals())
+
+
 def _find_location_row_by_name(name: str):
     if not locations_sheet:
         return None
@@ -4225,117 +4228,11 @@ def _find_location_row_by_name(name: str):
 
 @routes.post("/admin/locations/save")
 def admin_locations_save():
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
-
-    name = (request.form.get("name") or "").strip()
-    orig = (request.form.get("orig_name") or "").strip()
-    lat = (request.form.get("lat") or "").strip()
-    lon = (request.form.get("lon") or "").strip()
-    rad = (request.form.get("rad") or "").strip()
-    active = "TRUE" if (request.form.get("active") == "yes") else "FALSE"
-
-    if not locations_sheet or not name:
-        return redirect("/admin/locations")
-
-    try:
-        float(lat);
-        float(lon);
-        float(rad)
-    except Exception:
-        return redirect("/admin/locations")
-
-    _ensure_locations_headers()
-
-    rownum = _find_location_row_by_name(orig or name)
-    row = [name, lat, lon, rad, active, _session_workplace_id()]
-    try:
-        if rownum:
-            locations_sheet.update(f"A{rownum}:F{rownum}", [row])
-        else:
-            locations_sheet.append_row(row)
-    except Exception:
-        pass
-
-    if DB_MIGRATION_MODE:
-        try:
-            wp = _session_workplace_id()
-            allowed_wps = set(_workplace_ids_for_read(wp))
-
-            db_row = Location.query.filter_by(
-                workplace_id=wp,
-                site_name=(orig or name)
-            ).first()
-
-            if not db_row:
-                db_row = Location.query.filter_by(
-                    workplace_id=wp,
-                    site_name=name
-                ).first()
-
-            if db_row:
-                db_row.site_name = name
-                db_row.lat = float(lat)
-                db_row.lon = float(lon)
-                db_row.radius_meters = int(float(rad))
-                db_row.active = active
-            else:
-                db.session.add(
-                    Location(
-                        site_name=name,
-                        lat=float(lat),
-                        lon=float(lon),
-                        radius_meters=int(float(rad)),
-                        active=active,
-                        workplace_id=wp,
-                    )
-                )
-
-            db.session.commit()
-        except Exception:
-            db.session.rollback()
-
-    actor = session.get("username", "admin")
-    log_audit("LOCATIONS_SAVE", actor=actor, username="", date_str="",
-              details=f"{name} {lat},{lon} r={rad} active={active}")
-    return redirect("/admin/locations")
-
+    return admin_locations_save_impl(core=globals())
 
 @routes.post("/admin/locations/deactivate")
 def admin_locations_deactivate():
-    gate = require_admin()
-    if gate:
-        return gate
-    require_csrf()
-
-    name = (request.form.get("name") or "").strip()
-    if not locations_sheet or not name:
-        return redirect("/admin/locations")
-
-    rownum = _find_location_row_by_name(name)
-    if rownum:
-        try:
-            locations_sheet.update_cell(rownum, 5, "FALSE")
-
-            if DB_MIGRATION_MODE:
-                try:
-                    wp = _session_workplace_id()
-                    allowed_wps = set(_workplace_ids_for_read(wp))
-                    db_row = Location.query.filter_by(workplace_id=wp, site_name=name).first()
-                    if db_row:
-                        db_row.active = "FALSE"
-                        db.session.commit()
-                except Exception:
-                    db.session.rollback()
-        except Exception:
-            pass
-
-    actor = session.get("username", "admin")
-    log_audit("LOCATIONS_DEACTIVATE", actor=actor, username="", date_str="", details=name)
-    return redirect("/admin/locations")
-
+    return admin_locations_deactivate_impl(core=globals())
 
 @routes.get("/admin/employee-sites")
 def admin_employee_sites():
