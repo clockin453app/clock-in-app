@@ -652,7 +652,6 @@ def my_reports_impl(core):
           <div class="reportsListShell">
             <div class="reportsListHeader">
               <div>
-                <div class="reportsListEyebrow">Timesheets</div>
                 <h1>Timesheets</h1>
                 <p class="sub">{escape(display_name)} • {escape(company_name)}</p>
               </div>

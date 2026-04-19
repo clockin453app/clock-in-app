@@ -3438,90 +3438,35 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     display:none;
   }
 }
-/* Payroll page docked sidebar */
 @media (min-width: 980px){
   .payrollShell{
-    grid-template-columns: 1fr !important;
-    position: relative;
+    max-width: none !important;
   }
 
   .payrollShell .sidebar{
-    display: flex !important;
-    position: fixed;
-    left: 18px;
-    top: 18px;
-    bottom: 18px;
-    width: 280px;
-    z-index: 140;
-    transform: translateX(-115%);
-    opacity: 0;
-    pointer-events: none;
-    transition: transform .22s ease, opacity .22s ease;
-  }
-
-  .payrollShell.payrollMenuOpen .sidebar{
-    transform: translateX(0);
-    opacity: 1;
-    pointer-events: auto;
+    display: block !important;
+    position: static !important;
+    left: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    width: 220px !important;
+    min-width: 220px !important;
+    transform: none !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    z-index: auto !important;
   }
 
   .payrollShell .main{
-    width: 100%;
-    min-width: 0;
-    transition: margin-left .22s ease, width .22s ease;
+    width: 100% !important;
+    min-width: 0 !important;
+    margin-left: 0 !important;
   }
 
-  .payrollShell.payrollMenuOpen .main{
-    margin-left: 298px;
-    width: calc(100% - 298px);
-  }
-
-  /* no dark overlay for docked mode */
-  .payrollMenuBackdrop{
+  .payrollShell .payrollMenuBackdrop,
+  .payrollShell .payrollMenuToggle{
     display: none !important;
   }
-
-  .payrollMenuToggle{
-  position: fixed;
-  left: 5px;
-  top: 50%;
-  transform: translateY(-50%);
-  z-index: 160;
-  width: 20px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 1px solid rgba(220,38,38,.22);
-  border-radius: 0 !important;
-  background: linear-gradient(180deg, rgba(254,242,242,.98), rgba(252,231,243,.96));
-  color: transparent;
-  font-size: 0;
-  cursor: pointer;
-  box-shadow: 0 10px 22px rgba(220,38,38,.14);
-  transition: left .22s ease, box-shadow .18s ease, background .18s ease;
-}
-
-.payrollMenuToggle::before{
-  content: "❯";
-  color: rgba(220,38,38,.95);
-  font-size: 15px;
-  font-weight: 900;
-  line-height: 1;
-}
-
-.payrollShell.payrollMenuOpen .payrollMenuToggle{
-  left: 308px;
-}
-
-.payrollShell.payrollMenuOpen .payrollMenuToggle::before{
-  content: "❮";
-}
-
-.payrollMenuToggle:hover{
-  box-shadow: 0 14px 26px rgba(220,38,38,.18);
-  background: linear-gradient(180deg, rgba(254,226,226,.98), rgba(252,231,243,.98));
-}
 }
 /* Admin payroll weekly employee cards - mobile compact table */
 .payrollEmployeeCard .weeklyEditTable{
