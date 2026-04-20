@@ -1049,7 +1049,7 @@ def _onboarding_query_for_user(username: str, workplace_id: str | None = None):
 # Clock selfie settings
 CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true",
                                                                                                            "yes", "on")
-CLOCK_SELFIE_MAX_BYTES = int(os.environ.get("CLOCK_SELFIE_MAX_BYTES", str(3 * 1024 * 1024)) or str(3 * 1024 * 1024))
+CLOCK_SELFIE_MAX_BYTES = int(os.environ.get("CLOCK_SELFIE_MAX_BYTES", str(1 * 1024 * 1024)) or str(1 * 1024 * 1024))
 CLOCK_SELFIE_BASE_DIR = os.environ.get(
     "CLOCK_SELFIE_BASE_DIR",
     os.path.join(BASE_DIR, "instance"),
