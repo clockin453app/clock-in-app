@@ -3,3 +3,4 @@ credentials.json
 .continue/
 .venv/
 __pycache__/
+/instance/local.db

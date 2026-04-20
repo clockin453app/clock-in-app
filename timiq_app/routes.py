@@ -1046,7 +1046,6 @@ def _onboarding_query_for_user(username: str, workplace_id: str | None = None):
         )
     )
 
-
 # Clock selfie settings
 CLOCK_SELFIE_REQUIRED = str(os.environ.get("CLOCK_SELFIE_REQUIRED", "true") or "true").strip().lower() in ("1", "true",
                                                                                                            "yes", "on")
@@ -1058,7 +1057,6 @@ CLOCK_SELFIE_BASE_DIR = os.environ.get(
 
 CLOCK_SELFIE_DIR = os.path.join(CLOCK_SELFIE_BASE_DIR, "clock_selfies")
 _ALLOWED_CLOCK_SELFIE_MIMES = {"image/jpeg", "image/png", "image/webp"}
-
 
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
