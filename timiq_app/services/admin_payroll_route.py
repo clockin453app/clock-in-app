@@ -832,7 +832,7 @@ def admin_payroll_impl(core):
                 <button type="button" class="payrollMenuToggle" id="payrollMenuToggle" aria-label="Toggle menu"></button>
                 <div>
                   <h1>Payroll Report</h1>
-                  <p class="sub">Printable • Updated {escape(last_updated)} • Weekly tables auto-update every week</p>
+                  <p class="sub"> Updated {escape(last_updated)} </p>
                 </div>
               </div>
             </div>

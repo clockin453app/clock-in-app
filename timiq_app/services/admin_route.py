@@ -365,7 +365,7 @@ def admin_impl(core):
             <div class="adminSectionIcon clockin">{_svg_clock()}</div>
             <div>
               <h2 class="adminSectionTitle">Force Clock-In</h2>
-              <p class="adminSectionSub">Use this if someone forgot to clock in. It creates or updates today’s row.</p>
+              <p class="adminSectionSub">Use this if someone forgot to clock in.</p>
             </div>
           </div>
           <div class="adminHintChip">Admin action</div>
