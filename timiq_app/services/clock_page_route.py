@@ -75,10 +75,23 @@ def clock_page_impl(core):
     now = datetime.now(TZ)
     today_str = now.strftime("%Y-%m-%d")
 
-    # Geo-fence config (employee assigned site -> Locations sheet)
+    # Geo-fence config (all employee assigned sites -> Locations sheet)
     _ensure_workhours_geo_headers()
-    site_pref = _get_employee_site(username)
-    site_cfg = _get_site_config(site_pref)  # may be None
+
+    assigned_site_names = _get_employee_sites(username)
+    site_cfgs = []
+
+    for sname in assigned_site_names:
+        cfg = _get_site_config(sname)
+        if cfg:
+            site_cfgs.append({
+                "name": cfg["name"],
+                "lat": cfg["lat"],
+                "lon": cfg["lon"],
+                "radius": cfg["radius"],
+            })
+
+    site_cfg = site_cfgs[0] if site_cfgs else None
 
     msg = ""
     msg_class = "message"
@@ -382,12 +395,7 @@ def clock_page_impl(core):
             """
 
     # Map config for front-end (if site configured)
-    if site_cfg:
-        site_json = json.dumps(
-            {"name": site_cfg["name"], "lat": site_cfg["lat"], "lon": site_cfg["lon"],
-             "radius": site_cfg["radius"]})
-    else:
-        site_json = json.dumps(None)
+    sites_json = json.dumps(site_cfgs)
 
     leaflet_tags = """
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin=""/>
@@ -826,10 +834,10 @@ def clock_page_impl(core):
               <div class="clockMetaText" id="selfieStatus">Tap Take Selfie to open the camera.</div>
               <div id="geoStatus" class="clockHidden" aria-live="polite"></div>
 
-              <div class="clockDistanceAlert is-error" id="geoAlert">
-                <div class="clockDistanceAlertTitle" id="geoAlertTitle">📍 You are too far from the site</div>
-                <div class="clockDistanceAlertMeta" id="geoAlertMeta">Distance: --m (limit --m)</div>
-              </div>
+              <div class="clockDistanceAlert clockHidden" id="geoAlert">
+  <div class="clockDistanceAlertTitle" id="geoAlertTitle">📍 Checking your location</div>
+  <div class="clockDistanceAlertMeta" id="geoAlertMeta">Waiting for location permission…</div>
+</div>
 
               <div class="clockMapShell">
                 <div id="map" style="height:280px; min-height:280px;"></div>
@@ -872,7 +880,7 @@ def clock_page_impl(core):
 
           <script>
             (function() {{
-              const SITE = {site_json};
+              const SITES = {sites_json};
               const statusEl = document.getElementById("geoStatus");
               const form = document.getElementById("geoClockForm");
               const act = document.getElementById("geoAction");
@@ -990,16 +998,26 @@ def clock_page_impl(core):
               let youMarker = null;
 
                             function initMap() {{
-                const start = SITE ? [SITE.lat, SITE.lon] : [51.505, -0.09];
-                map = L.map("map", {{ zoomControl: true }}).setView(start, SITE ? 16 : 5);
+                const hasSites = Array.isArray(SITES) && SITES.length > 0;
+                const start = hasSites ? [SITES[0].lat, SITES[0].lon] : [51.505, -0.09];
+
+                map = L.map("map", {{ zoomControl: true }}).setView(start, hasSites ? 16 : 5);
+
                 L.tileLayer("https://{{s}}.tile.openstreetmap.org/{{z}}/{{x}}/{{y}}.png", {{
                   maxZoom: 19,
                   attribution: "&copy; OpenStreetMap"
                 }}).addTo(map);
 
-                if (SITE) {{
-                  L.marker([SITE.lat, SITE.lon]).addTo(map).bindPopup(SITE.name);
-                  L.circle([SITE.lat, SITE.lon], {{ radius: SITE.radius }}).addTo(map);
+                if (hasSites) {{
+                  const bounds = [];
+                  for (const site of SITES) {{
+                    L.marker([site.lat, site.lon]).addTo(map).bindPopup(site.name);
+                    L.circle([site.lat, site.lon], {{ radius: site.radius }}).addTo(map);
+                    bounds.push([site.lat, site.lon]);
+                  }}
+                  if (bounds.length > 1) {{
+                    map.fitBounds(bounds, {{ padding: [30, 30] }});
+                  }}
                 }}
               }}
 
@@ -1014,24 +1032,58 @@ def clock_page_impl(core):
                 const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
                 return R * c;
               }}
+                            function getBestSiteMatch(lat, lon) {{
+                if (!Array.isArray(SITES) || !SITES.length) return null;
 
-              function updateStatus(lat, lon, acc) {{
-                if (!SITE) {{
-                  statusEl.textContent = "Location captured (no site configured).";
-                  geoAlert.className = "clockDistanceAlert is-ok";
-                  geoAlertTitle.textContent = "📍 Location captured";
-                  geoAlertMeta.textContent = "No active site radius is configured for this account.";
-                  return;
+                let best = null;
+
+                for (const site of SITES) {{
+                  const dist = haversineMeters(lat, lon, site.lat, site.lon);
+                  const ok = dist <= site.radius;
+
+                  if (!best) {{
+                    best = {{ site, dist, ok }};
+                    continue;
+                  }}
+
+                  if (ok && (!best.ok || dist < best.dist)) {{
+                    best = {{ site, dist, ok }};
+                  }} else if (!best.ok && dist < best.dist) {{
+                    best = {{ site, dist, ok }};
+                  }}
                 }}
-                const dist = haversineMeters(lat, lon, SITE.lat, SITE.lon);
-                const ok = dist <= SITE.radius;
-                statusEl.textContent = ok
-                  ? `Location OK: ${{SITE.name}} (${{Math.round(dist)}}m)`
-                  : `Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
-                geoAlert.className = `clockDistanceAlert ${{ok ? 'is-ok' : 'is-error'}}`;
-                geoAlertTitle.textContent = ok ? "📍 You are at the correct site" : "📍 You are too far from the site";
-                geoAlertMeta.textContent = `Distance: ${{Math.round(dist)}}m (limit ${{Math.round(SITE.radius)}}m)`;
+
+                return best;
               }}
+
+                function updateStatus(lat, lon, acc) {{
+  geoAlert.classList.remove("clockHidden");
+
+  const best = getBestSiteMatch(lat, lon);
+
+  if (!best) {{
+    statusEl.textContent = "Location captured (no site configured).";
+    geoAlert.className = "clockDistanceAlert is-ok";
+    geoAlertTitle.textContent = "📍 Location captured";
+    geoAlertMeta.textContent = "No active site radius is configured for this account.";
+    return;
+  }}
+
+  const site = best.site;
+  const dist = best.dist;
+  const ok = best.ok;
+
+  statusEl.textContent = ok
+    ? `Location OK: ${{site.name}} (${{Math.round(dist)}}m)`
+    : `Outside radius: ${{Math.round(dist)}}m (limit ${{Math.round(site.radius)}}m) • Site: ${{site.name}}`;
+
+  geoAlert.className = `clockDistanceAlert ${{ok ? 'is-ok' : 'is-error'}}`;
+  geoAlertTitle.textContent = ok
+    ? "📍 You are at the correct site"
+    : "📍 You are too far from the site";
+
+  geoAlertMeta.textContent = `Distance: ${{Math.round(dist)}}m (limit ${{Math.round(site.radius)}}m) • Site: ${{site.name}}`;
+}}
 
               function updateYouMarker(lat, lon) {{
                 if (!map) return;
