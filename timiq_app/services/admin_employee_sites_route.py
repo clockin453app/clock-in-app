@@ -102,7 +102,7 @@ def admin_employee_sites_impl(core):
                     </select>
                     <button class='btnTiny' type='submit'>Save</button>
                   </form>
-                  <div class='sub' style='margin-top:6px;'>Tip: leaving both blank blocks employee clock-in until a site is assigned.</div>
+                  <div class='sub' style='margin-top:6px;'></div>
                 </td>
                 <td class='sub'>{escape(raw_site) if raw_site else ''}</td>
               </tr>
@@ -135,7 +135,7 @@ def admin_employee_sites_impl(core):
             <h2>Employees</h2>
             <div class="tablewrap" style="margin-top:12px;">
               <table style="min-width:980px;">
-                <thead><tr><th>Employee</th><th>Assign site(s)</th><th>Raw</th></tr></thead>
+                <thead><tr><th>Employee</th><th>Assign site(s)</th><th></th></tr></thead>
                 <tbody>{body}</tbody>
               </table>
             </div>

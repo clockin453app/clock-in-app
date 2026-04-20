@@ -29,7 +29,8 @@ def admin_employee_sites_save_impl(core):
     if s1 and s2 and s1.strip().lower() == s2.strip().lower():
         s2 = ""
 
-    site_val = f"{s1},{s2}" if (s1 and s2) else (s1 or s2 or "")
+    site1_val = s1 or ""
+    site2_val = s2 or ""
 
     if u:
         if not _find_employee_record(u):
@@ -37,15 +38,22 @@ def admin_employee_sites_save_impl(core):
 
         try:
             headers = get_sheet_headers(employees_sheet)
+
             if headers and "Site" not in headers:
-                headers2 = headers + ["Site"]
-                end_col = gspread.utils.rowcol_to_a1(1, len(headers2)).replace("1", "")
-                employees_sheet.update(f"A1:{end_col}1", [headers2])
+                headers = headers + ["Site"]
+                end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
+                employees_sheet.update(f"A1:{end_col}1", [headers])
+
+            if headers and "Site2" not in headers:
+                headers = headers + ["Site2"]
+                end_col = gspread.utils.rowcol_to_a1(1, len(headers)).replace("1", "")
+                employees_sheet.update(f"A1:{end_col}1", [headers])
         except Exception:
             pass
 
         try:
-            set_employee_field(u, "Site", site_val)
+            set_employee_field(u, "Site", site1_val)
+            set_employee_field(u, "Site2", site2_val)
         except Exception:
             pass
 
@@ -57,7 +65,9 @@ def admin_employee_sites_save_impl(core):
                 if not db_row:
                     db_row = Employee.query.filter_by(email=u, workplace_id=wp).first()
                 if db_row:
-                    db_row.site = site_val
+                    db_row.site = site1_val
+                    if hasattr(db_row, "site2"):
+                        db_row.site2 = site2_val
                     db_row.workplace = wp
                     db_row.workplace_id = wp
                     db.session.commit()
@@ -65,6 +75,12 @@ def admin_employee_sites_save_impl(core):
                 db.session.rollback()
 
         actor = session.get("username", "admin")
-        log_audit("EMPLOYEE_SITE_SET", actor=actor, username=u, date_str="", details=f"site={site_val}")
+        log_audit(
+            "EMPLOYEE_SITE_SET",
+            actor=actor,
+            username=u,
+            date_str="",
+            details=f"site1={site1_val} site2={site2_val}",
+        )
 
     return redirect("/admin/employee-sites")

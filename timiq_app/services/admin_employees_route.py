@@ -689,8 +689,8 @@ def admin_employees_impl(core):
 
       <div class="headerTop">
         <div>
-          <h1>Create Employee</h1>
-          <p class="sub">Create a new employee login (auto username + temp password)</p>
+          <h1>Manage Employees</h1>
+          <p class="sub">Create employee login, update, reset password, delete accounts.  (auto username + temp password)</p>
         </div>
         <div class="badge admin">ADMIN</div>
       </div>
@@ -701,7 +701,6 @@ def admin_employees_impl(core):
 {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
 {reset_result_card}
-{danger_card}
 
       <div class="card" style="padding:12px;">
         <form method="POST">
@@ -801,6 +800,7 @@ def admin_employees_impl(core):
           </table>
         </div>
       </div>
+            {danger_card}
     """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
