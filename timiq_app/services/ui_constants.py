@@ -1300,6 +1300,11 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   width: 22px;
   height: 22px;
 }
+
+.adminToolCard.selfies .adminToolIcon svg{
+  width: 40px;
+  height: 40px;
+}
 .adminToolIcon img{
   width: 26px;
   height: 26px;

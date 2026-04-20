@@ -82,7 +82,18 @@ def _icon_payments(size=22):
       color:currentColor;
     ">£</div>
     '''
-
+def _icon_clock_selfies(size=45):
+    return f"""
+    <svg width="{size}" height="{size}" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="7" y="12" width="34" height="24" rx="0" fill="#F8FAFF" stroke="#C9D6EA"/>
+      <path d="M16 12.5L18.6 9H29.4L32 12.5" fill="#EAF2FF" stroke="#C9D6EA"/>
+      <circle cx="24" cy="24" r="7.5" fill="#DCEBFF" stroke="#2D3A74" stroke-width="2"/>
+      <circle cx="24" cy="24" r="3.2" fill="#4F89C7"/>
+      <circle cx="13.5" cy="17.5" r="1.8" fill="#EF4444"/>
+      <circle cx="35.5" cy="33.5" r="7" fill="#EAF8EF" stroke="#8FD19E"/>
+      <path d="M32.5 33.5L34.6 35.6L38.6 31.6" stroke="#16A34A" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+    """
 
 def _icon_starter_form(size=22): return _app_icon("starter_form.png", size, "Starter Form")
 

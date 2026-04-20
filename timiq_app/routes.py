@@ -602,6 +602,7 @@ from .services.ui_icons import (
     _icon_employees,
     _icon_connect_drive,
     _icon_locations,
+    _icon_clock_selfies,
 )
 from .services.report_rows import get_payroll_rows_data, get_workhours_rows_data
 from .services.clock_geo import sanitize_clock_geo, validate_recent_clock_capture, validate_user_location, get_site_config, get_active_locations, get_employee_sites, get_employee_site, haversine_m, ensure_workhours_geo_headers

@@ -33,6 +33,7 @@ def admin_impl(core):
     PWA_TAGS = core["PWA_TAGS"]
     layout_shell = core["layout_shell"]
     render_template_string = core["render_template_string"]
+    _icon_clock_selfies = core["_icon_clock_selfies"]
 
     gate = require_admin()
     if gate:
@@ -326,7 +327,7 @@ def admin_impl(core):
           
           <a class="adminToolCard selfies" href="/admin/clock-selfies">
             <div class="adminToolTop">
-              <div class="adminToolIcon">{{_icon_clock(45)}}</div>
+              <div class="adminToolIcon">{_icon_clock_selfies(45)}</div>
               <div class="chev">›</div>
              </div>
             <div class="adminToolTitle">Clock Selfies</div>
