@@ -23,7 +23,12 @@ def store_clock_selfie_impl(
     file_bytes, mime_type, safe_name = validate_clock_selfie_data_func(selfie_data_url)
     stamp = now_dt.strftime("%Y%m%d_%H%M%S")
     prefix = f"{secure_filename_func(username or 'employee')}_{action}_{stamp}"
+
+    local_url = save_clock_selfie_locally_func(file_bytes, safe_name)
+
     try:
-        return upload_bytes_to_drive_func(file_bytes, prefix, safe_name, mime_type)
+        upload_bytes_to_drive_func(file_bytes, prefix, safe_name, mime_type)
     except Exception:
-        return save_clock_selfie_locally_func(file_bytes, safe_name)
+        pass
+
+    return local_url
