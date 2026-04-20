@@ -61,7 +61,9 @@ def admin_employee_sites_impl(core):
 
         fn = (user.get("FirstName") or "").strip()
         ln = (user.get("LastName") or "").strip()
-        raw_site = (user.get("Site") or "").strip()
+        raw_site1 = (user.get("Site") or "").strip()
+        raw_site2 = (user.get("Site2") or "").strip()
+        raw_site = ", ".join([s for s in [raw_site1, raw_site2] if s])
         disp = (fn + " " + ln).strip() or u
 
         assigned = _get_employee_sites(u)

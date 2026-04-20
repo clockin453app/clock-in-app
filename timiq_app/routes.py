@@ -2328,6 +2328,8 @@ def set_employee_field(username: str, field: str, value: str):
 
             if field == "Site" and hasattr(db_row, "site"):
                 db_row.site = value
+            elif field == "Site2" and hasattr(db_row, "site2"):
+                db_row.site2 = value
             elif field == "Role" and hasattr(db_row, "role"):
                 db_row.role = value
             elif field == "Rate" and hasattr(db_row, "rate"):

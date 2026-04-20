@@ -9,13 +9,11 @@ def admin_employee_sites_save_impl(core):
     set_employee_field = core["set_employee_field"]
     DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
     _session_workplace_id = core["_session_workplace_id"]
-    _workplace_ids_for_read = core["_workplace_ids_for_read"]
     Employee = core["Employee"]
     db = core["db"]
     session = core["session"]
     log_audit = core["log_audit"]
     redirect = core["redirect"]
-
 
     gate = require_admin()
     if gate:
@@ -60,7 +58,6 @@ def admin_employee_sites_save_impl(core):
         if DB_MIGRATION_MODE:
             try:
                 wp = _session_workplace_id()
-                allowed_wps = set(_workplace_ids_for_read(wp))
                 db_row = Employee.query.filter_by(username=u, workplace_id=wp).first()
                 if not db_row:
                     db_row = Employee.query.filter_by(email=u, workplace_id=wp).first()
