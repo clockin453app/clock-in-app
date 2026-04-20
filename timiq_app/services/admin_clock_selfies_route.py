@@ -1,5 +1,6 @@
 def admin_clock_selfies_impl(core):
     require_admin = core["require_admin"]
+    get_csrf = core["get_csrf"]
     request = core["request"]
     session = core["session"]
     DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
@@ -19,6 +20,26 @@ def admin_clock_selfies_impl(core):
     gate = require_admin()
     if gate:
         return gate
+
+    csrf = get_csrf()
+    archived_msg = ""
+    archived = (request.args.get("archived") or "").strip()
+    updated = (request.args.get("updated") or "").strip()
+    errors = (request.args.get("errors") or "").strip()
+    days_used = (request.args.get("days") or "").strip()
+
+    if archived or updated or errors:
+        archived_msg = f"""
+          <div class="card" style="padding:12px; margin-bottom:12px; border:1px solid rgba(15,23,42,.08);">
+            <div style="font-weight:700;">Archive complete</div>
+            <div class="sub" style="margin-top:6px;">
+              Archived files: {escape(archived or "0")} •
+              Updated rows: {escape(updated or "0")} •
+              Errors: {escape(errors or "0")} •
+              Days: {escape(days_used or "90")}
+            </div>
+          </div>
+        """
 
     wp = _session_workplace_id()
     allowed_wps = set(_workplace_ids_for_read(wp))
@@ -217,24 +238,34 @@ def admin_clock_selfies_impl(core):
       </div>
 
       {admin_back_link("/admin")}
+{archived_msg}
 
-      <div class="card" style="padding:12px;">
-        <form method="GET" class="selfieFilters">
-          <div>
-            <label class="sub">Username</label>
-            <input class="input" type="text" name="user" value="{escape(who)}" placeholder="optional username filter">
-          </div>
-          <div>
-            <label class="sub">Type</label>
-            <select class="input" name="kind">
-              <option value="in" {"selected" if kind == "in" else ""}>Clock In only</option>
-              <option value="out" {"selected" if kind == "out" else ""}>Clock Out only</option>
-              <option value="all" {"selected" if kind == "all" else ""}>Both</option>
-            </select>
-          </div>
-          <button class="btnSoft" type="submit">Apply</button>
-        </form>
-      </div>
+<div class="card" style="padding:12px;">
+  <form method="GET" class="selfieFilters">
+    <div>
+      <label class="sub">Username</label>
+      <input class="input" type="text" name="user" value="{escape(who)}" placeholder="optional username filter">
+    </div>
+    <div>
+      <label class="sub">Type</label>
+      <select class="input" name="kind">
+        <option value="in" {"selected" if kind == "in" else ""}>Clock In only</option>
+        <option value="out" {"selected" if kind == "out" else ""}>Clock Out only</option>
+        <option value="all" {"selected" if kind == "all" else ""}>Both</option>
+      </select>
+    </div>
+    <button class="btnSoft" type="submit">Apply</button>
+  </form>
+
+  <form method="POST" action="/admin/archive-clock-selfies" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
+    <input type="hidden" name="csrf" value="{escape(csrf)}">
+    <div>
+      <label class="sub">Archive older than days</label>
+      <input class="input" type="number" min="1" step="1" name="days" value="90">
+    </div>
+    <button class="btnSoft" type="submit">Archive old selfies to Drive</button>
+  </form>
+</div>
 
       <div class="card" style="padding:12px; margin-top:12px;">
         <h2>Images</h2>

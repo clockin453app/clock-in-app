@@ -1141,6 +1141,265 @@ def _upload_bytes_to_drive(file_bytes: bytes, filename_prefix: str, safe_name: s
     file_id = created["id"]
     return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
 
+def _get_clock_selfie_archive_drive_service():
+    drive_service = get_user_drive_service()
+    if not drive_service:
+        drive_service = get_service_account_drive_service()
+    if not drive_service:
+        raise RuntimeError("Drive archive is not available.")
+    return drive_service
+
+
+def _drive_find_or_create_folder(drive_service, folder_name: str, parent_id: str | None = None) -> str:
+    safe_name = str(folder_name or "").strip()
+    if not safe_name:
+        raise RuntimeError("Folder name required.")
+
+    safe_name_q = safe_name.replace("'", "\\'")
+
+    q_parts = [
+        "mimeType='application/vnd.google-apps.folder'",
+        f"name='{safe_name_q}'",
+        "trashed=false",
+    ]
+    if parent_id:
+        q_parts.append(f"'{parent_id}' in parents")
+
+    res = drive_service.files().list(
+        q=" and ".join(q_parts),
+        fields="files(id,name)",
+        pageSize=10,
+        supportsAllDrives=True,
+        includeItemsFromAllDrives=True,
+    ).execute()
+
+    files = res.get("files", [])
+    if files:
+        return files[0]["id"]
+
+    body = {
+        "name": safe_name,
+        "mimeType": "application/vnd.google-apps.folder",
+    }
+    if parent_id:
+        body["parents"] = [parent_id]
+
+    created = drive_service.files().create(
+        body=body,
+        fields="id,name",
+        supportsAllDrives=True,
+    ).execute()
+
+    return created["id"]
+
+
+def _upload_local_clock_selfie_to_archive(local_file_path: str, workplace_id: str, month_key: str) -> str:
+    drive_service = _get_clock_selfie_archive_drive_service()
+
+    root_id = _drive_find_or_create_folder(drive_service, "Clock Selfies Archive")
+    wp_id = _drive_find_or_create_folder(drive_service, workplace_id, root_id)
+    month_id = _drive_find_or_create_folder(drive_service, month_key, wp_id)
+
+    filename = os.path.basename(local_file_path)
+    ext = os.path.splitext(filename)[1].lower()
+    mime_type = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }.get(ext, "application/octet-stream")
+
+    with open(local_file_path, "rb") as fh:
+        media = MediaIoBaseUpload(io.BytesIO(fh.read()), mimetype=mime_type, resumable=False)
+
+    created = drive_service.files().create(
+        body={
+            "name": filename,
+            "parents": [month_id],
+        },
+        media_body=media,
+        fields="id,webViewLink",
+        supportsAllDrives=True,
+    ).execute()
+
+    file_id = created["id"]
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+
+def _archive_old_clock_selfies(days: int = 90) -> dict:
+    import copy
+
+    days = max(1, int(days or 90))
+    cutoff_date = datetime.now(TZ).date() - timedelta(days=days)
+
+    current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
+    archived_files = 0
+    updated_rows = 0
+    errors = []
+
+    def _local_path_from_url(url: str) -> str | None:
+        u = str(url or "").strip()
+        if not u.startswith("/clock-selfie/"):
+            return None
+
+        safe_filename = os.path.basename(u)
+        if not safe_filename:
+            return None
+
+        full_path = os.path.abspath(os.path.join(CLOCK_SELFIE_DIR, safe_filename))
+        base_path = os.path.abspath(CLOCK_SELFIE_DIR)
+
+        if not full_path.startswith(base_path + os.sep):
+            return None
+
+        if not os.path.exists(full_path):
+            return None
+
+        return full_path
+
+    if DB_MIGRATION_MODE:
+        rows = (
+            WorkHour.query
+            .filter(WorkHour.date < cutoff_date)
+            .order_by(WorkHour.date.asc(), WorkHour.id.asc())
+            .all()
+        )
+
+        files_to_delete = []
+
+        for rec in rows:
+            row_wp = str(
+                getattr(rec, "workplace_id", "") or getattr(rec, "workplace", "") or "default"
+            ).strip() or "default"
+
+            if row_wp not in allowed_wps:
+                continue
+
+            row_changed = False
+            month_key = rec.date.strftime("%Y-%m") if getattr(rec, "date", None) else datetime.now(TZ).strftime("%Y-%m")
+
+            for attr in ("in_selfie_url", "out_selfie_url"):
+                current_url = str(getattr(rec, attr, "") or "").strip()
+                local_path = _local_path_from_url(current_url)
+                if not local_path:
+                    continue
+
+                try:
+                    archive_url = _upload_local_clock_selfie_to_archive(local_path, row_wp, month_key)
+                    setattr(rec, attr, archive_url)
+                    files_to_delete.append(local_path)
+                    archived_files += 1
+                    row_changed = True
+                except Exception as e:
+                    errors.append(f"{attr}:{local_path}:{e}")
+
+            if row_changed:
+                updated_rows += 1
+
+        try:
+            db.session.commit()
+        except Exception as e:
+            db.session.rollback()
+            errors.append(str(e))
+            return {
+                "archived_files": 0,
+                "updated_rows": 0,
+                "errors": errors,
+            }
+
+        for local_path in files_to_delete:
+            try:
+                if os.path.exists(local_path):
+                    os.remove(local_path)
+            except Exception as e:
+                errors.append(f"delete:{local_path}:{e}")
+
+    else:
+        vals = work_sheet.get_all_values() if work_sheet else []
+        if vals:
+            headers = vals[0]
+
+            def idx(name):
+                return headers.index(name) if name in headers else None
+
+            i_date = idx("Date")
+            i_wp = idx("Workplace_ID")
+            i_in_url = idx("InSelfieURL")
+            i_out_url = idx("OutSelfieURL")
+
+            updates = []
+            files_to_delete = []
+
+            for rownum, r in enumerate(vals[1:], start=2):
+                date_txt = (r[i_date] if i_date is not None and i_date < len(r) else "").strip()
+                if not date_txt:
+                    continue
+
+                try:
+                    row_date = datetime.strptime(date_txt, "%Y-%m-%d").date()
+                except Exception:
+                    continue
+
+                if row_date >= cutoff_date:
+                    continue
+
+                row_wp = ((r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip() or "default")
+                if row_wp not in allowed_wps:
+                    continue
+
+                month_key = row_date.strftime("%Y-%m")
+                row_changed = False
+
+                for col_idx, label in ((i_in_url, "InSelfieURL"), (i_out_url, "OutSelfieURL")):
+                    if col_idx is None or col_idx >= len(r):
+                        continue
+
+                    current_url = (r[col_idx] or "").strip()
+                    local_path = _local_path_from_url(current_url)
+                    if not local_path:
+                        continue
+
+                    try:
+                        archive_url = _upload_local_clock_selfie_to_archive(local_path, row_wp, month_key)
+                        updates.append({
+                            "range": gspread.utils.rowcol_to_a1(rownum, col_idx + 1),
+                            "values": [[archive_url]],
+                        })
+                        files_to_delete.append(local_path)
+                        archived_files += 1
+                        row_changed = True
+                    except Exception as e:
+                        errors.append(f"{label}:{local_path}:{e}")
+
+                if row_changed:
+                    updated_rows += 1
+
+            if updates:
+                try:
+                    _gs_write_with_retry(lambda: work_sheet.batch_update(copy.deepcopy(updates)))
+                except Exception as e:
+                    errors.append(str(e))
+                    return {
+                        "archived_files": 0,
+                        "updated_rows": 0,
+                        "errors": errors,
+                    }
+
+                for local_path in files_to_delete:
+                    try:
+                        if os.path.exists(local_path):
+                            os.remove(local_path)
+                    except Exception as e:
+                        errors.append(f"delete:{local_path}:{e}")
+
+    return {
+        "archived_files": archived_files,
+        "updated_rows": updated_rows,
+        "errors": errors,
+    }
+
 def _save_clock_selfie_locally(file_bytes: bytes, safe_name: str) -> str:
     return save_clock_selfie_locally(
         file_bytes=file_bytes,
@@ -1174,6 +1433,27 @@ def _store_clock_selfie(selfie_data_url: str, username: str, action: str, now_dt
 def admin_clock_selfies():
     return admin_clock_selfies_impl(core=globals())
 
+
+@routes.post("/admin/archive-clock-selfies")
+def admin_archive_clock_selfies():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    require_csrf()
+
+    try:
+        days = int((request.form.get("days") or "90").strip() or "90")
+    except Exception:
+        days = 90
+
+    result = _archive_old_clock_selfies(days=days)
+
+    archived = int(result.get("archived_files", 0) or 0)
+    updated = int(result.get("updated_rows", 0) or 0)
+    errors = len(result.get("errors", []) or [])
+
+    return redirect(f"/admin/clock-selfies?archived={archived}&updated={updated}&errors={errors}&days={days}")
 
 @routes.get("/clock-selfie/<path:filename>")
 def view_clock_selfie(filename):
