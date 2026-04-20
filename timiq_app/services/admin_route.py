@@ -323,6 +323,15 @@ def admin_impl(core):
             <div class="adminToolTitle">Employee Sites</div>
             <div class="adminToolSub">Assign employees to site locations for clock-in access.</div>
           </a>
+          
+          <a class="adminToolCard selfies" href="/admin/clock-selfies">
+            <div class="adminToolTop">
+              <div class="adminToolIcon">{{_icon_clock(45)}}</div>
+              <div class="chev">›</div>
+             </div>
+            <div class="adminToolTitle">Clock Selfies</div>
+            <div class="adminToolSub">View employee clock-in and clock-out photos for this workplace.</div>
+          </a>
 
           <a class="adminToolCard employees" href="/admin/employees">
             <div class="adminToolTop">

@@ -637,6 +637,7 @@ from .services.admin_mark_paid_route import admin_mark_paid_impl
 from .services.admin_payroll_report_csv_route import admin_payroll_report_csv_impl
 from .services.admin_locations_save_route import admin_locations_save_impl
 from .services.admin_locations_deactivate_route import admin_locations_deactivate_impl
+from .services.admin_clock_selfies_route import admin_clock_selfies_impl
 
 
 @routes.post("/import-locations")
@@ -1164,6 +1165,10 @@ def _store_clock_selfie(selfie_data_url: str, username: str, action: str, now_dt
         save_clock_selfie_locally_func=_save_clock_selfie_locally,
         secure_filename_func=secure_filename,
     )
+
+@routes.get("/admin/clock-selfies")
+def admin_clock_selfies():
+    return admin_clock_selfies_impl(core=globals())
 
 
 @routes.get("/clock-selfie/<path:filename>")
