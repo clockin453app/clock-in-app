@@ -1077,6 +1077,189 @@ def _validate_global_master_admin_session():
 
     return True, ""
 
+LIVE_SESSION_STORE_PATH = (
+    os.environ.get("LIVE_SESSION_STORE_PATH", "/var/data/live_sessions.enc").strip()
+    or "/var/data/live_sessions.enc"
+)
+LIVE_SESSION_TTL_SECONDS = max(30, int(os.environ.get("LIVE_SESSION_TTL_SECONDS", "180") or "180"))
+LIVE_SESSION_RETENTION_SECONDS = max(
+    LIVE_SESSION_TTL_SECONDS * 4,
+    int(os.environ.get("LIVE_SESSION_RETENTION_SECONDS", "86400") or "86400"),
+)
+
+
+def _live_session_store_default():
+    return {"sessions": []}
+
+
+def _normalize_live_session_entry(raw):
+    if not isinstance(raw, dict):
+        return None
+
+    session_key = str(raw.get("session_key", "") or "").strip()
+    username = str(raw.get("username", "") or "").strip()
+    active_session_token = str(raw.get("active_session_token", "") or "").strip()
+
+    if not session_key or not username or not active_session_token:
+        return None
+
+    try:
+        last_seen_epoch = int(raw.get("last_seen_epoch", 0) or 0)
+    except Exception:
+        last_seen_epoch = 0
+
+    return {
+        "session_key": session_key,
+        "username": username,
+        "role": str(raw.get("role", "") or "").strip() or "employee",
+        "workplace_id": str(raw.get("workplace_id", "") or "").strip() or "default",
+        "auth_scope": str(raw.get("auth_scope", "") or "").strip() or "employee_workplace",
+        "active_session_token": active_session_token,
+        "ip": str(raw.get("ip", "") or "").strip(),
+        "user_agent": str(raw.get("user_agent", "") or "").strip()[:220],
+        "last_seen_epoch": last_seen_epoch,
+        "last_seen_iso": str(raw.get("last_seen_iso", "") or "").strip(),
+    }
+
+
+def _prune_live_session_entries(entries, now_ts=None):
+    now_ts = int(now_ts or time.time())
+    cutoff = now_ts - LIVE_SESSION_RETENTION_SECONDS
+    out = []
+
+    for raw in entries or []:
+        rec = _normalize_live_session_entry(raw)
+        if not rec:
+            continue
+        if rec["last_seen_epoch"] < cutoff:
+            continue
+        out.append(rec)
+
+    return out
+
+
+def _save_live_session_store(data: dict):
+    base = _live_session_store_default()
+    sessions_data = _prune_live_session_entries((data or {}).get("sessions", []))
+    base["sessions"] = sessions_data
+
+    parent = os.path.dirname(LIVE_SESSION_STORE_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
+    payload = json.dumps(base, ensure_ascii=False, indent=2).encode("utf-8")
+    f = _fernet()
+    if f:
+        payload = f.encrypt(payload)
+
+    tmp_path = LIVE_SESSION_STORE_PATH + ".tmp"
+    with open(tmp_path, "wb") as fh:
+        fh.write(payload)
+    os.replace(tmp_path, LIVE_SESSION_STORE_PATH)
+
+
+def _load_live_session_store() -> dict:
+    if not os.path.exists(LIVE_SESSION_STORE_PATH):
+        return _live_session_store_default()
+
+    try:
+        with open(LIVE_SESSION_STORE_PATH, "rb") as fh:
+            payload = fh.read()
+
+        f = _fernet()
+        if f:
+            payload = f.decrypt(payload)
+
+        data = json.loads(payload.decode("utf-8"))
+        if not isinstance(data, dict):
+            return _live_session_store_default()
+
+        sessions_data = _prune_live_session_entries(data.get("sessions", []))
+        return {"sessions": sessions_data}
+    except Exception:
+        return _live_session_store_default()
+
+
+def _touch_live_session_presence():
+    username = (session.get("username") or "").strip()
+    active_session_token = str(session.get("active_session_token") or "")
+    if not username or not active_session_token:
+        return
+
+    role = (session.get("role") or "employee").strip().lower() or "employee"
+    auth_scope = (session.get("auth_scope") or "employee_workplace").strip().lower() or "employee_workplace"
+    workplace_id = (_session_workplace_id() or "default").strip() or "default"
+    session_key = f"{auth_scope}:{username}:{active_session_token}"
+
+    now_ts = int(time.time())
+    now_iso = datetime.now(TZ).isoformat(timespec="seconds")
+    ip = ""
+    ua = ""
+
+    try:
+        ip = (_client_ip() or "").strip()
+    except Exception:
+        ip = ""
+
+    try:
+        ua = str(request.headers.get("User-Agent", "") or "").strip()[:220]
+    except Exception:
+        ua = ""
+
+    data = _load_live_session_store()
+    sessions_data = [x for x in data.get("sessions", []) if str(x.get("session_key", "") or "") != session_key]
+
+    sessions_data.append({
+        "session_key": session_key,
+        "username": username,
+        "role": role,
+        "workplace_id": workplace_id,
+        "auth_scope": auth_scope,
+        "active_session_token": active_session_token,
+        "ip": ip,
+        "user_agent": ua,
+        "last_seen_epoch": now_ts,
+        "last_seen_iso": now_iso,
+    })
+
+    _save_live_session_store({"sessions": sessions_data})
+
+
+def _remove_live_session_presence(session_key: str = "", active_session_token: str = ""):
+    data = _load_live_session_store()
+    sessions_data = []
+
+    for raw in data.get("sessions", []):
+        rec = _normalize_live_session_entry(raw)
+        if not rec:
+            continue
+
+        if session_key and rec["session_key"] == session_key:
+            continue
+        if active_session_token and rec["active_session_token"] == active_session_token:
+            continue
+
+        sessions_data.append(rec)
+
+    _save_live_session_store({"sessions": sessions_data})
+
+
+def _list_current_live_sessions():
+    now_ts = int(time.time())
+    out = []
+
+    for raw in _load_live_session_store().get("sessions", []):
+        rec = _normalize_live_session_entry(raw)
+        if not rec:
+            continue
+
+        age_s = max(0, now_ts - int(rec.get("last_seen_epoch", 0) or 0))
+        rec["age_seconds"] = age_s
+        rec["is_live"] = age_s <= LIVE_SESSION_TTL_SECONDS
+        out.append(rec)
+
+    out.sort(key=lambda x: (not x["is_live"], x["age_seconds"], x["username"].lower()))
+    return out
 
 def get_service_account_drive_service():
     return get_service_account_drive_service_impl(build, creds)
@@ -2864,6 +3047,11 @@ def require_login():
     if not ok:
         return _logout_to_login(login_notice)
 
+    try:
+        _touch_live_session_presence()
+    except Exception:
+        pass
+
     return None
 
 
@@ -4235,6 +4423,7 @@ def sidebar_html(active: str, role: str) -> str:
         items.append(("admin", "/admin", "Admin", _icon_admin(28)))
 
     if role == "master_admin":
+        items.append(("current-sessions", "/admin/current-sessions", "Current Sessions", _icon_admin(28)))
         items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(28)))
 
     links = []
@@ -4361,6 +4550,26 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
       </script>
     """
 
+    heartbeat_script = """
+      <script>
+      (function(){
+        if (window.__sessionHeartbeatBound) return;
+        window.__sessionHeartbeatBound = true;
+
+        function beat(){
+          fetch('/api/session-heartbeat', {
+            method: 'GET',
+            credentials: 'same-origin',
+            cache: 'no-store'
+          }).catch(function(){});
+        }
+
+        beat();
+        window.setInterval(beat, 45000);
+      })();
+      </script>
+    """
+
     return f"""
       <div class="shell{extra}">
         {sidebar_html(active, role)}
@@ -4370,6 +4579,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
           <div class="safeBottom"></div>
         </div>
       </div>
+      {heartbeat_script}
     """
 
 
@@ -4477,18 +4687,30 @@ def logout():
     require_csrf()
 
     username = (session.get("username") or "").strip()
+    workplace_id = _session_workplace_id()
     active_session_token = str(session.get("active_session_token") or "")
     auth_scope = str(session.get("auth_scope") or "").strip().lower()
+    session_key = f"{auth_scope or 'employee_workplace'}:{username}:{active_session_token}" if username and active_session_token else ""
 
     if username and active_session_token:
         if auth_scope == "global_master_admin":
             _clear_global_master_admin_session_token(username, expected_token=active_session_token)
         else:
-            workplace_id = _session_workplace_id()
             _clear_active_session_token(username, workplace_id, expected_token=active_session_token)
+
+    if session_key or active_session_token:
+        _remove_live_session_presence(session_key=session_key, active_session_token=active_session_token)
 
     session.clear()
     return redirect(url_for("login"))
+
+
+@routes.get("/api/session-heartbeat")
+def api_session_heartbeat():
+    gate = require_login()
+    if gate:
+        return gate
+    return jsonify({"ok": True, "ts": int(time.time())})
 
 
 @routes.get("/api/dashboard-snapshot")
@@ -4969,6 +5191,167 @@ def _get_open_shifts() -> list[dict]:
 @routes.get("/admin")
 def admin():
     return admin_impl(core=globals())
+
+@routes.get("/admin/current-sessions")
+def admin_current_sessions():
+    gate = require_master_admin()
+    if gate:
+        return gate
+
+    csrf = get_csrf()
+    role = session.get("role", "master_admin")
+    rows = _list_current_live_sessions()
+
+    def ago_text(seconds: int) -> str:
+        s = max(0, int(seconds or 0))
+        if s < 60:
+            return f"{s}s ago"
+        if s < 3600:
+            return f"{s // 60}m ago"
+        return f"{s // 3600}h ago"
+
+    live_count = sum(1 for r in rows if r.get("is_live"))
+    total_count = len(rows)
+
+    body_rows = []
+    for r in rows:
+        status_html = (
+            "<span class='chip ok'>Live</span>"
+            if r.get("is_live")
+            else "<span class='chip'>Idle</span>"
+        )
+
+        scope_label = "Global admin" if r.get("auth_scope") == "global_master_admin" else "Workplace login"
+        workplace_label = r.get("workplace_id") or "default"
+        username = r.get("username") or ""
+        role_label_text = (r.get("role") or "employee").upper()
+        ip = r.get("ip") or "—"
+        ua = r.get("user_agent") or "—"
+        age = ago_text(r.get("age_seconds", 0))
+        last_seen_iso = r.get("last_seen_iso") or "—"
+        session_key = r.get("session_key") or ""
+
+        body_rows.append(f"""
+          <tr>
+            <td>
+              <div style="font-weight:700;">{escape(username)}</div>
+              <div class="sub" style="margin-top:3px;">{escape(scope_label)}</div>
+            </td>
+            <td>{escape(role_label_text)}</td>
+            <td>{escape(workplace_label)}</td>
+            <td>{status_html}</td>
+            <td>{escape(age)}</td>
+            <td>
+              <div>{escape(last_seen_iso)}</div>
+              <div class="sub" style="margin-top:3px;">IP: {escape(ip)}</div>
+            </td>
+            <td style="max-width:260px;">
+              <div class="sub" style="white-space:normal; word-break:break-word;">{escape(ua)}</div>
+            </td>
+            <td>
+              <form method="POST" action="/admin/current-sessions/force-logout" style="margin:0;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <input type="hidden" name="session_key" value="{escape(session_key)}">
+                <button class="btnOut" type="submit">Force logout</button>
+              </form>
+            </td>
+          </tr>
+        """)
+
+    table_html = "".join(body_rows) if body_rows else "<tr><td colspan='8'>No live sessions found.</td></tr>"
+
+    content = f"""
+      {admin_back_link("/admin")}
+
+      <div class="headerTop">
+        <div>
+          <h1>Current Sessions</h1>
+          <p class="sub">Master admin only • authenticated users active in the last {LIVE_SESSION_TTL_SECONDS} seconds.</p>
+        </div>
+        <div class="badge admin">MASTER ADMIN</div>
+      </div>
+
+      <div class="metricsRow" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px;">
+        <div class="metricCard"><div class="k">Live now</div><div class="v">{live_count}</div></div>
+        <div class="metricCard"><div class="k">Tracked sessions</div><div class="v">{total_count}</div></div>
+      </div>
+
+      <div class="card" style="padding:12px; margin-top:12px;">
+        <div class="sub" style="margin-bottom:10px;">This page auto-refreshes every 15 seconds.</div>
+        <div class="tablewrap">
+          <table style="min-width:1100px;">
+            <thead>
+              <tr>
+                <th>User</th>
+                <th>Role</th>
+                <th>Workplace</th>
+                <th>Status</th>
+                <th>Seen</th>
+                <th>Last Seen / IP</th>
+                <th>User Agent</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>{table_html}</tbody>
+          </table>
+        </div>
+      </div>
+
+      <script>
+        window.setTimeout(function(){{
+          window.location.reload();
+        }}, 15000);
+      </script>
+    """
+
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("current-sessions", role, content)
+    )
+
+
+@routes.post("/admin/current-sessions/force-logout")
+def admin_current_sessions_force_logout():
+    gate = require_master_admin()
+    if gate:
+        return gate
+
+    require_csrf()
+
+    session_key = (request.form.get("session_key") or "").strip()
+    if not session_key:
+        return redirect("/admin/current-sessions")
+
+    rows = _list_current_live_sessions()
+    target = next((r for r in rows if (r.get("session_key") or "") == session_key), None)
+    if not target:
+        return redirect("/admin/current-sessions")
+
+    username = (target.get("username") or "").strip()
+    workplace_id = (target.get("workplace_id") or "default").strip() or "default"
+    auth_scope = (target.get("auth_scope") or "").strip().lower()
+    active_session_token = str(target.get("active_session_token") or "")
+
+    if username and active_session_token:
+        if auth_scope == "global_master_admin":
+            _clear_global_master_admin_session_token(username, expected_token=active_session_token)
+        else:
+            _clear_active_session_token(username, workplace_id, expected_token=active_session_token)
+
+    _remove_live_session_presence(session_key=session_key, active_session_token=active_session_token)
+
+    try:
+        log_audit(
+            "MASTER_FORCE_LOGOUT",
+            actor=session.get("username", "master_admin"),
+            username=username,
+            date_str="",
+            details=f"scope={auth_scope or 'employee_workplace'} workplace={workplace_id}",
+        )
+    except Exception:
+        pass
+
+    return redirect("/admin/current-sessions")
 
 
 def admin_back_link(href: str = "/admin") -> str:
