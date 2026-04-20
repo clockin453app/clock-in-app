@@ -895,6 +895,188 @@ def _save_drive_token(token_dict: dict):
 def _load_drive_token() -> dict | None:
     return load_drive_token_impl(DRIVE_TOKEN_STORE_PATH, _fernet, DRIVE_TOKEN_ENV, InvalidToken)
 
+GLOBAL_MASTER_ADMIN_STORE_PATH = os.environ.get(
+    "GLOBAL_MASTER_ADMIN_STORE_PATH",
+    os.path.join(BASE_DIR, "instance", "global_master_admins.enc"),
+)
+GLOBAL_MASTER_ADMIN_SEED_JSON = os.environ.get("GLOBAL_MASTER_ADMIN_SEED_JSON", "").strip()
+
+
+def _global_master_admin_store_default():
+    return {"admins": []}
+
+
+def _normalize_global_master_admin_record(raw):
+    if not isinstance(raw, dict):
+        return None
+
+    username = str(raw.get("username", "") or "").strip()
+    password_hash = str(raw.get("password_hash", "") or "").strip()
+    if not username or not password_hash:
+        return None
+
+    return {
+        "username": username,
+        "password_hash": password_hash,
+        "active": str(raw.get("active", "TRUE") or "TRUE").strip() or "TRUE",
+        "active_session_token": str(raw.get("active_session_token", "") or "").strip(),
+    }
+
+
+def _save_global_master_admin_store(data: dict):
+    base = _global_master_admin_store_default()
+    admins = []
+
+    for raw in (data or {}).get("admins", []) or []:
+        rec = _normalize_global_master_admin_record(raw)
+        if rec:
+            admins.append(rec)
+
+    base["admins"] = admins
+
+    parent = os.path.dirname(GLOBAL_MASTER_ADMIN_STORE_PATH)
+    if parent:
+        os.makedirs(parent, exist_ok=True)
+
+    payload = json.dumps(base, ensure_ascii=False, indent=2).encode("utf-8")
+    f = _fernet()
+    if f:
+        payload = f.encrypt(payload)
+
+    tmp_path = GLOBAL_MASTER_ADMIN_STORE_PATH + ".tmp"
+    with open(tmp_path, "wb") as fh:
+        fh.write(payload)
+    os.replace(tmp_path, GLOBAL_MASTER_ADMIN_STORE_PATH)
+
+
+def _seed_global_master_admin_store_from_env():
+    if os.path.exists(GLOBAL_MASTER_ADMIN_STORE_PATH):
+        return
+
+    raw = GLOBAL_MASTER_ADMIN_SEED_JSON
+    if not raw:
+        return
+
+    try:
+        data = json.loads(raw)
+        if isinstance(data, list):
+            data = {"admins": data}
+        if not isinstance(data, dict):
+            return
+        _save_global_master_admin_store(data)
+    except Exception:
+        return
+
+
+def _load_global_master_admin_store() -> dict:
+    _seed_global_master_admin_store_from_env()
+
+    if not os.path.exists(GLOBAL_MASTER_ADMIN_STORE_PATH):
+        return _global_master_admin_store_default()
+
+    try:
+        with open(GLOBAL_MASTER_ADMIN_STORE_PATH, "rb") as fh:
+            payload = fh.read()
+
+        f = _fernet()
+        if f:
+            payload = f.decrypt(payload)
+
+        data = json.loads(payload.decode("utf-8"))
+        if isinstance(data, list):
+            data = {"admins": data}
+        if not isinstance(data, dict):
+            return _global_master_admin_store_default()
+
+        admins = []
+        for raw in data.get("admins", []) or []:
+            rec = _normalize_global_master_admin_record(raw)
+            if rec:
+                admins.append(rec)
+
+        return {"admins": admins}
+    except Exception:
+        return _global_master_admin_store_default()
+
+
+def _find_global_master_admin_record(username: str):
+    target = str(username or "").strip().lower()
+    if not target:
+        return None
+
+    data = _load_global_master_admin_store()
+    for rec in data.get("admins", []) or []:
+        if str(rec.get("username", "") or "").strip().lower() == target:
+            return rec
+    return None
+
+
+def _issue_global_master_admin_session_token(username: str):
+    target = str(username or "").strip().lower()
+    if not target:
+        return None
+
+    data = _load_global_master_admin_store()
+    admins = data.get("admins", []) or []
+
+    for rec in admins:
+        if str(rec.get("username", "") or "").strip().lower() != target:
+            continue
+
+        token = secrets.token_urlsafe(32)
+        rec["active_session_token"] = token
+        _save_global_master_admin_store({"admins": admins})
+        return token
+
+    return None
+
+
+def _clear_global_master_admin_session_token(username: str, expected_token: str | None = None):
+    target = str(username or "").strip().lower()
+    if not target:
+        return False
+
+    data = _load_global_master_admin_store()
+    admins = data.get("admins", []) or []
+
+    for rec in admins:
+        if str(rec.get("username", "") or "").strip().lower() != target:
+            continue
+
+        current = str(rec.get("active_session_token", "") or "")
+        if expected_token and current and current != expected_token:
+            return False
+
+        rec["active_session_token"] = ""
+        _save_global_master_admin_store({"admins": admins})
+        return True
+
+    return False
+
+
+def _validate_global_master_admin_session():
+    username = (session.get("username") or "").strip()
+    if not username:
+        return False, ""
+
+    session_token = str(session.get("active_session_token") or "")
+    if not session_token:
+        return False, "Your session has expired. Please log in again."
+
+    rec = _find_global_master_admin_record(username)
+    if not rec:
+        return False, "Your global admin account is no longer available. Please log in again."
+
+    active_raw = str(rec.get("active", "TRUE") or "TRUE").strip().lower()
+    if active_raw in ("false", "0", "no", "n", "off"):
+        return False, "Your global admin account is inactive. Please log in again."
+
+    stored_token = str(rec.get("active_session_token", "") or "")
+    if not stored_token or stored_token != session_token:
+        return False, "Your global admin account was signed in on another device. Please log in again."
+
+    return True, ""
+
 
 def get_service_account_drive_service():
     return get_service_account_drive_service_impl(build, creds)
@@ -2635,6 +2817,10 @@ def _validate_active_session():
     if not username:
         return False, ""
 
+    auth_scope = str(session.get("auth_scope") or "").strip().lower()
+    if auth_scope == "global_master_admin":
+        return _validate_global_master_admin_session()
+
     workplace_id = _session_workplace_id()
     session_token = str(session.get("active_session_token") or "")
     if not session_token:
@@ -2658,8 +2844,7 @@ def _validate_active_session():
 
     row = vals[rownum - 1] if vals and len(vals) >= rownum else []
     active_col = headers.index("Active") if headers and "Active" in headers else None
-    active_raw = ((row[active_col] if active_col is not None and len(
-        row) > active_col else "TRUE") or "TRUE").strip().lower()
+    active_raw = ((row[active_col] if active_col is not None and len(row) > active_col else "TRUE") or "TRUE").strip().lower()
     if active_raw in ("false", "0", "no", "n", "off"):
         return False, "Your account is inactive. Please log in again."
 
@@ -4290,11 +4475,18 @@ def logout_confirm():
 @routes.post("/logout")
 def logout():
     require_csrf()
+
     username = (session.get("username") or "").strip()
-    workplace_id = _session_workplace_id()
     active_session_token = str(session.get("active_session_token") or "")
+    auth_scope = str(session.get("auth_scope") or "").strip().lower()
+
     if username and active_session_token:
-        _clear_active_session_token(username, workplace_id, expected_token=active_session_token)
+        if auth_scope == "global_master_admin":
+            _clear_global_master_admin_session_token(username, expected_token=active_session_token)
+        else:
+            workplace_id = _session_workplace_id()
+            _clear_active_session_token(username, workplace_id, expected_token=active_session_token)
+
     session.clear()
     return redirect(url_for("login"))
 

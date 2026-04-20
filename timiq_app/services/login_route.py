@@ -27,6 +27,8 @@ def login_impl(core):
     STYLE = core["STYLE"]
     VIEWPORT = core["VIEWPORT"]
     PWA_TAGS = core["PWA_TAGS"]
+    _find_global_master_admin_record = core["_find_global_master_admin_record"]
+    _issue_global_master_admin_session_token = core["_issue_global_master_admin_session_token"]
 
     msg = session.pop("_login_notice", "") if request.method == "GET" else ""
     csrf = get_csrf()
@@ -36,6 +38,7 @@ def login_impl(core):
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         workplace_id = (request.form.get("workplace_id", "") or "").strip()
+        ip = _client_ip()
 
         login_usernames = [username]
         if username.lower() == "masteradmin":
@@ -43,76 +46,119 @@ def login_impl(core):
         elif username.lower() == "master_admin":
             login_usernames = ["master_admin", "masteradmin"]
 
-        if not workplace_id:
-            msg = "Workplace ID is required."
-            ip = _client_ip()
+        allowed, retry_after = _login_rate_limit_check(ip)
+        if not allowed:
+            log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="",
+                      details=f"RetryAfter={retry_after}s")
+            mins = max(1, int(math.ceil(retry_after / 60)))
+            msg = f"Too many login attempts. Try again in {mins} minute(s)."
         else:
-            ip = _client_ip()
+            matched_global_username = username
+            global_admin = None
 
-        if workplace_id:
-            allowed, retry_after = _login_rate_limit_check(ip)
-            if not allowed:
-                log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="",
-                          details=f"RetryAfter={retry_after}s")
-                mins = max(1, int(math.ceil(retry_after / 60)))
-                msg = f"Too many login attempts. Try again in {mins} minute(s)."
-            else:
-                ok_user = None
-                if not DB_MIGRATION_MODE:
-                    try:
-                        sid = getattr(spreadsheet, "id", None)
-                        wid = getattr(employees_sheet, "id", None)
-                        if sid and wid:
-                            _cache_invalidate_prefix((sid, wid))
-                    except Exception:
-                        pass
+            for candidate_username in login_usernames:
+                global_admin = _find_global_master_admin_record(candidate_username)
+                if global_admin:
+                    matched_global_username = str(global_admin.get("username") or candidate_username).strip()
+                    break
 
-                ok_user = None
-                matched_username = username
-                for candidate_username in login_usernames:
-                    ok_user = _find_employee_record(candidate_username, workplace_id)
-                    if ok_user:
-                        matched_username = candidate_username
-                        break
-
-                if ok_user and is_password_valid(ok_user.get("Password", ""), password):
-                    active_raw = str(ok_user.get("Active", "") or "").strip().lower()
+            if global_admin:
+                if is_password_valid(global_admin.get("password_hash", ""), password):
+                    active_raw = str(global_admin.get("active", "TRUE") or "TRUE").strip().lower()
                     is_active = active_raw not in ("false", "0", "no", "n", "off")
 
                     if not is_active:
                         _login_rate_limit_hit(ip)
-                        log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="",
-                                  details="Inactive account login attempt")
+                        log_audit("LOGIN_INACTIVE", actor=ip, username=matched_global_username, date_str="",
+                                  details="Inactive global master admin login attempt")
                         msg = "Invalid login"
                     else:
                         _login_rate_limit_clear(ip)
-
-                        migrate_password_if_plain(
-                            matched_username,
-                            ok_user.get("Password", ""),
-                            password,
-                            workplace_id=workplace_id,
-                        )
-                        active_session_token = _issue_active_session_token(matched_username, workplace_id)
+                        active_session_token = _issue_global_master_admin_session_token(matched_global_username)
                         if not active_session_token:
-                            log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_username, date_str="",
-                                      details=f"Could not start active session workplace={workplace_id}")
+                            log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_global_username, date_str="",
+                                      details="Could not start global master admin session")
                             msg = "Could not start secure session. Please try again."
                         else:
+                            selected_workplace = workplace_id or (session.get("workplace_id") or "").strip() or "default"
                             session.clear()
                             session["csrf"] = csrf
-                            session["username"] = matched_username
-                            session["workplace_id"] = workplace_id
-                            session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
-                            session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
-                            session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
+                            session["username"] = matched_global_username
+                            session["workplace_id"] = selected_workplace
+                            session["role"] = "master_admin"
+                            session["auth_scope"] = "global_master_admin"
+                            session["rate"] = 0.0
+                            session["early_access"] = True
                             session["active_session_token"] = active_session_token
+                            log_audit("LOGIN_OK", actor=ip, username=matched_global_username, date_str="",
+                                      details=f"global master admin workplace={selected_workplace}")
                             return redirect(url_for("home"))
                 else:
                     _login_rate_limit_hit(ip)
                     log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
-                              details="Invalid username or password")
+                              details="Invalid global master admin username or password")
                     msg = "Invalid login"
+
+            else:
+                if not workplace_id:
+                    msg = "Workplace ID is required."
+                else:
+                    if not DB_MIGRATION_MODE:
+                        try:
+                            sid = getattr(spreadsheet, "id", None)
+                            wid = getattr(employees_sheet, "id", None)
+                            if sid and wid:
+                                _cache_invalidate_prefix((sid, wid))
+                        except Exception:
+                            pass
+
+                    ok_user = None
+                    matched_username = username
+                    for candidate_username in login_usernames:
+                        ok_user = _find_employee_record(candidate_username, workplace_id)
+                        if ok_user:
+                            matched_username = candidate_username
+                            break
+
+                    if ok_user and is_password_valid(ok_user.get("Password", ""), password):
+                        active_raw = str(ok_user.get("Active", "") or "").strip().lower()
+                        is_active = active_raw not in ("false", "0", "no", "n", "off")
+
+                        if not is_active:
+                            _login_rate_limit_hit(ip)
+                            log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="",
+                                      details="Inactive account login attempt")
+                            msg = "Invalid login"
+                        else:
+                            _login_rate_limit_clear(ip)
+
+                            migrate_password_if_plain(
+                                matched_username,
+                                ok_user.get("Password", ""),
+                                password,
+                                workplace_id=workplace_id,
+                            )
+                            active_session_token = _issue_active_session_token(matched_username, workplace_id)
+                            if not active_session_token:
+                                log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_username, date_str="",
+                                          details=f"Could not start active session workplace={workplace_id}")
+                                msg = "Could not start secure session. Please try again."
+                            else:
+                                session.clear()
+                                session["csrf"] = csrf
+                                session["username"] = matched_username
+                                session["workplace_id"] = workplace_id
+                                session["role"] = (ok_user.get("Role", "employee") or "employee").strip().lower()
+                                session["rate"] = safe_float(ok_user.get("Rate", 0), 0.0)
+                                session["early_access"] = parse_bool(ok_user.get("EarlyAccess", False))
+                                session.pop("auth_scope", None)
+                                session["active_session_token"] = active_session_token
+                                return redirect(url_for("home"))
+                    else:
+                        _login_rate_limit_hit(ip)
+                        log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
+                                  details="Invalid username or password")
+                        msg = "Invalid login"
 
     try:
         company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
