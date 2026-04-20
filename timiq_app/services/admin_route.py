@@ -34,6 +34,7 @@ def admin_impl(core):
     layout_shell = core["layout_shell"]
     render_template_string = core["render_template_string"]
     _icon_clock_selfies = core["_icon_clock_selfies"]
+    _icon_work_progress = core["_icon_work_progress"]
 
     gate = require_admin()
     if gate:
@@ -336,7 +337,7 @@ def admin_impl(core):
 
 <a class="adminToolCard progress" href="/admin/work-progress">
   <div class="adminToolTop">
-    <div class="adminToolIcon">{_icon_payroll_report(45)}</div>
+    <div class="adminToolIcon">{_icon_work_progress(45)}</div>
     <div class="chev">›</div>
   </div>
   <div class="adminToolTitle">Work Progress</div>

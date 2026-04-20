@@ -95,6 +95,19 @@ def _icon_clock_selfies(size=45):
     </svg>
     """
 
+def _icon_work_progress(size=45):
+    return f"""
+    <svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 48 48" fill="none" aria-hidden="true">
+      <rect x="7" y="8" width="34" height="32" rx="4" fill="currentColor" fill-opacity=".08" stroke="currentColor" stroke-width="1.6"/>
+      <path d="M15 31L21 25L26 29L33 20" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="15" cy="31" r="2.1" fill="currentColor"/>
+      <circle cx="21" cy="25" r="2.1" fill="currentColor"/>
+      <circle cx="26" cy="29" r="2.1" fill="currentColor"/>
+      <circle cx="33" cy="20" r="2.1" fill="currentColor"/>
+      <path d="M15 15H33" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" opacity=".55"/>
+    </svg>
+    """
+
 def _icon_starter_form(size=22): return _app_icon("starter_form.png", size, "Starter Form")
 
 
