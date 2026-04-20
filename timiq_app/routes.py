@@ -639,6 +639,7 @@ from .services.admin_payroll_report_csv_route import admin_payroll_report_csv_im
 from .services.admin_locations_save_route import admin_locations_save_impl
 from .services.admin_locations_deactivate_route import admin_locations_deactivate_impl
 from .services.admin_clock_selfies_route import admin_clock_selfies_impl
+from .services.work_progress_route import work_progress_impl
 
 
 @routes.post("/import-locations")
@@ -1057,6 +1058,187 @@ CLOCK_SELFIE_BASE_DIR = os.environ.get(
 
 CLOCK_SELFIE_DIR = os.path.join(CLOCK_SELFIE_BASE_DIR, "clock_selfies")
 _ALLOWED_CLOCK_SELFIE_MIMES = {"image/jpeg", "image/png", "image/webp"}
+
+WORK_PROGRESS_BASE_DIR = os.path.join(CLOCK_SELFIE_BASE_DIR, "work_progress")
+WORK_PROGRESS_INDEX_PATH = os.path.join(WORK_PROGRESS_BASE_DIR, "_index.json")
+WORK_PROGRESS_MAX_BYTES = int(os.environ.get("WORK_PROGRESS_MAX_BYTES", str(8 * 1024 * 1024)) or str(8 * 1024 * 1024))
+_ALLOWED_WORK_PROGRESS_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
+_ALLOWED_WORK_PROGRESS_MIMES = {"image/jpeg", "image/png", "image/webp", "application/octet-stream"}
+
+
+def _ensure_work_progress_storage():
+    os.makedirs(WORK_PROGRESS_BASE_DIR, exist_ok=True)
+
+
+def _work_progress_folder_name(value: str) -> str:
+    return secure_filename(str(value or "").strip()) or "default"
+
+
+def _work_progress_safe_text(value: str, limit: int = 200) -> str:
+    return str(value or "").strip()[:limit]
+
+
+def _normalize_work_progress_date(value: str) -> tuple[str, str]:
+    raw = (value or "").strip()
+    try:
+        d = datetime.strptime(raw, "%Y-%m-%d").date()
+    except Exception:
+        d = datetime.now(TZ).date()
+    return d.isoformat(), d.strftime("%Y-%m")
+
+
+def _progress_sites_for_current_workplace() -> list[str]:
+    sites = []
+    seen = set()
+
+    for rec in (_get_active_locations() or []):
+        name = str(
+            rec.get("SiteName")
+            or rec.get("site_name")
+            or rec.get("name")
+            or rec.get("site")
+            or ""
+        ).strip()
+
+        if not name:
+            continue
+
+        low = name.lower()
+        if low in seen:
+            continue
+
+        seen.add(low)
+        sites.append(name)
+
+    return sorted(sites, key=str.lower)
+
+
+def _load_work_progress_index() -> list[dict]:
+    _ensure_work_progress_storage()
+
+    if not os.path.exists(WORK_PROGRESS_INDEX_PATH):
+        return []
+
+    try:
+        with open(WORK_PROGRESS_INDEX_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        return data if isinstance(data, list) else []
+    except Exception:
+        return []
+
+
+def _save_work_progress_index(entries: list[dict]):
+    _ensure_work_progress_storage()
+
+    tmp_path = WORK_PROGRESS_INDEX_PATH + ".tmp"
+    with open(tmp_path, "w", encoding="utf-8") as fh:
+        json.dump(entries, fh, ensure_ascii=False, indent=2)
+
+    os.replace(tmp_path, WORK_PROGRESS_INDEX_PATH)
+
+
+def _resolve_work_progress_file_path(relpath: str, enforce_workplace: bool = True) -> str | None:
+    raw = str(relpath or "").replace("\\", "/").strip().lstrip("/")
+    if not raw:
+        return None
+
+    normalized = os.path.normpath(raw).replace("\\", "/")
+    if normalized.startswith("../") or normalized == "..":
+        return None
+
+    parts = [p for p in normalized.split("/") if p not in ("", ".")]
+    if len(parts) < 3:
+        return None
+
+    if enforce_workplace and session.get("role") != "master_admin":
+        expected_wp = _work_progress_folder_name(_session_workplace_id())
+        if parts[0] != expected_wp:
+            return None
+
+    base_path = os.path.abspath(WORK_PROGRESS_BASE_DIR)
+    full_path = os.path.abspath(os.path.join(base_path, *parts))
+
+    if not full_path.startswith(base_path + os.sep):
+        return None
+
+    return full_path
+
+
+def _store_work_progress_upload(file_storage, username: str, site: str, note: str, tag: str, shot_date: str) -> dict:
+    wp = _session_workplace_id()
+    wp_folder = _work_progress_folder_name(wp)
+
+    site_clean = _work_progress_safe_text(site, 80)
+    note_clean = _work_progress_safe_text(note, 500)
+    tag_clean = _work_progress_safe_text(tag, 50)
+    shot_date_clean, month_key = _normalize_work_progress_date(shot_date)
+
+    file_bytes, detected_mime, safe_name = validate_upload_file(
+        file_storage,
+        WORK_PROGRESS_MAX_BYTES,
+        _ALLOWED_WORK_PROGRESS_EXTS,
+        _ALLOWED_WORK_PROGRESS_MIMES,
+    )
+
+    month_folder = _work_progress_folder_name(month_key)
+    final_name = f"{secrets.token_hex(8)}_{secure_filename(safe_name or 'progress.jpg')}"
+    relpath = f"{wp_folder}/{month_folder}/{final_name}"
+
+    full_dir = os.path.join(WORK_PROGRESS_BASE_DIR, wp_folder, month_folder)
+    os.makedirs(full_dir, exist_ok=True)
+
+    full_path = os.path.join(full_dir, final_name)
+    with open(full_path, "wb") as fh:
+        fh.write(file_bytes)
+
+    entries = _load_work_progress_index()
+
+    record = {
+        "id": secrets.token_hex(12),
+        "workplace_id": wp,
+        "site": site_clean,
+        "date": shot_date_clean,
+        "username": str(username or "").strip(),
+        "note": note_clean,
+        "tag": tag_clean,
+        "relpath": relpath,
+        "mime_type": detected_mime,
+        "created_at": datetime.now(TZ).isoformat(timespec="seconds"),
+    }
+
+    entries.append(record)
+    _save_work_progress_index(entries)
+
+    return record
+
+
+def _list_work_progress_items_for_session() -> list[dict]:
+    current_wp = _session_workplace_id()
+    expected_wp = _work_progress_folder_name(current_wp)
+
+    items = []
+    for item in _load_work_progress_index():
+        item_wp = _work_progress_folder_name(item.get("workplace_id", "default"))
+        if item_wp != expected_wp:
+            continue
+
+        relpath = str(item.get("relpath") or "").strip()
+        full_path = _resolve_work_progress_file_path(relpath, enforce_workplace=False)
+        if not full_path or not os.path.exists(full_path):
+            continue
+
+        row = dict(item)
+        row["file_url"] = url_for("view_work_progress_file", relpath=relpath)
+        items.append(row)
+
+    items.sort(
+        key=lambda x: (
+            str(x.get("date", "")),
+            str(x.get("created_at", "")),
+        ),
+        reverse=True,
+    )
+    return items
 
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
@@ -1533,6 +1715,35 @@ def view_clock_selfie(filename):
                                                                                                          "application/octet-stream")
     return send_file(full_path, mimetype=mime)
 
+@routes.route("/work-progress", methods=["GET", "POST"])
+def work_progress():
+    return work_progress_impl(core=globals())
+
+
+@routes.route("/admin/work-progress", methods=["GET", "POST"])
+def admin_work_progress():
+    return work_progress_impl(core=globals())
+
+
+@routes.get("/work-progress-file/<path:relpath>")
+def view_work_progress_file(relpath):
+    gate = require_login()
+    if gate:
+        return gate
+
+    full_path = _resolve_work_progress_file_path(relpath, enforce_workplace=True)
+    if not full_path or not os.path.exists(full_path):
+        abort(404)
+
+    ext = os.path.splitext(full_path)[1].lower()
+    mime = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }.get(ext, "application/octet-stream")
+
+    return send_file(full_path, mimetype=mime)
 
 # ================= CONSTANTS =================
 COL_USER = 0
@@ -3831,6 +4042,7 @@ def sidebar_html(active: str, role: str) -> str:
         ("times", "/my-times", "Time logs", _icon_timelogs(28)),
         ("reports", "/my-reports", "Timesheets", _icon_timesheets(28)),
         ("payments", "/payments", "Payments", _icon_payments(28)),
+        ("work-progress", "/work-progress", "Work Progress", _icon_payroll_report(45)),
     ]
 
     if role in ("admin", "master_admin"):

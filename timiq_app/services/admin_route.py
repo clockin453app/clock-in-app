@@ -326,15 +326,24 @@ def admin_impl(core):
           </a>
           
           <a class="adminToolCard selfies" href="/admin/clock-selfies">
-            <div class="adminToolTop">
-              <div class="adminToolIcon">{_icon_clock_selfies(45)}</div>
-              <div class="chev">›</div>
-             </div>
-            <div class="adminToolTitle">Clock Selfies</div>
-            <div class="adminToolSub">View employee clock-in and clock-out photos for this workplace.</div>
-          </a>
+  <div class="adminToolTop">
+    <div class="adminToolIcon">{_icon_clock_selfies(45)}</div>
+    <div class="chev">›</div>
+   </div>
+  <div class="adminToolTitle">Clock Selfies</div>
+  <div class="adminToolSub">View employee clock-in and clock-out photos for this workplace.</div>
+</a>
 
-          <a class="adminToolCard employees" href="/admin/employees">
+<a class="adminToolCard progress" href="/admin/work-progress">
+  <div class="adminToolTop">
+    <div class="adminToolIcon">{_icon_payroll_report(45)}</div>
+    <div class="chev">›</div>
+  </div>
+  <div class="adminToolTitle">Work Progress</div>
+  <div class="adminToolSub">Upload and review site progress photos for this workplace.</div>
+</a>
+
+<a class="adminToolCard employees" href="/admin/employees">
             <div class="adminToolTop">
               <div class="adminToolIcon">{_icon_employees(45)}</div>
               <div class="chev">›</div>
