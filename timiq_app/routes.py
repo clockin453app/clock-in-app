@@ -1226,14 +1226,17 @@ def _upload_local_clock_selfie_to_archive(local_file_path: str, workplace_id: st
     return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
 
 
-def _archive_old_clock_selfies(days: int = 90) -> dict:
+def _archive_old_clock_selfies(days: int = 90, workplace_scope: str = "session") -> dict:
     import copy
 
     days = max(1, int(days or 90))
     cutoff_date = datetime.now(TZ).date() - timedelta(days=days)
 
-    current_wp = _session_workplace_id()
-    allowed_wps = set(_workplace_ids_for_read(current_wp))
+    if workplace_scope == "all":
+        allowed_wps = None
+    else:
+        current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
 
     archived_files = 0
     updated_rows = 0
@@ -1274,7 +1277,7 @@ def _archive_old_clock_selfies(days: int = 90) -> dict:
                 getattr(rec, "workplace_id", "") or getattr(rec, "workplace", "") or "default"
             ).strip() or "default"
 
-            if row_wp not in allowed_wps:
+            if allowed_wps is not None and row_wp not in allowed_wps:
                 continue
 
             row_changed = False
@@ -1346,7 +1349,7 @@ def _archive_old_clock_selfies(days: int = 90) -> dict:
                     continue
 
                 row_wp = ((r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip() or "default")
-                if row_wp not in allowed_wps:
+                if allowed_wps is not None and row_wp not in allowed_wps:
                     continue
 
                 month_key = row_date.strftime("%Y-%m")
@@ -1417,8 +1420,54 @@ def _validate_clock_selfie_data(selfie_data_url: str):
         detect_upload_kind_func=detect_upload_kind,
     )
 
+def _maybe_run_auto_clock_selfie_archive():
+    try:
+        enabled = str(os.environ.get("CLOCK_SELFIE_AUTO_ARCHIVE_ENABLED", "true") or "true").strip().lower()
+        if enabled not in ("1", "true", "yes", "on"):
+            return
+    except Exception:
+        return
+
+    try:
+        days = int(os.environ.get("CLOCK_SELFIE_ARCHIVE_DAYS", "90") or "90")
+    except Exception:
+        days = 90
+
+    try:
+        interval_s = int(os.environ.get("CLOCK_SELFIE_AUTO_ARCHIVE_INTERVAL_S", "86400") or "86400")
+    except Exception:
+        interval_s = 86400
+
+    try:
+        os.makedirs(CLOCK_SELFIE_DIR, exist_ok=True)
+    except Exception:
+        return
+
+    marker_path = os.path.join(CLOCK_SELFIE_DIR, ".auto_archive_marker")
+    now_ts = time.time()
+
+    try:
+        if os.path.exists(marker_path):
+            last_run = os.path.getmtime(marker_path)
+            if (now_ts - last_run) < interval_s:
+                return
+    except Exception:
+        pass
+
+    try:
+        _archive_old_clock_selfies(days=days, workplace_scope="all")
+    except Exception:
+        return
+
+    try:
+        with open(marker_path, "w", encoding="utf-8") as fh:
+            fh.write(str(int(now_ts)))
+    except Exception:
+        pass
+
+
 def _store_clock_selfie(selfie_data_url: str, username: str, action: str, now_dt: datetime) -> str:
-    return store_clock_selfie_impl(
+    selfie_url = store_clock_selfie_impl(
         selfie_data_url=selfie_data_url,
         username=username,
         action=action,
@@ -1428,6 +1477,13 @@ def _store_clock_selfie(selfie_data_url: str, username: str, action: str, now_dt
         save_clock_selfie_locally_func=_save_clock_selfie_locally,
         secure_filename_func=secure_filename,
     )
+
+    try:
+        _maybe_run_auto_clock_selfie_archive()
+    except Exception:
+        pass
+
+    return selfie_url
 
 @routes.get("/admin/clock-selfies")
 def admin_clock_selfies():
