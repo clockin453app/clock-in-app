@@ -16,12 +16,18 @@ def admin_clock_selfies_impl(core):
     layout_shell = core["layout_shell"]
     escape = core["escape"]
     admin_back_link = core["admin_back_link"]
+    _clock_selfie_archive_settings = core["_clock_selfie_archive_settings"]
 
     gate = require_admin()
     if gate:
         return gate
 
     csrf = get_csrf()
+    archive_cfg = _clock_selfie_archive_settings()
+    archive_enabled = bool(archive_cfg.get("enabled"))
+    archive_days = int(archive_cfg.get("days") or 90)
+    archive_interval_s = int(archive_cfg.get("interval_s") or 86400)
+    archive_interval_h = round(archive_interval_s / 3600.0, 2)
     archived_msg = ""
     archived = (request.args.get("archived") or "").strip()
     updated = (request.args.get("updated") or "").strip()
@@ -257,11 +263,23 @@ def admin_clock_selfies_impl(core):
     <button class="btnSoft" type="submit">Apply</button>
   </form>
 
+    <div class="card" style="padding:12px; margin-top:12px; border:1px solid rgba(15,23,42,.08);">
+    <div style="font-weight:700;">Auto archive settings</div>
+    <div class="sub" style="margin-top:6px;">
+      Enabled: <b>{'Yes' if archive_enabled else 'No'}</b> •
+      Days: <b>{archive_days}</b> •
+      Interval: <b>{archive_interval_s}s</b> ({archive_interval_h}h)
+    </div>
+    <div class="sub" style="margin-top:8px;">
+      These values are read from environment variables only. They archive selfie image files only, not hours, pay, payroll, or time-log data.
+    </div>
+  </div>
+
   <form method="POST" action="/admin/archive-clock-selfies" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
     <input type="hidden" name="csrf" value="{escape(csrf)}">
     <div>
       <label class="sub">Archive older than days</label>
-      <input class="input" type="number" min="1" step="1" name="days" value="90">
+      <input class="input" type="number" min="1" step="1" name="days" value="{archive_days}">
     </div>
     <button class="btnSoft" type="submit">Archive old selfies to Drive</button>
   </form>

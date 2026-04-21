@@ -1632,23 +1632,40 @@ def _validate_clock_selfie_data(selfie_data_url: str):
         detect_upload_kind_func=detect_upload_kind,
     )
 
-def _maybe_run_auto_clock_selfie_archive():
-    try:
-        enabled = str(os.environ.get("CLOCK_SELFIE_AUTO_ARCHIVE_ENABLED", "true") or "true").strip().lower()
-        if enabled not in ("1", "true", "yes", "on"):
-            return
-    except Exception:
-        return
+def _clock_selfie_archive_settings() -> dict:
+    enabled_raw = str(os.environ.get("CLOCK_SELFIE_AUTO_ARCHIVE_ENABLED", "true") or "true").strip().lower()
+    enabled = enabled_raw in ("1", "true", "yes", "on")
 
     try:
         days = int(os.environ.get("CLOCK_SELFIE_ARCHIVE_DAYS", "90") or "90")
     except Exception:
         days = 90
+    days = max(1, days)
 
     try:
         interval_s = int(os.environ.get("CLOCK_SELFIE_AUTO_ARCHIVE_INTERVAL_S", "86400") or "86400")
     except Exception:
         interval_s = 86400
+    interval_s = max(60, interval_s)
+
+    return {
+        "enabled": enabled,
+        "days": days,
+        "interval_s": interval_s,
+    }
+
+
+def _maybe_run_auto_clock_selfie_archive():
+    try:
+        cfg = _clock_selfie_archive_settings()
+    except Exception:
+        return
+
+    if not cfg.get("enabled"):
+        return
+
+    days = int(cfg.get("days") or 90)
+    interval_s = int(cfg.get("interval_s") or 86400)
 
     try:
         os.makedirs(CLOCK_SELFIE_DIR, exist_ok=True)
@@ -1710,12 +1727,17 @@ def admin_archive_clock_selfies():
 
     require_csrf()
 
-    try:
-        days = int((request.form.get("days") or "90").strip() or "90")
-    except Exception:
-        days = 90
+    defaults = _clock_selfie_archive_settings()
+    default_days = int(defaults.get("days") or 90)
 
-    result = _archive_old_clock_selfies(days=days)
+    try:
+        days = int((request.form.get("days") or str(default_days)).strip() or str(default_days))
+    except Exception:
+        days = default_days
+
+    days = max(1, days)
+
+    result = _archive_old_clock_selfies(days=days, workplace_scope="session")
 
     archived = int(result.get("archived_files", 0) or 0)
     updated = int(result.get("updated_rows", 0) or 0)
