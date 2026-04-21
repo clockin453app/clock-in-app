@@ -319,69 +319,49 @@ def work_progress_impl(core):
 
     cards = []
     for item in filtered:
-        item_id = escape(str(item.get("id", "")))
-        item_site = escape(str(item.get("site", "")))
-        item_date = escape(str(item.get("date", "")))
-        item_user = escape(str(item.get("username", "")))
-        item_tag = escape(str(item.get("tag", "")))
-        item_note = escape(str(item.get("note", "")))
+        item_id_raw = str(item.get("id", ""))
+        item_site_raw = str(item.get("site", ""))
+        item_date_raw = str(item.get("date", ""))
+        item_user_raw = str(item.get("username", ""))
+        item_tag_raw = str(item.get("tag", ""))
+        item_note_raw = str(item.get("note", ""))
+
+        item_id = escape(item_id_raw)
+        item_site = escape(item_site_raw)
+        item_date = escape(item_date_raw)
+        item_user = escape(item_user_raw)
+        item_tag = escape(item_tag_raw)
+        item_note = escape(item_note_raw)
+        item_note_attr = escape(item_note_raw).replace("\n", "&#10;")
         item_url = escape(item["file_url"])
 
         note_html = f'<div class="progressNote">{item_note}</div>' if item.get("note") else ""
         tag_html = f'<span class="chip">{item_tag}</span>' if item.get("tag") else ""
 
         select_html = ""
-        admin_tools_html = ""
+        edit_button_html = ""
         if is_admin:
             select_html = f"""
-                <label class="progressSelectBox">
-                  <input type="checkbox" class="progressBulkCheck" value="{item_id}">
-                  <span>Select</span>
-                </label>
-            """
+                        <label class="progressSelectBox">
+                          <input type="checkbox" class="progressBulkCheck" value="{item_id}">
+                          <span>Select</span>
+                        </label>
+                    """
 
-            admin_tools_html = f"""
-                <details class="progressAdminTools">
-                  <summary>Edit</summary>
-
-                  <form method="POST" class="progressAdminFormCompact" style="margin-top:8px;">
-                    <input type="hidden" name="csrf" value="{escape(csrf)}">
-                    <input type="hidden" name="item_id" value="{item_id}">
-
-                    <div class="progressAdminGrid">
-                      <div>
-                        <label class="sub">Site</label>
-                        <select class="input compactInput" name="edit_site" required>
-                          {render_site_select_options(item.get("site", ""))}
-                        </select>
-                      </div>
-
-                      <div>
-                        <label class="sub">Date</label>
-                        <input class="input compactInput" type="date" name="edit_date" value="{item_date}" required>
-                      </div>
-
-                      <div class="progressAdminFull">
-                        <label class="sub">Tag</label>
-                        <input class="input compactInput" type="text" name="edit_tag" value="{item_tag}">
-                      </div>
-
-                      <div class="progressAdminFull">
-                        <label class="sub">Note</label>
-                        <textarea class="input compactInput" name="edit_note" rows="2">{item_note}</textarea>
-                      </div>
-                    </div>
-
-                    <div class="progressAdminButtons">
-                      <button class="btnTiny" type="submit" name="action" value="edit">Save</button>
-                      <button class="btnTiny" type="submit" name="action" value="delete" onclick="return confirm('Delete this photo?');">Delete</button>
-                    </div>
-                  </form>
-                </details>
-            """
+            edit_button_html = f"""
+                        <button
+                          type="button"
+                          class="btnTiny progressEditTrigger"
+                          data-item-id="{item_id}"
+                          data-site="{item_site}"
+                          data-date="{item_date}"
+                          data-tag="{item_tag}"
+                          data-note="{item_note_attr}"
+                        >Edit</button>
+                    """
 
         cards.append(f"""
-                        <div class="progressCard">
+            <div class="progressCard">
               {select_html}
               <a href="{item_url}" target="_blank" rel="noopener noreferrer" class="progressThumbLink">
                 <img src="{item_url}" alt="Progress photo" class="progressThumb">
@@ -394,8 +374,8 @@ def work_progress_impl(core):
                 {note_html}
                 <div class="progressActions">
                   <a class="btnTiny" href="{item_url}" target="_blank" rel="noopener noreferrer">Open</a>
+                  {edit_button_html}
                 </div>
-                {admin_tools_html}
               </div>
             </div>
         """)
@@ -417,29 +397,32 @@ def work_progress_impl(core):
         }}
 
         .progressGrid {{
-          display:grid;
-          grid-template-columns:repeat(auto-fill,minmax(170px,170px));
-          gap:12px;
-          align-items:start;
-        }}
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+  gap:14px;
+  align-items:stretch;
+}}
 
         .progressCard {{
-          background:#fff;
-          border:1px solid rgba(15,23,42,.08);
-          box-shadow:0 6px 14px rgba(15,23,42,.05);
-          overflow:hidden;
-          padding:8px;
-        }}
+  background:#fff;
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:0 6px 14px rgba(15,23,42,.05);
+  overflow:hidden;
+  padding:10px;
+  display:flex;
+  flex-direction:column;
+  min-height:100%;
+}}
 
         .progressThumb {{
-          width:100%;
-          aspect-ratio:1 / 1;
-          height:auto;
-          object-fit:cover;
-          display:block;
-          background:#f8fafc;
-          border:1px solid rgba(15,23,42,.08);
-        }}
+  width:100%;
+  aspect-ratio:4 / 3;
+  height:auto;
+  object-fit:cover;
+  display:block;
+  background:#f8fafc;
+  border:1px solid rgba(15,23,42,.08);
+}}
 
         .progressThumbLink {{
           display:block;
@@ -447,8 +430,12 @@ def work_progress_impl(core):
         }}
 
         .progressMeta {{
-          padding-top:8px;
-        }}
+  padding-top:8px;
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  flex:1;
+}}
 
         .progressSite {{
           font-weight:700;
@@ -465,20 +452,22 @@ def work_progress_impl(core):
         }}
 
         .progressNote {{
-          margin-top:6px;
-          font-size:12px;
-          color:#334155;
-          line-height:1.35;
-          max-height:48px;
-          overflow:hidden;
-        }}
+  margin-top:6px;
+  font-size:12px;
+  color:#334155;
+  line-height:1.35;
+  min-height:32px;
+  max-height:32px;
+  overflow:hidden;
+}}
 
         .progressActions {{
-          margin-top:8px;
-          display:flex;
-          gap:6px;
-          flex-wrap:wrap;
-        }}
+  margin-top:auto;
+  padding-top:8px;
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}}
 
         .chip {{
           display:inline-flex;
@@ -513,6 +502,34 @@ def work_progress_impl(core):
   border:1px solid rgba(15,23,42,.08);
   background:#f8fafc;
 }}
+
+.progressEditorCard {{
+  border:1px solid rgba(15,23,42,.08);
+}}
+
+.progressEditorHeader {{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}}
+
+.progressEditorGrid {{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}}
+
+.progressEditorFull {{
+  grid-column:1 / -1;
+}}
+
+.progressEditorActions {{
+  display:flex;
+  gap:8px;
+  margin-top:10px;
+}}
+
 
 .progressBulkSelectAll {{
   display:flex;
@@ -579,11 +596,15 @@ def work_progress_impl(core):
 
         @media (max-width: 640px) {{
   .progressGrid {{
-    grid-template-columns:repeat(auto-fill,minmax(140px,140px));
+    grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:10px;
   }}
 
-  .progressAdminGrid {{
+  .progressBulkBar {{
+    grid-template-columns:1fr 1fr;
+  }}
+
+  .progressEditorGrid {{
     grid-template-columns:1fr;
   }}
 }}
@@ -691,6 +712,50 @@ def work_progress_impl(core):
 
           <div id="progressBulkHiddenInputs"></div>
         </form>
+        '''}
+        
+                {""
+        if not is_admin else f'''
+        <div class="card progressEditorCard" id="progressEditorCard" style="display:none; padding:12px; margin-top:12px;">
+          <div class="progressEditorHeader">
+            <div style="font-weight:700;">Edit photo</div>
+            <button type="button" class="btnTiny" id="progressEditorClose">Close</button>
+          </div>
+
+          <form method="POST" class="progressEditorForm" style="margin-top:10px;">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <input type="hidden" name="action" value="edit">
+            <input type="hidden" name="item_id" id="progressEditorItemId">
+
+            <div class="progressEditorGrid">
+              <div>
+                <label class="sub">Site</label>
+                <select class="input" name="edit_site" id="progressEditorSite" required>
+                  {upload_site_options}
+                </select>
+              </div>
+
+              <div>
+                <label class="sub">Date</label>
+                <input class="input" type="date" name="edit_date" id="progressEditorDate" required>
+              </div>
+
+              <div class="progressEditorFull">
+                <label class="sub">Tag</label>
+                <input class="input" type="text" name="edit_tag" id="progressEditorTag">
+              </div>
+
+              <div class="progressEditorFull">
+                <label class="sub">Note</label>
+                <textarea class="input" name="edit_note" id="progressEditorNote" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div class="progressEditorActions">
+              <button class="btnTiny" type="submit">Save</button>
+            </div>
+          </form>
+        </div>
         '''}
         
 
@@ -810,6 +875,37 @@ def work_progress_impl(core):
               hiddenWrap.appendChild(input);
             }});
           }});
+        }})();
+        
+                (function() {{
+          const editorCard = document.getElementById("progressEditorCard");
+          if (!editorCard) return;
+
+          const closeBtn = document.getElementById("progressEditorClose");
+          const itemIdEl = document.getElementById("progressEditorItemId");
+          const siteEl = document.getElementById("progressEditorSite");
+          const dateEl = document.getElementById("progressEditorDate");
+          const tagEl = document.getElementById("progressEditorTag");
+          const noteEl = document.getElementById("progressEditorNote");
+
+          document.querySelectorAll(".progressEditTrigger").forEach(function(btn) {{
+            btn.addEventListener("click", function() {{
+              itemIdEl.value = btn.dataset.itemId || "";
+              siteEl.value = btn.dataset.site || "";
+              dateEl.value = btn.dataset.date || "";
+              tagEl.value = btn.dataset.tag || "";
+              noteEl.value = btn.dataset.note || "";
+
+              editorCard.style.display = "block";
+              editorCard.scrollIntoView({{ behavior: "smooth", block: "start" }});
+            }});
+          }});
+
+          if (closeBtn) {{
+            closeBtn.addEventListener("click", function() {{
+              editorCard.style.display = "none";
+            }});
+          }}
         }})();
       </script>
         
