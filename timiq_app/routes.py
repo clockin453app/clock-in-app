@@ -28,9 +28,9 @@ except Exception:
 
 from flask import jsonify
 from flask import request, session, redirect, url_for, render_template_string, abort, make_response, send_file
-from datetime import datetime, time as dtime
+from datetime import datetime, time as dtime, date, timedelta
 from zoneinfo import ZoneInfo
-from datetime import date
+
 
 try:
     from googleapiclient.discovery import build
@@ -642,6 +642,11 @@ from .services.admin_locations_deactivate_route import admin_locations_deactivat
 from .services.admin_clock_selfies_route import admin_clock_selfies_impl
 from .services.work_progress_route import work_progress_impl
 from .services.auth_runtime import build_auth_runtime
+try:
+    from PIL import Image, ImageOps
+except Exception:
+    Image = None
+    ImageOps = None
 
 
 @routes.post("/import-locations")
@@ -1094,7 +1099,20 @@ WORK_PROGRESS_INDEX_PATH = os.path.join(WORK_PROGRESS_BASE_DIR, "_index.json")
 WORK_PROGRESS_MAX_BYTES = int(os.environ.get("WORK_PROGRESS_MAX_BYTES", str(8 * 1024 * 1024)) or str(8 * 1024 * 1024))
 _ALLOWED_WORK_PROGRESS_EXTS = {".jpg", ".jpeg", ".png", ".webp"}
 _ALLOWED_WORK_PROGRESS_MIMES = {"image/jpeg", "image/png", "image/webp", "application/octet-stream"}
+WORK_PROGRESS_IMAGE_MAX_DIM = int(os.environ.get("WORK_PROGRESS_IMAGE_MAX_DIM", "1600") or "1600")
+WORK_PROGRESS_IMAGE_QUALITY = int(os.environ.get("WORK_PROGRESS_IMAGE_QUALITY", "82") or "82")
 
+WORK_PROGRESS_AUTO_ARCHIVE_ENABLED = str(
+    os.environ.get("WORK_PROGRESS_AUTO_ARCHIVE_ENABLED", "false") or "false"
+).strip().lower() in ("1", "true", "yes", "on")
+
+WORK_PROGRESS_ARCHIVE_DAYS = int(
+    os.environ.get("WORK_PROGRESS_ARCHIVE_DAYS", "30") or "30"
+)
+
+WORK_PROGRESS_AUTO_ARCHIVE_INTERVAL_S = int(
+    os.environ.get("WORK_PROGRESS_AUTO_ARCHIVE_INTERVAL_S", "86400") or "86400"
+)
 
 def _ensure_work_progress_storage():
     os.makedirs(WORK_PROGRESS_BASE_DIR, exist_ok=True)
@@ -1193,6 +1211,47 @@ def _resolve_work_progress_file_path(relpath: str, enforce_workplace: bool = Tru
 
     return full_path
 
+def _optimize_work_progress_image(file_bytes: bytes, detected_mime: str, safe_name: str) -> tuple[bytes, str, str]:
+    if Image is None or ImageOps is None:
+        return file_bytes, detected_mime, safe_name
+
+    try:
+        with Image.open(io.BytesIO(file_bytes)) as img:
+            img = ImageOps.exif_transpose(img)
+
+            if img.mode not in ("RGB", "L"):
+                alpha = None
+                if "A" in img.getbands():
+                    alpha = img.getchannel("A")
+                bg = Image.new("RGB", img.size, (255, 255, 255))
+                bg.paste(img.convert("RGBA"), mask=alpha)
+                img = bg
+            elif img.mode == "L":
+                img = img.convert("RGB")
+            else:
+                img = img.convert("RGB")
+
+            max_dim = max(400, int(WORK_PROGRESS_IMAGE_MAX_DIM or 1600))
+            resample_filter = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.BICUBIC)
+            img.thumbnail((max_dim, max_dim), resample_filter)
+
+            quality = max(55, min(95, int(WORK_PROGRESS_IMAGE_QUALITY or 82)))
+
+            out = io.BytesIO()
+            img.save(
+                out,
+                format="JPEG",
+                quality=quality,
+                optimize=True,
+                progressive=True,
+            )
+
+            base_name = os.path.splitext(secure_filename(safe_name or "progress.jpg"))[0] or "progress"
+            final_name = f"{base_name}.jpg"
+            return out.getvalue(), "image/jpeg", final_name
+    except Exception:
+        return file_bytes, detected_mime, safe_name
+
 
 def _store_work_progress_upload(file_storage, username: str, site: str, note: str, tag: str, shot_date: str) -> dict:
     wp = _session_workplace_id()
@@ -1203,11 +1262,17 @@ def _store_work_progress_upload(file_storage, username: str, site: str, note: st
     tag_clean = _work_progress_safe_text(tag, 50)
     shot_date_clean, month_key = _normalize_work_progress_date(shot_date)
 
-    file_bytes, detected_mime, safe_name = validate_upload_file(
+    original_bytes, detected_mime, safe_name = validate_upload_file(
         file_storage,
         WORK_PROGRESS_MAX_BYTES,
         _ALLOWED_WORK_PROGRESS_EXTS,
         _ALLOWED_WORK_PROGRESS_MIMES,
+    )
+
+    file_bytes, detected_mime, safe_name = _optimize_work_progress_image(
+        original_bytes,
+        detected_mime,
+        safe_name,
     )
 
     month_folder = _work_progress_folder_name(month_key)
@@ -1233,11 +1298,20 @@ def _store_work_progress_upload(file_storage, username: str, site: str, note: st
         "tag": tag_clean,
         "relpath": relpath,
         "mime_type": detected_mime,
+        "storage": "local",
+        "archive_url": "",
+        "original_bytes": len(original_bytes),
+        "stored_bytes": len(file_bytes),
         "created_at": datetime.now(TZ).isoformat(timespec="seconds"),
     }
 
     entries.append(record)
     _save_work_progress_index(entries)
+
+    try:
+        _maybe_run_auto_work_progress_archive()
+    except Exception:
+        pass
 
     return record
 
@@ -1250,6 +1324,15 @@ def _list_work_progress_items_for_session() -> list[dict]:
     for item in _load_work_progress_index():
         item_wp = _work_progress_folder_name(item.get("workplace_id", "default"))
         if item_wp != expected_wp:
+            continue
+
+        storage = str(item.get("storage") or "local").strip().lower()
+        archive_url = str(item.get("archive_url") or "").strip()
+
+        if storage == "drive" and archive_url:
+            row = dict(item)
+            row["file_url"] = archive_url
+            items.append(row)
             continue
 
         relpath = str(item.get("relpath") or "").strip()
@@ -1436,6 +1519,177 @@ def _upload_local_clock_selfie_to_archive(local_file_path: str, workplace_id: st
 
     file_id = created["id"]
     return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+def _get_work_progress_archive_drive_service():
+    drive_service = get_user_drive_service()
+    if not drive_service:
+        drive_service = get_service_account_drive_service()
+    if not drive_service:
+        raise RuntimeError("Drive archive is not available.")
+    return drive_service
+
+
+def _upload_local_work_progress_to_archive(local_file_path: str, workplace_id: str, month_key: str, site_name: str) -> str:
+    drive_service = _get_work_progress_archive_drive_service()
+
+    root_id = _drive_find_or_create_folder(drive_service, "Work Progress Archive")
+    wp_id = _drive_find_or_create_folder(drive_service, workplace_id, root_id)
+    month_id = _drive_find_or_create_folder(drive_service, month_key, wp_id)
+    site_id = _drive_find_or_create_folder(
+        drive_service,
+        _work_progress_folder_name(site_name or "site"),
+        month_id,
+    )
+
+    filename = os.path.basename(local_file_path)
+    ext = os.path.splitext(filename)[1].lower()
+    mime_type = {
+        ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg",
+        ".png": "image/png",
+        ".webp": "image/webp",
+    }.get(ext, "application/octet-stream")
+
+    with open(local_file_path, "rb") as fh:
+        media = MediaIoBaseUpload(io.BytesIO(fh.read()), mimetype=mime_type, resumable=False)
+
+    created = drive_service.files().create(
+        body={
+            "name": filename,
+            "parents": [site_id],
+        },
+        media_body=media,
+        fields="id,webViewLink",
+        supportsAllDrives=True,
+    ).execute()
+
+    file_id = created["id"]
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
+
+def _work_progress_archive_settings() -> dict:
+    return {
+        "enabled": bool(WORK_PROGRESS_AUTO_ARCHIVE_ENABLED),
+        "days": max(1, int(WORK_PROGRESS_ARCHIVE_DAYS or 30)),
+        "interval_s": max(60, int(WORK_PROGRESS_AUTO_ARCHIVE_INTERVAL_S or 86400)),
+    }
+
+
+def _archive_old_work_progress_files(days: int = 30, workplace_scope: str = "session") -> dict:
+    days = max(1, int(days or 30))
+    cutoff_date = datetime.now(TZ).date() - timedelta(days=days)
+
+    if workplace_scope == "all":
+        allowed_wps = None
+    else:
+        current_wp = _session_workplace_id()
+        allowed_wps = set(_workplace_ids_for_read(current_wp))
+
+    entries = _load_work_progress_index()
+    archived_files = 0
+    updated_rows = 0
+    errors = []
+    changed = False
+    files_to_delete = []
+
+    for idx, item in enumerate(entries):
+        row_wp = str(item.get("workplace_id") or "default").strip() or "default"
+        if allowed_wps is not None and row_wp not in allowed_wps:
+            continue
+
+        if str(item.get("storage") or "local").strip().lower() == "drive":
+            continue
+
+        date_txt = str(item.get("date") or "").strip()
+        try:
+            row_date = datetime.strptime(date_txt, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        if row_date >= cutoff_date:
+            continue
+
+        relpath = str(item.get("relpath") or "").strip()
+        full_path = _resolve_work_progress_file_path(relpath, enforce_workplace=False)
+        if not full_path or not os.path.exists(full_path):
+            continue
+
+        try:
+            archive_url = _upload_local_work_progress_to_archive(
+                full_path,
+                row_wp,
+                row_date.strftime("%Y-%m"),
+                str(item.get("site") or ""),
+            )
+
+            entries[idx]["archive_url"] = archive_url
+            entries[idx]["storage"] = "drive"
+            entries[idx]["archived_at"] = datetime.now(TZ).isoformat(timespec="seconds")
+            entries[idx]["local_relpath"] = relpath
+            entries[idx].pop("relpath", None)
+
+            files_to_delete.append(full_path)
+            archived_files += 1
+            updated_rows += 1
+            changed = True
+        except Exception as e:
+            errors.append(f"{relpath}:{e}")
+
+    if changed:
+        try:
+            _save_work_progress_index(entries)
+        except Exception as e:
+            return {
+                "archived_files": 0,
+                "updated_rows": 0,
+                "errors": [str(e)],
+            }
+
+    for local_path in files_to_delete:
+        try:
+            if os.path.exists(local_path):
+                os.remove(local_path)
+        except Exception as e:
+            errors.append(f"delete:{local_path}:{e}")
+
+    return {
+        "archived_files": archived_files,
+        "updated_rows": updated_rows,
+        "errors": errors,
+    }
+
+
+def _maybe_run_auto_work_progress_archive():
+    cfg = _work_progress_archive_settings()
+    if not cfg.get("enabled"):
+        return
+
+    marker_path = os.path.join(WORK_PROGRESS_BASE_DIR, ".auto_archive_marker")
+    now_ts = time.time()
+
+    try:
+        os.makedirs(WORK_PROGRESS_BASE_DIR, exist_ok=True)
+    except Exception:
+        return
+
+    try:
+        if os.path.exists(marker_path):
+            last_run = os.path.getmtime(marker_path)
+            if (now_ts - last_run) < int(cfg["interval_s"]):
+                return
+    except Exception:
+        pass
+
+    try:
+        _archive_old_work_progress_files(days=int(cfg["days"]), workplace_scope="all")
+    except Exception:
+        return
+
+    try:
+        with open(marker_path, "w", encoding="utf-8") as fh:
+            fh.write(str(int(now_ts)))
+    except Exception:
+        pass
 
 
 def _archive_old_clock_selfies(days: int = 90, workplace_scope: str = "session") -> dict:
@@ -1744,6 +1998,32 @@ def admin_archive_clock_selfies():
     errors = len(result.get("errors", []) or [])
 
     return redirect(f"/admin/clock-selfies?archived={archived}&updated={updated}&errors={errors}&days={days}")
+
+@routes.post("/admin/archive-work-progress")
+def admin_archive_work_progress():
+    gate = require_admin()
+    if gate:
+        return gate
+
+    require_csrf()
+
+    defaults = _work_progress_archive_settings()
+    default_days = int(defaults.get("days") or 30)
+
+    try:
+        days = int((request.form.get("days") or str(default_days)).strip() or str(default_days))
+    except Exception:
+        days = default_days
+
+    days = max(1, days)
+
+    result = _archive_old_work_progress_files(days=days, workplace_scope="session")
+
+    archived = int(result.get("archived_files", 0) or 0)
+    updated = int(result.get("updated_rows", 0) or 0)
+    errors = len(result.get("errors", []) or [])
+
+    return redirect(f"/admin/work-progress?archived={archived}&updated={updated}&errors={errors}&days={days}")
 
 @routes.get("/clock-selfie/<path:filename>")
 def view_clock_selfie(filename):

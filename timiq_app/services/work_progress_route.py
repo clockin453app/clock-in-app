@@ -55,6 +55,37 @@ def work_progress_impl(core):
             return entries, idx, entry
         return None, None, None
 
+    site_suggestions = _progress_sites_for_current_workplace()
+
+    valid_site_names = {
+        str(site_name).strip().lower(): str(site_name).strip()
+        for site_name in site_suggestions
+        if str(site_name).strip()
+    }
+
+    def normalize_selected_site(raw_value: str) -> str:
+        return valid_site_names.get(str(raw_value or "").strip().lower(), "")
+
+    def render_site_select_options(selected_value: str = "", include_all: bool = False) -> str:
+        selected_norm = normalize_selected_site(selected_value)
+        parts = []
+
+        if include_all:
+            parts.append(
+                f'<option value="" {"selected" if not selected_norm else ""}>All sites</option>'
+            )
+        else:
+            parts.append('<option value="">Choose site</option>')
+
+        for site_name in site_suggestions:
+            site_esc = escape(site_name)
+            sel = "selected" if selected_norm == site_name else ""
+            parts.append(f'<option value="{site_esc}" {sel}>{site_esc}</option>')
+
+        return "".join(parts)
+
+
+
     if request.method == "POST":
         require_csrf()
         is_ajax = (request.headers.get("X-Requested-With") or "").strip().lower() == "xmlhttprequest"
@@ -71,15 +102,18 @@ def work_progress_impl(core):
             edit_note = (request.form.get("edit_note") or "").strip()
 
             entries, idx, entry = find_entry(item_id)
+            normalized_edit_site = normalize_selected_site(edit_site)
+
             if idx is None:
                 msg = "Progress photo not found."
                 ok = False
-            elif not edit_site:
-                msg = "Site is required."
+            elif not normalized_edit_site:
+                msg = "Please choose a valid site from the dropdown."
                 ok = False
             else:
                 normalized_date, _ = _normalize_work_progress_date(edit_date)
-                entries[idx]["site"] = _work_progress_safe_text(edit_site, 80)
+                entries[idx]["site"] = _work_progress_safe_text(normalized_edit_site, 80)
+
                 entries[idx]["date"] = normalized_date
                 entries[idx]["tag"] = _work_progress_safe_text(edit_tag, 50)
                 entries[idx]["note"] = _work_progress_safe_text(edit_note, 500)
@@ -130,13 +164,18 @@ def work_progress_impl(core):
                 if f and getattr(f, "filename", "")
             ]
 
-            if not site:
-                msg = "Site is required."
+            normalized_site = normalize_selected_site(site)
+
+            if not normalized_site:
+                msg = "Please choose a valid site from the dropdown."
                 ok = False
             elif not photos:
                 msg = "Please choose at least one photo."
                 ok = False
             else:
+                site = normalized_site
+
+
                 uploaded_count = 0
                 failed = []
 
@@ -171,7 +210,7 @@ def work_progress_impl(core):
     tag_filter = (request.args.get("tag") or "").strip()
     user_filter = (request.args.get("user") or "").strip()
 
-    site_suggestions = _progress_sites_for_current_workplace()
+
     items = _list_work_progress_items_for_session()
 
     filtered = []
@@ -186,10 +225,9 @@ def work_progress_impl(core):
 
     filtered = filtered[:120]
 
-    site_options = "".join(
-        f'<option value="{escape(site_name)}"></option>'
-        for site_name in site_suggestions
-    )
+
+    upload_site_options = render_site_select_options()
+    filter_site_options = render_site_select_options(site_filter, include_all=True)
 
     cards = []
     for item in filtered:
@@ -216,7 +254,9 @@ def work_progress_impl(core):
                     <input type="hidden" name="item_id" value="{item_id}">
 
                     <label class="sub">Site</label>
-                    <input class="input" type="text" name="edit_site" value="{item_site}" required>
+                    <select class="input" name="edit_site" required>
+                      {render_site_select_options(item.get("site", ""))}
+                    </select>
 
                     <label class="sub" style="margin-top:8px;">Date</label>
                     <input class="input" type="date" name="edit_date" value="{item_date}" required>
@@ -402,10 +442,11 @@ def work_progress_impl(core):
           <input type="hidden" name="action" value="upload">
 
           <div class="progressFilters">
-            <div>
+                        <div>
               <label class="sub">Site</label>
-              <input class="input" name="site" list="workProgressSites" value="" placeholder="e.g. Kennington" required>
-              <datalist id="workProgressSites">{site_options}</datalist>
+              <select class="input" name="site" required>
+                {upload_site_options}
+              </select>
             </div>
 
             <div>
@@ -436,9 +477,11 @@ def work_progress_impl(core):
         <h2>Gallery</h2>
 
         <form method="GET" class="progressFilters" style="margin-top:12px;">
-          <div>
+                    <div>
             <label class="sub">Site</label>
-            <input class="input" name="site" list="workProgressSites" value="{escape(site_filter)}" placeholder="all sites">
+            <select class="input" name="site">
+              {filter_site_options}
+            </select>
           </div>
 
           <div>
@@ -476,7 +519,7 @@ def work_progress_impl(core):
             e.preventDefault();
 
             const csrf = form.querySelector('input[name="csrf"]').value;
-            const site = form.querySelector('input[name="site"]').value.trim();
+            const site = form.querySelector('select[name="site"]').value.trim();
             const shotDate = form.querySelector('input[name="shot_date"]').value.trim();
             const tag = form.querySelector('input[name="tag"]').value.trim();
             const note = form.querySelector('textarea[name="note"]').value || "";
