@@ -340,26 +340,27 @@ def work_progress_impl(core):
             "tag") else '<span class="chip chipGhost">&nbsp;</span>'
 
         select_html = ""
-        edit_button_html = ""
+        delete_button_html = ""
         if is_admin:
             select_html = f"""
                         <label class="progressSelectBox">
-                          <input type="checkbox" class="progressBulkCheck" value="{item_id}">
+                          <input
+                            type="checkbox"
+                            class="progressBulkCheck"
+                            name="selected_ids"
+                            form="progressBulkForm"
+                            value="{item_id}">
                           <span>Select</span>
                         </label>
                     """
 
-            edit_button_html = f"""
-                        <button
-                          type="button"
-                          class="btnTiny progressEditTrigger"
-                          onclick="openProgressEditor(this)"
-                          data-item-id="{item_id}"
-                          data-site="{item_site}"
-                          data-date="{item_date}"
-                          data-tag="{item_tag}"
-                          data-note="{item_note_attr}"
-                        >Edit</button>
+            delete_button_html = f"""
+                        <form method="POST" class="progressInlineDeleteForm" onsubmit="return confirm('Delete this photo?');">
+                          <input type="hidden" name="csrf" value="{escape(csrf)}">
+                          <input type="hidden" name="action" value="delete">
+                          <input type="hidden" name="item_id" value="{item_id}">
+                          <button type="submit" class="btnTiny">Delete</button>
+                        </form>
                     """
 
         cards.append(f"""
@@ -374,9 +375,9 @@ def work_progress_impl(core):
                 <div class="progressSubLine">By: {item_user}</div>
                 <div style="margin-top:6px;">{tag_html}</div>
                 {note_html}
-                <div class="progressActions">
+                                <div class="progressActions">
                   <a class="btnTiny" href="{item_url}" target="_blank" rel="noopener noreferrer">Open</a>
-                  {edit_button_html}
+                  {delete_button_html}
                 </div>
               </div>
             </div>
@@ -479,9 +480,27 @@ def work_progress_impl(core):
 }}
 
 .progressActions .btnTiny,
-.progressActions a.btnTiny {{
+.progressActions a.btnTiny,
+.progressActions .progressInlineDeleteForm {{
   flex:1 1 0;
+}}
+
+.progressActions a.btnTiny,
+.progressActions .progressInlineDeleteForm .btnTiny {{
+  width:100%;
   text-align:center;
+}}
+
+.progressInlineDeleteForm {{
+  margin:0;
+}}
+
+.progressDateInput {{
+  width:100% !important;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  display:block;
 }}
 
         .chip {{
@@ -682,7 +701,7 @@ def work_progress_impl(core):
 
             <div>
               <label class="sub">Date</label>
-              <input class="input" type="date" name="shot_date" value="{escape(today_str)}" required>
+              <input class="input progressDateInput" type="date" name="shot_date" value="{escape(today_str)}" required>
             </div>
 
             <div>
@@ -880,43 +899,36 @@ def work_progress_impl(core):
           }});
                   }})();
 
-        (function() {{
+                (function() {{
           const bulkForm = document.getElementById("progressBulkForm");
           if (!bulkForm) return;
 
           const selectAll = document.getElementById("progressSelectAll");
-          const hiddenWrap = document.getElementById("progressBulkHiddenInputs");
 
           function getChecks() {{
-            return Array.from(document.querySelectorAll(".progressBulkCheck"));
+            return Array.from(
+              document.querySelectorAll('input.progressBulkCheck[form="progressBulkForm"]')
+            );
           }}
 
           if (selectAll) {{
             selectAll.addEventListener("change", function() {{
+              const checked = !!selectAll.checked;
               getChecks().forEach(function(cb) {{
-                cb.checked = !!selectAll.checked;
+                cb.checked = checked;
               }});
             }});
           }}
 
           bulkForm.addEventListener("submit", function(e) {{
-            const checked = getChecks().filter(function(cb) {{ return cb.checked; }});
+            const hasChecked = getChecks().some(function(cb) {{
+              return cb.checked;
+            }});
 
-            hiddenWrap.innerHTML = "";
-
-            if (!checked.length) {{
+            if (!hasChecked) {{
               e.preventDefault();
               alert("Select at least one photo first.");
-              return;
             }}
-
-            checked.forEach(function(cb) {{
-              const input = document.createElement("input");
-              input.type = "hidden";
-              input.name = "selected_ids";
-              input.value = cb.value;
-              hiddenWrap.appendChild(input);
-            }});
           }});
         }})();
         
