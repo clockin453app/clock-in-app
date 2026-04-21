@@ -2563,7 +2563,7 @@ def get_company_settings() -> dict:
         "Company_Name": "Main",
         "Company_Logo_URL": "",
         "Overtime_After_Hours": 8.5,
-        "Overtime_Multiplier": 1.5,
+        "Overtime_Multiplier": 1.0,
         "Time_Rounding_Minutes": 30,
         "Break_Deduction_Minutes": 30,
     }
@@ -2594,10 +2594,15 @@ def get_company_settings() -> dict:
                 overtime_mult_raw = str(
                     rec.get("Overtime_Multiplier") or rec.get("overtime_multiplier") or ""
                 ).strip()
+                rounding_raw = str(
+                    rec.get("Time_Rounding_Minutes") or rec.get("time_rounding_minutes") or ""
+                ).strip()
+                break_raw = str(
+                    rec.get("Break_Deduction_Minutes") or rec.get("break_deduction_minutes") or ""
+                ).strip()
             else:
-                row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
-                tax_val = getattr(rec, "tax_rate", None)
-                tax_raw = "" if tax_val is None else str(tax_val).strip()
+                row_wp = str(getattr(rec, "workplace_id", "") or "default").strip() or "default"
+                tax_raw = "" if getattr(rec, "tax_rate", None) is None else str(getattr(rec, "tax_rate")).strip()
                 cur = str(
                     getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults["Currency_Symbol"]
                 ).strip() or defaults["Currency_Symbol"]
@@ -2609,6 +2614,10 @@ def get_company_settings() -> dict:
                 overtime_mult_val = getattr(rec, "overtime_multiplier", None)
                 overtime_after_raw = "" if overtime_after_val is None else str(overtime_after_val).strip()
                 overtime_mult_raw = "" if overtime_mult_val is None else str(overtime_mult_val).strip()
+                rounding_val = getattr(rec, "time_rounding_minutes", None)
+                break_val = getattr(rec, "break_deduction_minutes", None)
+                rounding_raw = "" if rounding_val is None else str(rounding_val).strip()
+                break_raw = "" if break_val is None else str(break_val).strip()
 
             if row_wp not in preferred_wps:
                 continue
@@ -2632,6 +2641,9 @@ def get_company_settings() -> dict:
             except Exception:
                 overtime_mult = defaults["Overtime_Multiplier"]
 
+            rounding_minutes = _sanitize_time_rounding_minutes(rounding_raw)
+            break_minutes = _sanitize_break_deduction_minutes(break_raw)
+
             best = {
                 "Workplace_ID": current_wp,
                 "Tax_Rate": tax,
@@ -2640,17 +2652,9 @@ def get_company_settings() -> dict:
                 "Company_Logo_URL": logo,
                 "Overtime_After_Hours": overtime_after,
                 "Overtime_Multiplier": overtime_mult,
-                "Time_Rounding_Minutes": _sanitize_time_rounding_minutes(
-                    getattr(rec, "time_rounding_minutes", None) if not isinstance(rec, dict)
-                    else rec.get("Time_Rounding_Minutes") or rec.get("time_rounding_minutes")
-                ),
-                "Break_Deduction_Minutes": _sanitize_break_deduction_minutes(
-                    getattr(rec, "break_deduction_minutes", None) if not isinstance(rec, dict)
-                    else rec.get("Break_Deduction_Minutes") or rec.get("break_deduction_minutes")
-                ),
+                "Time_Rounding_Minutes": rounding_minutes,
+                "Break_Deduction_Minutes": break_minutes,
             }
-
-
             best_rank = rank
 
         return best or defaults
@@ -2693,7 +2697,7 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
     """
     Compute payable hours between cin and cout on date_str.
     Accepts HH:MM or HH:MM:SS. Supports overnight (clock-out past midnight).
-    Applies unpaid break policy and returns a rounded float.
+    Applies workplace break deduction and workplace rounding.
     """
     try:
         d = (date_str or "").strip()
@@ -2702,7 +2706,6 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
         if not d or not t_in or not t_out:
             return None
 
-        # Normalize times to HH:MM:SS
         if len(t_in.split(":")) == 2:
             t_in = t_in + ":00"
         if len(t_out.split(":")) == 2:
@@ -2711,16 +2714,21 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
         start_dt = datetime.strptime(f"{d} {t_in}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
         end_dt = datetime.strptime(f"{d} {t_out}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
 
-        # If clock-out earlier than clock-in, assume it crossed midnight
         if end_dt < start_dt:
             end_dt = end_dt + timedelta(days=1)
 
         raw_hours = max(0.0, (end_dt - start_dt).total_seconds() / 3600.0)
 
-        # Apply your unpaid break policy
-        payable = _apply_unpaid_break(raw_hours)
+        time_rules = _get_workplace_time_rules()
+        payable = _apply_break_deduction_minutes(
+            raw_hours,
+            time_rules["break_deduction_minutes"],
+        )
 
-        return _round_to_half_hour(payable)
+        return _round_hours_to_minutes(
+            payable,
+            time_rules["time_rounding_minutes"],
+        )
     except Exception:
         return None
 
