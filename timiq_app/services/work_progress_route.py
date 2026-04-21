@@ -335,8 +335,9 @@ def work_progress_impl(core):
         item_note_attr = escape(item_note_raw).replace("\n", "&#10;")
         item_url = escape(item["file_url"])
 
-        note_html = f'<div class="progressNote">{item_note}</div>' if item.get("note") else ""
-        tag_html = f'<span class="chip">{item_tag}</span>' if item.get("tag") else ""
+        note_html = f'<div class="progressNote{" empty" if not item.get("note") else ""}">{item_note or "&nbsp;"}</div>'
+        tag_html = f'<span class="chip">{item_tag}</span>' if item.get(
+            "tag") else '<span class="chip chipGhost">&nbsp;</span>'
 
         select_html = ""
         edit_button_html = ""
@@ -352,6 +353,7 @@ def work_progress_impl(core):
                         <button
                           type="button"
                           class="btnTiny progressEditTrigger"
+                          onclick="openProgressEditor(this)"
                           data-item-id="{item_id}"
                           data-site="{item_site}"
                           data-date="{item_date}"
@@ -456,17 +458,31 @@ def work_progress_impl(core):
   font-size:12px;
   color:#334155;
   line-height:1.35;
-  min-height:32px;
-  max-height:32px;
+  min-height:34px;
+  max-height:34px;
   overflow:hidden;
+}}
+
+.progressNote.empty {{
+  color:transparent;
+}}
+
+.chipGhost {{
+  visibility:hidden;
 }}
 
         .progressActions {{
   margin-top:auto;
-  padding-top:8px;
+  padding-top:10px;
   display:flex;
-  gap:6px;
-  flex-wrap:wrap;
+  gap:8px;
+  flex-wrap:nowrap;
+}}
+
+.progressActions .btnTiny,
+.progressActions a.btnTiny {{
+  flex:1 1 0;
+  text-align:center;
 }}
 
         .chip {{
@@ -595,17 +611,30 @@ def work_progress_impl(core):
         }}
 
         @media (max-width: 640px) {{
+  .progressFilters {{
+    grid-template-columns:1fr 1fr;
+  }}
+
   .progressGrid {{
     grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:10px;
   }}
 
   .progressBulkBar {{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
   }}
 
   .progressEditorGrid {{
     grid-template-columns:1fr;
+  }}
+
+  .progressActions {{
+    flex-direction:column;
+  }}
+
+  .progressActions .btnTiny,
+  .progressActions a.btnTiny {{
+    width:100%;
   }}
 }}
       </style>
@@ -877,36 +906,39 @@ def work_progress_impl(core):
           }});
         }})();
         
-                (function() {{
-          const editorCard = document.getElementById("progressEditorCard");
-          if (!editorCard) return;
+          (function() {{
+  const editorCard = document.getElementById("progressEditorCard");
+  if (!editorCard) return;
 
-          const closeBtn = document.getElementById("progressEditorClose");
-          const itemIdEl = document.getElementById("progressEditorItemId");
-          const siteEl = document.getElementById("progressEditorSite");
-          const dateEl = document.getElementById("progressEditorDate");
-          const tagEl = document.getElementById("progressEditorTag");
-          const noteEl = document.getElementById("progressEditorNote");
+  const closeBtn = document.getElementById("progressEditorClose");
+  const itemIdEl = document.getElementById("progressEditorItemId");
+  const siteEl = document.getElementById("progressEditorSite");
+  const dateEl = document.getElementById("progressEditorDate");
+  const tagEl = document.getElementById("progressEditorTag");
+  const noteEl = document.getElementById("progressEditorNote");
 
-          document.querySelectorAll(".progressEditTrigger").forEach(function(btn) {{
-            btn.addEventListener("click", function() {{
-              itemIdEl.value = btn.dataset.itemId || "";
-              siteEl.value = btn.dataset.site || "";
-              dateEl.value = btn.dataset.date || "";
-              tagEl.value = btn.dataset.tag || "";
-              noteEl.value = btn.dataset.note || "";
+  window.openProgressEditor = function(btn) {{
+    if (!btn) return;
 
-              editorCard.style.display = "block";
-              editorCard.scrollIntoView({{ behavior: "smooth", block: "start" }});
-            }});
-          }});
+    itemIdEl.value = btn.getAttribute("data-item-id") || "";
+    siteEl.value = btn.getAttribute("data-site") || "";
+    dateEl.value = btn.getAttribute("data-date") || "";
+    tagEl.value = btn.getAttribute("data-tag") || "";
+    noteEl.value = (btn.getAttribute("data-note") || "").replace(/&#10;/g, "\n");
 
-          if (closeBtn) {{
-            closeBtn.addEventListener("click", function() {{
-              editorCard.style.display = "none";
-            }});
-          }}
-        }})();
+    editorCard.style.display = "block";
+
+    requestAnimationFrame(function() {{
+      editorCard.scrollIntoView({{ behavior: "smooth", block: "start" }});
+    }});
+  }};
+
+  if (closeBtn) {{
+    closeBtn.addEventListener("click", function() {{
+      editorCard.style.display = "none";
+    }});
+  }}
+}})();
       </script>
         
     """
