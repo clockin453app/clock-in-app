@@ -296,8 +296,8 @@ def get_workhours_rows():
         work_sheet=work_sheet,
         workhour_model=WorkHour,
         workplace_ids_for_read=_workplace_ids_for_read,
-        round_to_half_hour_func=_round_to_half_hour,
-        apply_unpaid_break_func=_apply_unpaid_break,
+        round_to_half_hour_func=_round_workhours_for_current_workplace,
+        apply_unpaid_break_func=_apply_workhours_break_for_current_workplace,
         get_user_rate_func=_get_user_rate,
     )
 
@@ -2513,6 +2513,20 @@ def _get_workplace_time_rules() -> dict:
             settings.get("Break_Deduction_Minutes", DEFAULT_BREAK_DEDUCTION_MINUTES)
         ),
     }
+def _apply_workhours_break_for_current_workplace(raw_hours: float) -> float:
+    rules = _get_workplace_time_rules()
+    return _apply_break_deduction_minutes(
+        raw_hours,
+        rules["break_deduction_minutes"],
+    )
+
+
+def _round_workhours_for_current_workplace(value: float) -> float:
+    rules = _get_workplace_time_rules()
+    return _round_hours_to_minutes(
+        value,
+        rules["time_rounding_minutes"],
+    )
 
 
 from datetime import timedelta
