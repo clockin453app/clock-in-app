@@ -390,6 +390,7 @@ def work_progress_impl(core):
           border:1px solid rgba(59,116,173,.18);
         }}
 
+
         .progressAdminTools {{
           margin-top:8px;
           border-top:1px solid rgba(15,23,42,.08);
