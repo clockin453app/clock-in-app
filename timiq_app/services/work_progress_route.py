@@ -587,11 +587,12 @@ def work_progress_impl(core):
         </form>
       </div>
 
+           {"" if not is_admin else f'''
       <div class="card" style="padding:12px; margin-top:12px;">
         <h2>Gallery</h2>
 
         <form method="GET" class="progressFilters" style="margin-top:12px;">
-                    <div>
+          <div>
             <label class="sub">Site</label>
             <select class="input" name="site">
               {filter_site_options}
@@ -612,10 +613,7 @@ def work_progress_impl(core):
             <button class="btnSoft" type="submit">Apply</button>
           </div>
         </form>
-        
-        
 
-                {"" if not is_admin else f'''
         <form method="POST" id="progressBulkDeleteForm" style="margin-top:12px;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
           <input type="hidden" name="action" value="bulk_delete">
@@ -626,12 +624,12 @@ def work_progress_impl(core):
             </button>
           </div>
         </form>
-        '''}
 
         <div class="progressGrid" style="margin-top:14px;">
           {gallery_html}
         </div>
-       </div> 
+      </div>
+      '''} 
 
       <script>
         (function() {{
