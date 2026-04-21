@@ -196,6 +196,7 @@ def admin_company_impl(core):
                                 db.session.commit()
                         except Exception:
                             db.session.rollback()
+
                 else:
                     row = [""] * len(hdr)
                     row[i_wp] = wp
