@@ -472,26 +472,26 @@ def clock_page_impl(core):
     }}
 
     .clockSelfieStage {{
-      position: relative;
-      min-height: 320px;
-      display: grid;
-      place-items: center;
-      padding: 24px;
-      background:
-        radial-gradient(circle at center, rgba(37,99,235,.05), transparent 52%),
-        linear-gradient(180deg, #fcfcff, #f4f7ff);
-    }}
+  position: relative;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background:
+    radial-gradient(circle at center, rgba(37,99,235,.05), transparent 52%),
+    linear-gradient(180deg, #fcfcff, #f4f7ff);
+}}
 
-    .clockSelfiePlaceholder {{
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 12px;
-      color: #4338ca;
-      opacity: .96;
-      text-align: center;
-    }}
+.clockSelfieVideo {{
+  display: none;
+  width: 100%;
+  height: min(60vh, 320px);
+  min-height: 0;
+  border-radius: 0 !important;
+  object-fit: cover;
+  background: #e9beef;
+  border: 1px solid rgba(68,130,195,.10);
+}}
 
     .clockSelfiePlaceholderIcon {{
       font-size: 76px;

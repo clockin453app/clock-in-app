@@ -456,7 +456,7 @@ def login_impl(core):
               </div>
 
               <div>
-  <label class="loginFieldLabel" for="login-workplace">Workplace ID (optional for global admin)</label>
+  <label class="loginFieldLabel" for="login-workplace">Workplace ID</label>
   <input id="login-workplace" class="input loginInput" name="workplace_id" value="{escape(entered_workplace_id)}" autocomplete="organization" autocapitalize="none" spellcheck="false" placeholder=" e.g. company name workplace">
 </div>
 
