@@ -778,13 +778,14 @@ def clock_page_impl(core):
         font-size: 28px;
         margin-bottom: 16px;
       }}
-      .clockSelfieStage {{
-        min-height: 240px;
-        padding: 16px;
-      }}
-      .clockSelfieVideo {{
-        min-height: 240px;
-      }}
+        .clockSelfieStage {{
+    min-height: 0;
+    padding: 12px;
+  }}
+  .clockSelfieVideo {{
+    height: min(38vh, 240px);
+    min-height: 0;
+  }}
       .clockCaptureBar {{
         flex-direction: column;
       }}
@@ -963,18 +964,24 @@ def clock_page_impl(core):
               }}
 
               function setSelfieData(dataUrl) {{
-                selfieDataEl.value = dataUrl || "";
-                if (dataUrl) {{
-                  retakeSelfieBtn.disabled = false;
-                  selfieStatus.textContent = "Selfie captured.";
-                  footerNote.innerHTML = "Selfie captured. You can now <strong>clock in</strong>.";
-                }} else {{
-                  retakeSelfieBtn.disabled = true;
-                  selfieStatus.textContent = "Tap Take Selfie to open the camera.";
-                  footerNote.innerHTML = "You'll be able to <strong>clock in</strong> after taking a selfie.";
-                }}
-                syncSteps();
-              }}
+  selfieDataEl.value = dataUrl || "";
+  if (dataUrl) {{
+    retakeSelfieBtn.disabled = false;
+    selfieStatus.textContent = "Selfie captured.";
+    footerNote.innerHTML = "Selfie captured. You can now <strong>clock in</strong>.";
+  }} else {{
+    retakeSelfieBtn.disabled = true;
+    selfieStatus.textContent = "Tap Take Selfie to open the camera.";
+    footerNote.innerHTML = "You'll be able to <strong>clock in</strong> after taking a selfie.";
+  }}
+  syncSteps();
+
+  if (dataUrl) {{
+    setTimeout(() => {{
+      stepTwo.scrollIntoView({{ behavior: "smooth", block: "start" }});
+    }}, 60);
+  }}
+}}
 
               function captureSelfieFrame() {{
                 if (!selfieVideo || !selfieVideo.videoWidth || !selfieVideo.videoHeight) {{
