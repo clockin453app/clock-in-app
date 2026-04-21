@@ -631,6 +631,7 @@ def work_progress_impl(core):
         <div class="progressGrid" style="margin-top:14px;">
           {gallery_html}
         </div>
+       </div> 
 
       <script>
         (function() {{
