@@ -345,6 +345,8 @@ def work_progress_impl(core):
                           <input
                             type="checkbox"
                             class="progressBulkCheck"
+                            name="selected_ids"
+                            form="progressBulkDeleteForm"
                             value="{item_id}">
                           <span>Select</span>
                         </label>
@@ -456,6 +458,16 @@ def work_progress_impl(core):
           border:1px solid rgba(59,116,173,.18);
         }}
         
+        .progressDeleteBar {{
+  display:flex;
+  justify-content:flex-end;
+  margin-top:12px;
+  margin-bottom:4px;
+}}
+
+.progressDeleteBar .btnTiny {{
+  min-width:180px;
+}}
         
         .progressSelectBox {{
   display:flex;
@@ -603,10 +615,22 @@ def work_progress_impl(core):
         
         
 
+                {"" if not is_admin else f'''
+        <form method="POST" id="progressBulkDeleteForm" style="margin-top:12px;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <input type="hidden" name="action" value="bulk_delete">
+
+          <div class="progressDeleteBar">
+            <button class="btnTiny" type="submit" onclick="return confirm('Delete selected photos?');">
+              Delete selected
+            </button>
+          </div>
+        </form>
+        '''}
+
         <div class="progressGrid" style="margin-top:14px;">
           {gallery_html}
         </div>
-      </div>
 
       <script>
         (function() {{
@@ -680,6 +704,22 @@ def work_progress_impl(core):
             window.location.reload();
           }});
                   }})();
+                  
+                          (function() {{
+          const bulkDeleteForm = document.getElementById("progressBulkDeleteForm");
+          if (!bulkDeleteForm) return;
+
+          bulkDeleteForm.addEventListener("submit", function(e) {{
+            const checked = Array.from(document.querySelectorAll(".progressBulkCheck")).some(function(cb) {{
+              return cb.checked;
+            }});
+
+            if (!checked) {{
+              e.preventDefault();
+              alert("Select at least one photo first.");
+            }}
+          }});
+        }})();
 
 
       </script>
