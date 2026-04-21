@@ -335,32 +335,19 @@ def work_progress_impl(core):
         item_note_attr = escape(item_note_raw).replace("\n", "&#10;")
         item_url = escape(item["file_url"])
 
-        note_html = f'<div class="progressNote{" empty" if not item.get("note") else ""}">{item_note or "&nbsp;"}</div>'
-        tag_html = f'<span class="chip">{item_tag}</span>' if item.get(
-            "tag") else '<span class="chip chipGhost">&nbsp;</span>'
+        note_html = ""
+        tag_html = ""
 
         select_html = ""
-        delete_button_html = ""
         if is_admin:
             select_html = f"""
                         <label class="progressSelectBox">
                           <input
                             type="checkbox"
                             class="progressBulkCheck"
-                            name="selected_ids"
-                            form="progressBulkForm"
                             value="{item_id}">
                           <span>Select</span>
                         </label>
-                    """
-
-            delete_button_html = f"""
-                        <form method="POST" class="progressInlineDeleteForm" onsubmit="return confirm('Delete this photo?');">
-                          <input type="hidden" name="csrf" value="{escape(csrf)}">
-                          <input type="hidden" name="action" value="delete">
-                          <input type="hidden" name="item_id" value="{item_id}">
-                          <button type="submit" class="btnTiny">Delete</button>
-                        </form>
                     """
 
         cards.append(f"""
@@ -373,12 +360,6 @@ def work_progress_impl(core):
                 <div class="progressSite">{item_site}</div>
                 <div class="progressSubLine">{item_date}</div>
                 <div class="progressSubLine">By: {item_user}</div>
-                <div style="margin-top:6px;">{tag_html}</div>
-                {note_html}
-                                <div class="progressActions">
-                  <a class="btnTiny" href="{item_url}" target="_blank" rel="noopener noreferrer">Open</a>
-                  {delete_button_html}
-                </div>
               </div>
             </div>
         """)
@@ -454,46 +435,6 @@ def work_progress_impl(core):
           line-height:1.3;
         }}
 
-        .progressNote {{
-  margin-top:6px;
-  font-size:12px;
-  color:#334155;
-  line-height:1.35;
-  max-height:34px;
-  overflow:hidden;
-}}
-
-.progressNote.empty {{
-  display:none;
-}}
-
-.chipGhost {{
-  display:none;
-}}
-
-.progressActions {{
-  margin-top:8px;
-  padding-top:8px;
-  display:flex;
-  gap:8px;
-  flex-wrap:nowrap;
-}}
-
-.progressActions .btnTiny,
-.progressActions a.btnTiny,
-.progressActions .progressInlineDeleteForm {{
-  flex:1 1 0;
-}}
-
-.progressActions a.btnTiny,
-.progressActions .progressInlineDeleteForm .btnTiny {{
-  width:100%;
-  text-align:center;
-}}
-
-.progressInlineDeleteForm {{
-  margin:0;
-}}
 
 .progressDateInput {{
   width:100% !important;
@@ -525,75 +466,6 @@ def work_progress_impl(core):
   margin-bottom:6px;
 }}
 
-.progressBulkBar {{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
-  gap:8px;
-  align-items:end;
-  margin-top:12px;
-  margin-bottom:12px;
-  padding:10px;
-  border:1px solid rgba(15,23,42,.08);
-  background:#f8fafc;
-}}
-
-.progressEditorCard {{
-  border:1px solid rgba(15,23,42,.08);
-}}
-
-.progressEditorHeader {{
-  display:flex;
-  align-items:center;
-  justify-content:space-between;
-  gap:10px;
-}}
-
-.progressEditorGrid {{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:10px;
-}}
-
-.progressEditorFull {{
-  grid-column:1 / -1;
-}}
-
-.progressEditorActions {{
-  display:flex;
-  gap:8px;
-  margin-top:10px;
-}}
-
-
-.progressBulkSelectAll {{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  font-size:13px;
-  font-weight:700;
-  color:#334155;
-}}
-
-.progressAdminFormCompact .sub {{
-  display:block;
-  margin-bottom:4px;
-  font-size:11px;
-}}
-
-.progressAdminGrid {{
-  display:grid;
-  grid-template-columns:1fr 1fr;
-  gap:8px;
-}}
-
-.progressAdminFull {{
-  grid-column:1 / -1;
-}}
-
-.compactInput {{
-  padding:8px 10px;
-  font-size:12px;
-}}
 
 .progressAdminButtons {{
   display:flex;
@@ -628,20 +500,17 @@ def work_progress_impl(core):
           color:#3b74ad;
         }}
         
-        .progressFilters > div,
-.progressBulkBar > *,
-.progressEditorGrid > div {{
+        .progressFilters > div {{
   min-width:0;
 }}
 
-.progressFilters .input,
-.progressBulkBar .input,
-.progressEditorGrid .input {{
+.progressFilters .input {{
   width:100%;
   max-width:100%;
   min-width:0;
   box-sizing:border-box;
 }}
+        
 
         @media (max-width: 640px) {{
   .progressFilters {{
@@ -651,23 +520,6 @@ def work_progress_impl(core):
   .progressGrid {{
     grid-template-columns:repeat(2, minmax(0, 1fr));
     gap:10px;
-  }}
-
-  .progressBulkBar {{
-    grid-template-columns:1fr;
-  }}
-
-  .progressEditorGrid {{
-    grid-template-columns:1fr;
-  }}
-
-  .progressActions {{
-    flex-direction:column;
-  }}
-
-  .progressActions .btnTiny,
-  .progressActions a.btnTiny {{
-    width:100%;
   }}
 }}
       </style>
@@ -750,76 +602,6 @@ def work_progress_impl(core):
         </form>
         
         
-                {""
-        if not is_admin else f'''
-        <form method="POST" id="progressBulkForm" style="margin-top:12px;">
-          <input type="hidden" name="csrf" value="{escape(csrf)}">
-
-          <div class="progressBulkBar">
-            <label class="progressBulkSelectAll">
-              <input type="checkbox" id="progressSelectAll">
-              <span>Select all</span>
-            </label>
-
-            <select class="input" name="bulk_site">
-              <option value="">Change site (optional)</option>
-              {upload_site_options}
-            </select>
-
-            <input class="input" name="bulk_tag" placeholder="Change tag (optional)">
-
-            <button class="btnTiny" type="submit" name="action" value="bulk_edit">Apply to selected</button>
-            <button class="btnTiny" type="submit" name="action" value="bulk_delete" onclick="return confirm('Delete selected photos?');">Delete selected</button>
-          </div>
-
-          <div id="progressBulkHiddenInputs"></div>
-        </form>
-        '''}
-        
-                {""
-        if not is_admin else f'''
-        <div class="card progressEditorCard" id="progressEditorCard" style="display:none; padding:12px; margin-top:12px;">
-          <div class="progressEditorHeader">
-            <div style="font-weight:700;">Edit photo</div>
-            <button type="button" class="btnTiny" id="progressEditorClose">Close</button>
-          </div>
-
-          <form method="POST" class="progressEditorForm" style="margin-top:10px;">
-            <input type="hidden" name="csrf" value="{escape(csrf)}">
-            <input type="hidden" name="action" value="edit">
-            <input type="hidden" name="item_id" id="progressEditorItemId">
-
-            <div class="progressEditorGrid">
-              <div>
-                <label class="sub">Site</label>
-                <select class="input" name="edit_site" id="progressEditorSite" required>
-                  {upload_site_options}
-                </select>
-              </div>
-
-              <div>
-                <label class="sub">Date</label>
-                <input class="input" type="date" name="edit_date" id="progressEditorDate" required>
-              </div>
-
-              <div class="progressEditorFull">
-                <label class="sub">Tag</label>
-                <input class="input" type="text" name="edit_tag" id="progressEditorTag">
-              </div>
-
-              <div class="progressEditorFull">
-                <label class="sub">Note</label>
-                <textarea class="input" name="edit_note" id="progressEditorNote" rows="3"></textarea>
-              </div>
-            </div>
-
-            <div class="progressEditorActions">
-              <button class="btnTiny" type="submit">Save</button>
-            </div>
-          </form>
-        </div>
-        '''}
-        
 
         <div class="progressGrid" style="margin-top:14px;">
           {gallery_html}
@@ -899,76 +681,7 @@ def work_progress_impl(core):
           }});
                   }})();
 
-                (function() {{
-          const bulkForm = document.getElementById("progressBulkForm");
-          if (!bulkForm) return;
 
-          const selectAll = document.getElementById("progressSelectAll");
-
-          function getChecks() {{
-            return Array.from(
-              document.querySelectorAll('input.progressBulkCheck[form="progressBulkForm"]')
-            );
-          }}
-
-          if (selectAll) {{
-            selectAll.addEventListener("change", function() {{
-              const checked = !!selectAll.checked;
-              getChecks().forEach(function(cb) {{
-                cb.checked = checked;
-              }});
-            }});
-          }}
-
-          bulkForm.addEventListener("submit", function(e) {{
-            const hasChecked = getChecks().some(function(cb) {{
-              return cb.checked;
-            }});
-
-            if (!hasChecked) {{
-              e.preventDefault();
-              alert("Select at least one photo first.");
-            }}
-          }});
-        }})();
-        
-          window.openProgressEditor = function(btn) {{
-  const editorCard = document.getElementById("progressEditorCard");
-  const itemIdEl = document.getElementById("progressEditorItemId");
-  const siteEl = document.getElementById("progressEditorSite");
-  const dateEl = document.getElementById("progressEditorDate");
-  const tagEl = document.getElementById("progressEditorTag");
-  const noteEl = document.getElementById("progressEditorNote");
-
-  if (!btn || !editorCard || !itemIdEl || !siteEl || !dateEl || !tagEl || !noteEl) {{
-    return false;
-  }}
-
-  itemIdEl.value = btn.getAttribute("data-item-id") || "";
-  siteEl.value = btn.getAttribute("data-site") || "";
-  dateEl.value = btn.getAttribute("data-date") || "";
-  tagEl.value = btn.getAttribute("data-tag") || "";
-  noteEl.value = (btn.getAttribute("data-note") || "").replace(/&#10;/g, "\n");
-
-  editorCard.style.display = "block";
-
-  setTimeout(function() {{
-    editorCard.scrollIntoView({{ behavior: "smooth", block: "start" }});
-  }}, 10);
-
-  return false;
-}};
-
-(function() {{
-  const closeBtn = document.getElementById("progressEditorClose");
-  const editorCard = document.getElementById("progressEditorCard");
-
-  if (closeBtn && editorCard) {{
-    closeBtn.addEventListener("click", function() {{
-      editorCard.style.display = "none";
-    }});
-  }}
-}})();
       </script>
         
     """
