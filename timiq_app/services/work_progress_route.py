@@ -55,6 +55,24 @@ def work_progress_impl(core):
             return entries, idx, entry
         return None, None, None
 
+    def find_entries(item_ids):
+        wanted = {str(x or "").strip() for x in (item_ids or []) if str(x or "").strip()}
+        entries = _load_work_progress_index()
+        matches = []
+
+        for idx, entry in enumerate(entries):
+            entry_id = str(entry.get("id") or "").strip()
+            if not entry_id or entry_id not in wanted:
+                continue
+
+            entry_wp = str(entry.get("workplace_id") or "").strip() or "default"
+            if role != "master_admin" and entry_wp != wp:
+                continue
+
+            matches.append((idx, entry))
+
+        return entries, matches
+
     site_suggestions = _progress_sites_for_current_workplace()
 
     valid_site_names = {
@@ -153,6 +171,76 @@ def work_progress_impl(core):
             if is_ajax:
                 return ajax_response(ok, msg, 200 if ok else 400)
 
+        elif action == "bulk_delete":
+            if not is_admin:
+                return ajax_response(False, "Admin only.", 403) if is_ajax else ("Admin only.", 403)
+
+            selected_ids = request.form.getlist("selected_ids")
+            entries, matches = find_entries(selected_ids)
+
+            if not matches:
+                msg = "No photos selected."
+                ok = False
+            else:
+                delete_paths = []
+                for _, entry in matches:
+                    relpath = str(entry.get("relpath") or "").strip()
+                    full_path = _resolve_work_progress_file_path(relpath, enforce_workplace=False)
+                    if full_path:
+                        delete_paths.append(full_path)
+
+                for idx, _entry in sorted(matches, key=lambda x: x[0], reverse=True):
+                    entries.pop(idx)
+
+                _save_work_progress_index(entries)
+
+                for full_path in delete_paths:
+                    try:
+                        if os.path.exists(full_path):
+                            os.remove(full_path)
+                    except Exception:
+                        pass
+
+                msg = f"{len(matches)} progress photo(s) deleted."
+                ok = True
+
+            if is_ajax:
+                return ajax_response(ok, msg, 200 if ok else 400)
+
+        elif action == "bulk_edit":
+            if not is_admin:
+                return ajax_response(False, "Admin only.", 403) if is_ajax else ("Admin only.", 403)
+
+            selected_ids = request.form.getlist("selected_ids")
+            bulk_site_raw = (request.form.get("bulk_site") or "").strip()
+            bulk_tag_raw = (request.form.get("bulk_tag") or "").strip()
+
+            entries, matches = find_entries(selected_ids)
+            normalized_bulk_site = normalize_selected_site(bulk_site_raw) if bulk_site_raw else ""
+            bulk_tag_clean = _work_progress_safe_text(bulk_tag_raw, 50)
+
+            if not matches:
+                msg = "No photos selected."
+                ok = False
+            elif not normalized_bulk_site and not bulk_tag_clean:
+                msg = "Choose a site or enter a tag for bulk edit."
+                ok = False
+            else:
+                for idx, _entry in matches:
+                    if normalized_bulk_site:
+                        entries[idx]["site"] = _work_progress_safe_text(normalized_bulk_site, 80)
+                    if bulk_tag_clean:
+                        entries[idx]["tag"] = bulk_tag_clean
+
+                _save_work_progress_index(entries)
+                msg = f"{len(matches)} progress photo(s) updated."
+                ok = True
+
+            if is_ajax:
+                return ajax_response(ok, msg, 200 if ok else 400)
+
+
+
         else:
             site = (request.form.get("site") or "").strip()
             shot_date = (request.form.get("shot_date") or today_str).strip()
@@ -242,45 +330,59 @@ def work_progress_impl(core):
         note_html = f'<div class="progressNote">{item_note}</div>' if item.get("note") else ""
         tag_html = f'<span class="chip">{item_tag}</span>' if item.get("tag") else ""
 
+        select_html = ""
         admin_tools_html = ""
         if is_admin:
+            select_html = f"""
+                <label class="progressSelectBox">
+                  <input type="checkbox" class="progressBulkCheck" value="{item_id}">
+                  <span>Select</span>
+                </label>
+            """
+
             admin_tools_html = f"""
                 <details class="progressAdminTools">
                   <summary>Edit</summary>
 
-                  <form method="POST" class="progressAdminForm" style="margin-top:8px;">
+                  <form method="POST" class="progressAdminFormCompact" style="margin-top:8px;">
                     <input type="hidden" name="csrf" value="{escape(csrf)}">
-                    <input type="hidden" name="action" value="edit">
                     <input type="hidden" name="item_id" value="{item_id}">
 
-                    <label class="sub">Site</label>
-                    <select class="input" name="edit_site" required>
-                      {render_site_select_options(item.get("site", ""))}
-                    </select>
+                    <div class="progressAdminGrid">
+                      <div>
+                        <label class="sub">Site</label>
+                        <select class="input compactInput" name="edit_site" required>
+                          {render_site_select_options(item.get("site", ""))}
+                        </select>
+                      </div>
 
-                    <label class="sub" style="margin-top:8px;">Date</label>
-                    <input class="input" type="date" name="edit_date" value="{item_date}" required>
+                      <div>
+                        <label class="sub">Date</label>
+                        <input class="input compactInput" type="date" name="edit_date" value="{item_date}" required>
+                      </div>
 
-                    <label class="sub" style="margin-top:8px;">Tag</label>
-                    <input class="input" type="text" name="edit_tag" value="{item_tag}">
+                      <div class="progressAdminFull">
+                        <label class="sub">Tag</label>
+                        <input class="input compactInput" type="text" name="edit_tag" value="{item_tag}">
+                      </div>
 
-                    <label class="sub" style="margin-top:8px;">Note</label>
-                    <textarea class="input" name="edit_note" rows="3">{item_note}</textarea>
+                      <div class="progressAdminFull">
+                        <label class="sub">Note</label>
+                        <textarea class="input compactInput" name="edit_note" rows="2">{item_note}</textarea>
+                      </div>
+                    </div>
 
-                    <button class="btnTiny" type="submit" style="margin-top:8px;">Save</button>
-                  </form>
-
-                  <form method="POST" style="margin-top:8px;" onsubmit="return confirm('Delete this photo?');">
-                    <input type="hidden" name="csrf" value="{escape(csrf)}">
-                    <input type="hidden" name="action" value="delete">
-                    <input type="hidden" name="item_id" value="{item_id}">
-                    <button class="btnTiny" type="submit">Delete</button>
+                    <div class="progressAdminButtons">
+                      <button class="btnTiny" type="submit" name="action" value="edit">Save</button>
+                      <button class="btnTiny" type="submit" name="action" value="delete" onclick="return confirm('Delete this photo?');">Delete</button>
+                    </div>
                   </form>
                 </details>
             """
 
         cards.append(f"""
-            <div class="progressCard">
+                        <div class="progressCard">
+              {select_html}
               <a href="{item_url}" target="_blank" rel="noopener noreferrer" class="progressThumbLink">
                 <img src="{item_url}" alt="Progress photo" class="progressThumb">
               </a>
@@ -389,6 +491,66 @@ def work_progress_impl(core):
           color:#3b74ad;
           border:1px solid rgba(59,116,173,.18);
         }}
+        
+        
+        .progressSelectBox {{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:12px;
+  color:#64748b;
+  margin-bottom:6px;
+}}
+
+.progressBulkBar {{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:8px;
+  align-items:end;
+  margin-top:12px;
+  margin-bottom:12px;
+  padding:10px;
+  border:1px solid rgba(15,23,42,.08);
+  background:#f8fafc;
+}}
+
+.progressBulkSelectAll {{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  font-size:13px;
+  font-weight:700;
+  color:#334155;
+}}
+
+.progressAdminFormCompact .sub {{
+  display:block;
+  margin-bottom:4px;
+  font-size:11px;
+}}
+
+.progressAdminGrid {{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}}
+
+.progressAdminFull {{
+  grid-column:1 / -1;
+}}
+
+.compactInput {{
+  padding:8px 10px;
+  font-size:12px;
+}}
+
+.progressAdminButtons {{
+  display:flex;
+  gap:8px;
+  margin-top:8px;
+  flex-wrap:wrap;
+}}
+        
 
 
         .progressAdminTools {{
@@ -404,9 +566,9 @@ def work_progress_impl(core):
           color:#3b74ad;
         }}
 
-        .progressAdminForm .input {{
-          width:100%;
-        }}
+        .progressAdminFormCompact .input {{
+  width:100%;
+}}
 
         #progressUploadStatus {{
           display:none;
@@ -416,11 +578,15 @@ def work_progress_impl(core):
         }}
 
         @media (max-width: 640px) {{
-          .progressGrid {{
-            grid-template-columns:repeat(auto-fill,minmax(140px,140px));
-            gap:10px;
-          }}
-        }}
+  .progressGrid {{
+    grid-template-columns:repeat(auto-fill,minmax(140px,140px));
+    gap:10px;
+  }}
+
+  .progressAdminGrid {{
+    grid-template-columns:1fr;
+  }}
+}}
       </style>
 
       <div class="headerTop">
@@ -499,6 +665,34 @@ def work_progress_impl(core):
             <button class="btnSoft" type="submit">Apply</button>
           </div>
         </form>
+        
+        
+                {""
+        if not is_admin else f'''
+        <form method="POST" id="progressBulkForm" style="margin-top:12px;">
+          <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+          <div class="progressBulkBar">
+            <label class="progressBulkSelectAll">
+              <input type="checkbox" id="progressSelectAll">
+              <span>Select all</span>
+            </label>
+
+            <select class="input" name="bulk_site">
+              <option value="">Change site (optional)</option>
+              {upload_site_options}
+            </select>
+
+            <input class="input" name="bulk_tag" placeholder="Change tag (optional)">
+
+            <button class="btnTiny" type="submit" name="action" value="bulk_edit">Apply to selected</button>
+            <button class="btnTiny" type="submit" name="action" value="bulk_delete" onclick="return confirm('Delete selected photos?');">Delete selected</button>
+          </div>
+
+          <div id="progressBulkHiddenInputs"></div>
+        </form>
+        '''}
+        
 
         <div class="progressGrid" style="margin-top:14px;">
           {gallery_html}
@@ -576,8 +770,49 @@ def work_progress_impl(core):
             statusEl.textContent = "Uploaded " + okCount + " of " + files.length + (failCount ? (" • Failed: " + failCount) : "") + " • Refreshing...";
             window.location.reload();
           }});
+                  }})();
+
+        (function() {{
+          const bulkForm = document.getElementById("progressBulkForm");
+          if (!bulkForm) return;
+
+          const selectAll = document.getElementById("progressSelectAll");
+          const hiddenWrap = document.getElementById("progressBulkHiddenInputs");
+
+          function getChecks() {{
+            return Array.from(document.querySelectorAll(".progressBulkCheck"));
+          }}
+
+          if (selectAll) {{
+            selectAll.addEventListener("change", function() {{
+              getChecks().forEach(function(cb) {{
+                cb.checked = !!selectAll.checked;
+              }});
+            }});
+          }}
+
+          bulkForm.addEventListener("submit", function(e) {{
+            const checked = getChecks().filter(function(cb) {{ return cb.checked; }});
+
+            hiddenWrap.innerHTML = "";
+
+            if (!checked.length) {{
+              e.preventDefault();
+              alert("Select at least one photo first.");
+              return;
+            }}
+
+            checked.forEach(function(cb) {{
+              const input = document.createElement("input");
+              input.type = "hidden";
+              input.name = "selected_ids";
+              input.value = cb.value;
+              hiddenWrap.appendChild(input);
+            }});
+          }});
         }})();
       </script>
+        
     """
 
     return render_template_string(
