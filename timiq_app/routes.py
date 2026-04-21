@@ -4084,7 +4084,7 @@ def sidebar_html(active: str, role: str) -> str:
     ]
 
     if role in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Admin", _icon_admin(28)))
+        items.append(("admin", "/admin", "Admin", _svg_shield()))
 
     if role == "master_admin":
         items.append(("current-sessions", "/admin/current-sessions", "Current Sessions", _icon_admin(28)))
@@ -4182,6 +4182,11 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
         if role == "master_admin" else ""
     )
 
+    mobile_work_progress_link = (
+        '<a class="topAccountMenuItem" href="/work-progress"><span>Work Progress</span><span class="topAccountMenuMark">›</span></a>'
+    )
+
+
     company_bar = f"""
       <div class="topBarFixed">
         <a href="/" class="mobileTopLogo" aria-label="TimIQ home">
@@ -4193,11 +4198,12 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
           </button>
           <div class="topAccountMenu">
-            <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
-            {mobile_current_sessions_link}
-            <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
-            <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
-          </div>
+  <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
+  {mobile_current_sessions_link}
+  {mobile_work_progress_link}
+  <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
+  <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
+</div>
         </div>
       </div>
       <script>

@@ -30,11 +30,13 @@ def home_impl(core):
     _svg_clock = core["_svg_clock"]
     _svg_clipboard = core["_svg_clipboard"]
     _icon_admin = core["_icon_admin"]
+    _svg_shield = core["_svg_shield"]
     _icon_workplaces = core["_icon_workplaces"]
     _icon_clock = core["_icon_clock"]
     _icon_timelogs = core["_icon_timelogs"]
     _icon_timesheets = core["_icon_timesheets"]
     _icon_payments = core["_icon_payments"]
+    _icon_work_progress = core["_icon_work_progress"]
     _icon_starter_form = core["_icon_starter_form"]
     _icon_profile = core["_icon_profile"]
     STYLE = core["STYLE"]
@@ -134,11 +136,11 @@ def home_impl(core):
     admin_item = ""
     if role in ("admin", "master_admin"):
         admin_item = f"""
-            <a class="menuItem nav-admin" href="/admin">
-              <div class="menuLeft"><div class="icoBox">{_icon_admin(22)}</div><div class="menuText">Admin</div></div>
-              <div class="chev">›</div>
-            </a>
-            """
+                <a class="menuItem nav-admin" href="/admin">
+                  <div class="menuLeft"><div class="icoBox">{_svg_shield()}</div><div class="menuText">Admin</div></div>
+                  <div class="chev">›</div>
+                </a>
+                """
 
     current_sessions_item = ""
     workplaces_item = ""
@@ -783,14 +785,19 @@ def home_impl(core):
               </a>
 
               <a class="menuItem nav-payments" href="/payments">
-                <div class="menuLeft"><div class="icoBox">{_icon_payments(35)}</div><div class="menuText">Payments</div></div>
-                <div class="chev">›</div>
-              </a>
+  <div class="menuLeft"><div class="icoBox">{_icon_payments(35)}</div><div class="menuText">Payments</div></div>
+  <div class="chev">›</div>
+</a>
 
-              <a class="menuItem nav-agreements" href="/onboarding">
-                <div class="menuLeft"><div class="icoBox">{_icon_starter_form(35)}</div><div class="menuText">Starter Form</div></div>
-                <div class="chev">›</div>
-              </a>
+<a class="menuItem nav-work-progress" href="/work-progress">
+  <div class="menuLeft"><div class="icoBox">{_icon_work_progress(35)}</div><div class="menuText">Work Progress</div></div>
+  <div class="chev">›</div>
+</a>
+
+<a class="menuItem nav-agreements" href="/onboarding">
+  <div class="menuLeft"><div class="icoBox">{_icon_starter_form(35)}</div><div class="menuText">Starter Form</div></div>
+  <div class="chev">›</div>
+</a>
 
               {admin_item}
 {current_sessions_item}
