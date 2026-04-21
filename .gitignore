@@ -4,3 +4,4 @@ credentials.json
 .venv/
 __pycache__/
 /instance/local.db
+/HASH1,2.txt
