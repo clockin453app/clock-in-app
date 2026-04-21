@@ -38,26 +38,41 @@ def work_progress_impl(core):
         shot_date = (request.form.get("shot_date") or today_str).strip()
         note = (request.form.get("note") or "").strip()
         tag = (request.form.get("tag") or "").strip()
-        photo = request.files.get("photo")
+        photos = [
+            f for f in request.files.getlist("photo")
+            if f and getattr(f, "filename", "")
+        ]
 
         if not site:
             msg = "Site is required."
-        elif not photo or not getattr(photo, "filename", ""):
-            msg = "Please choose a photo."
+        elif not photos:
+            msg = "Please choose at least one photo."
         else:
-            try:
-                _store_work_progress_upload(
-                    file_storage=photo,
-                    username=username,
-                    site=site,
-                    note=note,
-                    tag=tag,
-                    shot_date=shot_date,
-                )
+            uploaded_count = 0
+            failed = []
+
+            for photo in photos:
+                try:
+                    _store_work_progress_upload(
+                        file_storage=photo,
+                        username=username,
+                        site=site,
+                        note=note,
+                        tag=tag,
+                        shot_date=shot_date,
+                    )
+                    uploaded_count += 1
+                except Exception as e:
+                    failed.append(f"{getattr(photo, 'filename', 'photo')}: {e}")
+
+            if uploaded_count and not failed:
                 ok = True
-                msg = "Progress photo uploaded."
-            except Exception as e:
-                msg = f"Could not upload photo: {e}"
+                msg = f"{uploaded_count} progress photo(s) uploaded."
+            elif uploaded_count:
+                ok = True
+                msg = f"{uploaded_count} photo(s) uploaded, {len(failed)} failed."
+            else:
+                msg = failed[0] if failed else "Could not upload photos."
 
     site_filter = (request.args.get("site") or "").strip()
     tag_filter = (request.args.get("tag") or "").strip()
@@ -128,34 +143,29 @@ def work_progress_impl(core):
           align-items:end;
         }}
 
-        .progressGrid {{
+                .progressGrid {{
           display:grid;
-          grid-template-columns:repeat(auto-fit,minmax(280px,1fr));
-          gap:14px;
+          grid-template-columns:repeat(auto-fit,minmax(220px,1fr));
+          gap:12px;
         }}
 
         .progressCard {{
           background:#fff;
           border:1px solid rgba(15,23,42,.08);
-          box-shadow:0 8px 18px rgba(15,23,42,.06);
+          box-shadow:0 6px 14px rgba(15,23,42,.05);
           overflow:hidden;
         }}
 
         .progressThumb {{
           width:100%;
-          height:240px;
+          height:160px;
           object-fit:cover;
           display:block;
           background:#f8fafc;
         }}
 
-        .progressThumbLink {{
-          display:block;
-          text-decoration:none;
-        }}
-
         .progressMeta {{
-          padding:12px;
+          padding:10px;
         }}
 
         .progressTopLine {{
@@ -220,15 +230,15 @@ def work_progress_impl(core):
             </div>
 
             <div>
-              <label class="sub">Photo</label>
-              <input class="input" type="file" name="photo" accept="image/*" required>
+              <label class="sub">Photos</label>
+              <input class="input" type="file" name="photo" accept="image/*" multiple required>
             </div>
           </div>
 
           <label class="sub" style="margin-top:10px;">Note</label>
           <textarea class="input" name="note" rows="3" placeholder="What was completed today?"></textarea>
 
-          <button class="btnSoft" type="submit" style="margin-top:12px;">Add progress photo</button>
+           <button class="btnSoft" type="submit" style="margin-top:12px;">Add progress photos</button>
         </form>
       </div>
 
