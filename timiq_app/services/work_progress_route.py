@@ -506,11 +506,26 @@ def work_progress_impl(core):
 }}
 
         #progressUploadStatus {{
-          display:none;
-          margin-top:10px;
-          font-weight:700;
-          color:#3b74ad;
-        }}
+  display:none;
+  margin-top:10px;
+  padding:10px 12px;
+  font-weight:700;
+  border:1px solid rgba(59,116,173,.18);
+  background:#eef4fb;
+  color:#3b74ad;
+}}
+
+#progressUploadStatus.success {{
+  border-color:rgba(22,163,74,.22);
+  background:#f0fdf4;
+  color:#166534;
+}}
+
+#progressUploadStatus.error {{
+  border-color:rgba(220,38,38,.18);
+  background:#fef2f2;
+  color:#b91c1c;
+}}
         
         .progressFilters > div {{
   min-width:0;
@@ -658,7 +673,9 @@ def work_progress_impl(core):
             }}
 
             if (submitBtn) submitBtn.disabled = true;
-            statusEl.style.display = "block";
+statusEl.className = "";
+statusEl.style.display = "block";
+statusEl.textContent = "Starting upload...";
 
             let okCount = 0;
             let failCount = 0;
@@ -699,8 +716,30 @@ def work_progress_impl(core):
               }}
             }}
 
-            statusEl.textContent = "Uploaded " + okCount + " of " + files.length + (failCount ? (" • Failed: " + failCount) : "") + " • Refreshing...";
-            window.location.reload();
+            if (okCount > 0 && failCount === 0) {{
+  statusEl.className = "success";
+  statusEl.style.display = "block";
+  statusEl.textContent = "Upload successful: " + okCount + " photo(s) uploaded.";
+
+  form.reset();
+
+  setTimeout(function() {{
+    window.location.reload();
+  }}, 1500);
+}} else if (okCount > 0) {{
+  statusEl.className = "";
+  statusEl.style.display = "block";
+  statusEl.textContent = "Upload finished: " + okCount + " uploaded, " + failCount + " failed.";
+
+  setTimeout(function() {{
+    window.location.reload();
+  }}, 1800);
+}} else {{
+  statusEl.className = "error";
+  statusEl.style.display = "block";
+  statusEl.textContent = "Upload failed. Please try again.";
+  if (submitBtn) submitBtn.disabled = false;
+}}
           }});
                   }})();
                   
