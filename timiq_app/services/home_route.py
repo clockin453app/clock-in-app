@@ -140,14 +140,24 @@ def home_impl(core):
             </a>
             """
 
+    current_sessions_item = ""
     workplaces_item = ""
     if role == "master_admin":
+        current_sessions_item = f"""
+            <a class="menuItem nav-current-sessions" href="/admin/current-sessions">
+              <div class="menuLeft"><div class="icoBox">{_icon_admin(22)}</div><div class="menuText">Current Sessions</div></div>
+              <div class="chev">›</div>
+            </a>
+            """
+
         workplaces_item = f"""
             <a class="menuItem nav-home" href="/admin/workplaces">
               <div class="menuLeft"><div class="icoBox">{_icon_workplaces(22)}</div><div class="menuText">Workplaces</div></div>
               <div class="chev">›</div>
             </a>
             """
+
+
     show_employee_col = role in ("admin", "master_admin")
 
     recent_rows = []
@@ -783,9 +793,11 @@ def home_impl(core):
               </a>
 
               {admin_item}
-              {workplaces_item}
+{current_sessions_item}
+{workplaces_item}
 
-              <a class="menuItem nav-profile" href="/password">
+<a class="menuItem nav-profile" href="/password">
+
                 <div class="menuLeft"><div class="icoBox">{_icon_profile(35)}</div><div class="menuText">Profile</div></div>
                 <div class="chev">›</div>
               </a>

@@ -4177,11 +4177,16 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     except Exception:
         company_name = "Main"
 
+    mobile_current_sessions_link = (
+        '<a class="topAccountMenuItem" href="/admin/current-sessions"><span>Current Sessions</span><span class="topAccountMenuMark">›</span></a>'
+        if role == "master_admin" else ""
+    )
+
     company_bar = f"""
       <div class="topBarFixed">
         <a href="/" class="mobileTopLogo" aria-label="TimIQ home">
-  <img src="/static/original-logo.png" alt="TimIQ">
-</a>
+          <img src="/static/original-logo.png" alt="TimIQ">
+        </a>
         <span class="topBrandBadge">{escape(company_name)}</span>
         <div class="topAccountWrap">
           <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
@@ -4189,6 +4194,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
           </button>
           <div class="topAccountMenu">
             <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
+            {mobile_current_sessions_link}
             <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
             <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
           </div>
