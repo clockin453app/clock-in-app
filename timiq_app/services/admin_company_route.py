@@ -33,8 +33,15 @@ def admin_company_impl(core):
     current_logo = (settings.get("Company_Logo_URL") or "").strip()
     current_overtime_after = str(settings.get("Overtime_After_Hours", 8.5) or 8.5)
     current_overtime_multiplier = str(settings.get("Overtime_Multiplier", 1.5) or 1.5)
-    current_time_rounding = str(int(settings.get("Time_Rounding_Minutes", 30) or 30))
-    current_break_deduction = str(int(settings.get("Break_Deduction_Minutes", 30) or 30))
+    _time_rounding_raw = settings.get("Time_Rounding_Minutes", 30)
+    if _time_rounding_raw in (None, ""):
+        _time_rounding_raw = 30
+    current_time_rounding = str(int(_time_rounding_raw))
+
+    _break_deduction_raw = settings.get("Break_Deduction_Minutes", 30)
+    if _break_deduction_raw in (None, ""):
+        _break_deduction_raw = 30
+    current_break_deduction = str(int(_break_deduction_raw))
 
     msg = ""
     ok = False
