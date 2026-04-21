@@ -400,9 +400,9 @@ def work_progress_impl(core):
 
         .progressGrid {{
   display:grid;
-  grid-template-columns:repeat(auto-fill,minmax(190px,1fr));
+  grid-template-columns:repeat(auto-fill,minmax(210px,1fr));
   gap:14px;
-  align-items:stretch;
+  align-items:start;
 }}
 
         .progressCard {{
@@ -458,22 +458,21 @@ def work_progress_impl(core):
   font-size:12px;
   color:#334155;
   line-height:1.35;
-  min-height:34px;
   max-height:34px;
   overflow:hidden;
 }}
 
 .progressNote.empty {{
-  color:transparent;
+  display:none;
 }}
 
 .chipGhost {{
-  visibility:hidden;
+  display:none;
 }}
 
-        .progressActions {{
-  margin-top:auto;
-  padding-top:10px;
+.progressActions {{
+  margin-top:8px;
+  padding-top:8px;
   display:flex;
   gap:8px;
   flex-wrap:nowrap;
@@ -609,10 +608,25 @@ def work_progress_impl(core):
           font-weight:700;
           color:#3b74ad;
         }}
+        
+        .progressFilters > div,
+.progressBulkBar > *,
+.progressEditorGrid > div {{
+  min-width:0;
+}}
+
+.progressFilters .input,
+.progressBulkBar .input,
+.progressEditorGrid .input {{
+  width:100%;
+  max-width:100%;
+  min-width:0;
+  box-sizing:border-box;
+}}
 
         @media (max-width: 640px) {{
   .progressFilters {{
-    grid-template-columns:1fr 1fr;
+    grid-template-columns:1fr;
   }}
 
   .progressGrid {{
@@ -906,34 +920,38 @@ def work_progress_impl(core):
           }});
         }})();
         
-          (function() {{
+          window.openProgressEditor = function(btn) {{
   const editorCard = document.getElementById("progressEditorCard");
-  if (!editorCard) return;
-
-  const closeBtn = document.getElementById("progressEditorClose");
   const itemIdEl = document.getElementById("progressEditorItemId");
   const siteEl = document.getElementById("progressEditorSite");
   const dateEl = document.getElementById("progressEditorDate");
   const tagEl = document.getElementById("progressEditorTag");
   const noteEl = document.getElementById("progressEditorNote");
 
-  window.openProgressEditor = function(btn) {{
-    if (!btn) return;
+  if (!btn || !editorCard || !itemIdEl || !siteEl || !dateEl || !tagEl || !noteEl) {{
+    return false;
+  }}
 
-    itemIdEl.value = btn.getAttribute("data-item-id") || "";
-    siteEl.value = btn.getAttribute("data-site") || "";
-    dateEl.value = btn.getAttribute("data-date") || "";
-    tagEl.value = btn.getAttribute("data-tag") || "";
-    noteEl.value = (btn.getAttribute("data-note") || "").replace(/&#10;/g, "\n");
+  itemIdEl.value = btn.getAttribute("data-item-id") || "";
+  siteEl.value = btn.getAttribute("data-site") || "";
+  dateEl.value = btn.getAttribute("data-date") || "";
+  tagEl.value = btn.getAttribute("data-tag") || "";
+  noteEl.value = (btn.getAttribute("data-note") || "").replace(/&#10;/g, "\n");
 
-    editorCard.style.display = "block";
+  editorCard.style.display = "block";
 
-    requestAnimationFrame(function() {{
-      editorCard.scrollIntoView({{ behavior: "smooth", block: "start" }});
-    }});
-  }};
+  setTimeout(function() {{
+    editorCard.scrollIntoView({{ behavior: "smooth", block: "start" }});
+  }}, 10);
 
-  if (closeBtn) {{
+  return false;
+}};
+
+(function() {{
+  const closeBtn = document.getElementById("progressEditorClose");
+  const editorCard = document.getElementById("progressEditorCard");
+
+  if (closeBtn && editorCard) {{
     closeBtn.addEventListener("click", function() {{
       editorCard.style.display = "none";
     }});
