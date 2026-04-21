@@ -33,6 +33,8 @@ def admin_company_impl(core):
     current_logo = (settings.get("Company_Logo_URL") or "").strip()
     current_overtime_after = str(settings.get("Overtime_After_Hours", 8.5) or 8.5)
     current_overtime_multiplier = str(settings.get("Overtime_Multiplier", 1.5) or 1.5)
+    current_time_rounding = str(int(settings.get("Time_Rounding_Minutes", 30) or 30))
+    current_break_deduction = str(int(settings.get("Break_Deduction_Minutes", 30) or 30))
 
     msg = ""
     ok = False
@@ -43,9 +45,29 @@ def admin_company_impl(core):
         new_logo = (request.form.get("company_logo_url") or "").strip()
         new_overtime_after = (request.form.get("overtime_after_hours") or "").strip()
         new_overtime_multiplier = (request.form.get("overtime_multiplier") or "").strip()
+        new_time_rounding = (request.form.get("time_rounding_minutes") or "").strip()
+        new_break_deduction = (request.form.get("break_deduction_minutes") or "").strip()
 
         overtime_after_value = None
         overtime_multiplier_value = None
+        time_rounding_value = None
+        break_deduction_value = None
+
+        if not msg:
+            try:
+                time_rounding_value = int(float(new_time_rounding or "30"))
+                if time_rounding_value not in (10, 15, 20, 30):
+                    raise ValueError
+            except Exception:
+                msg = "Time rounding must be 10, 15, 20, or 30 minutes."
+
+        if not msg:
+            try:
+                break_deduction_value = int(float(new_break_deduction or "30"))
+                if break_deduction_value not in (0, 30):
+                    raise ValueError
+            except Exception:
+                msg = "Break deduction must be 0 or 30 minutes."
 
         try:
             overtime_after_value = float(new_overtime_after or "8.5")
@@ -79,7 +101,12 @@ def admin_company_impl(core):
                     "Company_Logo_URL",
                     "Overtime_After_Hours",
                     "Overtime_Multiplier",
+                    "Time_Rounding_Minutes",
+                    "Break_Deduction_Minutes",
                 ])
+
+
+
                 vals = settings_sheet.get_all_values()
 
             hdr = vals[0] if vals else []
@@ -99,6 +126,16 @@ def admin_company_impl(core):
                 vals = settings_sheet.get_all_values()
                 hdr = vals[0] if vals else []
 
+            if "Time_Rounding_Minutes" not in hdr:
+                settings_sheet.update_cell(1, len(hdr) + 1, "Time_Rounding_Minutes")
+                vals = settings_sheet.get_all_values()
+                hdr = vals[0] if vals else []
+
+            if "Break_Deduction_Minutes" not in hdr:
+                settings_sheet.update_cell(1, len(hdr) + 1, "Break_Deduction_Minutes")
+                vals = settings_sheet.get_all_values()
+                hdr = vals[0] if vals else []
+
             def idx(n):
                 return hdr.index(n) if n in hdr else None
 
@@ -109,6 +146,8 @@ def admin_company_impl(core):
             i_cur = idx("Currency_Symbol")
             i_ot_after = idx("Overtime_After_Hours")
             i_ot_mult = idx("Overtime_Multiplier")
+            i_rounding = idx("Time_Rounding_Minutes")
+            i_break = idx("Break_Deduction_Minutes")
 
             if i_wp is None or i_name is None:
                 msg = "Settings headers missing Workplace_ID or Company_Name."
@@ -137,6 +176,10 @@ def admin_company_impl(core):
                         settings_sheet.update_cell(rownum, i_ot_after + 1, str(overtime_after_value))
                     if i_ot_mult is not None:
                         settings_sheet.update_cell(rownum, i_ot_mult + 1, str(overtime_multiplier_value))
+                    if i_rounding is not None:
+                        settings_sheet.update_cell(rownum, i_rounding + 1, str(time_rounding_value))
+                    if i_break is not None:
+                        settings_sheet.update_cell(rownum, i_break + 1, str(break_deduction_value))
 
                     if DB_MIGRATION_MODE:
                         try:
@@ -148,6 +191,8 @@ def admin_company_impl(core):
                                 db_row.currency_symbol = currency_value
                                 db_row.overtime_after_hours = overtime_after_value
                                 db_row.overtime_multiplier = overtime_multiplier_value
+                                db_row.time_rounding_minutes = time_rounding_value
+                                db_row.break_deduction_minutes = break_deduction_value
                                 db.session.commit()
                         except Exception:
                             db.session.rollback()
@@ -165,6 +210,10 @@ def admin_company_impl(core):
                         row[i_ot_after] = str(overtime_after_value)
                     if i_ot_mult is not None:
                         row[i_ot_mult] = str(overtime_multiplier_value)
+                    if i_rounding is not None:
+                        row[i_rounding] = str(time_rounding_value)
+                    if i_break is not None:
+                        row[i_break] = str(break_deduction_value)
 
                     settings_sheet.append_row(row)
 
@@ -178,6 +227,8 @@ def admin_company_impl(core):
                                 db_row.currency_symbol = currency_value
                                 db_row.overtime_after_hours = overtime_after_value
                                 db_row.overtime_multiplier = overtime_multiplier_value
+                                db_row.time_rounding_minutes = time_rounding_value
+                                db_row.break_deduction_minutes = break_deduction_value
                             else:
                                 db.session.add(
                                     WorkplaceSetting(
@@ -188,6 +239,8 @@ def admin_company_impl(core):
                                         company_logo_url=new_logo,
                                         overtime_after_hours=overtime_after_value,
                                         overtime_multiplier=overtime_multiplier_value,
+                                        time_rounding_minutes=time_rounding_value,
+                                        break_deduction_minutes=break_deduction_value,
                                     )
                                 )
                             db.session.commit()
@@ -201,6 +254,8 @@ def admin_company_impl(core):
                 current_logo = new_logo
                 current_overtime_after = str(overtime_after_value)
                 current_overtime_multiplier = str(overtime_multiplier_value)
+                current_time_rounding = str(time_rounding_value)
+                current_break_deduction = str(break_deduction_value)
 
     content = f"""
           <div class="headerTop">
@@ -231,6 +286,20 @@ def admin_company_impl(core):
 
               <label class="sub" style="margin-top:10px;">Overtime multiplier</label>
               <input class="input" name="overtime_multiplier" value="{escape(current_overtime_multiplier)}" placeholder="1.5">
+              
+              <label class="sub" style="margin-top:10px;">Time rounding</label>
+<select class="input" name="time_rounding_minutes">
+  <option value="10" {"selected" if current_time_rounding == "10" else ""}>10 minutes</option>
+  <option value="15" {"selected" if current_time_rounding == "15" else ""}>15 minutes</option>
+  <option value="20" {"selected" if current_time_rounding == "20" else ""}>20 minutes</option>
+  <option value="30" {"selected" if current_time_rounding == "30" else ""}>30 minutes</option>
+</select>
+
+<label class="sub" style="margin-top:10px;">Break deduction</label>
+<select class="input" name="break_deduction_minutes">
+  <option value="0" {"selected" if current_break_deduction == "0" else ""}>No break deduction</option>
+  <option value="30" {"selected" if current_break_deduction == "30" else ""}>30 minutes</option>
+</select>
 
               <button class="btnSoft" type="submit" style="margin-top:12px;">Save</button>
             </form>

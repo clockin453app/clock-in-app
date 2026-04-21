@@ -162,5 +162,7 @@ class WorkplaceSetting(db.Model):
     company_logo_url = db.Column(db.Text)
     overtime_after_hours = db.Column(db.Numeric(10, 2))
     overtime_multiplier = db.Column(db.Numeric(10, 2))
+    time_rounding_minutes = db.Column(db.Integer)
+    break_deduction_minutes = db.Column(db.Integer)
 
 

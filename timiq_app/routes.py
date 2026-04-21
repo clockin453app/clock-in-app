@@ -2445,16 +2445,40 @@ def _same_workplace(row):
     return _row_workplace_id(row) == _session_workplace_id()
 
 
-def _round_to_half_hour(value: float) -> float:
+DEFAULT_TIME_ROUNDING_MINUTES = 30
+DEFAULT_BREAK_DEDUCTION_MINUTES = 30
+ALLOWED_TIME_ROUNDING_MINUTES = (10, 15, 20, 30)
+ALLOWED_BREAK_DEDUCTION_MINUTES = (0, 30)
+
+
+def _sanitize_time_rounding_minutes(value) -> int:
+    try:
+        n = int(float(value))
+    except Exception:
+        n = DEFAULT_TIME_ROUNDING_MINUTES
+    return n if n in ALLOWED_TIME_ROUNDING_MINUTES else DEFAULT_TIME_ROUNDING_MINUTES
+
+
+def _sanitize_break_deduction_minutes(value) -> int:
+    try:
+        n = int(float(value))
+    except Exception:
+        n = DEFAULT_BREAK_DEDUCTION_MINUTES
+    return n if n in ALLOWED_BREAK_DEDUCTION_MINUTES else DEFAULT_BREAK_DEDUCTION_MINUTES
+
+
+def _round_hours_to_minutes(value: float, minutes: int) -> float:
     try:
         n = max(0.0, float(value or 0.0))
     except Exception:
         return 0.0
-    return math.floor((n * 2.0) + 0.5) / 2.0
+
+    mins = _sanitize_time_rounding_minutes(minutes)
+    step = mins / 60.0
+    return round(math.floor((n / step) + 0.5) * step, 2)
 
 
-def _apply_unpaid_break(raw_hours: float) -> float:
-    """Return payable hours after applying unpaid break policy."""
+def _apply_break_deduction_minutes(raw_hours: float, deduction_minutes: int) -> float:
     try:
         h = float(raw_hours or 0.0)
     except Exception:
@@ -2463,10 +2487,32 @@ def _apply_unpaid_break(raw_hours: float) -> float:
     if not UNPAID_BREAK_ENABLED:
         return max(0.0, h)
 
+    deduction = _sanitize_break_deduction_minutes(deduction_minutes)
+
     if h >= float(UNPAID_BREAK_THRESHOLD_HOURS):
-        h -= float(UNPAID_BREAK_MINUTES) / 60.0
+        h -= float(deduction) / 60.0
 
     return max(0.0, h)
+
+
+def _round_to_half_hour(value: float) -> float:
+    return _round_hours_to_minutes(value, 30)
+
+
+def _apply_unpaid_break(raw_hours: float) -> float:
+    return _apply_break_deduction_minutes(raw_hours, 30)
+
+
+def _get_workplace_time_rules() -> dict:
+    settings = get_company_settings()
+    return {
+        "time_rounding_minutes": _sanitize_time_rounding_minutes(
+            settings.get("Time_Rounding_Minutes", DEFAULT_TIME_ROUNDING_MINUTES)
+        ),
+        "break_deduction_minutes": _sanitize_break_deduction_minutes(
+            settings.get("Break_Deduction_Minutes", DEFAULT_BREAK_DEDUCTION_MINUTES)
+        ),
+    }
 
 
 from datetime import timedelta
@@ -2518,6 +2564,8 @@ def get_company_settings() -> dict:
         "Company_Logo_URL": "",
         "Overtime_After_Hours": 8.5,
         "Overtime_Multiplier": 1.5,
+        "Time_Rounding_Minutes": 30,
+        "Break_Deduction_Minutes": 30,
     }
 
     current_wp = _session_workplace_id()
@@ -2592,7 +2640,17 @@ def get_company_settings() -> dict:
                 "Company_Logo_URL": logo,
                 "Overtime_After_Hours": overtime_after,
                 "Overtime_Multiplier": overtime_mult,
+                "Time_Rounding_Minutes": _sanitize_time_rounding_minutes(
+                    getattr(rec, "time_rounding_minutes", None) if not isinstance(rec, dict)
+                    else rec.get("Time_Rounding_Minutes") or rec.get("time_rounding_minutes")
+                ),
+                "Break_Deduction_Minutes": _sanitize_break_deduction_minutes(
+                    getattr(rec, "break_deduction_minutes", None) if not isinstance(rec, dict)
+                    else rec.get("Break_Deduction_Minutes") or rec.get("break_deduction_minutes")
+                ),
             }
+
+
             best_rank = rank
 
         return best or defaults
@@ -5722,6 +5780,8 @@ class _SettingsProxy(_ProxySheetBase):
         "Company_Logo_URL",
         "Overtime_After_Hours",
         "Overtime_Multiplier",
+        "Time_Rounding_Minutes",
+        "Break_Deduction_Minutes",
     ]
     model = WorkplaceSetting
 
@@ -5740,6 +5800,9 @@ class _SettingsProxy(_ProxySheetBase):
             str(getattr(rec, "company_logo_url", "") or ""),
             _db_format_decimal(getattr(rec, "overtime_after_hours", None)),
             _db_format_decimal(getattr(rec, "overtime_multiplier", None)),
+            "" if getattr(rec, "time_rounding_minutes", None) is None else str(getattr(rec, "time_rounding_minutes")),
+            "" if getattr(rec, "break_deduction_minutes", None) is None else str(
+                getattr(rec, "break_deduction_minutes")),
         ]
 
     def append_row(self, row, value_input_option=None):
@@ -5770,6 +5833,12 @@ class _SettingsProxy(_ProxySheetBase):
 
         overtime_mult_txt = str(data.get("Overtime_Multiplier") or "").strip()
         rec.overtime_multiplier = Decimal(overtime_mult_txt) if overtime_mult_txt else Decimal("1.5")
+
+        rounding_txt = str(data.get("Time_Rounding_Minutes") or "").strip()
+        rec.time_rounding_minutes = _sanitize_time_rounding_minutes(rounding_txt or "30")
+
+        break_txt = str(data.get("Break_Deduction_Minutes") or "").strip()
+        rec.break_deduction_minutes = _sanitize_break_deduction_minutes(break_txt or "30")
 
     def _set_field(self, rec, column, value):
         data = {self.headers[i]: self._row_from_record(rec)[i] for i in range(len(self.headers))}

@@ -53,6 +53,9 @@ def clock_page_impl(core):
     COL_PAY = core["COL_PAY"]
     _round_to_half_hour = core["_round_to_half_hour"]
     _apply_unpaid_break = core["_apply_unpaid_break"]
+    _get_workplace_time_rules = core["_get_workplace_time_rules"]
+    _round_hours_to_minutes = core["_round_hours_to_minutes"]
+    _apply_break_deduction_minutes = core["_apply_break_deduction_minutes"]
     gate = require_login()
     if gate:
         return gate
@@ -208,6 +211,8 @@ def clock_page_impl(core):
                                             db_row.clock_in = clock_in_dt
                                             db_row.clock_out = None
                                             db_row.in_selfie_url = selfie_url
+                                            db_row.hours = None
+                                            db_row.pay = None
                                         else:
                                             db.session.add(
                                                 WorkHour(
@@ -248,7 +253,16 @@ def clock_page_impl(core):
                             i, d, t = osf
                             cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
                             raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
-                            hours_rounded = _round_to_half_hour(_apply_unpaid_break(raw_hours))
+
+                            time_rules = _get_workplace_time_rules()
+                            payable_hours = _apply_break_deduction_minutes(
+                                raw_hours,
+                                time_rules["break_deduction_minutes"],
+                            )
+                            hours_rounded = _round_hours_to_minutes(
+                                payable_hours,
+                                time_rules["time_rounding_minutes"],
+                            )
                             pay = round(hours_rounded * float(rate), 2)
 
                             sheet_row = i + 1
@@ -302,6 +316,8 @@ def clock_page_impl(core):
                                     if db_row:
                                         db_row.clock_out = clock_out_dt
                                         db_row.out_selfie_url = selfie_url
+                                        db_row.hours = hours_rounded
+                                        db_row.pay = pay
                                     else:
                                         db.session.add(
                                             WorkHour(
@@ -312,6 +328,8 @@ def clock_page_impl(core):
                                                 workplace=_session_workplace_id(),
                                                 workplace_id=_session_workplace_id(),
                                                 out_selfie_url=selfie_url,
+                                                hours=hours_rounded,
+                                                pay=pay,
                                             )
                                         )
 
