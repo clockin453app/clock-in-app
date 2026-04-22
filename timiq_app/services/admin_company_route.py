@@ -334,8 +334,6 @@ def admin_company_impl(core):
               <label class="sub">Company name</label>
               <input class="input" name="company_name" value="{escape(current_name)}" required>
 
-              <label class="sub" style="margin-top:10px;">Company logo URL</label>
-              <input class="input" name="company_logo_url" value="{escape(current_logo)}" placeholder="https://.../logo.png">
 
               <label class="sub" style="margin-top:10px;">Overtime after hours</label>
               <input class="input" name="overtime_after_hours" value="{escape(current_overtime_after)}" placeholder="8.5">
