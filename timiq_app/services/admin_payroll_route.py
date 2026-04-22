@@ -9,6 +9,10 @@ def admin_payroll_impl(core):
     get_payroll_rows = core["get_payroll_rows"]
     _session_workplace_id = core["_session_workplace_id"]
     _workplace_ids_for_read = core["_workplace_ids_for_read"]
+    DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
+    WorkHour = core["WorkHour"]
+    and_ = core["and_"]
+    or_ = core["or_"]
     _list_employee_records_for_workplace = core["_list_employee_records_for_workplace"]
     datetime = core["datetime"]
     TZ = core["TZ"]
@@ -43,6 +47,7 @@ def admin_payroll_impl(core):
     PWA_TAGS = core["PWA_TAGS"]
     layout_shell = core["layout_shell"]
     _calculate_shift_pay = core["_calculate_shift_pay"]
+    _calculate_shift_pay_from_rule = core["_calculate_shift_pay_from_rule"]
     _get_user_rate = core["_get_user_rate"]
 
     gate = require_admin()
@@ -70,17 +75,55 @@ def admin_payroll_impl(core):
     except Exception:
         overtime_multiplier = 1.5
 
-    def calc_o_hours(hours_value):
-        h = _round_to_half_hour(safe_float(hours_value, 0.0))
-        if h <= overtime_after or overtime_multiplier <= 1.0:
+    def calc_o_hours(username, d_str, hours_value):
+        h = safe_float(hours_value, 0.0)
+
+        rule = _get_saved_shift_rule(username, d_str)
+        row_overtime_after = overtime_after
+        row_overtime_multiplier = overtime_multiplier
+
+        if rule:
+            if rule.get("overtime_after_hours") is not None:
+                row_overtime_after = float(rule["overtime_after_hours"])
+            if rule.get("overtime_multiplier") is not None:
+                row_overtime_multiplier = max(1.0, float(rule["overtime_multiplier"]))
+
+        if h <= row_overtime_after or row_overtime_multiplier <= 1.0:
             return 0.0
-        extra = (h - overtime_after) * (overtime_multiplier - 1.0)
+
+        extra = (h - row_overtime_after) * (row_overtime_multiplier - 1.0)
         return round(extra, 2)
 
-    def calc_day_gross(username, hours_value, stored_pay=""):
-        h = _round_to_half_hour(safe_float(hours_value, 0.0))
+    def calc_day_gross(username, d_str, hours_value, stored_pay=""):
+        if str(stored_pay).strip() != "":
+            return round(safe_float(stored_pay, 0.0), 2)
+
+        h = safe_float(hours_value, 0.0)
         if h <= 0:
             return 0.0
+
+        rule = _get_saved_shift_rule(username, d_str)
+        if rule:
+            row_overtime_after = overtime_after
+            row_overtime_multiplier = overtime_multiplier
+
+            if rule.get("overtime_after_hours") is not None:
+                row_overtime_after = float(rule["overtime_after_hours"])
+            if rule.get("overtime_multiplier") is not None:
+                row_overtime_multiplier = max(1.0, float(rule["overtime_multiplier"]))
+
+            return round(
+                _calculate_shift_pay_from_rule(
+                    h,
+                    _get_user_rate(username),
+                    {
+                        "overtime_after_hours": row_overtime_after,
+                        "overtime_multiplier": row_overtime_multiplier,
+                    },
+                ),
+                2,
+            )
+
         try:
             return round(_calculate_shift_pay(h, _get_user_rate(username)), 2)
         except Exception:
@@ -108,6 +151,50 @@ def admin_payroll_impl(core):
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
     current_wp = _session_workplace_id()
     allowed_wps = set(_workplace_ids_for_read(current_wp))
+
+    def _get_saved_shift_rule(username, d_str):
+        if not DB_MIGRATION_MODE:
+            return None
+
+        try:
+            shift_date = date.fromisoformat(d_str)
+        except Exception:
+            return None
+
+        rec = (
+            WorkHour.query
+            .filter(
+                and_(
+                    WorkHour.employee_email == username,
+                    WorkHour.date == shift_date,
+                    or_(
+                        WorkHour.workplace_id.in_(allowed_wps),
+                        and_(WorkHour.workplace_id.is_(None), WorkHour.workplace.in_(allowed_wps)),
+                        WorkHour.workplace.in_(allowed_wps),
+                    ),
+                )
+            )
+            .order_by(WorkHour.id.desc())
+            .first()
+        )
+
+        if not rec:
+            return None
+
+        try:
+            ot_after = float(getattr(rec, "snapshot_overtime_after_hours", None))
+        except Exception:
+            ot_after = None
+
+        try:
+            ot_mult = float(getattr(rec, "snapshot_overtime_multiplier", None))
+        except Exception:
+            ot_mult = None
+
+        return {
+            "overtime_after_hours": ot_after,
+            "overtime_multiplier": ot_mult,
+        }
 
     employee_records = []
     try:
@@ -178,7 +265,7 @@ def admin_payroll_impl(core):
             "pay": (r[COL_PAY] if len(r) > COL_PAY else "") or "",
         }
         if row_data["hours"] != "":
-            row_data["pay"] = str(calc_day_gross(user, row_data["hours"], row_data["pay"]))
+            row_data["pay"] = str(calc_day_gross(user, d, row_data["hours"], row_data["pay"]))
         filtered.append(row_data)
 
     by_user = {}
@@ -190,8 +277,8 @@ def admin_payroll_impl(core):
         u = row["user"] or "Unknown"
         by_user.setdefault(u, {"hours": 0.0, "o": 0.0, "gross": 0.0})
         if row["hours"] != "":
-            worked_h = _round_to_half_hour(safe_float(row["hours"], 0.0))
-            o_h = calc_o_hours(worked_h)
+            worked_h = safe_float(row["hours"], 0.0)
+            o_h = calc_o_hours(u, row["date"], worked_h)
             paid_h = worked_h + o_h
             g = safe_float(row["pay"], 0.0)
 
@@ -229,7 +316,7 @@ def admin_payroll_impl(core):
         row_hours = (r[COL_HOURS] if len(r) > COL_HOURS else "") or ""
         row_pay = (r[COL_PAY] if len(r) > COL_PAY else "") or ""
         if row_hours != "":
-            row_pay = str(calc_day_gross(user, row_hours, row_pay))
+            row_pay = str(calc_day_gross(user, d, row_hours, row_pay))
 
         week_lookup.setdefault(user, {})
         week_lookup[user][d] = {
@@ -422,10 +509,9 @@ def admin_payroll_impl(core):
 
             cin = ((rec.get("cin", "") if isinstance(rec, dict) else "") or "").strip()
             cout = ((rec.get("cout", "") if isinstance(rec, dict) else "") or "").strip()
-            hrs = _round_to_half_hour(
-                safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0))
+            hrs = safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), default=0.0)
             pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), default=0.0)
-            o_hours = calc_o_hours(hrs)
+            o_hours = calc_o_hours(u, d_str, hrs)
 
             total_o += o_hours
             total_hours += (hrs + o_hours)
@@ -433,7 +519,7 @@ def admin_payroll_impl(core):
 
             form_id = f"payroll_{re.sub(r'[^a-zA-Z0-9]+', '_', u)}_{d_str.replace('-', '_')}"
             has_day_value = bool(cin or cout or hrs > 0 or pay > 0)
-            day_cls = "payrollDayCellOT" if hrs > OVERTIME_HOURS else ""
+            day_cls = "payrollDayCellOT" if o_hours > 0 else ""
 
             if has_day_value:
                 hrs_txt = f"{show_num(hrs)}h" if hrs > 0 else "—"
@@ -580,9 +666,9 @@ def admin_payroll_impl(core):
             d_str = (week_start + timedelta(days=di)).strftime("%Y-%m-%d")
             rec = user_days.get(d_str)
             if rec and rec.get("hours"):
-                h = _round_to_half_hour(safe_float(rec.get("hours", "0"), 0.0))
+                h = safe_float(rec.get("hours", "0"), 0.0)
                 wk_hours += h
-                if h > OVERTIME_HOURS:
+                if calc_o_hours(u, d_str, h) > 0:
                     wk_overtime_days += 1
             if rec and rec.get("pay"):
                 wk_gross += safe_float(rec.get("pay", "0"), 0.0)
@@ -606,8 +692,8 @@ def admin_payroll_impl(core):
             hrs = rec["hours"] if rec else ""
             pay = rec["pay"] if rec else ""
 
-            h_val = _round_to_half_hour(safe_float(hrs, 0.0)) if str(hrs).strip() != "" else 0.0
-            overtime_row_class = "overtimeRow" if (str(hrs).strip() != "" and h_val > OVERTIME_HOURS) else ""
+            h_val = safe_float(hrs, 0.0) if str(hrs).strip() != "" else 0.0
+            overtime_row_class = "overtimeRow" if (str(hrs).strip() != "" and calc_o_hours(u, d_str, h_val) > 0) else ""
 
             if rec:
                 if cout.strip() == "" and cin.strip() != "":
