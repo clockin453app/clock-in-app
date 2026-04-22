@@ -292,15 +292,61 @@ def _list_employee_records_for_workplace(workplace_id: str | None = None, includ
 
 
 def get_workhours_rows():
-    return get_workhours_rows_data(
-        db_migration_mode=DB_MIGRATION_MODE,
-        work_sheet=work_sheet,
-        workhour_model=WorkHour,
-        workplace_ids_for_read=_workplace_ids_for_read,
-        round_to_half_hour_func=_round_workhours_for_current_workplace,
-        apply_unpaid_break_func=_apply_workhours_break_for_current_workplace,
-        get_user_rate_func=_get_user_rate,
+    if not DB_MIGRATION_MODE:
+        return get_workhours_rows_data(
+            db_migration_mode=DB_MIGRATION_MODE,
+            work_sheet=work_sheet,
+            workhour_model=WorkHour,
+            workplace_ids_for_read=_workplace_ids_for_read,
+            round_to_half_hour_func=_round_workhours_for_current_workplace,
+            apply_unpaid_break_func=_apply_workhours_break_for_current_workplace,
+            get_user_rate_func=_get_user_rate,
+        )
+
+    current_wp = _session_workplace_id()
+    allowed_wps = set(_workplace_ids_for_read(current_wp))
+
+    rows = [[
+        "Username",
+        "Date",
+        "ClockIn",
+        "ClockOut",
+        "Hours",
+        "Pay",
+        "Workplace_ID",
+    ]]
+
+    db_rows = (
+        WorkHour.query
+        .filter(
+            or_(
+                WorkHour.workplace_id.in_(allowed_wps),
+                and_(WorkHour.workplace_id.is_(None), WorkHour.workplace.in_(allowed_wps)),
+                WorkHour.workplace.in_(allowed_wps),
+            )
+        )
+        .order_by(WorkHour.date.asc(), WorkHour.id.asc())
+        .all()
     )
+
+    for rec in db_rows:
+        cin = rec.clock_in.strftime("%H:%M:%S") if getattr(rec, "clock_in", None) else ""
+        cout = rec.clock_out.strftime("%H:%M:%S") if getattr(rec, "clock_out", None) else ""
+        hrs = "" if getattr(rec, "hours", None) is None else str(float(rec.hours))
+        pay = "" if getattr(rec, "pay", None) is None else str(float(rec.pay))
+        wp = str(getattr(rec, "workplace_id", "") or getattr(rec, "workplace", "") or "default")
+
+        rows.append([
+            str(getattr(rec, "employee_email", "") or ""),
+            rec.date.isoformat() if getattr(rec, "date", None) else "",
+            cin,
+            cout,
+            hrs,
+            pay,
+            wp,
+        ])
+
+    return rows
 
 
 def get_payroll_rows():
