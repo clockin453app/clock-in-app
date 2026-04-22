@@ -219,6 +219,7 @@ from .models import (
     PayrollReport,
     WorkHour,
     WorkplaceSetting,
+    WorkplacePayrollRule,
 )
 
 BASE_DIR = str(Settings.BASE_DIR)
@@ -641,6 +642,7 @@ from .services.admin_locations_save_route import admin_locations_save_impl
 from .services.admin_locations_deactivate_route import admin_locations_deactivate_impl
 from .services.admin_clock_selfies_route import admin_clock_selfies_impl
 from .services.work_progress_route import work_progress_impl
+from .services.admin_recalculate_shifts_route import admin_recalculate_shifts_impl
 from .services.auth_runtime import build_auth_runtime
 try:
     from PIL import Image, ImageOps
@@ -1232,7 +1234,8 @@ def _optimize_work_progress_image(file_bytes: bytes, detected_mime: str, safe_na
                 img = img.convert("RGB")
 
             max_dim = max(400, int(WORK_PROGRESS_IMAGE_MAX_DIM or 1600))
-            resample_filter = getattr(getattr(Image, "Resampling", Image), "LANCZOS", Image.BICUBIC)
+            resample_owner = getattr(Image, "Resampling", Image)
+            resample_filter = getattr(resample_owner, "LANCZOS", getattr(Image, "LANCZOS", 3))
             img.thumbnail((max_dim, max_dim), resample_filter)
 
             quality = max(55, min(95, int(WORK_PROGRESS_IMAGE_QUALITY or 82)))
@@ -2595,41 +2598,27 @@ def get_company_settings() -> dict:
             if isinstance(rec, dict):
                 row_wp = str(rec.get("Workplace_ID") or rec.get("workplace_id") or "default").strip() or "default"
                 tax_raw = str(rec.get("Tax_Rate") or rec.get("tax_rate") or "").strip()
-                cur = str(
-                    rec.get("Currency_Symbol") or rec.get("currency_symbol") or defaults["Currency_Symbol"]
-                ).strip() or defaults["Currency_Symbol"]
-                name = str(
-                    rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]
-                ).strip() or defaults["Company_Name"]
+                cur = str(rec.get("Currency_Symbol") or rec.get("currency_symbol") or defaults["Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
+                name = str(rec.get("Company_Name") or rec.get("company_name") or defaults["Company_Name"]).strip() or defaults["Company_Name"]
                 logo = str(rec.get("Company_Logo_URL") or rec.get("company_logo_url") or "").strip()
-                overtime_after_raw = str(
-                    rec.get("Overtime_After_Hours") or rec.get("overtime_after_hours") or ""
-                ).strip()
-                overtime_mult_raw = str(
-                    rec.get("Overtime_Multiplier") or rec.get("overtime_multiplier") or ""
-                ).strip()
-                rounding_raw = str(
-                    rec.get("Time_Rounding_Minutes") or rec.get("time_rounding_minutes") or ""
-                ).strip()
-                break_raw = str(
-                    rec.get("Break_Deduction_Minutes") or rec.get("break_deduction_minutes") or ""
-                ).strip()
+                overtime_after_raw = str(rec.get("Overtime_After_Hours") or rec.get("overtime_after_hours") or "").strip()
+                overtime_mult_raw = str(rec.get("Overtime_Multiplier") or rec.get("overtime_multiplier") or "").strip()
+                rounding_raw = str(rec.get("Time_Rounding_Minutes") or rec.get("time_rounding_minutes") or "").strip()
+                break_raw = str(rec.get("Break_Deduction_Minutes") or rec.get("break_deduction_minutes") or "").strip()
             else:
-                row_wp = str(getattr(rec, "workplace_id", "") or "default").strip() or "default"
-                tax_raw = "" if getattr(rec, "tax_rate", None) is None else str(getattr(rec, "tax_rate")).strip()
-                cur = str(
-                    getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults["Currency_Symbol"]
-                ).strip() or defaults["Currency_Symbol"]
-                name = str(
-                    getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]
-                ).strip() or defaults["Company_Name"]
+                row_wp = str(getattr(rec, "workplace_id", "default") or "default").strip() or "default"
+                tax_val = getattr(rec, "tax_rate", None)
+                tax_raw = "" if tax_val is None else str(tax_val).strip()
+                cur = str(getattr(rec, "currency_symbol", defaults["Currency_Symbol"]) or defaults["Currency_Symbol"]).strip() or defaults["Currency_Symbol"]
+                name = str(getattr(rec, "company_name", defaults["Company_Name"]) or defaults["Company_Name"]).strip() or defaults["Company_Name"]
                 logo = str(getattr(rec, "company_logo_url", "") or "").strip()
                 overtime_after_val = getattr(rec, "overtime_after_hours", None)
                 overtime_mult_val = getattr(rec, "overtime_multiplier", None)
-                overtime_after_raw = "" if overtime_after_val is None else str(overtime_after_val).strip()
-                overtime_mult_raw = "" if overtime_mult_val is None else str(overtime_mult_val).strip()
                 rounding_val = getattr(rec, "time_rounding_minutes", None)
                 break_val = getattr(rec, "break_deduction_minutes", None)
+
+                overtime_after_raw = "" if overtime_after_val is None else str(overtime_after_val).strip()
+                overtime_mult_raw = "" if overtime_mult_val is None else str(overtime_mult_val).strip()
                 rounding_raw = "" if rounding_val is None else str(rounding_val).strip()
                 break_raw = "" if break_val is None else str(break_val).strip()
 
@@ -2655,8 +2644,15 @@ def get_company_settings() -> dict:
             except Exception:
                 overtime_mult = defaults["Overtime_Multiplier"]
 
-            rounding_minutes = _sanitize_time_rounding_minutes(rounding_raw)
-            break_minutes = _sanitize_break_deduction_minutes(break_raw)
+            try:
+                rounding_minutes = int(float(rounding_raw)) if rounding_raw != "" else defaults["Time_Rounding_Minutes"]
+            except Exception:
+                rounding_minutes = defaults["Time_Rounding_Minutes"]
+
+            try:
+                break_minutes = int(float(break_raw)) if break_raw != "" else defaults["Break_Deduction_Minutes"]
+            except Exception:
+                break_minutes = defaults["Break_Deduction_Minutes"]
 
             best = {
                 "Workplace_ID": current_wp,
@@ -2674,6 +2670,93 @@ def get_company_settings() -> dict:
         return best or defaults
     except Exception:
         return defaults
+
+
+
+def _safe_rule_float(value, default):
+    try:
+        return float(value)
+    except Exception:
+        return float(default)
+
+
+def _safe_rule_int(value, default):
+    try:
+        return int(float(value))
+    except Exception:
+        return int(default)
+
+
+def _normalize_rule_snapshot(rule_row, workplace_id: str, shift_date):
+    settings = get_company_settings()
+
+    if rule_row is None:
+        return {
+            "id": None,
+            "workplace_id": workplace_id,
+            "effective_from": shift_date,
+            "overtime_after_hours": _safe_rule_float(settings.get("Overtime_After_Hours", 8.5), 8.5),
+            "overtime_multiplier": _safe_rule_float(settings.get("Overtime_Multiplier", 1.0), 1.0),
+            "time_rounding_minutes": _safe_rule_int(settings.get("Time_Rounding_Minutes", 30), 30),
+            "break_deduction_minutes": _safe_rule_int(settings.get("Break_Deduction_Minutes", 30), 30),
+        }
+
+    return {
+        "id": getattr(rule_row, "id", None),
+        "workplace_id": workplace_id,
+        "effective_from": getattr(rule_row, "effective_from", shift_date),
+        "overtime_after_hours": _safe_rule_float(getattr(rule_row, "overtime_after_hours", 8.5), 8.5),
+        "overtime_multiplier": _safe_rule_float(getattr(rule_row, "overtime_multiplier", 1.0), 1.0),
+        "time_rounding_minutes": _safe_rule_int(getattr(rule_row, "time_rounding_minutes", 30), 30),
+        "break_deduction_minutes": _safe_rule_int(getattr(rule_row, "break_deduction_minutes", 30), 30),
+    }
+
+
+def _get_payroll_rule_for_shift(shift_date, workplace_id: str | None = None):
+    wp = (workplace_id or _session_workplace_id() or "default").strip() or "default"
+    if not DB_MIGRATION_MODE:
+        return _normalize_rule_snapshot(None, wp, shift_date)
+
+    rule_row = (
+        WorkplacePayrollRule.query
+        .filter(
+            WorkplacePayrollRule.workplace_id == wp,
+            WorkplacePayrollRule.effective_from <= shift_date,
+            or_(WorkplacePayrollRule.is_active.is_(None), WorkplacePayrollRule.is_active != "false"),
+        )
+        .order_by(WorkplacePayrollRule.effective_from.desc(), WorkplacePayrollRule.id.desc())
+        .first()
+    )
+    return _normalize_rule_snapshot(rule_row, wp, shift_date)
+
+
+def _save_workhour_rule_snapshot(db_row, rule_snapshot: dict):
+    db_row.payroll_rule_id = rule_snapshot.get("id")
+    db_row.rule_effective_from = rule_snapshot.get("effective_from")
+    db_row.snapshot_overtime_after_hours = rule_snapshot.get("overtime_after_hours")
+    db_row.snapshot_overtime_multiplier = rule_snapshot.get("overtime_multiplier")
+    db_row.snapshot_time_rounding_minutes = rule_snapshot.get("time_rounding_minutes")
+    db_row.snapshot_break_deduction_minutes = rule_snapshot.get("break_deduction_minutes")
+
+
+def _calculate_shift_pay_from_rule(hours_value: float, rate_value: float, rule_snapshot: dict) -> float:
+    try:
+        hours_num = max(0.0, float(hours_value or 0.0))
+    except Exception:
+        hours_num = 0.0
+
+    try:
+        rate_num = max(0.0, float(rate_value or 0.0))
+    except Exception:
+        rate_num = 0.0
+
+    overtime_after = _safe_rule_float(rule_snapshot.get("overtime_after_hours", 8.5), 8.5)
+    overtime_mult = max(1.0, _safe_rule_float(rule_snapshot.get("overtime_multiplier", 1.0), 1.0))
+
+    normal_hours = min(hours_num, overtime_after)
+    overtime_hours = max(0.0, hours_num - overtime_after)
+    total = (normal_hours * rate_num) + (overtime_hours * rate_num * overtime_mult)
+    return round(total, 2)
 
 
 def _calculate_shift_pay(hours_value: float, rate_value: float) -> float:
@@ -2706,13 +2789,7 @@ def _calculate_shift_pay(hours_value: float, rate_value: float) -> float:
     return round(total, 2)
 
 
-
-def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | None:
-    """
-    Compute payable hours between cin and cout on date_str.
-    Accepts HH:MM or HH:MM:SS. Supports overnight (clock-out past midnight).
-    Applies workplace break deduction and workplace rounding.
-    """
+def _compute_hours_from_times(date_str: str, cin: str, cout: str, workplace_id: str | None = None, rule_snapshot: dict | None = None) -> float | None:
     try:
         d = (date_str or "").strip()
         t_in = (cin or "").strip()
@@ -2725,6 +2802,7 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
         if len(t_out.split(":")) == 2:
             t_out = t_out + ":00"
 
+        shift_date = datetime.strptime(d, "%Y-%m-%d").date()
         start_dt = datetime.strptime(f"{d} {t_in}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
         end_dt = datetime.strptime(f"{d} {t_out}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
 
@@ -2733,16 +2811,19 @@ def _compute_hours_from_times(date_str: str, cin: str, cout: str) -> float | Non
 
         raw_hours = max(0.0, (end_dt - start_dt).total_seconds() / 3600.0)
 
-        time_rules = _get_workplace_time_rules()
-        payable = _apply_break_deduction_minutes(
-            raw_hours,
-            time_rules["break_deduction_minutes"],
-        )
+        rule = rule_snapshot or _get_payroll_rule_for_shift(shift_date, workplace_id)
+        break_minutes = _safe_rule_int(rule.get("break_deduction_minutes", 30), 30)
+        rounding_minutes = _safe_rule_int(rule.get("time_rounding_minutes", 30), 30)
 
-        return _round_hours_to_minutes(
-            payable,
-            time_rules["time_rounding_minutes"],
-        )
+        payable = raw_hours
+        if break_minutes > 0 and raw_hours >= 6.0:
+            payable = max(0.0, raw_hours - (break_minutes / 60.0))
+
+        if rounding_minutes > 0:
+            step = rounding_minutes / 60.0
+            payable = round(payable / step) * step
+
+        return round(payable, 2)
     except Exception:
         return None
 
@@ -5461,6 +5542,10 @@ def admin_mark_paid():
 @routes.get("/admin/payroll")
 def admin_payroll():
     return admin_payroll_impl(core=globals())
+
+@routes.route("/admin/recalculate-shifts", methods=["GET", "POST"])
+def admin_recalculate_shifts():
+    return admin_recalculate_shifts_impl(core=globals())
 
 
 def _get_week_range(wk_offset: int):

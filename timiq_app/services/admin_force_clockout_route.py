@@ -25,6 +25,9 @@ def admin_force_clockout_impl(core):
     log_audit = core["log_audit"]
     _calculate_shift_pay = core["_calculate_shift_pay"]
     _get_canonical_workhour_for_day = core["_get_canonical_workhour_for_day"]
+    _get_payroll_rule_for_shift = core["_get_payroll_rule_for_shift"]
+    _calculate_shift_pay_from_rule = core["_calculate_shift_pay_from_rule"]
+    _save_workhour_rule_snapshot = core["_save_workhour_rule_snapshot"]
 
 
 
@@ -50,11 +53,23 @@ def admin_force_clockout_impl(core):
     if len(out_time.split(":")) == 2:
         out_time = out_time + ":00"
 
-    computed_hours = _compute_hours_from_times(d, cin, out_time)
+    shift_date_obj = datetime.strptime(d, "%Y-%m-%d").date()
+    rule_snapshot = _get_payroll_rule_for_shift(
+        shift_date_obj,
+        _session_workplace_id(),
+    )
+
+    computed_hours = _compute_hours_from_times(
+        d,
+        cin,
+        out_time,
+        _session_workplace_id(),
+        rule_snapshot,
+    )
     if computed_hours is None:
         return redirect(request.referrer or "/admin")
 
-    pay = _calculate_shift_pay(computed_hours, rate)
+    pay = _calculate_shift_pay_from_rule(computed_hours, rate, rule_snapshot)
 
     if DB_MIGRATION_MODE:
         try:
@@ -77,7 +92,10 @@ def admin_force_clockout_impl(core):
             db_row.pay = pay
             db_row.workplace = _session_workplace_id()
             db_row.workplace_id = _session_workplace_id()
+            _save_workhour_rule_snapshot(db_row, rule_snapshot)
             db.session.commit()
+
+
         except Exception as e:
             db.session.rollback()
             return make_response(f"Could not force clock out: {e}", 500)

@@ -11,6 +11,8 @@ def admin_company_impl(core):
     DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
     WorkplaceSetting = core["WorkplaceSetting"]
     db = core["db"]
+    WorkplacePayrollRule = core["WorkplacePayrollRule"]
+    datetime = core["datetime"]
     log_audit = core["log_audit"]
     escape = core["escape"]
     admin_back_link = core["admin_back_link"]
@@ -33,6 +35,8 @@ def admin_company_impl(core):
     current_logo = (settings.get("Company_Logo_URL") or "").strip()
     current_overtime_after = str(settings.get("Overtime_After_Hours", 8.5) or 8.5)
     current_overtime_multiplier = str(settings.get("Overtime_Multiplier", 1.5) or 1.5)
+    current_rule_effective_from = datetime.now().date().isoformat()
+    current_rule_note = ""
     _time_rounding_raw = settings.get("Time_Rounding_Minutes", 30)
     if _time_rounding_raw in (None, ""):
         _time_rounding_raw = 30
@@ -54,27 +58,14 @@ def admin_company_impl(core):
         new_overtime_multiplier = (request.form.get("overtime_multiplier") or "").strip()
         new_time_rounding = (request.form.get("time_rounding_minutes") or "").strip()
         new_break_deduction = (request.form.get("break_deduction_minutes") or "").strip()
+        new_rule_effective_from = (request.form.get("rule_effective_from") or "").strip()
+        new_rule_note = (request.form.get("rule_note") or "").strip()
 
         overtime_after_value = None
         overtime_multiplier_value = None
         time_rounding_value = None
         break_deduction_value = None
-
-        if not msg:
-            try:
-                time_rounding_value = int(float(new_time_rounding or "30"))
-                if time_rounding_value not in (10, 15, 20, 30):
-                    raise ValueError
-            except Exception:
-                msg = "Time rounding must be 10, 15, 20, or 30 minutes."
-
-        if not msg:
-            try:
-                break_deduction_value = int(float(new_break_deduction or "30"))
-                if break_deduction_value not in (0, 30):
-                    raise ValueError
-            except Exception:
-                msg = "Break deduction must be 0 or 30 minutes."
+        rule_effective_from_value = None
 
         try:
             overtime_after_value = float(new_overtime_after or "8.5")
@@ -85,11 +76,36 @@ def admin_company_impl(core):
 
         if not msg:
             try:
-                overtime_multiplier_value = float(new_overtime_multiplier or "1.5")
+                overtime_multiplier_value = float(new_overtime_multiplier or "1.0")
                 if overtime_multiplier_value < 1:
                     raise ValueError
             except Exception:
                 msg = "Overtime multiplier must be 1 or more."
+
+        if not msg:
+            try:
+                time_rounding_value = int(float(new_time_rounding or "30"))
+                if time_rounding_value not in (10, 15, 30):
+                    raise ValueError
+            except Exception:
+                msg = "Time rounding must be 10, 15 or 30."
+
+        if not msg:
+            try:
+                break_deduction_value = int(float(new_break_deduction or "30"))
+                if break_deduction_value not in (0, 15, 30):
+                    raise ValueError
+            except Exception:
+                msg = "Break deduction must be 0, 15 or 30."
+
+        if not msg:
+            try:
+                rule_effective_from_value = datetime.strptime(
+                    new_rule_effective_from or datetime.now().date().isoformat(),
+                    "%Y-%m-%d"
+                ).date()
+            except Exception:
+                msg = "Rule effective from date is invalid."
 
         if msg:
             pass
@@ -200,6 +216,22 @@ def admin_company_impl(core):
                                 db_row.overtime_multiplier = overtime_multiplier_value
                                 db_row.time_rounding_minutes = time_rounding_value
                                 db_row.break_deduction_minutes = break_deduction_value
+
+                                db.session.add(
+                                    WorkplacePayrollRule(
+                                        workplace_id=wp,
+                                        effective_from=rule_effective_from_value,
+                                        overtime_after_hours=overtime_after_value,
+                                        overtime_multiplier=overtime_multiplier_value,
+                                        time_rounding_minutes=time_rounding_value,
+                                        break_deduction_minutes=break_deduction_value,
+                                        created_by=session.get("username", "admin"),
+                                        created_at=datetime.now(),
+                                        note=new_rule_note,
+                                        is_active="true",
+                                    )
+                                )
+
                                 db.session.commit()
                         except Exception:
                             db.session.rollback()
@@ -251,6 +283,22 @@ def admin_company_impl(core):
                                         break_deduction_minutes=break_deduction_value,
                                     )
                                 )
+
+                            db.session.add(
+                                WorkplacePayrollRule(
+                                    workplace_id=wp,
+                                    effective_from=rule_effective_from_value,
+                                    overtime_after_hours=overtime_after_value,
+                                    overtime_multiplier=overtime_multiplier_value,
+                                    time_rounding_minutes=time_rounding_value,
+                                    break_deduction_minutes=break_deduction_value,
+                                    created_by=session.get("username", "admin"),
+                                    created_at=datetime.now(),
+                                    note=new_rule_note,
+                                    is_active="true",
+                                )
+                            )
+
                             db.session.commit()
                         except Exception:
                             db.session.rollback()
@@ -299,13 +347,21 @@ def admin_company_impl(core):
 <select class="input" name="time_rounding_minutes">
   <option value="10" {"selected" if current_time_rounding == "10" else ""}>10 minutes</option>
   <option value="15" {"selected" if current_time_rounding == "15" else ""}>15 minutes</option>
-  <option value="20" {"selected" if current_time_rounding == "20" else ""}>20 minutes</option>
   <option value="30" {"selected" if current_time_rounding == "30" else ""}>30 minutes</option>
 </select>
+
+<label class="sub" style="margin-top:10px;">Rule effective from</label>
+              <input class="input" type="date" name="rule_effective_from" value="{escape(current_rule_effective_from)}" required>
+
+              <label class="sub" style="margin-top:10px;">Rule note</label>
+              <textarea class="input" name="rule_note" rows="2" placeholder="Optional note for this rule version">{escape(current_rule_note)}</textarea>
+
+
 
 <label class="sub" style="margin-top:10px;">Break deduction</label>
 <select class="input" name="break_deduction_minutes">
   <option value="0" {"selected" if current_break_deduction == "0" else ""}>No break deduction</option>
+  <option value="15" {"selected" if current_break_deduction == "15" else ""}>15 minutes</option>
   <option value="30" {"selected" if current_break_deduction == "30" else ""}>30 minutes</option>
 </select>
 

@@ -48,6 +48,12 @@ class WorkHour(db.Model):
     in_selfie_url = db.Column(db.Text)
     out_selfie_url = db.Column(db.Text)
     workplace_id = db.Column(db.String(255), index=True)
+    payroll_rule_id = db.Column(db.Integer, index=True)
+    rule_effective_from = db.Column(db.Date)
+    snapshot_overtime_after_hours = db.Column(db.Numeric(10, 2))
+    snapshot_overtime_multiplier = db.Column(db.Numeric(10, 2))
+    snapshot_time_rounding_minutes = db.Column(db.Integer)
+    snapshot_break_deduction_minutes = db.Column(db.Integer)
 
 
 class AuditLog(db.Model):
@@ -152,6 +158,7 @@ class Location(db.Model):
     workplace_id = db.Column(db.String(255), index=True)
 
 
+
 class WorkplaceSetting(db.Model):
     __tablename__ = "workplace_settings"
     id = db.Column(db.Integer, primary_key=True)
@@ -164,5 +171,22 @@ class WorkplaceSetting(db.Model):
     overtime_multiplier = db.Column(db.Numeric(10, 2))
     time_rounding_minutes = db.Column(db.Integer)
     break_deduction_minutes = db.Column(db.Integer)
+
+class WorkplacePayrollRule(db.Model):
+    __tablename__ = "workplace_payroll_rules"
+
+    id = db.Column(db.Integer, primary_key=True)
+    workplace_id = db.Column(db.String(255), index=True, nullable=False)
+    effective_from = db.Column(db.Date, index=True, nullable=False)
+
+    overtime_after_hours = db.Column(db.Numeric(10, 2), nullable=False)
+    overtime_multiplier = db.Column(db.Numeric(10, 2), nullable=False)
+    time_rounding_minutes = db.Column(db.Integer, nullable=False)
+    break_deduction_minutes = db.Column(db.Integer, nullable=False)
+
+    created_by = db.Column(db.String(255))
+    created_at = db.Column(db.DateTime)
+    note = db.Column(db.Text)
+    is_active = db.Column(db.String(20), default="true")
 
 

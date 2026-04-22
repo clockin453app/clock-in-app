@@ -24,6 +24,9 @@ def admin_save_shift_impl(core):
     _gs_write_with_retry = core["_gs_write_with_retry"]
     _calculate_shift_pay = core["_calculate_shift_pay"]
     _get_canonical_workhour_for_day = core["_get_canonical_workhour_for_day"]
+    _get_payroll_rule_for_shift = core["_get_payroll_rule_for_shift"]
+    _calculate_shift_pay_from_rule = core["_calculate_shift_pay_from_rule"]
+    _save_workhour_rule_snapshot = core["_save_workhour_rule_snapshot"]
 
 
     gate = require_admin()
@@ -76,14 +79,35 @@ def admin_save_shift_impl(core):
     rate = _get_user_rate(username)
     hours_val = None if hours_in == "" else safe_float(hours_in, 0.0)
     pay_val = None if pay_in == "" else safe_float(pay_in, 0.0)
+    rule_snapshot = None
 
     if cin and cout:
-        computed = _compute_hours_from_times(date_str, cin, cout)
+        shift_date_for_rule = datetime.strptime(date_str, "%Y-%m-%d").date()
+        rule_snapshot = _get_payroll_rule_for_shift(
+            shift_date_for_rule,
+            _session_workplace_id(),
+        )
+        computed = _compute_hours_from_times(
+            date_str,
+            cin,
+            cout,
+            _session_workplace_id(),
+            rule_snapshot,
+        )
         if computed is not None:
             hours_val = computed
-            pay_val = _calculate_shift_pay(computed, rate)
+            pay_val = _calculate_shift_pay_from_rule(computed, rate, rule_snapshot)
     elif hours_in != "":
-        pay_val = _calculate_shift_pay(safe_float(hours_in, 0.0), rate)
+        shift_date_for_rule = datetime.strptime(date_str, "%Y-%m-%d").date()
+        rule_snapshot = _get_payroll_rule_for_shift(
+            shift_date_for_rule,
+            _session_workplace_id(),
+        )
+        pay_val = _calculate_shift_pay_from_rule(
+            safe_float(hours_in, 0.0),
+            rate,
+            rule_snapshot,
+        )
 
     hours_cell = "" if hours_val is None else str(hours_val)
     pay_cell = "" if pay_val is None else str(pay_val)
@@ -120,7 +144,17 @@ def admin_save_shift_impl(core):
             db_row.pay = float(pay_cell) if pay_cell != "" else None
             db_row.workplace = _session_workplace_id()
             db_row.workplace_id = _session_workplace_id()
+
+            if rule_snapshot is None:
+                rule_snapshot = _get_payroll_rule_for_shift(
+                    shift_date,
+                    _session_workplace_id(),
+                )
+            _save_workhour_rule_snapshot(db_row, rule_snapshot)
+
             db.session.commit()
+
+
         except Exception as e:
             db.session.rollback()
             return make_response(f"Could not save shift: {e}", 500)

@@ -8,6 +8,7 @@ def clock_page_impl(core):
     get_employee_display_name = core["get_employee_display_name"]
     _get_user_rate = core["_get_user_rate"]
     _find_employee_record = core["_find_employee_record"]
+    _compute_hours_from_times = core["_compute_hours_from_times"]
     _session_workplace_id = core["_session_workplace_id"]
     parse_bool = core["parse_bool"]
     datetime = core["datetime"]
@@ -51,11 +52,9 @@ def clock_page_impl(core):
     timedelta = core["timedelta"]
     COL_OUT = core["COL_OUT"]
     COL_PAY = core["COL_PAY"]
-    _round_to_half_hour = core["_round_to_half_hour"]
-    _apply_unpaid_break = core["_apply_unpaid_break"]
-    _get_workplace_time_rules = core["_get_workplace_time_rules"]
-    _round_hours_to_minutes = core["_round_hours_to_minutes"]
-    _apply_break_deduction_minutes = core["_apply_break_deduction_minutes"]
+    _get_payroll_rule_for_shift = core["_get_payroll_rule_for_shift"]
+    _calculate_shift_pay_from_rule = core["_calculate_shift_pay_from_rule"]
+    _save_workhour_rule_snapshot = core["_save_workhour_rule_snapshot"]
     gate = require_login()
     if gate:
         return gate
@@ -252,21 +251,32 @@ def clock_page_impl(core):
                                                              now) if CLOCK_SELFIE_REQUIRED else ""
                             i, d, t = osf
                             cin_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-                            raw_hours = max(0.0, (now - cin_dt).total_seconds() / 3600.0)
+                            shift_date_obj = datetime.strptime(d, "%Y-%m-%d").date()
+                            rule_snapshot = _get_payroll_rule_for_shift(
+                                shift_date_obj,
+                                _session_workplace_id(),
+                            )
 
-                            time_rules = _get_workplace_time_rules()
-                            payable_hours = _apply_break_deduction_minutes(
-                                raw_hours,
-                                time_rules["break_deduction_minutes"],
+                            cout = now.strftime("%H:%M:%S")
+                            hours_rounded = _compute_hours_from_times(
+                                d,
+                                t,
+                                cout,
+                                _session_workplace_id(),
+                                rule_snapshot,
                             )
-                            hours_rounded = _round_hours_to_minutes(
-                                payable_hours,
-                                time_rules["time_rounding_minutes"],
+                            if hours_rounded is None:
+                                msg = "Could not calculate hours for this shift."
+                                msg_class = "message error"
+                                raise RuntimeError("Could not calculate hours for this shift.")
+
+                            pay = _calculate_shift_pay_from_rule(
+                                hours_rounded,
+                                rate,
+                                rule_snapshot,
                             )
-                            pay = round(hours_rounded * float(rate), 2)
 
                             sheet_row = i + 1
-                            cout = now.strftime("%H:%M:%S")
 
                             updates = [
                                 {
@@ -309,27 +319,40 @@ def clock_page_impl(core):
                                     db_row = WorkHour.query.filter(
                                         WorkHour.employee_email == username,
                                         WorkHour.date == shift_date,
-                                        or_(WorkHour.workplace_id == _session_workplace_id(),
-                                            WorkHour.workplace == _session_workplace_id()),
+                                        or_(
+                                            WorkHour.workplace_id == _session_workplace_id(),
+                                            WorkHour.workplace == _session_workplace_id(),
+                                        ),
                                     ).order_by(WorkHour.id.desc()).first()
 
                                     if db_row:
+                                        if not getattr(db_row, "clock_in", None):
+                                            db_row.clock_in = clock_in_dt_check
                                         db_row.clock_out = clock_out_dt
                                         db_row.out_selfie_url = selfie_url
                                         db_row.hours = hours_rounded
                                         db_row.pay = pay
+                                        db_row.workplace = _session_workplace_id()
+                                        db_row.workplace_id = _session_workplace_id()
+                                        _save_workhour_rule_snapshot(db_row, rule_snapshot)
                                     else:
                                         db.session.add(
                                             WorkHour(
                                                 employee_email=username,
                                                 date=shift_date,
-                                                clock_in=None,
+                                                clock_in=clock_in_dt_check,
                                                 clock_out=clock_out_dt,
                                                 workplace=_session_workplace_id(),
                                                 workplace_id=_session_workplace_id(),
                                                 out_selfie_url=selfie_url,
                                                 hours=hours_rounded,
                                                 pay=pay,
+                                                payroll_rule_id=rule_snapshot.get("id"),
+                                                rule_effective_from=rule_snapshot.get("effective_from"),
+                                                snapshot_overtime_after_hours=rule_snapshot.get("overtime_after_hours"),
+                                                snapshot_overtime_multiplier=rule_snapshot.get("overtime_multiplier"),
+                                                snapshot_time_rounding_minutes=rule_snapshot.get("time_rounding_minutes"),
+                                                snapshot_break_deduction_minutes=rule_snapshot.get("break_deduction_minutes"),
                                             )
                                         )
 
