@@ -24,6 +24,10 @@ def work_progress_impl(core):
     admin_back_link = core["admin_back_link"]
     jsonify = core["jsonify"]
     os = core["os"]
+    import io
+    import re
+    import zipfile
+    from flask import send_file
 
     gate = require_login()
     if gate:
@@ -207,6 +211,67 @@ def work_progress_impl(core):
             if is_ajax:
                 return ajax_response(ok, msg, 200 if ok else 400)
 
+
+        elif action == "bulk_download":
+            selected_ids = request.form.getlist("selected_ids")
+            _entries, matches = find_entries(selected_ids)
+
+            if not matches:
+                msg = "No photos selected."
+                ok = False
+                if is_ajax:
+                    return ajax_response(ok, msg, 400)
+            else:
+                archive_buffer = io.BytesIO()
+                used_names = {}
+                added = 0
+
+                with zipfile.ZipFile(archive_buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+                    for _idx, entry in matches:
+                        relpath = str(entry.get("relpath") or "").strip()
+                        full_path = _resolve_work_progress_file_path(relpath, enforce_workplace=False)
+
+                        if not full_path or not os.path.exists(full_path):
+                            continue
+
+                        site_part = _work_progress_safe_text(str(entry.get("site") or "site"), 40) or "site"
+                        date_part = _work_progress_safe_text(str(entry.get("date") or today_str), 20) or today_str
+                        user_part = _work_progress_safe_text(str(entry.get("username") or "user"), 40) or "user"
+                        ext = os.path.splitext(full_path)[1] or ".jpg"
+
+                        base_name = re.sub(
+                            r"[^A-Za-z0-9._-]+",
+                            "_",
+                            f"{date_part}_{site_part}_{user_part}{ext}"
+                        )
+
+                        if base_name in used_names:
+                            used_names[base_name] += 1
+                            stem, ext2 = os.path.splitext(base_name)
+                            arcname = f"{stem}_{used_names[base_name]}{ext2}"
+                        else:
+                            used_names[base_name] = 1
+                            arcname = base_name
+
+                        zf.write(full_path, arcname=arcname)
+                        added += 1
+
+                if added <= 0:
+                    msg = "No files available for download."
+                    ok = False
+                    if is_ajax:
+                        return ajax_response(ok, msg, 400)
+                else:
+                    archive_buffer.seek(0)
+                    zip_name = f"work_progress_{wp}_{datetime.now(TZ).strftime('%Y%m%d_%H%M%S')}.zip"
+                    return send_file(
+                        archive_buffer,
+                        mimetype="application/zip",
+                        as_attachment=True,
+                        download_name=zip_name
+                    )
+
+
         elif action == "bulk_edit":
             if not is_admin:
                 return ajax_response(False, "Admin only.", 403) if is_ajax else ("Admin only.", 403)
@@ -346,14 +411,16 @@ def work_progress_impl(core):
                             type="checkbox"
                             class="progressBulkCheck"
                             name="selected_ids"
-                            form="progressBulkDeleteForm"
+                            form="progressBulkActionForm"
                             value="{item_id}">
                           <span>Select</span>
                         </label>
                     """
 
-        cards.append(f"""
-            <div class="progressCard">
+            card_class = "progressCard progressCardSelectable" if is_admin else "progressCard"
+
+            cards.append(f"""
+                <div class="{card_class}">
               {select_html}
               <a href="{item_url}" target="_blank" rel="noopener noreferrer" class="progressThumbLink">
                 <img src="{item_url}" alt="Progress photo" class="progressThumb">
@@ -476,6 +543,49 @@ def work_progress_impl(core):
   font-size:12px;
   color:#64748b;
   margin-bottom:6px;
+}}
+
+.progressBulkToolbar {{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  flex-wrap:wrap;
+  padding:10px 0;
+  border-top:1px solid rgba(15,23,42,.08);
+  border-bottom:1px solid rgba(15,23,42,.08);
+}}
+
+.progressBulkSummary {{
+  font-size:12px;
+  font-weight:700;
+  color:#64748b;
+}}
+
+.progressBulkActions {{
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+}}
+
+.progressBulkActions .btnTiny[disabled] {{
+  opacity:.55;
+  cursor:not-allowed;
+}}
+
+.progressCardSelectable {{
+  cursor:pointer;
+  transition:border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}}
+
+.progressCardSelectable:hover {{
+  border-color:rgba(59,116,173,.26);
+}}
+
+.progressCardSelectable.is-selected {{
+  border-color:rgba(59,116,173,.55);
+  box-shadow:0 0 0 2px rgba(59,116,173,.12);
+  background:#f8fbff;
 }}
 
 
@@ -629,24 +739,34 @@ def work_progress_impl(core):
           </div>
         </form>
 
-        <form method="POST" id="progressBulkDeleteForm" style="margin-top:12px;">
+                <form method="POST" id="progressBulkActionForm" style="margin-top:12px;">
           <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <input type="hidden" name="action" value="bulk_delete">
+          <input type="hidden" name="action" value="" id="progressBulkActionName">
 
-          <div class="progressDeleteBar">
-            <button class="btnTiny" type="submit" onclick="return confirm('Delete selected photos?');">
-              Delete selected
-            </button>
+          <div class="progressBulkToolbar">
+            <label class="progressSelectBox" style="margin:0;">
+              <input type="checkbox" id="progressSelectAll">
+              <span>Select all</span>
+            </label>
+
+            <div class="progressBulkSummary">
+              <span id="progressSelectedCount">0</span> selected
+            </div>
+
+            <div class="progressBulkActions">
+              <button class="btnTiny" type="button" id="progressClearSelection">Clear selection</button>
+              <button class="btnTiny" type="submit" data-bulk-action="bulk_download" disabled>Download selected</button>
+              <button class="btnTiny" type="submit" data-bulk-action="bulk_delete" disabled>Delete selected</button>
+            </div>
           </div>
         </form>
 
         <div class="progressGrid" style="margin-top:14px;">
           {gallery_html}
-        </div>
       </div>
       '''} 
 
-      <script>
+            <script>
         (function() {{
           const form = document.getElementById("progressUploadForm");
           if (!form) return;
@@ -673,9 +793,9 @@ def work_progress_impl(core):
             }}
 
             if (submitBtn) submitBtn.disabled = true;
-statusEl.className = "";
-statusEl.style.display = "block";
-statusEl.textContent = "Starting upload...";
+            statusEl.className = "";
+            statusEl.style.display = "block";
+            statusEl.textContent = "Starting upload...";
 
             let okCount = 0;
             let failCount = 0;
@@ -717,49 +837,154 @@ statusEl.textContent = "Starting upload...";
             }}
 
             if (okCount > 0 && failCount === 0) {{
-  statusEl.className = "success";
-  statusEl.style.display = "block";
-  statusEl.textContent = "Upload successful: " + okCount + " photo(s) uploaded.";
+              statusEl.className = "success";
+              statusEl.style.display = "block";
+              statusEl.textContent = "Upload successful: " + okCount + " photo(s) uploaded.";
 
-  form.reset();
+              form.reset();
 
-  setTimeout(function() {{
-    window.location.reload();
-  }}, 1500);
-}} else if (okCount > 0) {{
-  statusEl.className = "";
-  statusEl.style.display = "block";
-  statusEl.textContent = "Upload finished: " + okCount + " uploaded, " + failCount + " failed.";
+              setTimeout(function() {{
+                window.location.reload();
+              }}, 1500);
+            }} else if (okCount > 0) {{
+              statusEl.className = "";
+              statusEl.style.display = "block";
+              statusEl.textContent = "Upload finished: " + okCount + " uploaded, " + failCount + " failed.";
 
-  setTimeout(function() {{
-    window.location.reload();
-  }}, 1800);
-}} else {{
-  statusEl.className = "error";
-  statusEl.style.display = "block";
-  statusEl.textContent = "Upload failed. Please try again.";
-  if (submitBtn) submitBtn.disabled = false;
-}}
-          }});
-                  }})();
-                  
-                          (function() {{
-          const bulkDeleteForm = document.getElementById("progressBulkDeleteForm");
-          if (!bulkDeleteForm) return;
-
-          bulkDeleteForm.addEventListener("submit", function(e) {{
-            const checked = Array.from(document.querySelectorAll(".progressBulkCheck")).some(function(cb) {{
-              return cb.checked;
-            }});
-
-            if (!checked) {{
-              e.preventDefault();
-              alert("Select at least one photo first.");
+              setTimeout(function() {{
+                window.location.reload();
+              }}, 1800);
+            }} else {{
+              statusEl.className = "error";
+              statusEl.style.display = "block";
+              statusEl.textContent = "Upload failed. Please try again.";
+              if (submitBtn) submitBtn.disabled = false;
             }}
           }});
         }})();
 
+        (function() {{
+          const bulkForm = document.getElementById("progressBulkActionForm");
+          if (!bulkForm) return;
 
+          const actionInput = document.getElementById("progressBulkActionName");
+          const selectAll = document.getElementById("progressSelectAll");
+          const clearBtn = document.getElementById("progressClearSelection");
+          const countEl = document.getElementById("progressSelectedCount");
+          const actionButtons = Array.from(bulkForm.querySelectorAll("[data-bulk-action]"));
+          const checks = Array.from(document.querySelectorAll(".progressBulkCheck"));
+
+          let lastIndex = -1;
+
+          function syncSelection() {{
+            const selectedCount = checks.filter(function(cb) {{
+              return cb.checked;
+            }}).length;
+
+            if (countEl) countEl.textContent = String(selectedCount);
+
+            if (selectAll) {{
+              selectAll.checked = checks.length > 0 && selectedCount === checks.length;
+              selectAll.indeterminate = selectedCount > 0 && selectedCount < checks.length;
+            }}
+
+            checks.forEach(function(cb) {{
+              const card = cb.closest(".progressCardSelectable");
+              if (card) {{
+                card.classList.toggle("is-selected", cb.checked);
+              }}
+            }});
+
+            actionButtons.forEach(function(btn) {{
+              btn.disabled = selectedCount === 0;
+            }});
+          }}
+
+          function setRange(fromIndex, toIndex, checked) {{
+            const start = Math.min(fromIndex, toIndex);
+            const end = Math.max(fromIndex, toIndex);
+
+            for (let i = start; i <= end; i += 1) {{
+              checks[i].checked = checked;
+            }}
+          }}
+
+          checks.forEach(function(cb, index) {{
+            cb.addEventListener("click", function(e) {{
+              if (e.shiftKey && lastIndex >= 0) {{
+                setRange(lastIndex, index, cb.checked);
+              }}
+              lastIndex = index;
+              syncSelection();
+            }});
+
+            const card = cb.closest(".progressCardSelectable");
+            if (card) {{
+              card.addEventListener("click", function(e) {{
+                if (e.target.closest("a, button, input, label")) return;
+                cb.checked = !cb.checked;
+                lastIndex = index;
+                syncSelection();
+              }});
+            }}
+          }});
+
+          if (selectAll) {{
+            selectAll.addEventListener("change", function() {{
+              checks.forEach(function(cb) {{
+                cb.checked = selectAll.checked;
+              }});
+              syncSelection();
+            }});
+          }}
+
+          if (clearBtn) {{
+            clearBtn.addEventListener("click", function(e) {{
+              e.preventDefault();
+              checks.forEach(function(cb) {{
+                cb.checked = false;
+              }});
+              if (selectAll) {{
+                selectAll.checked = false;
+                selectAll.indeterminate = false;
+              }}
+              syncSelection();
+            }});
+          }}
+
+          actionButtons.forEach(function(btn) {{
+            btn.addEventListener("click", function() {{
+              if (actionInput) {{
+                actionInput.value = btn.getAttribute("data-bulk-action") || "";
+              }}
+            }});
+          }});
+
+          bulkForm.addEventListener("submit", function(e) {{
+            const selectedCount = checks.filter(function(cb) {{
+              return cb.checked;
+            }}).length;
+
+            const actionName = (actionInput && actionInput.value) || "";
+
+            if (!selectedCount) {{
+              e.preventDefault();
+              alert("Select at least one photo first.");
+              return;
+            }}
+
+            if (!actionName) {{
+              e.preventDefault();
+              return;
+            }}
+
+            if (actionName === "bulk_delete" && !window.confirm("Delete selected photos?")) {{
+              e.preventDefault();
+            }}
+          }});
+
+          syncSelection();
+        }})();
       </script>
         
     """
