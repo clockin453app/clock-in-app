@@ -253,11 +253,15 @@ def admin_payroll_impl(core):
     def in_range(d: str) -> bool:
         if not d:
             return False
-        if date_from and d < date_from:
-            return False
-        if date_to and d > date_to:
-            return False
-        return True
+
+        if use_range and range_start and range_end:
+            try:
+                d_obj = date.fromisoformat(d)
+            except Exception:
+                return False
+            return range_start <= d_obj <= range_end
+
+        return week_start_str <= d <= week_end_str
 
     filtered = []
     for r in rows[1:]:
@@ -1201,7 +1205,7 @@ def admin_payroll_impl(core):
                 </div>
 
                 <div style="margin-top:10px;">
-                  <label class="sub">Date range (summary table only)</label>
+                  <label class="sub">Date range</label>
                   <div class="row2 payrollDateRow">
                     <div>
                       <input class="input" type="date" name="from" value="{escape(date_from)}">
@@ -1256,7 +1260,7 @@ def admin_payroll_impl(core):
                 </div>
 
                 <div style="margin-top:10px;">
-                  <label class="sub">Date range (summary table only)</label>
+                  <label class="sub">Date range</label>
                   <div class="row2 payrollDateRow">
                     <div>
                       <input class="input" type="date" name="from" value="{escape(date_from)}">
