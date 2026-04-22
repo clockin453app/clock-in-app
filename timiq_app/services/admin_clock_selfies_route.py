@@ -263,17 +263,6 @@ def admin_clock_selfies_impl(core):
     <button class="btnSoft" type="submit">Apply</button>
   </form>
 
-    <div class="card" style="padding:12px; margin-top:12px; border:1px solid rgba(15,23,42,.08);">
-    <div style="font-weight:700;">Auto archive settings</div>
-    <div class="sub" style="margin-top:6px;">
-      Enabled: <b>{'Yes' if archive_enabled else 'No'}</b> •
-      Days: <b>{archive_days}</b> •
-      Interval: <b>{archive_interval_s}s</b> ({archive_interval_h}h)
-    </div>
-    <div class="sub" style="margin-top:8px;">
-      These values are read from environment variables only. They archive selfie image files only, not hours, pay, payroll, or time-log data.
-    </div>
-  </div>
 
   <form method="POST" action="/admin/archive-clock-selfies" style="margin-top:12px; display:flex; gap:10px; flex-wrap:wrap; align-items:end;">
     <input type="hidden" name="csrf" value="{escape(csrf)}">
