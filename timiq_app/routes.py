@@ -3007,8 +3007,8 @@ def money(x: float) -> str:
 
 def fmt_hours(x) -> str:
     try:
-        n = _round_to_half_hour(float(x or 0))
-        return f"{n:.1f}".rstrip("0").rstrip(".")
+        n = float(x or 0)
+        return f"{n:.2f}".rstrip("0").rstrip(".")
     except Exception:
         return ""
 
