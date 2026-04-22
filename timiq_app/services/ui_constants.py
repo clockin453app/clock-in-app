@@ -3443,6 +3443,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     display:none;
   }
 }
+
+
 @media (min-width: 980px){
   .payrollShell{
     max-width: none !important;
@@ -3450,16 +3452,19 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 
   .payrollShell .sidebar{
     display: block !important;
-    position: static !important;
-    left: auto !important;
-    top: auto !important;
-    bottom: auto !important;
+    position: sticky !important;
+    top: 12px !important;
+    align-self: start !important;
     width: 220px !important;
     min-width: 220px !important;
+    max-height: calc(100vh - 24px) !important;
+    overflow-y: auto !important;
+    left: auto !important;
+    bottom: auto !important;
     transform: none !important;
     opacity: 1 !important;
     pointer-events: auto !important;
-    z-index: auto !important;
+    z-index: 20 !important;
   }
 
   .payrollShell .main{
@@ -3473,6 +3478,8 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
     display: none !important;
   }
 }
+
+
 /* Admin payroll weekly employee cards - mobile compact table */
 .payrollEmployeeCard .weeklyEditTable{
   table-layout: fixed;
