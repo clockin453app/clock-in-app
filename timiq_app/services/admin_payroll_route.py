@@ -132,6 +132,7 @@ def admin_payroll_impl(core):
     q = (request.args.get("q", "") or "").strip().lower()
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
+    ym = (request.args.get("ym", "") or "").strip()
     use_range = False
     range_start = None
     range_end = None
@@ -207,6 +208,30 @@ def admin_payroll_impl(core):
         if (rec.get("Username") or "").strip()
     ]
     current_usernames = set(current_users)
+
+
+    month_start = None
+    month_end = None
+
+    try:
+        if ym:
+            month_start = datetime.strptime(ym + "-01", "%Y-%m-%d").date()
+        else:
+            month_start = datetime.now(TZ).date().replace(day=1)
+            ym = month_start.strftime("%Y-%m")
+        if month_start.month == 12:
+            month_end = date(month_start.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            month_end = date(month_start.year, month_start.month + 1, 1) - timedelta(days=1)
+    except Exception:
+        month_start = datetime.now(TZ).date().replace(day=1)
+        ym = month_start.strftime("%Y-%m")
+        if month_start.month == 12:
+            month_end = date(month_start.year + 1, 1, 1) - timedelta(days=1)
+        else:
+            month_end = date(month_start.year, month_start.month + 1, 1) - timedelta(days=1)
+
+
 
     today = datetime.now(TZ).date()
     wk_offset_raw = (request.args.get("wk", "0") or "0").strip()
@@ -293,6 +318,67 @@ def admin_payroll_impl(core):
     overall_tax = round(overall_gross * tax_rate, 2)
     overall_net = round(overall_gross - overall_tax, 2)
 
+    monthly_by_user = {}
+
+    for row in filtered:
+        u = row["user"] or "Unknown"
+        d_str = str(row.get("date") or "").strip()
+        if not d_str:
+            continue
+
+        try:
+            d_obj = date.fromisoformat(d_str)
+        except Exception:
+            continue
+
+        if d_obj < month_start or d_obj > month_end:
+            continue
+
+        monthly_by_user.setdefault(u, {
+            "days": 0,
+            "hours": 0.0,
+            "overtime": 0.0,
+            "gross": 0.0,
+        })
+
+        worked_h = safe_float(row.get("hours", 0.0), 0.0)
+        gross_h = safe_float(row.get("pay", 0.0), 0.0)
+        overtime_h = calc_o_hours(u, d_str, worked_h)
+
+        if worked_h > 0:
+            monthly_by_user[u]["days"] += 1
+
+        monthly_by_user[u]["hours"] += worked_h
+        monthly_by_user[u]["overtime"] += overtime_h
+        monthly_by_user[u]["gross"] += gross_h
+
+    monthly_rows_html = []
+
+    for u in sorted(monthly_by_user.keys(), key=lambda s: get_employee_display_name(s).lower()):
+        rec = monthly_by_user[u]
+        gross = round(rec["gross"], 2)
+        tax = round(gross * tax_rate, 2)
+        net = round(gross - tax, 2)
+
+        monthly_rows_html.append(f"""
+            <tr>
+              <td style="text-align:left;">{escape(get_employee_display_name(u))}</td>
+              <td style="text-align:right;">{int(rec['days'])}</td>
+              <td style="text-align:right;">{escape(fmt_hours(round(rec['hours'], 2)))}</td>
+              <td style="text-align:right;">{escape(fmt_hours(round(rec['overtime'], 2)))}</td>
+              <td style="text-align:right;">{escape(currency)}{escape(money(gross))}</td>
+              <td style="text-align:right;">{escape(currency)}{escape(money(tax))}</td>
+              <td style="text-align:right;">{escape(currency)}{escape(money(net))}</td>
+            </tr>
+        """)
+
+    if not monthly_rows_html:
+        monthly_rows_html = [
+            "<tr><td colspan='7' style='text-align:center; color:#6f6c85; padding:18px;'>No payroll rows for this month.</td></tr>"
+        ]
+
+    month_label = month_start.strftime("%B %Y")
+
     week_lookup = {}
     for r in rows[1:]:
         if len(r) <= COL_PAY:
@@ -357,6 +443,7 @@ def admin_payroll_impl(core):
             "from": date_from,
             "to": date_to,
             "wk": wk_offset,
+            "ym": ym,
         }
     )
 
@@ -414,6 +501,66 @@ def admin_payroll_impl(core):
             </div>
           </div>
         """
+
+
+    monthly_filter_html = f"""
+      <div class="card plainSection" style="margin-top:16px; padding:18px;">
+                <div style="display:grid; grid-template-columns:1fr auto; gap:16px; align-items:end; margin-bottom:16px;">
+          <div>
+            <h3 style="margin:0;">Monthly Payroll Summary</h3>
+            <div class="sub" style="margin-top:4px;">One row per employee for {escape(month_label)}.</div>
+          </div>
+
+                    <form method="GET" style="display:flex; gap:12px; align-items:end; margin:0;">
+            <div style="width:220px;">
+              <label class="sub">Month</label>
+              <input class="input" type="month" name="ym" value="{escape(ym)}">
+            </div>
+
+            <input type="hidden" name="q" value="{escape(q)}">
+            <input type="hidden" name="wk" value="{wk_offset}">
+            <input type="hidden" name="from" value="{escape(date_from)}">
+            <input type="hidden" name="to" value="{escape(date_to)}">
+
+            <button type="submit"
+                    style="height:42px; padding:0 18px; border:1px solid rgba(68,130,195,.18); background:#5b8fca; color:#fff; font-weight:700; cursor:pointer; border-radius:0;">
+              Apply
+            </button>
+          </form>
+        </div>
+
+        <div class="tablewrap">
+          <table style="width:100%; min-width:900px; table-layout:fixed; border-collapse:collapse;">
+            <colgroup>
+                            <col style="width:28%;">
+              <col style="width:9%;">
+              <col style="width:11%;">
+              <col style="width:10%;">
+              <col style="width:14%;">
+              <col style="width:14%;">
+              <col style="width:14%;">
+            </colgroup>
+            <thead>
+              <tr>
+                <th style="text-align:left;">Employee</th>
+                <th style="text-align:right;">Days</th>
+                <th style="text-align:right;">Hours</th>
+                <th style="text-align:right;">OT</th>
+                <th style="text-align:right;">Gross</th>
+                <th style="text-align:right;">CIS Tax</th>
+                <th style="text-align:right;">Net</th>
+              </tr>
+            </thead>
+            <tbody>
+              {''.join(monthly_rows_html)}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    """
+
+
+
     pie_html, kpi_strip = build_payroll_chart_and_kpis(
         filtered=filtered,
         q=q,
@@ -904,6 +1051,7 @@ def admin_payroll_impl(core):
             "from": date_from,
             "to": date_to,
             "wk": wk_offset,
+            "ym": ym,
         }
     )
 
@@ -1010,10 +1158,10 @@ def admin_payroll_impl(core):
                 {pie_html}
               </div>
             </div>
+          
+                    </div>
           </div>
-
-                {''.join(blocks)}
-          </div>
+          
           """ if not use_range else f"""
           <div class="payrollTopGrid">
             <div class="card payrollFiltersCard">
@@ -1068,7 +1216,11 @@ def admin_payroll_impl(core):
           </div>
 
                 {range_detail_html}
-          """}
+                
+                    """}
+
+          {monthly_filter_html if not use_range else ""}
+          {''.join(blocks) if not use_range else ""}
 
     <script>
     (function(){{
