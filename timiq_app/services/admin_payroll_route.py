@@ -548,7 +548,7 @@ def admin_payroll_impl(core):
                 <th style="text-align:right;">OT</th>
                 <th style="text-align:right;">Gross</th>
                 <th style="text-align:right;">CIS Tax</th>
-                <th style="text-align:right;">Net</th>
+                <th style="text-align:right;">NET/PAY</th>
               </tr>
             </thead>
             <tbody>
@@ -728,46 +728,74 @@ def admin_payroll_impl(core):
         paid_display_net = round(float(paid_rec.get("display_net", 0.0) or 0.0), 2)
         paid_mode = str(paid_rec.get("payment_mode") or "net").strip().lower()
 
+        pay_form_key = f"{re.sub(r'[^a-zA-Z0-9]+', '_', u)}_{week_start_str.replace('-', '_')}_{week_end_str.replace('-', '_')}"
+        pay_week_text = f"{week_start.strftime('%d %b %Y')} – {week_end.strftime('%d %b %Y')}"
+        pay_display_name = escape(display)
+        net_amount_text = f"{escape(currency)}{money(net)}"
+        gross_amount_text = f"{escape(currency)}{money(gross)}"
+
         if paid:
             paid_label = "Gross Paid" if paid_mode == "gross" else "Paid"
             cells.append(
-                f"<td class='num payrollSummaryMoney net paidNetCell'><span class='paidNetBadge'>{escape(currency)}{money(paid_display_net)} · {escape(paid_label)}</span></td>"
+                f"<td class='num payrollSummaryMoney net paidNetCell' style='width:150px; min-width:150px; white-space:nowrap;'><span class='paidNetBadge'>{escape(currency)}{money(paid_display_net)} · {escape(paid_label)}</span></td>"
             )
         elif gross > 0:
             cells.append(f"""
-                     <td class='num payrollSummaryMoney net'>
-                       <div style="display:flex; flex-direction:column; gap:8px;">
-                         <form method="POST" action="/admin/mark-paid" class="payCellForm">
-                           <input type="hidden" name="csrf" value="{escape(csrf)}">
-                           <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                           <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                           <input type="hidden" name="user" value="{escape(u)}">
-                           <input type="hidden" name="gross" value="{gross}">
-                           <input type="hidden" name="tax" value="{tax}">
-                           <input type="hidden" name="net" value="{net}">
-                           <input type="hidden" name="payment_mode" value="net">
-                           <input type="hidden" name="display_tax" value="{tax}">
-                           <input type="hidden" name="display_net" value="{net}">
-                           <button class="payCellBtn" type="submit">
-                             {escape(currency)}{money(net)} <span class="payLabel">Pay</span>
-                           </button>
-                         </form>
+                     <td class='num payrollSummaryMoney net' style='width:150px; min-width:150px; white-space:nowrap;'>
+                       <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
 
-                         <form method="POST" action="/admin/mark-paid" class="payCellForm">
-                           <input type="hidden" name="csrf" value="{escape(csrf)}">
-                           <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-                           <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-                           <input type="hidden" name="user" value="{escape(u)}">
-                           <input type="hidden" name="gross" value="{gross}">
-                           <input type="hidden" name="tax" value="{tax}">
-                           <input type="hidden" name="net" value="{net}">
-                           <input type="hidden" name="payment_mode" value="gross">
-                           <input type="hidden" name="display_tax" value="0">
-                           <input type="hidden" name="display_net" value="{gross}">
-                           <button class="payCellBtn" type="submit">
-                             {escape(currency)}{money(gross)} <span class="payLabel">Pay Gross</span>
-                           </button>
-                         </form>
+                         <form id="pay_net_{pay_form_key}" method="POST" action="/admin/mark-paid" class="payCellForm"
+      style="margin:0; width:auto; display:flex; justify-content:flex-end;">
+  <input type="hidden" name="csrf" value="{escape(csrf)}">
+  <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+  <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+  <input type="hidden" name="user" value="{escape(u)}">
+  <input type="hidden" name="gross" value="{gross}">
+  <input type="hidden" name="tax" value="{tax}">
+  <input type="hidden" name="net" value="{net}">
+  <input type="hidden" name="payment_mode" value="net">
+  <input type="hidden" name="display_tax" value="{tax}">
+  <input type="hidden" name="display_net" value="{net}">
+  <button class="confirmPayTrigger"
+        type="button"
+        data-form-id="pay_net_{pay_form_key}"
+        data-pay-kind="net"
+        data-pay-type-label="Net payment"
+        data-pay-employee="{pay_display_name}"
+        data-pay-week="{escape(pay_week_text)}"
+        data-pay-amount="{net_amount_text}"
+        style="display:grid; grid-template-columns:1fr 34px; align-items:center; gap:4px; width:108px; min-width:108px; height:26px; padding:0 5px; border:1px solid #ecd58a; background:#fff6d8; color:#1f2547; font-size:10px; font-weight:800; white-space:nowrap; cursor:pointer; box-sizing:border-box;">
+  <span style="text-align:left; overflow:hidden;">{escape(currency)}{money(net)}</span>
+  <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:15px; background:#f6e7b3; color:#b45309; font-size:9px; font-weight:800;">Net</span>
+</button>
+</form>
+
+                         <form id="pay_gross_{pay_form_key}" method="POST" action="/admin/mark-paid" class="payCellForm"
+      style="margin:0; width:auto; display:flex; justify-content:flex-end;">
+  <input type="hidden" name="csrf" value="{escape(csrf)}">
+  <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+  <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+  <input type="hidden" name="user" value="{escape(u)}">
+  <input type="hidden" name="gross" value="{gross}">
+  <input type="hidden" name="tax" value="{tax}">
+  <input type="hidden" name="net" value="{net}">
+  <input type="hidden" name="payment_mode" value="gross">
+  <input type="hidden" name="display_tax" value="0">
+  <input type="hidden" name="display_net" value="{gross}">
+  <button class="confirmPayTrigger"
+        type="button"
+        data-form-id="pay_gross_{pay_form_key}"
+        data-pay-kind="gross"
+        data-pay-type-label="Gross payment"
+        data-pay-employee="{pay_display_name}"
+        data-pay-week="{escape(pay_week_text)}"
+        data-pay-amount="{gross_amount_text}"
+        style="display:grid; grid-template-columns:1fr 34px; align-items:center; gap:4px; width:108px; min-width:108px; height:26px; padding:0 5px; border:1px solid #5b21b6; background:#6d28d9; color:#fff; font-size:10px; font-weight:800; white-space:nowrap; cursor:pointer; box-sizing:border-box;">
+  <span style="text-align:left; overflow:hidden;">{escape(currency)}{money(gross)}</span>
+  <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:15px; background:rgba(255,255,255,.16); color:#f3e8ff; font-size:8px; font-weight:800;">Gross</span>
+</button>
+</form>
+
                        </div>
                      </td>
                    """)
@@ -1057,6 +1085,60 @@ def admin_payroll_impl(core):
 
     back_href = f"/admin/payroll?wk={wk_offset}" if use_range else "/admin"
 
+    pay_confirm_modal_html = """
+      <div id="payConfirmBackdrop" style="display:none; position:fixed; inset:0; background:rgba(15,23,42,.55); z-index:1200;"></div>
+
+      <div id="payConfirmModal"
+           style="display:none; position:fixed; left:50%; top:50%; transform:translate(-50%, -50%);
+                  width:min(460px, calc(100vw - 32px)); background:#fff; border:1px solid rgba(15,23,42,.14);
+                  box-shadow:0 24px 60px rgba(15,23,42,.28); z-index:1201; padding:20px; border-radius:0;">
+        <div style="font-size:20px; font-weight:800; color:#1f2547;">Confirm payment</div>
+        <div class="sub" style="margin-top:6px;">This action cannot be undone.</div>
+
+        <div style="margin-top:16px; display:grid; gap:10px;">
+          <div>
+            <div class="sub">Employee</div>
+            <div id="payConfirmEmployee" style="font-weight:700; color:#1f2547;"></div>
+          </div>
+
+          <div>
+            <div class="sub">Week</div>
+            <div id="payConfirmWeek" style="font-weight:700; color:#1f2547;"></div>
+          </div>
+
+          <div>
+            <div class="sub">Payment type</div>
+            <div id="payConfirmType" style="font-weight:700; color:#1f2547;"></div>
+          </div>
+
+          <div>
+            <div class="sub">Amount</div>
+            <div id="payConfirmAmount" style="font-weight:800; color:#1f2547; font-size:20px;"></div>
+          </div>
+        </div>
+
+        <label style="display:flex; align-items:flex-start; gap:10px; margin-top:16px; padding:12px;
+                      background:#f8f7ff; border:1px solid rgba(109,40,217,.12);">
+          <input type="checkbox" id="payConfirmCheck" style="margin-top:2px;">
+          <span style="color:#1f2547;">I understand this payment action cannot be undone.</span>
+        </label>
+
+        <div style="display:flex; justify-content:flex-end; gap:10px; margin-top:16px;">
+          <button type="button" id="payConfirmCancel"
+                  style="height:42px; padding:0 16px; border:1px solid rgba(15,23,42,.14);
+                         background:#fff; color:#1f2547; font-weight:700; cursor:pointer;">
+            Cancel
+          </button>
+
+          <button type="button" id="payConfirmSubmit" disabled
+                  style="height:42px; padding:0 18px; border:1px solid rgba(68,130,195,.18);
+                         background:#cbd5e1; color:#fff; font-weight:800; cursor:not-allowed;">
+            Confirm payment
+          </button>
+        </div>
+      </div>
+    """
+
     content = f"""
           <div class="payrollMenuBackdrop" id="payrollMenuBackdrop"></div>
 
@@ -1094,8 +1176,8 @@ def admin_payroll_impl(core):
         <th class="payrollSummaryTotal">O</th>
         <th class="payrollSummaryTotal">Hours</th>
         <th class="payrollSummaryMoney">Gross</th>
-        <th class="payrollSummaryMoney">CIS Tax</th>
-        <th class="payrollSummaryMoney">Net</th>
+        <th class="payrollSummaryMoney" style="width:110px; min-width:110px; text-align:right;">CIS Tax</th>
+        <th class="payrollSummaryMoney" style="width:150px; min-width:150px; text-align:right;">NET/PAY</th>
       </tr>
     </thead>
         <tbody>
@@ -1219,8 +1301,9 @@ def admin_payroll_impl(core):
                 
                     """}
 
-          {monthly_filter_html if not use_range else ""}
+                              {monthly_filter_html if not use_range else ""}
           {''.join(blocks) if not use_range else ""}
+          {pay_confirm_modal_html}
 
     <script>
     (function(){{
@@ -1437,6 +1520,110 @@ def admin_payroll_impl(core):
       }});
     }})();
     </script>
+        <script>
+    (function(){{
+      const backdrop = document.getElementById("payConfirmBackdrop");
+      const modal = document.getElementById("payConfirmModal");
+      const employeeEl = document.getElementById("payConfirmEmployee");
+      const weekEl = document.getElementById("payConfirmWeek");
+      const typeEl = document.getElementById("payConfirmType");
+      const amountEl = document.getElementById("payConfirmAmount");
+      const checkEl = document.getElementById("payConfirmCheck");
+      const cancelBtn = document.getElementById("payConfirmCancel");
+      const submitBtn = document.getElementById("payConfirmSubmit");
+
+      if (!backdrop || !modal || !employeeEl || !weekEl || !typeEl || !amountEl || !checkEl || !cancelBtn || !submitBtn) return;
+
+      let activeForm = null;
+      let activeTrigger = null;
+
+      function closePayModal(){{
+        modal.style.display = "none";
+        backdrop.style.display = "none";
+        checkEl.checked = false;
+        submitBtn.disabled = true;
+        submitBtn.style.cursor = "not-allowed";
+        submitBtn.style.background = "#cbd5e1";
+        submitBtn.textContent = "Confirm payment";
+        activeForm = null;
+        activeTrigger = null;
+      }}
+
+      function openPayModal(trigger){{
+        const formId = trigger.getAttribute("data-form-id") || "";
+        const form = document.getElementById(formId);
+        if (!form) return;
+
+        activeForm = form;
+        activeTrigger = trigger;
+
+        const payKind = trigger.getAttribute("data-pay-kind") || "net";
+        const payTypeLabel = trigger.getAttribute("data-pay-type-label") || "Payment";
+        const employee = trigger.getAttribute("data-pay-employee") || "";
+        const weekText = trigger.getAttribute("data-pay-week") || "";
+        const amountText = trigger.getAttribute("data-pay-amount") || "";
+
+        employeeEl.textContent = employee;
+        weekEl.textContent = weekText;
+        typeEl.textContent = payTypeLabel;
+        amountEl.textContent = amountText;
+
+        checkEl.checked = false;
+        submitBtn.disabled = true;
+        submitBtn.style.cursor = "not-allowed";
+
+        if (payKind === "gross") {{
+          submitBtn.textContent = "Confirm Gross Payment";
+          submitBtn.style.background = "#6d28d9";
+        }} else {{
+          submitBtn.textContent = "Confirm Net Payment";
+          submitBtn.style.background = "#d97706";
+        }}
+
+        modal.style.display = "block";
+        backdrop.style.display = "block";
+      }}
+
+      document.addEventListener("click", function(e){{
+        const trigger = e.target.closest(".confirmPayTrigger");
+        if (trigger) {{
+          e.preventDefault();
+          openPayModal(trigger);
+          return;
+        }}
+
+        if (e.target === backdrop || e.target === cancelBtn) {{
+          e.preventDefault();
+          closePayModal();
+        }}
+      }});
+
+      checkEl.addEventListener("change", function(){{
+        submitBtn.disabled = !checkEl.checked;
+        submitBtn.style.cursor = checkEl.checked ? "pointer" : "not-allowed";
+      }});
+
+      submitBtn.addEventListener("click", function(){{
+        if (!activeForm || !checkEl.checked) return;
+
+        if (activeTrigger) {{
+          activeTrigger.disabled = true;
+          activeTrigger.style.opacity = "0.65";
+          activeTrigger.style.cursor = "not-allowed";
+        }}
+
+        closePayModal();
+        activeForm.submit();
+      }});
+
+      document.addEventListener("keydown", function(e){{
+        if (e.key === "Escape") {{
+          closePayModal();
+        }}
+      }});
+    }})();
+    </script>
+    
         """
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +

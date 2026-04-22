@@ -373,7 +373,7 @@ def payments_page_impl(core):
           <div class="paymentsShell">
             <div class="paymentsHeader">
               <div>
-                
+              
                 <h1>Payments</h1>
                 <p class="sub">{escape(display_name)} • {escape(company_name)}</p>
               </div>
