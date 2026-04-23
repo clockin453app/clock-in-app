@@ -50,7 +50,7 @@ def admin_payroll_impl(core):
     _calculate_shift_pay_from_rule = core["_calculate_shift_pay_from_rule"]
     _get_user_rate = core["_get_user_rate"]
     _get_active_locations = core["_get_active_locations"]
-    _ensure_workhours_geo_headers = core["_ensure_workhours_geo_headers"]
+
 
     gate = require_admin()
     if gate:
@@ -132,6 +132,18 @@ def admin_payroll_impl(core):
             return round(safe_float(stored_pay, 0.0), 2)
 
     q = (request.args.get("q", "") or "").strip().lower()
+
+    def site_text_color(site_name: str) -> str:
+        key = str(site_name or "").strip().lower()
+        if not key:
+            return "#6f6c85"
+
+        total = 0
+        for i, ch in enumerate(key):
+            total += (i + 1) * ord(ch)
+
+        hue = total % 360
+        return f"hsl({hue}, 65%, 38%)"
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
     ym = (request.args.get("ym", "") or "").strip()
@@ -152,6 +164,8 @@ def admin_payroll_impl(core):
     rows = get_workhours_rows()
     headers = rows[0] if rows else []
     wp_idx = headers.index("Workplace_ID") if (headers and "Workplace_ID" in headers) else None
+    in_site_idx = headers.index("InSite") if (headers and "InSite" in headers) else None
+    out_site_idx = headers.index("OutSite") if (headers and "OutSite" in headers) else None
     current_wp = _session_workplace_id()
     allowed_wps = set(_workplace_ids_for_read(current_wp))
 
@@ -247,6 +261,44 @@ def admin_payroll_impl(core):
     week_end = week_start + timedelta(days=6)
     week_start_str = week_start.strftime("%Y-%m-%d")
     week_end_str = week_end.strftime("%Y-%m-%d")
+    db_site_lookup = {}
+
+    if DB_MIGRATION_MODE:
+        try:
+            db_site_rows = (
+                WorkHour.query
+                .filter(
+                    and_(
+                        or_(
+                            WorkHour.workplace_id.in_(allowed_wps),
+                            and_(WorkHour.workplace_id.is_(None), WorkHour.workplace.in_(allowed_wps)),
+                            WorkHour.workplace.in_(allowed_wps),
+                        ),
+                        WorkHour.date >= week_start,
+                        WorkHour.date <= week_end,
+                    )
+                )
+                .order_by(WorkHour.date.asc(), WorkHour.id.asc())
+                .all()
+            )
+
+            for rec in db_site_rows:
+                rec_user = str(getattr(rec, "employee_email", "") or "").strip()
+                rec_date = rec.date.isoformat() if getattr(rec, "date", None) else ""
+                rec_cin = rec.clock_in.strftime("%H:%M") if getattr(rec, "clock_in", None) else ""
+                rec_cout = rec.clock_out.strftime("%H:%M") if getattr(rec, "clock_out", None) else ""
+                rec_site = str(
+                    getattr(rec, "out_site", "")
+                    or getattr(rec, "in_site", "")
+                    or ""
+                ).strip()
+
+                if not rec_user or not rec_date:
+                    continue
+
+                db_site_lookup[(rec_user, rec_date, rec_cin, rec_cout)] = rec_site
+        except Exception:
+            db_site_lookup = {}
 
     def week_label(d0):
         iso = d0.isocalendar()
@@ -411,11 +463,19 @@ def admin_payroll_impl(core):
             row_pay = str(calc_day_gross(user, d, row_hours, row_pay))
 
         week_lookup.setdefault(user, {})
+
+        row_cin = ((r[COL_IN] if len(r) > COL_IN else "") or "").strip()
+        row_cout = ((r[COL_OUT] if len(r) > COL_OUT else "") or "").strip()
+        row_in_site = (r[in_site_idx] if in_site_idx is not None and len(r) > in_site_idx else "").strip()
+        row_out_site = (r[out_site_idx] if out_site_idx is not None and len(r) > out_site_idx else "").strip()
+        row_site = row_out_site or row_in_site or db_site_lookup.get((user, d, row_cin[:5], row_cout[:5]), "") or ""
+
         week_lookup[user][d] = {
-            "cin": (r[COL_IN] if len(r) > COL_IN else "") or "",
-            "cout": (r[COL_OUT] if len(r) > COL_OUT else "") or "",
+            "cin": row_cin,
+            "cout": row_cout,
             "hours": row_hours,
             "pay": row_pay,
+            "site": row_site,
         }
 
     all_users = sorted(set(current_users) | set(week_lookup.keys()), key=lambda s: s.lower())
@@ -679,9 +739,10 @@ def admin_payroll_impl(core):
                 site_name = str((rec.get("site", "") if isinstance(rec, dict) else "") or "").strip()
 
                 if site_name:
-                    site_html = f"<div class='payrollDaySite' title='{escape(site_name)}'>{escape(site_name)}</div>"
+                    site_color = site_text_color(site_name)
+                    site_html = f"<div class='payrollDaySiteText' title='{escape(site_name)}' style='color:{site_color};'>{escape(site_name)}</div>"
                 else:
-                    site_html = "<div class='payrollDaySite payrollDaySiteMuted'>No site</div>"
+                    site_html = "<div class='payrollDaySiteText' style='color:#6f6c85;'>No site</div>"
 
                 day_inner = f"""
                          <div class="payrollDayStack">
