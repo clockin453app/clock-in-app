@@ -225,6 +225,17 @@ def admin_impl(core):
     except Exception:
         employee_options = ""
 
+    site_options = []
+    try:
+        for rec in (_get_active_locations() or []):
+            nm = str(rec.get("name") or rec.get("SiteName") or rec.get("site") or "").strip()
+            if nm:
+                site_options.append(f"<option value='{escape(nm)}'>{escape(nm)}</option>")
+    except Exception:
+        site_options = []
+
+    site_options_html = "".join(site_options)
+
     content = f"""
       <style>
         .adminHeroCard,
@@ -385,16 +396,21 @@ def admin_impl(core):
           <input type="hidden" name="csrf" value="{escape(csrf)}">
 
           <div class="adminActionBar">
-            <input class="input" type="date" name="date" value="{escape(datetime.now(TZ).strftime('%Y-%m-%d'))}" style="max-width:190px;" required>
+  <input class="input" type="date" name="date" value="{escape(datetime.now(TZ).strftime('%Y-%m-%d'))}" style="max-width:190px;" required>
 
-            <select class="input" name="user" style="max-width:260px;">
-              {employee_options}
-            </select>
+  <select class="input" name="user" style="max-width:260px;">
+    {employee_options}
+  </select>
 
-            <input class="input" type="time" step="1" name="in_time" style="max-width:170px;" required>
+  <input class="input" type="time" step="1" name="in_time" style="max-width:170px;" required>
 
-            <button class="adminPrimaryBtn" type="submit">Force Clock-In</button>
-          </div>
+  <select class="input" name="site" style="max-width:220px;" required>
+    <option value="">Select site</option>
+    {site_options_html}
+  </select>
+
+  <button class="adminPrimaryBtn" type="submit">Force Clock-In</button>
+</div>
         </form>
       </div>
       {open_html}

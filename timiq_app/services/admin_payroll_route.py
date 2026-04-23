@@ -49,6 +49,8 @@ def admin_payroll_impl(core):
     _calculate_shift_pay = core["_calculate_shift_pay"]
     _calculate_shift_pay_from_rule = core["_calculate_shift_pay_from_rule"]
     _get_user_rate = core["_get_user_rate"]
+    _get_active_locations = core["_get_active_locations"]
+    _ensure_workhours_geo_headers = core["_ensure_workhours_geo_headers"]
 
     gate = require_admin()
     if gate:
@@ -674,6 +676,13 @@ def admin_payroll_impl(core):
 
             if has_day_value:
                 hrs_txt = f"{show_num(hrs)}h" if hrs > 0 else "—"
+                site_name = str((rec.get("site", "") if isinstance(rec, dict) else "") or "").strip()
+
+                if site_name:
+                    site_html = f"<div class='payrollDaySite' title='{escape(site_name)}'>{escape(site_name)}</div>"
+                else:
+                    site_html = "<div class='payrollDaySite payrollDaySiteMuted'>No site</div>"
+
                 day_inner = f"""
                          <div class="payrollDayStack">
                            <div class="payrollDayLine">
@@ -697,6 +706,7 @@ def admin_payroll_impl(core):
                                data-autosave="1">
                            </div>
                            <div class="payrollDayHours">{escape(hrs_txt)}</div>
+                           {site_html}
                          </div>
                        """
             else:
