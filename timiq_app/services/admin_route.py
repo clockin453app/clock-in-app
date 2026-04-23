@@ -11,7 +11,7 @@ def admin_impl(core):
     DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
     OnboardingRecord = core["OnboardingRecord"]
     onboarding_sheet = core["onboarding_sheet"]
-    _get_user_rate = core["_get_user_rate"]
+
     _svg_user = core["_svg_user"]
     BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS = core["BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS"]
     UNPAID_BREAK_HOURS = core["UNPAID_BREAK_HOURS"]
@@ -45,8 +45,6 @@ def admin_impl(core):
     # NEW: currency from Settings
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
-    currency_html = escape(currency)
-    currency_js = currency.replace("\\", "\\\\").replace('"', '\\"')
 
     open_shifts = _get_open_shifts()
     employees_total = 0
@@ -91,22 +89,19 @@ def admin_impl(core):
     if open_shifts:
         rows = []
         for s in open_shifts:
-            rate = _get_user_rate(s["user"])
             rows.append(f"""
               <tr>
                 <td>
-                  <div>
-                    <div>
-                      <div style="font-weight:600;">{escape(s['name'])}</div>
-                      <div class="sub" style="margin:2px 0 0 0;">{escape(s['user'])}</div>
-                    </div>
-                  </div>
-                </td>
+  <div>
+    <div>
+      <div style="font-weight:600;">{escape(s['name'])}</div>
+    </div>
+  </div>
+</td>
                 <td>{escape(s['start_label'])}</td>
                 <td class="num"><span class="netBadge" data-live-start="{escape(s['start_iso'])}">00:00:00</span></td>
-                <td class="num" data-est-hours="{escape(s['start_iso'])}">0.00</td>
-                <td class="num" data-est-pay="{escape(s['start_iso'])}" data-rate="{rate}">{currency_html}0.00</td>
-                <td style="min-width:240px;">
+<td class="num" data-est-hours="{escape(s['start_iso'])}">0.00</td>
+<td style="min-width:240px;">
                   <form method="POST" action="/admin/force-clockout" style="margin:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
                     <input type="hidden" name="csrf" value="{escape(csrf)}">
                     <input type="hidden" name="user" value="{escape(s['user'])}">
@@ -124,7 +119,7 @@ def admin_impl(core):
               <div class="adminSectionHeadLeft">
                 <div class="adminSectionIcon live">{_svg_user()}</div>
                 <div>
-                  <h2 class="adminSectionTitle">Live Clocked-In</h2>
+                  <h2 class="adminSectionTitle">Live Clocked-In TEST</h2>
                   <p class="adminSectionSub">Employees currently clocked in. Live time updates every second.</p>
                 </div>
               </div>
@@ -133,19 +128,18 @@ def admin_impl(core):
             <div class="tablewrap adminLiveTableWrap" style="margin-top:12px;">
               <table class="adminLiveTable">
                 <thead><tr>
-                  <th>Employee</th>
-                  <th>Started</th>
-                  <th class="num">Live Time</th>
-                  <th class="num">Est Hours</th>
-                  <th class="num">Est Pay</th>
-                  <th>Actions</th>
-                </tr></thead>
+  <th>Employee</th>
+  <th>Started</th>
+  <th class="num">Live Time</th>
+  <th class="num">EST HOURS TEST</th>
+  <th>Actions</th>
+</tr></thead>
                 <tbody>{''.join(rows)}</tbody>
               </table>
             </div>
             <script>
               (function(){{
-                const CURRENCY = "{currency_js}";
+                
                 function pad(n){{ return String(n).padStart(2,"0"); }}
                 function tick(){{
                   const now = new Date();
@@ -168,18 +162,6 @@ def admin_impl(core):
                     if(hrs >= {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}) hrs = Math.max(0, hrs - {UNPAID_BREAK_HOURS});
                     hrs = Math.min(hrs, 16);
                     el.textContent = (Math.round(hrs*100)/100).toFixed(2);
-                  }});
-
-                  document.querySelectorAll("[data-est-pay]").forEach(el=>{{
-                    const startIso = el.getAttribute("data-est-pay");
-                    const rate = parseFloat(el.getAttribute("data-rate") || "0") || 0;
-                    const start = new Date(startIso);
-                    let hrs = (now - start) / 3600000.0;
-                    if(hrs < 0) hrs = 0;
-                    if(hrs >= {BREAK_APPLIES_IF_SHIFT_AT_LEAST_HOURS}) hrs = Math.max(0, hrs - {UNPAID_BREAK_HOURS});
-                    hrs = Math.min(hrs, 16);
-                    const pay = hrs * rate;
-                    el.textContent = CURRENCY + pay.toFixed(2);
                   }});
                 }}
                 tick(); setInterval(tick, 1000);
