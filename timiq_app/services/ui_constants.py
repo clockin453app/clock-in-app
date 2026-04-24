@@ -2955,15 +2955,15 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
   position:sticky;
   top:0;
   z-index:5;
-  background: linear-gradient(180deg, rgba(231,240,255,.98), rgba(221,234,254,.98));
-  color:rgba(15,23,42,.86);
-  font-size:13px;
+  background: linear-gradient(180deg, #43b866, #2f8a4e);
+  color:#ffffff;
+  font-size:14px;
   font-weight:900;
   letter-spacing:.02em;
   text-transform:uppercase;
-  padding:16px 12px;
+  padding:22px 12px;
   white-space:nowrap;
-  border-bottom:1px solid rgba(148,163,184,.22);
+  border-bottom:1px solid rgba(34,94,52,.35);
   text-align:left;
 }
 
@@ -4070,12 +4070,18 @@ h2{
 }
 .tablewrap th,
 .weeklyEditTable thead th,
-.payrollSheet thead th,
-.timeLogsTable th{
-  background:#3b74ad !important;
-  background-image:none !important;
+table thead th{
+  font-size:11.5px !important;
+  font-weight:600 !important;
+  letter-spacing:.01em !important;
+  color:#6f6b87 !important;
+}
+
+.payrollSheet thead th{
+  font-size:14px !important;
+  font-weight:700 !important;
+  letter-spacing:.02em !important;
   color:#ffffff !important;
-  border-bottom: 1px solid #315f8f !important;
 }
 .tablewrap td,
 .weeklyEditTable tbody td,
@@ -4649,9 +4655,12 @@ button{
 
   .tablewrap th,
   .weeklyEditTable thead th,
-  .payrollSheet thead th,
   table thead th{
     font-size:11px !important;
+  }
+
+  .payrollSheet thead th{
+    font-size:15px !important;
   }
 
   .tablewrap td,
@@ -4960,7 +4969,6 @@ textarea.input:focus{
 /* readable solid-blue table headers */
 .tablewrap th,
 .weeklyEditTable thead th,
-.payrollSheet thead th,
 .timeLogsTable th,
 .rangeDetailTable th{
   background:#4f89c7 !important;
@@ -4970,9 +4978,18 @@ textarea.input:focus{
 }
 .tablewrap th *,
 .weeklyEditTable thead th *,
-.payrollSheet thead th *,
 .timeLogsTable th *,
 .rangeDetailTable th *{
+  color:#ffffff !important;
+}
+
+.payrollSheet thead th{
+  background:#3aa35c !important;
+  color:#ffffff !important;
+  border-bottom:1px solid rgba(34,94,52,.35) !important;
+  text-shadow:none !important;
+}
+.payrollSheet thead th *{
   color:#ffffff !important;
 }
 

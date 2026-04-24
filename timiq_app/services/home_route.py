@@ -217,34 +217,32 @@ def home_impl(core):
         body_rows = ""
 
         for rr in recent_rows:
-            employee_td = f"<td style='width:18%;'>{escape(rr['user'])}</td>" if show_employee_col else ""
+            employee_td = f"<td style='width:18%;'>{escape(get_employee_display_name(rr['user']))}</td>" if show_employee_col else ""
 
             body_rows += f"""
-                  <tr>
-                    {employee_td}
-                    <td style="width:16%;">{escape(rr['date'])}</td>
-                    <td style="width:10%; text-align:center;">{escape((rr['cin'] or '')[:5])}</td>
-                    <td style="width:10%; text-align:center;">{escape((rr['cout'] or '')[:5])}</td>
-                    <td class="num" style="width:10%;">{escape(fmt_hours(rr['hours']))}</td>
-                    <td class="num" style="width:14%;">{escape(currency)}{escape(rr['pay'])}</td>
-                    <td style="width:12%; text-align:center;">{escape(rr['status'])}</td>
-                  </tr>
-                """
+              <tr>
+                {employee_td}
+                <td style="width:18%; text-align:center;">{escape(rr['date'])}</td>
+                <td style="width:12%; text-align:center;">{escape((rr['cin'] or '')[:5])}</td>
+                <td style="width:12%; text-align:center;">{escape((rr['cout'] or '')[:5])}</td>
+                <td class="num" style="width:14%; text-align:center;">{escape(fmt_hours(rr['hours']))}</td>
+                <td style="width:14%; text-align:center;">{escape(rr['status'])}</td>
+              </tr>
+            """
 
-        activity_html = f"""
-              <div class="tablewrap">
-                <table class="timeLogsTable logActivitiesPreviewTable" style="width:100%; min-width:0; table-layout:fixed;">
-                  <thead>
-                    <tr>
-                      {header_employee}
-                      <th style="width:16%;">Date</th>
-                      <th style="width:10%; text-align:center;">In</th>
-                      <th style="width:10%; text-align:center;">Out</th>
-                      <th class="num" style="width:10%;">Hours</th>
-                      <th class="num" style="width:14%;">Pay</th>
-                      <th style="width:12%; text-align:center;">Status</th>
-                    </tr>
-                  </thead>
+            activity_html = f"""
+                  <div class="tablewrap">
+                    <table class="timeLogsTable logActivitiesPreviewTable" style="width:100%; min-width:0; table-layout:fixed;">
+                      <thead>
+                        <tr>
+                          {header_employee}
+                          <th style="width:18%;">Date</th>
+                          <th style="width:12%; text-align:center;">In</th>
+                          <th style="width:12%; text-align:center;">Out</th>
+                          <th class="num" style="width:14%;">Hours</th>
+                          <th style="width:14%; text-align:center;">Status</th>
+                        </tr>
+                      </thead>
                   <tbody>
                     {body_rows}
                   </tbody>
