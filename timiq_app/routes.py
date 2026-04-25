@@ -652,6 +652,7 @@ from .services.ui_icons import (
     _icon_locations,
     _icon_clock_selfies,
     _icon_work_progress,
+    _icon_current_sessions,
 )
 from .services.report_rows import get_payroll_rows_data, get_workhours_rows_data
 from .services.clock_geo import sanitize_clock_geo, validate_recent_clock_capture, validate_user_location, get_site_config, get_active_locations, get_employee_sites, get_employee_site, haversine_m, ensure_workhours_geo_headers
@@ -4413,14 +4414,14 @@ def sidebar_html(active: str, role: str) -> str:
         ("times", "/my-times", "Time logs", _icon_timelogs(28)),
         ("reports", "/my-reports", "Timesheets", _icon_timesheets(28)),
         ("payments", "/payments", "Payments", _icon_payments(28)),
-        ("work-progress", "/work-progress", "Work Progress", _icon_work_progress(45)),
+        ("work-progress", "/work-progress", "Work Progress", _icon_work_progress(28)),
     ]
 
     if role in ("admin", "master_admin"):
         items.append(("admin", "/admin", "Admin", _svg_shield()))
 
     if role == "master_admin":
-        items.append(("current-sessions", "/admin/current-sessions", "Current Sessions", _icon_admin(28)))
+        items.append(("current-sessions", "/admin/current-sessions", "Current Sessions", _icon_current_sessions(28)))
         items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(28)))
 
     links = []

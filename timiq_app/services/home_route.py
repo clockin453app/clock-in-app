@@ -686,129 +686,748 @@ def home_impl(core):
               </script>
             """
 
-    content = f"""
-          <div class="dashboardHero">
-            <div class="dashboardHeroMain">
-              <h1>Dashboard</h1>
-            </div>
-            <div class="dashboardHeroMeta">
-              <div class="badge {'admin' if role in ('admin', 'master_admin') else ''}">{escape(role_label(role))}</div>
-              <div class="dashboardDateChip">{escape(now.strftime("%A • %d %b %Y"))}</div>
-            </div>
-          </div>
+    def _pct(value, total):
+        try:
+            value = float(value or 0)
+            total = float(total or 0)
+            if total <= 0:
+                return 0
+            return int(round(max(0, min(1, value / total)) * 100))
+        except Exception:
+            return 0
 
-          {chart_section_html}
+    completed_onboarding = max(0, int(employee_count or 0) - int(onboarding_pending_count or 0))
+    onboarding_total = max(int(employee_count or 0), completed_onboarding + int(onboarding_pending_count or 0), 1)
+    onboarding_pct = _pct(completed_onboarding, onboarding_total)
 
-          <div class="dashboardMiniStatus">
-            <div class="dashboardMiniStatusCard">
-              <div class="dashboardMiniStatusSplit">
+    clocked_pct = _pct(clocked_in_count, max(employee_count, 1))
+    sites_pct = min(100, max(0, int(active_locations_count or 0) * 25))
+    forms_pct = _pct(completed_onboarding, onboarding_total)
 
-                <div class="dashboardMiniStatusPane">
-                  <div class="dashboardMiniStatusTop">
-                    <div class="dashboardMiniStatusIcon">{_svg_clock()}</div>
-                    <div>
-                      <div class="dashboardMiniStatusLabel">Status</div>
-                      <div class="dashboardMiniStatusSub">Live attendance</div>
-                    </div>
-                  </div>
-                  <div class="dashboardMiniStatusValue">
-                    {dashboard_status_html}
-                  </div>
+    def _initials(name):
+        parts = [p for p in str(name or "").strip().split() if p]
+        if not parts:
+            return "U"
+        if len(parts) == 1:
+            return parts[0][:2].upper()
+        return (parts[0][:1] + parts[-1][:1]).upper()
+
+    modern_recent_rows = ""
+    for rr in recent_rows[:4]:
+        worker_name = get_employee_display_name(rr["user"]) if show_employee_col else display_name
+        worker_initials = _initials(worker_name)
+        site_label = current_wp or "Workplace"
+        date_label = rr.get("date") or "—"
+        hours_label = fmt_hours(rr.get("hours") or "0")
+
+        modern_recent_rows += f"""
+          <tr>
+            <td>
+              <div class="modernWorkerCell">
+                <div class="modernAvatar">{escape(worker_initials)}</div>
+                <div>
+                  <div class="modernWorkerName">{escape(worker_name)}</div>
+                  <div class="modernWorkerSub">{escape(rr.get("status") or "")}</div>
                 </div>
-
-                <div class="dashboardMiniDivider"></div>
-
-                <div class="dashboardMiniStatusPane">
-                  <div class="dashboardMiniStatusTop">
-                    <div class="dashboardMiniStatusIcon">{_svg_grid()}</div>
-                    <div>
-                      <div class="dashboardMiniStatusLabel">Weekly target</div>
-                      <div class="dashboardMiniStatusSub">{fmt_hours(week_hours)} / {fmt_hours(week_target_hours)} hours</div>
-                    </div>
-                  </div>
-
-                  <div class="dashboardMiniTargetRow">
-                    <span>Progress</span>
-                    <strong>{week_progress_pct}%</strong>
-                  </div>
-
-                  <div class="dashboardMiniTargetBar">
-                    <span style="width:{week_progress_pct}%;"></span>
-                  </div>
-                </div>
-
               </div>
-            </div>
-          </div>
-
-                                  <div class="dashboardBottom">
-            <div class="activityCard plainSection">
-              <div class="sectionHead">
-                <div class="sectionHeadLeft">
-                  <div class="sectionIcon">{_svg_clipboard()}</div>
-                  <div>
-                    <h2 style="margin:0;">{"Log Activities" if role in ("admin", "master_admin") else "My Log Activity"}</h2>
-                    <p class="sub" style="margin:4px 0 0 0;">{"All employee clock logs and work activity." if role in ("admin", "master_admin") else "Your latest clock logs and work activity."}</p>
-                  </div>
-                </div>
-                {activity_cta_html}
-              </div>
-
-              <div class="activityList">
-                {activity_html}
-              </div>
-            </div>
-
-            {snapshot_html}
-          </div>
-
-          <div class="card menu dashboardMainMenu">
-            <div class="sectionHead dashboardMenuHead" style="display:none;"></div>
-
-            <div class="dashboardShortcutGrid">
-              <a class="menuItem nav-clock" href="/clock">
-                <div class="menuLeft"><div class="icoBox">{_icon_clock(35)}</div><div class="menuText">Clock In & Out</div></div>
-                <div class="chev">›</div>
-              </a>
-
-              <a class="menuItem nav-times" href="/my-times">
-                <div class="menuLeft"><div class="icoBox">{_icon_timelogs(35)}</div><div class="menuText">Time logs</div></div>
-                <div class="chev">›</div>
-              </a>
-
-              <a class="menuItem nav-reports" href="/my-reports">
-                <div class="menuLeft"><div class="icoBox">{_icon_timesheets(35)}</div><div class="menuText">Timesheets</div></div>
-                <div class="chev">›</div>
-              </a>
-
-              <a class="menuItem nav-payments" href="/payments">
-  <div class="menuLeft"><div class="icoBox">{_icon_payments(35)}</div><div class="menuText">Payments</div></div>
-  <div class="chev">›</div>
-</a>
-
-<a class="menuItem nav-work-progress" href="/work-progress">
-  <div class="menuLeft"><div class="icoBox">{_icon_work_progress(35)}</div><div class="menuText">Work Progress</div></div>
-  <div class="chev">›</div>
-</a>
-
-<a class="menuItem nav-agreements" href="/onboarding">
-  <div class="menuLeft"><div class="icoBox">{_icon_starter_form(35)}</div><div class="menuText">Starter Form</div></div>
-  <div class="chev">›</div>
-</a>
-
-              {admin_item}
-{current_sessions_item}
-{workplaces_item}
-
-<a class="menuItem nav-profile" href="/password">
-
-                <div class="menuLeft"><div class="icoBox">{_icon_profile(35)}</div><div class="menuText">Profile</div></div>
-                <div class="chev">›</div>
-              </a>
-            </div>
-          </div>
+            </td>
+            <td>{escape(site_label)}</td>
+            <td>{escape(date_label)}</td>
+            <td class="modernHours">{escape(hours_label)}</td>
+          </tr>
         """
 
+    if not modern_recent_rows:
+        modern_recent_rows = """
+          <tr>
+            <td colspan="4">
+              <div class="modernEmpty">No recent timesheets yet.</div>
+            </td>
+          </tr>
+        """
+
+    modern_dashboard_css = """
+      <style>
+        .dashboardShellModern{
+  max-width: none !important;
+  width: 100% !important;
+  margin: 0 !important;
+  display: grid !important;
+  grid-template-columns: 230px minmax(0, 1fr) !important;
+  gap: 0 !important;
+  min-height: calc(100vh - 32px);
+  background: #f8fbff;
+  border-radius: 0 !important;
+}
+
+.dashboardShellModern .main{
+  padding: 24px 26px 40px !important;
+          background:
+            radial-gradient(900px 520px at 85% 0%, rgba(37,99,235,.08), transparent 55%),
+            linear-gradient(180deg, #fbfdff 0%, #f5f8fd 100%);
+        }
+
+        .dashboardShellModern .topBarFixed{
+          margin-bottom: 18px !important;
+        }
+
+        .dashboardShellModern .sidebar{
+  display: flex !important;
+  flex-direction: column !important;
+  width: 230px !important;
+  min-height: calc(100vh - 32px);
+  padding: 26px 14px !important;
+  background:
+    radial-gradient(500px 360px at 100% 0%, rgba(37,99,235,.22), transparent 48%),
+    linear-gradient(180deg, #061b3d 0%, #082b5b 100%) !important;
+  border: 0 !important;
+  box-shadow: 18px 0 40px rgba(15,23,42,.10) !important;
+  color: #fff !important;
+}
+
+        .dashboardShellModern .sidebar img{
+  max-width: 130px !important;
+  width: 130px !important;
+  margin: 0 auto 22px auto !important;
+}
+
+        .dashboardShellModern .sideItem{
+  min-height: 52px !important;
+  margin: 4px 0 !important;
+  padding: 0 12px !important;
+          border-radius: 14px !important;
+          border: 1px solid transparent !important;
+          background: transparent !important;
+          color: rgba(255,255,255,.88) !important;
+          box-shadow: none !important;
+        }
+
+        .dashboardShellModern .sideItem:hover{
+          background: rgba(255,255,255,.08) !important;
+          border-color: rgba(255,255,255,.10) !important;
+        }
+
+        .dashboardShellModern .sideItem.active{
+          background: linear-gradient(135deg, #0b63ff, #0057e7) !important;
+          color: #fff !important;
+          border-color: rgba(255,255,255,.18) !important;
+          box-shadow: 0 14px 30px rgba(0,87,231,.34) !important;
+        }
+
+        .dashboardShellModern .sideItem.active::after{
+          display: none !important;
+        }
+
+        .dashboardShellModern .sideText{
+  color: currentColor !important;
+  font-size: 14px !important;
+  font-weight: 700 !important;
+}
+
+        .dashboardShellModern .sideIcon{
+          color: currentColor !important;
+          width: 28px !important;
+          height: 28px !important;
+        }
+
+        .dashboardShellModern .sideIcon img,
+        .dashboardShellModern .sideIcon svg{
+          width: 24px !important;
+          height: 24px !important;
+        }
+
+        .dashboardShellModern .chev{
+          display: none !important;
+        }
+        
+        .dashboardShellModern .menuItem{
+  min-height: 52px !important;
+  margin: 4px 0 !important;
+  padding: 0 12px !important;
+  border-radius: 14px !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: rgba(255,255,255,.88) !important;
+  box-shadow: none !important;
+}
+
+.dashboardShellModern .menuItem:hover{
+  background: rgba(255,255,255,.08) !important;
+  border-color: rgba(255,255,255,.10) !important;
+}
+
+.dashboardShellModern .menuItem.active,
+.dashboardShellModern .menuItem.nav-home{
+  background: linear-gradient(135deg, #0b63ff, #0057e7) !important;
+  color: #fff !important;
+  border-color: rgba(255,255,255,.18) !important;
+  box-shadow: 0 14px 30px rgba(0,87,231,.34) !important;
+}
+
+.dashboardShellModern .menuText{
+  color: currentColor !important;
+  font-size: 14px !important;
+  font-weight: 800 !important;
+}
+
+.dashboardShellModern .menuLeft{
+  display:flex !important;
+  align-items:center !important;
+  gap:12px !important;
+}
+
+.dashboardShellModern .icoBox{
+  background: rgba(255,255,255,.10) !important;
+  color: currentColor !important;
+  border: 1px solid rgba(255,255,255,.12) !important;
+  width: 28px !important;
+  height: 28px !important;
+  border-radius: 8px !important;
+}
+
+.dashboardShellModern .icoBox img,
+.dashboardShellModern .icoBox svg{
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.dashboardShellModern .menuItem .chev{
+  display:none !important;
+}
+        
+        .modernDash{
+          max-width: 1180px;
+          margin: 0 auto;
+        }
+
+        .modernDashHeader{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:18px;
+          padding-bottom:18px;
+          border-bottom:1px solid #e4ebf5;
+          margin-bottom:26px;
+        }
+
+        .modernDashTitle h1{
+          color:#07152f;
+          font-size:34px;
+          line-height:1.05;
+          font-weight:900;
+          letter-spacing:-.04em;
+          margin:0;
+        }
+
+        .modernDashTitle p{
+          margin:8px 0 0;
+          color:#64748b;
+          font-size:14px;
+          font-weight:600;
+        }
+
+        .modernTopUser{
+          display:flex;
+          align-items:center;
+          gap:12px;
+          color:#10213f;
+          font-weight:800;
+        }
+
+        .modernBell{
+          width:42px;
+          height:42px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          border-radius:999px;
+          background:#fff;
+          border:1px solid #e4ebf5;
+          box-shadow:0 10px 24px rgba(15,23,42,.06);
+        }
+
+        .modernUserAvatar{
+          width:46px;
+          height:46px;
+          border-radius:999px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          color:#fff;
+          font-weight:900;
+          background:linear-gradient(135deg,#0b63ff,#004bd6);
+          box-shadow:0 12px 28px rgba(37,99,235,.25);
+        }
+
+        .modernMetricGrid{
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:20px;
+          margin-bottom:24px;
+        }
+
+        .modernMetricCard{
+          background:#fff;
+          border:1px solid #e3ebf6;
+          border-radius:18px;
+          padding:24px 24px;
+          box-shadow:0 14px 32px rgba(15,23,42,.06);
+          min-height:150px;
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:16px;
+        }
+
+        .modernMetricLabel{
+          font-size:16px;
+          font-weight:900;
+          color:#0c1733;
+          margin-bottom:22px;
+        }
+
+        .modernMetricValue{
+          font-size:42px;
+          line-height:1;
+          font-weight:900;
+          color:#07152f;
+          letter-spacing:-.04em;
+          font-variant-numeric:tabular-nums;
+        }
+
+        .modernMetricSub{
+          margin-top:12px;
+          color:#52627d;
+          font-size:14px;
+          font-weight:600;
+        }
+
+        .modernMetricIcon{
+          width:72px;
+          height:72px;
+          border-radius:999px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          flex:0 0 auto;
+        }
+
+        .modernMetricIcon svg{
+          width:34px;
+          height:34px;
+          fill:none;
+          stroke:currentColor;
+          stroke-width:2;
+          stroke-linecap:round;
+          stroke-linejoin:round;
+        }
+
+        .modernMetricIcon.blue{ background:#eaf2ff; color:#0b63ff; }
+        .modernMetricIcon.green{ background:#dcfce7; color:#16a34a; }
+        .modernMetricIcon.purple{ background:#eee9ff; color:#6d5dfc; }
+        .modernMetricIcon.orange{ background:#ffeddc; color:#f97316; }
+
+        .modernTwoCol{
+          display:grid;
+          grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr);
+          gap:24px;
+          margin-bottom:24px;
+        }
+
+        .modernPanel{
+          background:#fff;
+          border:1px solid #e3ebf6;
+          border-radius:18px;
+          padding:24px;
+          box-shadow:0 14px 32px rgba(15,23,42,.06);
+        }
+
+        .modernPanelTitle{
+          font-size:24px;
+          line-height:1.1;
+          font-weight:900;
+          color:#07152f;
+          letter-spacing:-.03em;
+          margin:0;
+        }
+
+        .modernPanelSub{
+          margin:8px 0 0;
+          color:#52627d;
+          font-size:15px;
+          font-weight:600;
+        }
+
+        .modernTimesheetTable{
+          margin-top:18px;
+          width:100%;
+          border-collapse:collapse;
+        }
+
+        .modernTimesheetTable th{
+          padding:0 0 12px;
+          color:#51617d;
+          font-size:14px;
+          font-weight:700;
+          text-align:left;
+          border-bottom:1px solid #e3ebf6;
+          background:transparent !important;
+        }
+
+        .modernTimesheetTable td{
+          padding:14px 0;
+          border-bottom:1px solid #edf2f8;
+          color:#263650;
+          font-size:14px;
+          font-weight:600;
+          background:transparent !important;
+        }
+
+        .modernWorkerCell{
+          display:flex;
+          align-items:center;
+          gap:12px;
+        }
+
+        .modernAvatar{
+          width:38px;
+          height:38px;
+          border-radius:999px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:linear-gradient(135deg,#dbeafe,#bfdbfe);
+          color:#0b63ff;
+          font-size:13px;
+          font-weight:900;
+        }
+
+        .modernWorkerName{
+          color:#10213f;
+          font-weight:900;
+        }
+
+        .modernWorkerSub{
+          margin-top:2px;
+          color:#7a8ba5;
+          font-size:12px;
+          font-weight:700;
+        }
+
+        .modernHours{
+          color:#0b63ff !important;
+          font-weight:900 !important;
+          text-align:right;
+        }
+
+        .modernPanelLink{
+          margin-top:18px;
+          display:inline-flex;
+          align-items:center;
+          gap:8px;
+          color:#0b63ff;
+          font-weight:900;
+          font-size:15px;
+        }
+
+        .modernProgressList{
+          margin-top:22px;
+          display:flex;
+          flex-direction:column;
+          gap:24px;
+        }
+
+        .modernProgressTop{
+          display:flex;
+          justify-content:space-between;
+          gap:14px;
+          color:#10213f;
+          font-weight:900;
+        }
+
+        .modernProgressTrack{
+          margin-top:10px;
+          height:10px;
+          border-radius:999px;
+          background:#e9eef6;
+          overflow:hidden;
+        }
+
+        .modernProgressTrack span{
+          display:block;
+          height:100%;
+          border-radius:999px;
+          background:linear-gradient(90deg,#0b63ff,#0057e7);
+          box-shadow:0 6px 18px rgba(37,99,235,.22);
+        }
+
+        .modernOnboardingCard{
+          background:#fff;
+          border:1px solid #e3ebf6;
+          border-radius:18px;
+          padding:22px 28px;
+          box-shadow:0 14px 32px rgba(15,23,42,.06);
+          display:grid;
+          grid-template-columns:auto minmax(0,1fr) minmax(220px,330px) auto;
+          align-items:center;
+          gap:28px;
+        }
+
+        .modernDocIcon{
+          width:92px;
+          height:92px;
+          border-radius:16px;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          background:#f1f6ff;
+          color:#0b63ff;
+        }
+
+        .modernDocIcon svg{
+          width:48px;
+          height:48px;
+          fill:none;
+          stroke:currentColor;
+          stroke-width:2;
+          stroke-linecap:round;
+          stroke-linejoin:round;
+        }
+
+        .modernOnboardingTitle{
+          font-size:24px;
+          font-weight:900;
+          color:#07152f;
+          letter-spacing:-.03em;
+        }
+
+        .modernOnboardingText{
+          margin-top:8px;
+          color:#52627d;
+          font-size:16px;
+          line-height:1.4;
+          font-weight:600;
+        }
+
+        .modernOnboardingProgressLabel{
+          color:#263650;
+          font-weight:800;
+          margin-bottom:10px;
+        }
+
+        .modernBtn{
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          min-height:54px;
+          padding:0 28px;
+          border-radius:10px;
+          background:linear-gradient(135deg,#0b63ff,#0057e7);
+          color:#fff;
+          font-weight:900;
+          box-shadow:0 14px 28px rgba(37,99,235,.28);
+          white-space:nowrap;
+        }
+
+        .modernEmpty{
+          padding:20px 0;
+          color:#64748b;
+          font-weight:700;
+        }
+
+        @media (max-width: 1100px){
+  .dashboardShellModern{
+    display:block !important;
+    grid-template-columns:1fr !important;
+  }
+
+  .dashboardShellModern .main{
+    padding:18px !important;
+  }
+
+  .modernMetricGrid{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .modernTwoCol{
+    grid-template-columns:1fr;
+  }
+
+  .modernOnboardingCard{
+    grid-template-columns:1fr;
+  }
+}
+          .modernTwoCol{
+            grid-template-columns:1fr;
+          }
+          .modernOnboardingCard{
+            grid-template-columns:1fr;
+          }
+        }
+
+        @media (max-width: 620px){
+          .modernDashHeader{
+            align-items:flex-start;
+            flex-direction:column;
+          }
+          .modernMetricGrid{
+            grid-template-columns:1fr;
+          }
+          .modernMetricCard{
+            min-height:auto;
+          }
+          .modernTimesheetTable th:nth-child(2),
+          .modernTimesheetTable td:nth-child(2){
+            display:none;
+          }
+        }
+      </style>
+    """
+
+    content = f"""
+      {modern_dashboard_css}
+
+      <div class="modernDash">
+        <div class="modernDashHeader">
+          <div class="modernDashTitle">
+            <h1>Dashboard</h1>
+            <p>{escape(now.strftime("%A • %d %b %Y"))} • {escape(role_label(role))}</p>
+          </div>
+
+          <div class="modernTopUser">
+            <div class="modernBell" title="Notifications">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#07152f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+              </svg>
+            </div>
+            <div class="modernUserAvatar">{escape(_initials(display_name))}</div>
+            <div>{escape(display_name)}</div>
+          </div>
+        </div>
+
+        <div class="modernMetricGrid">
+          <div class="modernMetricCard">
+            <div>
+              <div class="modernMetricLabel">Active Workers</div>
+              <div class="modernMetricValue">{clocked_in_count if role in ("admin", "master_admin") else ("1" if is_clocked_in else "0")}</div>
+              <div class="modernMetricSub">On site today</div>
+            </div>
+            <div class="modernMetricIcon blue">
+              <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+            </div>
+          </div>
+
+          <div class="modernMetricCard">
+            <div>
+              <div class="modernMetricLabel">Hours This Week</div>
+              <div class="modernMetricValue">{escape(fmt_hours(week_hours))}</div>
+              <div class="modernMetricSub">Total hours</div>
+            </div>
+            <div class="modernMetricIcon green">
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l4 2"></path></svg>
+            </div>
+          </div>
+
+          <div class="modernMetricCard">
+            <div>
+              <div class="modernMetricLabel">Sites</div>
+              <div class="modernMetricValue">{active_locations_count}</div>
+              <div class="modernMetricSub">Active workplaces</div>
+            </div>
+            <div class="modernMetricIcon purple">
+              <svg viewBox="0 0 24 24"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path><path d="M9 9h1"></path><path d="M9 13h1"></path><path d="M9 17h1"></path></svg>
+            </div>
+          </div>
+
+          <div class="modernMetricCard">
+            <div>
+              <div class="modernMetricLabel">Forms</div>
+              <div class="modernMetricValue">{onboarding_pending_count}</div>
+              <div class="modernMetricSub">Pending</div>
+            </div>
+            <div class="modernMetricIcon orange">
+              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 17h6"></path></svg>
+            </div>
+          </div>
+        </div>
+
+        <div class="modernTwoCol">
+          <div class="modernPanel">
+            <h2 class="modernPanelTitle">Recent Timesheets</h2>
+            <table class="modernTimesheetTable">
+              <thead>
+                <tr>
+                  <th>Worker</th>
+                  <th>Site</th>
+                  <th>Date</th>
+                  <th style="text-align:right;">Hours</th>
+                </tr>
+              </thead>
+              <tbody>
+                {modern_recent_rows}
+              </tbody>
+            </table>
+            <a class="modernPanelLink" href="{"/admin/log-activities" if role in ("admin", "master_admin") else "/my-times"}">View all timesheets ›</a>
+          </div>
+
+          <div class="modernPanel">
+            <h2 class="modernPanelTitle">Work Progress</h2>
+            <p class="modernPanelSub">Projects overview</p>
+
+            <div class="modernProgressList">
+              <div>
+                <div class="modernProgressTop"><span>Weekly hours target</span><span>{week_progress_pct}%</span></div>
+                <div class="modernProgressTrack"><span style="width:{week_progress_pct}%;"></span></div>
+              </div>
+
+              <div>
+                <div class="modernProgressTop"><span>Clocked in now</span><span>{clocked_pct}%</span></div>
+                <div class="modernProgressTrack"><span style="width:{clocked_pct}%;"></span></div>
+              </div>
+
+              <div>
+                <div class="modernProgressTop"><span>Onboarding complete</span><span>{forms_pct}%</span></div>
+                <div class="modernProgressTrack"><span style="width:{forms_pct}%;"></span></div>
+              </div>
+
+              <div>
+                <div class="modernProgressTop"><span>Active sites setup</span><span>{sites_pct}%</span></div>
+                <div class="modernProgressTrack"><span style="width:{sites_pct}%;"></span></div>
+              </div>
+            </div>
+
+            <a class="modernPanelLink" href="/work-progress">View all projects ›</a>
+          </div>
+        </div>
+
+        <div class="modernOnboardingCard">
+          <div class="modernDocIcon">
+            <svg viewBox="0 0 24 24">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <path d="M14 2v6h6"></path>
+              <path d="M8 13h8"></path>
+              <path d="M8 17h6"></path>
+            </svg>
+          </div>
+
+          <div>
+            <div class="modernOnboardingTitle">Onboarding</div>
+            <div class="modernOnboardingText">
+              {onboarding_pending_count if role in ("admin", "master_admin") else "Review your"} starter forms need attention.
+            </div>
+          </div>
+
+          <div>
+            <div class="modernOnboardingProgressLabel">{completed_onboarding} / {onboarding_total} completed</div>
+            <div class="modernProgressTrack"><span style="width:{onboarding_pct}%;"></span></div>
+          </div>
+
+          <a class="modernBtn" href="{"/admin/onboarding" if role in ("admin", "master_admin") else "/onboarding"}">View onboarding</a>
+        </div>
+      </div>
+    """
+
     return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content)
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content, shell_class="dashboardShellModern")
     )
