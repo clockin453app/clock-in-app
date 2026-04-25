@@ -934,7 +934,14 @@ def home_impl(core):
           font-weight:800;
         }
 
+                .modernNotifyWrap{
+          position:relative;
+          display:flex;
+          align-items:center;
+        }
+
         .modernBell{
+          position:relative;
           width:42px;
           height:42px;
           display:flex;
@@ -944,6 +951,83 @@ def home_impl(core):
           background:#fff;
           border:1px solid #e4ebf5;
           box-shadow:0 10px 24px rgba(15,23,42,.06);
+          cursor:pointer;
+        }
+
+        .modernBell:hover{
+          box-shadow:0 14px 30px rgba(15,23,42,.10);
+          transform:translateY(-1px);
+        }
+
+        .modernBellDot{
+          position:absolute;
+          top:7px;
+          right:7px;
+          width:10px;
+          height:10px;
+          border-radius:999px;
+          background:#ef4444;
+          border:2px solid #fff;
+          box-shadow:0 4px 10px rgba(239,68,68,.35);
+        }
+
+        .modernNotifyPanel{
+          position:absolute;
+          top:calc(100% + 12px);
+          right:0;
+          width:280px;
+          padding:16px;
+          border-radius:16px;
+          background:#fff;
+          border:1px solid #e3ebf6;
+          box-shadow:0 18px 40px rgba(15,23,42,.14);
+          z-index:50;
+          display:none;
+        }
+
+        .modernNotifyPanel.open{
+          display:block;
+        }
+
+        .modernNotifyTitle{
+          font-size:15px;
+          font-weight:900;
+          color:#07152f;
+          margin-bottom:8px;
+        }
+
+        .modernNotifyText{
+          font-size:14px;
+          font-weight:700;
+          line-height:1.35;
+          color:#263650;
+        }
+
+        .modernNotifySmall{
+          margin-top:8px;
+          font-size:12px;
+          line-height:1.35;
+          font-weight:600;
+          color:#64748b;
+        }
+
+        .modernNotifyBtn{
+          margin-top:12px;
+          width:100%;
+          min-height:40px;
+          border:0;
+          border-radius:10px;
+          background:linear-gradient(135deg,#0b63ff,#0057e7);
+          color:#fff;
+          font-weight:900;
+          cursor:pointer;
+        }
+
+        @media (max-width:620px){
+          .modernNotifyPanel{
+            right:-80px;
+            width:260px;
+          }
         }
 
         .modernUserAvatar{
@@ -1271,18 +1355,89 @@ def home_impl(core):
             flex-direction:column;
           }
           .modernMetricGrid{
-            grid-template-columns:1fr;
-          }
-          .modernMetricCard{
-            min-height:auto;
-          }
+  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+  gap:14px !important;
+}
+
+.modernMetricCard{
+  min-height:184px !important;
+  padding:20px 20px !important;
+  display:flex !important;
+  align-items:flex-start !important;
+  justify-content:space-between !important;
+  gap:12px !important;
+  overflow:hidden !important;
+}
+
+.modernMetricCard > div:first-child{
+  min-width:0 !important;
+  max-width:calc(100% - 58px) !important;
+}
+
+.modernMetricIcon{
+  width:52px !important;
+  height:52px !important;
+  min-width:52px !important;
+  flex:0 0 52px !important;
+  margin-top:42px !important;
+}
+
+.modernMetricIcon svg{
+  width:26px !important;
+  height:26px !important;
+}
+
+.modernMetricLabel{
+  font-size:15px !important;
+  line-height:1.15 !important;
+  margin-bottom:14px !important;
+}
+
+.modernMetricValue{
+  font-size:36px !important;
+}
+
+.modernMetricSub{
+  font-size:13px !important;
+  line-height:1.25 !important;
+}
           .modernTimesheetTable th:nth-child(2),
           .modernTimesheetTable td:nth-child(2){
             display:none;
           }
         }
+        
+        @media (max-width: 380px){
+  .modernMetricGrid{
+    grid-template-columns:1fr !important;
+  }
+
+  .modernMetricCard{
+    min-height:150px !important;
+  }
+
+  .modernMetricCard > div:first-child{
+    max-width:calc(100% - 64px) !important;
+  }
+
+  .modernMetricIcon{
+    width:56px !important;
+    height:56px !important;
+    min-width:56px !important;
+    flex-basis:56px !important;
+    margin-top:32px !important;
+  }
+}
+        
       </style>
     """
+
+    reminder_is_employee = role not in ("admin", "master_admin")
+    reminder_should_show = reminder_is_employee and not is_clocked_in
+    reminder_enabled_js = "true" if reminder_is_employee else "false"
+    reminder_clocked_in_js = "true" if is_clocked_in else "false"
+    reminder_should_show_js = "true" if reminder_should_show else "false"
+
 
     content = f"""
       {modern_dashboard_css}
@@ -1295,11 +1450,27 @@ def home_impl(core):
           </div>
 
           <div class="modernTopUser">
-            <div class="modernBell" title="Notifications">
-              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#07152f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
-                <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-              </svg>
+                        <div class="modernNotifyWrap">
+              <button class="modernBell" id="clockReminderBell" type="button" title="Clock-in reminders">
+                <span class="modernBellDot" id="clockReminderDot" style="display:{'block' if reminder_should_show else 'none'};"></span>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#07152f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
+                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
+                </svg>
+              </button>
+
+              <div class="modernNotifyPanel" id="clockReminderPanel">
+                <div class="modernNotifyTitle">Clock-in reminder</div>
+                <div class="modernNotifyText" id="clockReminderText">
+                  {'You have not clocked in yet today.' if reminder_should_show else 'No clock-in reminder right now.'}
+                </div>
+                <div class="modernNotifySmall">
+                  Default reminder time: 08:00. Browser notifications need permission once.
+                </div>
+                <button class="modernNotifyBtn" id="enableClockReminderBtn" type="button">
+                  Enable browser reminder
+                </button>
+              </div>
             </div>
             <div class="modernUserAvatar">{escape(_initials(display_name))}</div>
             <div>{escape(display_name)}</div>
@@ -1425,6 +1596,136 @@ def home_impl(core):
 
           <a class="modernBtn" href="{"/admin/onboarding" if role in ("admin", "master_admin") else "/onboarding"}">View onboarding</a>
         </div>
+        
+        
+                <script>
+          (function(){{
+            var isEmployee = {reminder_enabled_js};
+            var isClockedIn = {reminder_clocked_in_js};
+            var shouldShowReminder = {reminder_should_show_js};
+
+            var bell = document.getElementById("clockReminderBell");
+            var panel = document.getElementById("clockReminderPanel");
+            var btn = document.getElementById("enableClockReminderBtn");
+            var dot = document.getElementById("clockReminderDot");
+            var text = document.getElementById("clockReminderText");
+
+            if (!bell || !panel) return;
+
+            function closePanel(){{
+              panel.classList.remove("open");
+            }}
+
+            function openPanel(){{
+              panel.classList.add("open");
+            }}
+
+            bell.addEventListener("click", function(e){{
+              e.preventDefault();
+              e.stopPropagation();
+              panel.classList.toggle("open");
+            }});
+
+            document.addEventListener("click", function(e){{
+              if (!panel.contains(e.target) && !bell.contains(e.target)) {{
+                closePanel();
+              }}
+            }});
+
+            function canNotify(){{
+              return "Notification" in window;
+            }}
+
+            function showBrowserReminder(){{
+              if (!isEmployee || isClockedIn) return;
+              if (!canNotify()) return;
+              if (Notification.permission !== "granted") return;
+
+              new Notification("TimIQ reminder", {{
+                body: "You have not clocked in yet. Please clock in when you arrive on site.",
+                icon: "/static/icon-192.png"
+              }});
+            }}
+
+            function updatePanel(){{
+              if (!isEmployee) {{
+                if (text) text.textContent = "Admin notifications will be added here later.";
+                if (btn) btn.style.display = "none";
+                if (dot) dot.style.display = "none";
+                return;
+              }}
+
+              if (isClockedIn) {{
+                if (text) text.textContent = "You are already clocked in.";
+                if (dot) dot.style.display = "none";
+              }} else {{
+                if (text) text.textContent = "You have not clocked in yet today.";
+                if (dot) dot.style.display = "block";
+              }}
+
+              if (!canNotify()) {{
+                if (btn) {{
+                  btn.disabled = true;
+                  btn.textContent = "Browser notifications not supported";
+                }}
+                return;
+              }}
+
+              if (Notification.permission === "granted") {{
+                if (btn) btn.textContent = "Browser reminder enabled";
+              }} else if (Notification.permission === "denied") {{
+                if (btn) {{
+                  btn.disabled = true;
+                  btn.textContent = "Notifications blocked in browser";
+                }}
+              }} else {{
+                if (btn) btn.textContent = "Enable browser reminder";
+              }}
+            }}
+
+            if (btn) {{
+              btn.addEventListener("click", function(e){{
+                e.preventDefault();
+                e.stopPropagation();
+
+                if (!canNotify()) return;
+
+                Notification.requestPermission().then(function(permission){{
+                  updatePanel();
+
+                  if (permission === "granted" && shouldShowReminder) {{
+                    showBrowserReminder();
+                  }}
+                }});
+              }});
+            }}
+
+            function scheduleReminderCheck(){{
+              if (!isEmployee || isClockedIn) return;
+
+              var now = new Date();
+              var hour = now.getHours();
+              var minute = now.getMinutes();
+
+              // Default reminder: after 08:00, if employee is not clocked in.
+              if (hour > 8 || (hour === 8 && minute >= 0)) {{
+                showBrowserReminder();
+              }}
+
+              // Keep reminding every 30 minutes while the dashboard/app is open.
+              window.setInterval(function(){{
+                showBrowserReminder();
+              }}, 30 * 60 * 1000);
+            }}
+
+            updatePanel();
+            scheduleReminderCheck();
+          }})();
+        </script>
+        
+        
+        
+        
       </div>
     """
 
