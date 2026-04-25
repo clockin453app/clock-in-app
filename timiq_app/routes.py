@@ -993,7 +993,10 @@ def get_user_drive_service():
     )
 
 
-ONBOARDING_UPLOADS_DIR = os.path.join(BASE_DIR, "instance", "onboarding_uploads")
+ONBOARDING_UPLOADS_DIR = os.environ.get(
+    "ONBOARDING_UPLOADS_DIR",
+    os.path.join(BASE_DIR, "instance", "onboarding_uploads"),
+).strip()
 
 
 def _ensure_onboarding_uploads_dir():
@@ -1122,52 +1125,6 @@ def upload_to_drive(file_storage, filename_prefix: str) -> str:
     file_id = created["id"]
     return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
 
-ONBOARDING_UPLOADS_DIR = os.path.join(BASE_DIR, "instance", "onboarding_uploads")
-
-
-def _ensure_onboarding_uploads_dir():
-    os.makedirs(ONBOARDING_UPLOADS_DIR, exist_ok=True)
-    return ONBOARDING_UPLOADS_DIR
-
-
-def _safe_onboarding_path(relpath: str):
-    base = os.path.abspath(_ensure_onboarding_uploads_dir())
-    full = os.path.abspath(os.path.join(base, relpath))
-    if full != base and not full.startswith(base + os.sep):
-        return None
-    return full
-
-
-def store_onboarding_file_local(file_storage, username: str, filename_prefix: str) -> str:
-    _ensure_onboarding_uploads_dir()
-
-    file_bytes, detected_mime, safe_name = validate_upload_file(
-        file_storage,
-        UPLOAD_MAX_BYTES,
-        _ALLOWED_UPLOAD_EXTS,
-        _ALLOWED_UPLOAD_MIMES,
-    )
-
-    wp = secure_filename(_session_workplace_id() or "default") or "default"
-    user_part = secure_filename(username or "user") or "user"
-    prefix_part = secure_filename(filename_prefix or "file") or "file"
-
-    ext = os.path.splitext(safe_name)[1].lower() or ".bin"
-    stamp = datetime.now(TZ).strftime("%Y%m%d_%H%M%S")
-    rand = secrets.token_hex(4)
-
-    rel_dir = os.path.join(wp, user_part)
-    abs_dir = os.path.join(ONBOARDING_UPLOADS_DIR, rel_dir)
-    os.makedirs(abs_dir, exist_ok=True)
-
-    filename = f"{prefix_part}_{stamp}_{rand}{ext}"
-    abs_path = os.path.join(abs_dir, filename)
-
-    with open(abs_path, "wb") as f:
-        f.write(file_bytes)
-
-    relpath = os.path.join(rel_dir, filename).replace("\\", "/")
-    return url_for("view_onboarding_file", relpath=relpath)
 
 def _upload_bytes_to_drive(file_bytes: bytes, filename_prefix: str, safe_name: str, mime_type: str) -> str:
     drive_service = get_user_drive_service()
