@@ -567,7 +567,6 @@ def home_impl(core):
                       <p class="sub" style="margin:4px 0 0 0;">Live workforce and workplace setup overview.</p>
                     </div>
                   </div>
-                  <div class="sectionBadge">Latest 5</div>
                 </div>
 
                 <div class="sideInfoList">
