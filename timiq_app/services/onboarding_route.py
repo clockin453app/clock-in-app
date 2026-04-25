@@ -31,8 +31,14 @@ def onboarding_impl(core):
         return gate
 
     csrf = get_csrf()
-    username = session["username"]
+    session_username = session["username"]
     role = session.get("role", "employee")
+
+    if role in ("admin", "master_admin"):
+        username = (request.args.get("user") or request.form.get(
+            "user") or session_username).strip() or session_username
+    else:
+        username = session_username
 
     msg = ""
     msg_ok = False
