@@ -992,6 +992,54 @@ def get_user_drive_service():
         build_func=build,
     )
 
+def upload_to_drive(file_storage, filename_prefix: str) -> str:
+    drive_service = get_user_drive_service()
+
+    if not drive_service:
+        drive_service = get_service_account_drive_service()
+
+    if not drive_service:
+        raise RuntimeError("Drive upload is not available.")
+
+    if UPLOAD_FOLDER_ID:
+        try:
+            drive_service.files().get(
+                fileId=UPLOAD_FOLDER_ID,
+                fields="id,name",
+                supportsAllDrives=True,
+            ).execute()
+        except Exception as e:
+            raise RuntimeError("Upload folder not found or not shared with app account.") from e
+
+    file_bytes, detected_mime, safe_name = validate_upload_file(
+        file_storage,
+        UPLOAD_MAX_BYTES,
+        _ALLOWED_UPLOAD_EXTS,
+        _ALLOWED_UPLOAD_MIMES,
+    )
+
+    name = f"{filename_prefix}_{safe_name}"
+
+    media = MediaIoBaseUpload(
+        io.BytesIO(file_bytes),
+        mimetype=detected_mime,
+        resumable=False,
+    )
+
+    metadata = {"name": name}
+    if UPLOAD_FOLDER_ID:
+        metadata["parents"] = [UPLOAD_FOLDER_ID]
+
+    created = drive_service.files().create(
+        body=metadata,
+        media_body=media,
+        fields="id, webViewLink",
+        supportsAllDrives=True,
+    ).execute()
+
+    file_id = created["id"]
+    return created.get("webViewLink") or f"https://drive.google.com/file/d/{file_id}/view"
+
 def _upload_bytes_to_drive(file_bytes: bytes, filename_prefix: str, safe_name: str, mime_type: str) -> str:
     drive_service = get_user_drive_service()
     if not drive_service:

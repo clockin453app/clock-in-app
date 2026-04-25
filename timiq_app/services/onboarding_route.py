@@ -20,6 +20,7 @@ def onboarding_impl(core):
     OnboardingRecord = core["OnboardingRecord"]
     _session_workplace_id = core["_session_workplace_id"]
     db = core["db"]
+    make_response = core["make_response"]
     set_employee_first_last = core["set_employee_first_last"]
     set_employee_field = core["set_employee_field"]
 
@@ -32,14 +33,25 @@ def onboarding_impl(core):
     csrf = get_csrf()
     username = session["username"]
     role = session.get("role", "employee")
-    display_name = get_employee_display_name(username)
-    existing = get_onboarding_record(username)
 
     msg = ""
     msg_ok = False
-
     typed = None
     missing_fields = set()
+
+    try:
+        display_name = get_employee_display_name(username) or username
+    except Exception as e:
+        display_name = username
+        msg = f"Could not load employee name: {e}"
+        msg_ok = False
+
+    try:
+        existing = get_onboarding_record(username)
+    except Exception as e:
+        existing = None
+        msg = f"Could not load onboarding record: {e}"
+        msg_ok = False
 
     if request.method == "POST":
         require_csrf()
@@ -271,5 +283,11 @@ def onboarding_impl(core):
             typed = None
             missing_fields = set()
 
-    content = _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields)
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, content))
+    try:
+        content = _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields)
+    except Exception as e:
+        return make_response(f"Could not render onboarding page: {e}", 500)
+
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("agreements", role, content)
+    )
