@@ -6,7 +6,7 @@ def onboarding_impl(core):
     get_onboarding_record = core["get_onboarding_record"]
     request = core["request"]
     require_csrf = core["require_csrf"]
-    upload_to_drive = core["upload_to_drive"]
+    store_onboarding_file_local = core["store_onboarding_file_local"]
     render_template_string = core["render_template_string"]
     STYLE = core["STYLE"]
     VIEWPORT = core["VIEWPORT"]
@@ -170,13 +170,13 @@ def onboarding_impl(core):
 
             try:
                 if passport_file and passport_file.filename:
-                    passport_link = upload_to_drive(passport_file, f"{username}_passport")
+                    passport_link = store_onboarding_file_local(passport_file, username, "passport")
                 if cscs_file and cscs_file.filename:
-                    cscs_link = upload_to_drive(cscs_file, f"{username}_cscs")
+                    cscs_link = store_onboarding_file_local(cscs_file, username, "cscs")
                 if pli_file and pli_file.filename:
-                    pli_link = upload_to_drive(pli_file, f"{username}_pli")
+                    pli_link = store_onboarding_file_local(pli_file, username, "pli")
                 if share_file and share_file.filename:
-                    share_link = upload_to_drive(share_file, f"{username}_share")
+                    share_link = store_onboarding_file_local(share_file, username, "share")
             except Exception as e:
                 msg = f"Upload error: {e}"
                 msg_ok = False
