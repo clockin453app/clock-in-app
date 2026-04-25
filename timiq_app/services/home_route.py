@@ -380,6 +380,7 @@ def home_impl(core):
     clocked_in_count = 0
     active_locations_count = 0
     onboarding_pending_count = 0
+    employee_onboarding_completed = False
 
     try:
         emp_vals = employees_sheet.get_all_values()
@@ -405,7 +406,12 @@ def home_impl(core):
 
                 if i_onb is not None:
                     done_flag = (r[i_onb] if i_onb < len(r) else "").strip().lower()
-                    if done_flag not in ("true", "1", "yes"):
+                    done_bool = done_flag in ("true", "1", "yes")
+
+                    if u == username:
+                        employee_onboarding_completed = done_bool
+
+                    if not done_bool:
                         onboarding_pending_count += 1
     except Exception:
         pass
@@ -703,6 +709,63 @@ def home_impl(core):
     clocked_pct = _pct(clocked_in_count, max(employee_count, 1))
     sites_pct = min(100, max(0, int(active_locations_count or 0) * 25))
     forms_pct = _pct(completed_onboarding, onboarding_total)
+    is_admin_dashboard = role in ("admin", "master_admin")
+
+    if is_admin_dashboard:
+        metric_1_label = "Active Workers"
+        metric_1_value = str(clocked_in_count)
+        metric_1_sub = "On site today"
+
+        metric_3_label = "Sites"
+        metric_3_value = str(active_locations_count)
+        metric_3_sub = "Active workplaces"
+
+        metric_4_label = "Forms"
+        metric_4_value = str(onboarding_pending_count)
+        metric_4_sub = "Pending"
+
+        progress_2_label = "Clocked in now"
+        progress_2_pct = clocked_pct
+
+        progress_3_label = "Onboarding complete"
+        progress_3_pct = forms_pct
+
+        progress_4_label = "Active sites setup"
+        progress_4_pct = sites_pct
+
+        onboarding_card_text = f"{onboarding_pending_count} starter forms need attention."
+        onboarding_card_progress_label = f"{completed_onboarding} / {onboarding_total} completed"
+        onboarding_card_pct = onboarding_pct
+
+    else:
+        metric_1_label = "Clock Status"
+        metric_1_value = "In" if is_clocked_in else "Out"
+        metric_1_sub = "Your current status"
+
+        metric_3_label = "Days Worked"
+        metric_3_value = str(len(week_days))
+        metric_3_sub = "This week"
+
+        metric_4_label = "Starter Form"
+        metric_4_value = "Done" if employee_onboarding_completed else "Open"
+        metric_4_sub = "Your onboarding"
+
+        progress_2_label = "Clock status"
+        progress_2_pct = 100 if is_clocked_in else 0
+
+        progress_3_label = "Starter form"
+        progress_3_pct = 100 if employee_onboarding_completed else 0
+
+        progress_4_label = "Weekly activity"
+        progress_4_pct = min(100, len(week_days) * 20)
+
+        onboarding_card_text = (
+            "Your starter form is complete."
+            if employee_onboarding_completed
+            else "Review your starter form."
+        )
+        onboarding_card_progress_label = "1 / 1 completed" if employee_onboarding_completed else "0 / 1 completed"
+        onboarding_card_pct = 100 if employee_onboarding_completed else 0
 
     def _initials(name):
         parts = [p for p in str(name or "").strip().split() if p]
@@ -1428,6 +1491,85 @@ def home_impl(core):
     margin-top:32px !important;
   }
 }
+    
+    /* FINAL MOBILE METRIC CARD FIX */
+@media (max-width: 620px){
+  .modernMetricGrid{
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 14px !important;
+  }
+
+  .modernMetricCard{
+    position: relative !important;
+    min-height: 152px !important;
+    padding: 20px 14px 18px 16px !important;
+    display: block !important;
+    overflow: hidden !important;
+  }
+
+  .modernMetricCard > div:first-child{
+    max-width: none !important;
+    min-width: 0 !important;
+    padding-right: 48px !important;
+  }
+
+  .modernMetricIcon{
+    position: absolute !important;
+    right: 12px !important;
+    top: 58px !important;
+    width: 46px !important;
+    height: 46px !important;
+    min-width: 46px !important;
+    flex: 0 0 46px !important;
+    margin: 0 !important;
+  }
+
+  .modernMetricIcon svg{
+    width: 24px !important;
+    height: 24px !important;
+  }
+
+  .modernMetricLabel{
+    font-size: 14px !important;
+    line-height: 1.12 !important;
+    margin-bottom: 18px !important;
+    max-width: 86px !important;
+  }
+
+  .modernMetricValue{
+    font-size: 34px !important;
+    line-height: 1 !important;
+    letter-spacing: -0.04em !important;
+  }
+
+  .modernMetricSub{
+    margin-top: 9px !important;
+    font-size: 12px !important;
+    line-height: 1.25 !important;
+    max-width: 78px !important;
+  }
+}
+
+@media (max-width: 360px){
+  .modernMetricGrid{
+    grid-template-columns: 1fr !important;
+  }
+
+  .modernMetricCard{
+    min-height: 138px !important;
+  }
+
+  .modernMetricIcon{
+    top: 48px !important;
+    right: 16px !important;
+  }
+
+  .modernMetricLabel,
+  .modernMetricSub{
+    max-width: none !important;
+  }
+}
+    
         
       </style>
     """
@@ -1480,9 +1622,9 @@ def home_impl(core):
         <div class="modernMetricGrid">
           <div class="modernMetricCard">
             <div>
-              <div class="modernMetricLabel">Active Workers</div>
-              <div class="modernMetricValue">{clocked_in_count if role in ("admin", "master_admin") else ("1" if is_clocked_in else "0")}</div>
-              <div class="modernMetricSub">On site today</div>
+                            <div class="modernMetricLabel">{escape(metric_1_label)}</div>
+              <div class="modernMetricValue">{escape(metric_1_value)}</div>
+              <div class="modernMetricSub">{escape(metric_1_sub)}</div>
             </div>
             <div class="modernMetricIcon blue">
               <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
@@ -1502,9 +1644,9 @@ def home_impl(core):
 
           <div class="modernMetricCard">
             <div>
-              <div class="modernMetricLabel">Sites</div>
-              <div class="modernMetricValue">{active_locations_count}</div>
-              <div class="modernMetricSub">Active workplaces</div>
+                            <div class="modernMetricLabel">{escape(metric_3_label)}</div>
+              <div class="modernMetricValue">{escape(metric_3_value)}</div>
+              <div class="modernMetricSub">{escape(metric_3_sub)}</div>
             </div>
             <div class="modernMetricIcon purple">
               <svg viewBox="0 0 24 24"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path><path d="M9 9h1"></path><path d="M9 13h1"></path><path d="M9 17h1"></path></svg>
@@ -1513,9 +1655,9 @@ def home_impl(core):
 
           <div class="modernMetricCard">
             <div>
-              <div class="modernMetricLabel">Forms</div>
-              <div class="modernMetricValue">{onboarding_pending_count}</div>
-              <div class="modernMetricSub">Pending</div>
+                            <div class="modernMetricLabel">{escape(metric_4_label)}</div>
+              <div class="modernMetricValue">{escape(metric_4_value)}</div>
+              <div class="modernMetricSub">{escape(metric_4_sub)}</div>
             </div>
             <div class="modernMetricIcon orange">
               <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 17h6"></path></svg>
@@ -1553,18 +1695,18 @@ def home_impl(core):
               </div>
 
               <div>
-                <div class="modernProgressTop"><span>Clocked in now</span><span>{clocked_pct}%</span></div>
-                <div class="modernProgressTrack"><span style="width:{clocked_pct}%;"></span></div>
+                                <div class="modernProgressTop"><span>{escape(progress_2_label)}</span><span>{progress_2_pct}%</span></div>
+                <div class="modernProgressTrack"><span style="width:{progress_2_pct}%;"></span></div>
               </div>
 
               <div>
-                <div class="modernProgressTop"><span>Onboarding complete</span><span>{forms_pct}%</span></div>
-                <div class="modernProgressTrack"><span style="width:{forms_pct}%;"></span></div>
+                <div class="modernProgressTop"><span>{escape(progress_3_label)}</span><span>{progress_3_pct}%</span></div>
+                <div class="modernProgressTrack"><span style="width:{progress_3_pct}%;"></span></div>
               </div>
 
               <div>
-                <div class="modernProgressTop"><span>Active sites setup</span><span>{sites_pct}%</span></div>
-                <div class="modernProgressTrack"><span style="width:{sites_pct}%;"></span></div>
+                <div class="modernProgressTop"><span>{escape(progress_4_label)}</span><span>{progress_4_pct}%</span></div>
+                <div class="modernProgressTrack"><span style="width:{progress_4_pct}%;"></span></div>
               </div>
             </div>
 
@@ -1585,13 +1727,13 @@ def home_impl(core):
           <div>
             <div class="modernOnboardingTitle">Onboarding</div>
             <div class="modernOnboardingText">
-              {onboarding_pending_count if role in ("admin", "master_admin") else "Review your"} starter forms need attention.
+              {escape(onboarding_card_text)}
             </div>
           </div>
 
           <div>
-            <div class="modernOnboardingProgressLabel">{completed_onboarding} / {onboarding_total} completed</div>
-            <div class="modernProgressTrack"><span style="width:{onboarding_pct}%;"></span></div>
+            <div class="modernOnboardingProgressLabel">{escape(onboarding_card_progress_label)}</div>
+            <div class="modernProgressTrack"><span style="width:{onboarding_card_pct}%;"></span></div>
           </div>
 
           <a class="modernBtn" href="{"/admin/onboarding" if role in ("admin", "master_admin") else "/onboarding"}">View onboarding</a>
