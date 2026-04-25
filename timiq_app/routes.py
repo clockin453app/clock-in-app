@@ -1055,9 +1055,11 @@ def view_onboarding_file(relpath):
     if not full_path or not os.path.isfile(full_path):
         abort(404)
 
-    current_wp = secure_filename(_session_workplace_id() or "default") or "default"
-    if not relpath.startswith(current_wp + "/"):
-        abort(403)
+    role = str(session.get("role") or "").strip().lower()
+    if role != "master_admin":
+        current_wp = secure_filename(_session_workplace_id() or "default") or "default"
+        if not relpath.startswith(current_wp + "/"):
+            abort(403)
 
     return send_file(full_path, conditional=True)
 
