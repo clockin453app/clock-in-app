@@ -2558,15 +2558,24 @@ def linkify(url: str) -> str:
     u = str(url or "").strip()
     if not u:
         return ""
+
+    # Allow app-local file links like /onboarding-file/...
+    if u.startswith("/"):
+        uesc = escape(u)
+        return (
+            f'<a href="{uesc}" target="_blank" rel="noopener noreferrer" '
+            f'style="color:var(--navy);font-weight:600;">Open</a>'
+        )
+
     p = urlparse(u)
     if p.scheme not in ("http", "https"):
         return ""
+
     uesc = escape(u)
     return (
         f'<a href="{uesc}" target="_blank" rel="noopener noreferrer" '
         f'style="color:var(--navy);font-weight:600;">Open</a>'
     )
-
 
 # ================= GEOLOCATION (GEOFENCE) =================
 
