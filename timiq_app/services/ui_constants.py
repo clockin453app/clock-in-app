@@ -231,6 +231,61 @@ PWA_TAGS = """
 STYLE = """
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+/* TimIQ logo used across the real app */
+.timiqAppLogo{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  text-decoration:none;
+  color:inherit;
+  line-height:1;
+}
+
+.timiqAppLogoClock{
+  width:42px;
+  height:42px;
+  flex:0 0 42px;
+  display:block;
+}
+
+.timiqAppLogoWord{
+  display:inline-flex;
+  align-items:center;
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size:34px;
+  line-height:1;
+  letter-spacing:-0.075em;
+  font-weight:900;
+}
+
+.timiqAppLogoTim{
+  color:#ffffff;
+}
+
+.timiqAppLogoIQ{
+  color:#7fc7ee;
+}
+
+.timiqAppLogo.mobile{
+  gap:4px;
+}
+
+.timiqAppLogo.mobile .timiqAppLogoClock{
+  width:28px;
+  height:28px;
+  flex-basis:28px;
+}
+
+.timiqAppLogo.mobile .timiqAppLogoWord{
+  font-size:24px;
+}
+
+.timiqAppLogo.mobile{
+  gap:4px;
+  background:#1f2d63;
+  padding:8px 10px;
+  border-radius:0;
+}
 
 :root{
   --bg:#f7f9fc;

@@ -193,13 +193,40 @@ def login_impl(core):
         align-items:flex-start;
       }
 
-      .loginBrandLogo{
-        width:220px;
-        max-width:100%;
-        height:auto;
-        display:block;
-        margin:0 0 10px 0;
-      }
+      .loginLogoNew{
+  display:inline-flex;
+  align-items:center;
+  gap:5px;
+  background:#1f2d63;
+  padding:24px 34px;
+  text-decoration:none;
+  margin:0 0 10px 0;
+}
+
+.loginLogoClock{
+  width:46px;
+  height:46px;
+  flex:0 0 46px;
+  display:block;
+}
+
+.loginLogoWord{
+  display:inline-flex;
+  align-items:center;
+  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+  font-size:34px;
+  line-height:1;
+  letter-spacing:-0.075em;
+  font-weight:900;
+}
+
+.loginLogoTim{
+  color:#ffffff;
+}
+
+.loginLogoIQ{
+  color:#7fc7ee;
+}
 
       .loginHeroPro{
         display: flex;
@@ -379,10 +406,19 @@ def login_impl(core):
           padding-top: 10px;
         }
 
-        .loginBrandLogo{
-          width:170px;
-          margin:0 0 8px 0;
-        }
+        .loginLogoNew{
+  padding:20px 28px;
+}
+
+.loginLogoClock{
+  width:38px;
+  height:38px;
+  flex-basis:38px;
+}
+
+.loginLogoWord{
+  font-size:28px;
+}
 
         .loginHeroPro{
           padding: 22px 20px 18px 20px;
@@ -408,9 +444,19 @@ def login_impl(core):
           font-size: 40px;
         }
 
-        .loginBrandLogo{
-          width:150px;
-        }
+        .loginLogoNew{
+  padding:18px 24px;
+}
+
+.loginLogoClock{
+  width:34px;
+  height:34px;
+  flex-basis:34px;
+}
+
+.loginLogoWord{
+  font-size:26px;
+}
 
         .loginLead{
           font-size: 15px;
@@ -440,7 +486,21 @@ def login_impl(core):
         <div class="card loginCardPro">
           <div class="loginHeroPro">
             <div class="loginBrandWrap">
-              <img src="/static/original-logo.png" alt="Timiq" class="loginBrandLogo">
+              <div class="loginLogoNew" aria-label="TimIQ">
+  <svg class="loginLogoClock" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+    <path d="M7 25H26" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M10 34H24" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+    <path d="M16 43H22" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+    <rect x="31" y="8" width="11" height="6" rx="2" fill="#7FC7EE"/>
+    <rect x="47.5" y="14" width="6" height="6" rx="1.5" transform="rotate(45 47.5 14)" fill="#7FC7EE"/>
+    <circle cx="36" cy="32" r="18" stroke="#7FC7EE" stroke-width="5.5"/>
+    <path d="M36 32V18A14 14 0 0 1 50 32H36Z" fill="#4B83C6"/>
+  </svg>
+
+  <span class="loginLogoWord">
+    <span class="loginLogoTim">Tim</span><span class="loginLogoIQ">IQ</span>
+  </span>
+</div>
               <p class="sub loginLead">Clock-in, attendance and payroll in one secure workspace.</p>
             </div>
           </div>

@@ -667,6 +667,7 @@ from .services.payments_page_route import payments_page_impl
 from .services.my_reports_csv_route import my_reports_csv_impl
 from .services.onboarding_route import onboarding_impl
 from .services.home_route import home_impl
+from .services.public_preview_route import public_preview_impl
 from .services.my_reports_route import my_reports_impl
 from .services.my_times_route import my_times_impl
 from .services.admin_log_activities_route import admin_log_activities_impl
@@ -4402,6 +4403,31 @@ def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bo
     return (bool(rec.get("paid")), str(rec.get("paid_at") or ""))
 
 
+
+def timiq_logo_html(extra_class: str = "") -> str:
+    cls = f"timiqAppLogo {extra_class}".strip()
+    return f"""
+      <span class="{cls}" aria-label="TimIQ">
+        <svg class="timiqAppLogoClock" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+          <path d="M7 25H26" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+          <path d="M10 34H24" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+          <path d="M16 43H22" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+
+          <rect x="31" y="8" width="11" height="6" rx="2" fill="#7FC7EE"/>
+          <rect x="47.5" y="14" width="6" height="6" rx="1.5" transform="rotate(45 47.5 14)" fill="#7FC7EE"/>
+
+          <circle cx="36" cy="32" r="18" stroke="#7FC7EE" stroke-width="5.5"/>
+          <path d="M36 32V18A14 14 0 0 1 50 32H36Z" fill="#4B83C6"/>
+        </svg>
+
+        <span class="timiqAppLogoWord">
+          <span class="timiqAppLogoTim">Tim</span><span class="timiqAppLogoIQ">IQ</span>
+        </span>
+      </span>
+    """
+
+
+
 # ================= NAV / LAYOUT =================
 def bottom_nav(active: str, role: str) -> str:
     return ""
@@ -4438,17 +4464,8 @@ def sidebar_html(active: str, role: str) -> str:
 
     return f"""
       <div class="sidebar">
-        <div style="padding:4px 0 4px; display:flex; justify-content:center; align-items:center;">
-          <img
-            src="/static/original-logo.png"
-            alt="TimIQ"
-            style="
-              width:180px;
-              max-width:180px;
-              height:auto;
-              display:block;
-            "
-          >
+        <div style="padding:26px 0 32px; display:flex; justify-content:center; align-items:center;">
+          {timiq_logo_html()}
         </div>
         {''.join(links)}
       </div>
@@ -4520,11 +4537,10 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
         '<a class="topAccountMenuItem" href="/work-progress"><span>Work Progress</span><span class="topAccountMenuMark">›</span></a>'
     )
 
-
     company_bar = f"""
       <div class="topBarFixed">
         <a href="/" class="mobileTopLogo" aria-label="TimIQ home">
-          <img src="/static/original-logo.png" alt="TimIQ">
+          {timiq_logo_html("mobile")}
         </a>
         <span class="topBrandBadge">{escape(company_name)}</span>
         <div class="topAccountWrap">
@@ -4792,6 +4808,13 @@ def api_dashboard_snapshot():
 @routes.get("/")
 def home():
     return home_impl(core=globals())
+
+@routes.route("/preview")
+def public_preview():
+    return public_preview_impl({
+        "render_template_string": render_template_string,
+    })
+
 
 # ---------- CLOCK PAGE ----------
 @routes.route("/clock", methods=["GET", "POST"])
