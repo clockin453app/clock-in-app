@@ -34,10 +34,11 @@ from zoneinfo import ZoneInfo
 
 try:
     from googleapiclient.discovery import build
-    from googleapiclient.http import MediaIoBaseUpload
+    from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
 except Exception:
     build = None
     MediaIoBaseUpload = None
+    MediaIoBaseDownload = None
 
 try:
     from google_auth_oauthlib.flow import Flow
@@ -1062,6 +1063,135 @@ def view_onboarding_file(relpath):
             abort(403)
 
     return send_file(full_path, conditional=True)
+
+def upload_onboarding_file_persistent(file_storage, username: str, filename_prefix: str) -> str:
+    """
+    Store onboarding documents safely.
+
+    Priority:
+    1. Google Drive, if connected/configured.
+    2. Local persistent storage ONLY if ONBOARDING_UPLOADS_DIR is explicitly set.
+
+    This prevents accidental saving into the deploy folder, where files may disappear
+    after redeploy.
+    """
+    drive_service = get_user_drive_service() or get_service_account_drive_service()
+
+    if drive_service and MediaIoBaseUpload:
+        if UPLOAD_FOLDER_ID:
+            try:
+                drive_service.files().get(
+                    fileId=UPLOAD_FOLDER_ID,
+                    fields="id,name,driveId",
+                    supportsAllDrives=True,
+                ).execute()
+            except Exception as e:
+                raise RuntimeError(
+                    f"Upload folder not accessible. folder_id={UPLOAD_FOLDER_ID}"
+                ) from e
+
+        file_bytes, detected_mime, safe_name = validate_upload_file(
+            file_storage,
+            UPLOAD_MAX_BYTES,
+            _ALLOWED_UPLOAD_EXTS,
+            _ALLOWED_UPLOAD_MIMES,
+        )
+
+        wp = secure_filename(_session_workplace_id() or "default") or "default"
+        user_part = secure_filename(username or "user") or "user"
+        prefix_part = secure_filename(filename_prefix or "file") or "file"
+        stamp = datetime.now(TZ).strftime("%Y%m%d_%H%M%S")
+        rand = secrets.token_hex(4)
+
+        drive_name = f"{wp}_{user_part}_{prefix_part}_{stamp}_{rand}_{safe_name}"
+
+        media = MediaIoBaseUpload(
+            io.BytesIO(file_bytes),
+            mimetype=detected_mime,
+            resumable=False,
+        )
+
+        metadata = {"name": drive_name}
+        if UPLOAD_FOLDER_ID:
+            metadata["parents"] = [UPLOAD_FOLDER_ID]
+
+        created = drive_service.files().create(
+            body=metadata,
+            media_body=media,
+            fields="id,name,mimeType",
+            supportsAllDrives=True,
+        ).execute()
+
+        return url_for("view_onboarding_drive_file", file_id=created["id"])
+
+    # Local fallback is allowed ONLY when you explicitly set persistent storage.
+    explicit_local_dir = os.environ.get("ONBOARDING_UPLOADS_DIR", "").strip()
+
+    if explicit_local_dir:
+        print("ONBOARDING UPLOAD SAVED LOCALLY IN:", explicit_local_dir)
+        return store_onboarding_file_local(file_storage, username, filename_prefix)
+
+    raise RuntimeError(
+        "Onboarding upload storage is not configured. "
+        "Connect Google Drive or set ONBOARDING_UPLOADS_DIR to a persistent folder. "
+        "Refusing to save files into the deploy folder because they may disappear after redeploy."
+    )
+
+
+@routes.route("/onboarding-drive-file/<file_id>")
+def view_onboarding_drive_file(file_id):
+    """
+    Secure app proxy for onboarding documents stored in Google Drive.
+
+    The Drive file is not public. Admins open the file through this Flask route.
+    """
+    gate = require_admin()
+    if gate:
+        return gate
+
+    file_id = str(file_id or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{10,200}", file_id):
+        abort(404)
+
+    drive_service = get_user_drive_service() or get_service_account_drive_service()
+    print("ONBOARDING_UPLOADS_DIR =", os.environ.get("ONBOARDING_UPLOADS_DIR"))
+    print("DRIVE AVAILABLE =", bool(drive_service))
+    if not drive_service or not MediaIoBaseDownload:
+        abort(404)
+
+    try:
+        meta = drive_service.files().get(
+            fileId=file_id,
+            fields="id,name,mimeType",
+            supportsAllDrives=True,
+        ).execute()
+
+        fh = io.BytesIO()
+        request_media = drive_service.files().get_media(
+            fileId=file_id,
+            supportsAllDrives=True,
+        )
+
+        downloader = MediaIoBaseDownload(fh, request_media)
+        done = False
+        while not done:
+            _status, done = downloader.next_chunk()
+
+        fh.seek(0)
+
+        filename = secure_filename(meta.get("name") or "onboarding-file") or "onboarding-file"
+        mime = meta.get("mimeType") or "application/octet-stream"
+
+        return send_file(
+            fh,
+            mimetype=mime,
+            download_name=filename,
+            as_attachment=False,
+            conditional=True,
+        )
+
+    except Exception:
+        abort(404)
 
 
 
