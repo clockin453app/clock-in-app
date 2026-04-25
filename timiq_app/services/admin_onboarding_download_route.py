@@ -35,6 +35,14 @@ def admin_onboarding_download_impl(core, username):
     def show(key):
         return escape((rec.get(key, "") or "").strip() or "—")
 
+    def clean_phone_value(key):
+        text = str(rec.get(key, "") or "").strip()
+
+        while text.startswith("+44"):
+            text = text[3:].strip()
+
+        return escape(text or "—")
+
     def doc_status(label, key):
         link = (rec.get(key, "") or "").strip()
         if link:
@@ -45,7 +53,7 @@ def admin_onboarding_download_impl(core, username):
         f"<tr><th>First name</th><td>{show('FirstName')}</td></tr>",
         f"<tr><th>Last name</th><td>{show('LastName')}</td></tr>",
         f"<tr><th>Birth date</th><td>{show('BirthDate')}</td></tr>",
-        f"<tr><th>Phone</th><td>{show('PhoneCountryCode')} {show('PhoneNumber')}</td></tr>",
+        f"<tr><th>Phone</th><td>{clean_phone_value('PhoneNumber')}</td></tr>",
         f"<tr><th>Email</th><td>{show('Email')}</td></tr>",
         f"<tr><th>Street</th><td>{show('StreetAddress')}</td></tr>",
         f"<tr><th>City</th><td>{show('City')}</td></tr>",
@@ -54,7 +62,7 @@ def admin_onboarding_download_impl(core, username):
 
     work_rows = "".join([
         f"<tr><th>Emergency contact</th><td>{show('EmergencyContactName')}</td></tr>",
-        f"<tr><th>Emergency phone</th><td>{show('EmergencyContactPhoneCountryCode')} {show('EmergencyContactPhoneNumber')}</td></tr>",
+        f"<tr><th>Emergency phone</th><td>{clean_phone_value('EmergencyContactPhoneNumber')}</td></tr>",
         f"<tr><th>Medical condition</th><td>{show('MedicalCondition')}</td></tr>",
         f"<tr><th>Medical details</th><td>{show('MedicalDetails')}</td></tr>",
         f"<tr><th>Position</th><td>{show('Position')}</td></tr>",

@@ -82,9 +82,9 @@ def admin_onboarding_list_impl(core):
                 f"<td><a href='/admin/onboarding/{escape(u)}' style='color:var(--navy);font-weight:600;'>{escape(name)}</a></td>"
                 f"<td>{escape(u)}</td>"
                 f"<td>{escape(sub)}</td>"
-                f"<td style='text-align:center; white-space:nowrap;'><a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#3b74ad; line-height:1;'>PDF</a></td>"
+                f"<td style='text-align:center; white-space:nowrap;'>"
                 f"<a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' "
-                f"style='display:inline; margin:0; padding:0; border:0; background:none; box-shadow:none; text-decoration:none; font-size:12px; font-weight:700; color:#3b74ad; line-height:1;'>PDF</a>"
+                f"style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#3b74ad; line-height:1;'>PDF</a>"
                 f"</td>"
                 f"</tr>"
             )

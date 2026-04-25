@@ -3875,6 +3875,7 @@ def update_or_append_onboarding(username: str, data: dict):
                 "last_name": "LastName",
                 "birth_date": "BirthDate",
                 "phone_country_code": "PhoneCountryCode",
+                "phone_number": "PhoneNumber",
                 "phone": "PhoneNumber",
                 "email": "Email",
                 "street_address": "StreetAddress",
@@ -3882,6 +3883,7 @@ def update_or_append_onboarding(username: str, data: dict):
                 "postcode": "Postcode",
                 "emergency_contact_name": "EmergencyContactName",
                 "emergency_contact_phone_country_code": "EmergencyContactPhoneCountryCode",
+                "emergency_contact_phone_number": "EmergencyContactPhoneNumber",
                 "emergency_contact_phone": "EmergencyContactPhoneNumber",
                 "medical_condition": "MedicalCondition",
                 "medical_details": "MedicalDetails",
@@ -3987,14 +3989,15 @@ def get_onboarding_record(username: str):
                     "LastName": gv("last_name"),
                     "BirthDate": gv("birth_date"),
                     "PhoneCountryCode": gv("phone_country_code"),
-                    "PhoneNumber": gv("phone"),
+                    "PhoneNumber": gv("phone_number") or gv("phone"),
                     "Email": gv("email"),
                     "StreetAddress": gv("street_address") or gv("address"),
                     "City": gv("city"),
                     "Postcode": gv("postcode"),
                     "EmergencyContactName": gv("emergency_contact_name"),
                     "EmergencyContactPhoneCountryCode": gv("emergency_contact_phone_country_code"),
-                    "EmergencyContactPhoneNumber": gv("emergency_contact_phone"),
+                    "EmergencyContactPhoneNumber": gv("emergency_contact_phone_number") or gv(
+                        "emergency_contact_phone"),
                     "MedicalCondition": gv("medical_condition"),
                     "MedicalDetails": gv("medical_details"),
                     "Position": gv("position"),
@@ -4845,6 +4848,15 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
             return typed[input_name]
         return (existing or {}).get(existing_key, "")
 
+    def clean_phone_input(value):
+        text = str(value or "").strip()
+
+        # Clean old saved values like: +44 +44 +44 +447424790646
+        while text.startswith("+44"):
+            text = text[3:].strip()
+
+        return text
+
     def bad(input_name):
         return "bad" if input_name in (missing_fields or set()) else ""
 
@@ -4939,8 +4951,8 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           <input class="input {bad('birth')}" type="date" name="birth" value="{escape(val('birth', 'BirthDate'))}">
 
           <label class="sub {bad_label('phone_num')}" style="margin-top:10px; display:block;">Phone Number</label>
-          <input type="hidden" name="phone_cc" value="">
-          <input class="input {bad('phone_num')}" name="phone_num" value="{escape(val('phone_num', 'PhoneNumber'))}">
+<input type="hidden" name="phone_cc" value="">
+<input class="input {bad('phone_num')}" name="phone_num" value="{escape(clean_phone_input(val('phone_num', 'PhoneNumber')))}" placeholder="Phone number">
 
 
           <h2 style="margin-top:14px;">Address</h2>
@@ -4962,8 +4974,8 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
           </div>
 
           <label class="sub {bad_label('ec_phone')}" style="margin-top:10px; display:block;">Emergency Contact Phone</label>
-          <input type="hidden" name="ec_cc" value="">
-          <input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(val('ec_phone', 'EmergencyContactPhoneNumber'))}">
+<input type="hidden" name="ec_cc" value="">
+<input class="input {bad('ec_phone')}" name="ec_phone" value="{escape(clean_phone_input(val('ec_phone', 'EmergencyContactPhoneNumber')))}" placeholder="Emergency contact phone">
 
 
           <h2 style="margin-top:14px;">Medical</h2>

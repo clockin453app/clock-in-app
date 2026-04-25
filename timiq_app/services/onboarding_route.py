@@ -69,18 +69,32 @@ def onboarding_impl(core):
         def g(name):
             return (request.form.get(name, "") or "").strip()
 
+        def clean_phone_input(value):
+            text = str(value or "").strip()
+
+            # Clean old copied/saved values like: +44 +44 +44 +447424790646
+            while text.startswith("+44"):
+                text = text[3:].strip()
+
+            return text
+
         first = g("first");
         last = g("last");
         birth = g("birth")
-        phone_cc = g("phone_cc") or "+44";
-        phone_num = g("phone_num")
+
+        # Prefix removed from Starter Form. Store only the actual phone number.
+        phone_cc = ""
+        phone_num = clean_phone_input(g("phone_num"))
+
         street = g("street");
         city = g("city");
         postcode = g("postcode")
         email = g("email")
         ec_name = g("ec_name");
-        ec_cc = g("ec_cc") or "+44";
-        ec_phone = g("ec_phone")
+
+        # Prefix removed from Starter Form. Store only the actual emergency phone number.
+        ec_cc = ""
+        ec_phone = clean_phone_input(g("ec_phone"))
         medical = g("medical");
         medical_details = g("medical_details")
         position = g("position");
