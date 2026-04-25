@@ -994,22 +994,36 @@ def get_user_drive_service():
 
 def upload_to_drive(file_storage, filename_prefix: str) -> str:
     drive_service = get_user_drive_service()
+    service_label = "user_drive"
 
     if not drive_service:
         drive_service = get_service_account_drive_service()
+        service_label = "service_account"
 
     if not drive_service:
         raise RuntimeError("Drive upload is not available.")
+
+    account_email = "unknown"
+    try:
+        about = drive_service.about().get(fields="user(emailAddress)").execute()
+        account_email = str(
+            ((about or {}).get("user") or {}).get("emailAddress") or "unknown"
+        ).strip() or "unknown"
+    except Exception:
+        pass
 
     if UPLOAD_FOLDER_ID:
         try:
             drive_service.files().get(
                 fileId=UPLOAD_FOLDER_ID,
-                fields="id,name",
+                fields="id,name,driveId",
                 supportsAllDrives=True,
             ).execute()
         except Exception as e:
-            raise RuntimeError("Upload folder not found or not shared with app account.") from e
+            raise RuntimeError(
+                f"Upload folder not accessible. "
+                f"service={service_label}, account={account_email}, folder_id={UPLOAD_FOLDER_ID}"
+            ) from e
 
     file_bytes, detected_mime, safe_name = validate_upload_file(
         file_storage,
