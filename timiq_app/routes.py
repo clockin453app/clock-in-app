@@ -1069,12 +1069,20 @@ def upload_onboarding_file_persistent(file_storage, username: str, filename_pref
     Store onboarding documents safely.
 
     Priority:
-    1. Google Drive, if connected/configured.
-    2. Local persistent storage ONLY if ONBOARDING_UPLOADS_DIR is explicitly set.
-
-    This prevents accidental saving into the deploy folder, where files may disappear
-    after redeploy.
+    1. Local persistent storage if ONBOARDING_UPLOADS_DIR is explicitly set.
+       This is the correct path for Render Persistent Disk.
+    2. Google Drive only if no local persistent folder is configured.
+    3. Fail clearly if neither storage option is available.
     """
+
+    # 1) Render / local persistent disk first
+    explicit_local_dir = os.environ.get("ONBOARDING_UPLOADS_DIR", "").strip()
+
+    if explicit_local_dir:
+        os.makedirs(explicit_local_dir, exist_ok=True)
+        return store_onboarding_file_local(file_storage, username, filename_prefix)
+
+    # 2) Google Drive fallback only if local persistent storage is not configured
     drive_service = get_user_drive_service() or get_service_account_drive_service()
 
     if drive_service and MediaIoBaseUpload:
@@ -1124,18 +1132,13 @@ def upload_onboarding_file_persistent(file_storage, username: str, filename_pref
 
         return url_for("view_onboarding_drive_file", file_id=created["id"])
 
-    # Local fallback is allowed ONLY when you explicitly set persistent storage.
-    explicit_local_dir = os.environ.get("ONBOARDING_UPLOADS_DIR", "").strip()
-
-    if explicit_local_dir:
-        print("ONBOARDING UPLOAD SAVED LOCALLY IN:", explicit_local_dir)
-        return store_onboarding_file_local(file_storage, username, filename_prefix)
-
+    # 3) No safe storage configured
     raise RuntimeError(
         "Onboarding upload storage is not configured. "
-        "Connect Google Drive or set ONBOARDING_UPLOADS_DIR to a persistent folder. "
-        "Refusing to save files into the deploy folder because they may disappear after redeploy."
+        "Set ONBOARDING_UPLOADS_DIR to a persistent folder, for example "
+        "/var/data/onboarding_uploads on Render, or configure Google Drive."
     )
+
 
 
 @routes.route("/onboarding-drive-file/<file_id>")
