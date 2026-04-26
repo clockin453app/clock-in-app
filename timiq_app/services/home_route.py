@@ -2031,7 +2031,7 @@ def home_impl(core):
             }}
 
             function showBrowserReminder(){{
-              if (!isEmployee || isClockedIn) return;
+  if (!isEmployee || isClockedIn || !shouldShowReminder) return;
               if (!canNotify()) return;
               if (Notification.permission !== "granted") return;
 
@@ -2050,12 +2050,15 @@ def home_impl(core):
               }}
 
               if (isClockedIn) {{
-                if (text) text.textContent = "You are already clocked in.";
-                if (dot) dot.style.display = "none";
-              }} else {{
-                if (text) text.textContent = "You have not clocked in yet today.";
-                if (dot) dot.style.display = "block";
-              }}
+  if (text) text.textContent = "You are already clocked in.";
+  if (dot) dot.style.display = "none";
+}} else if (shouldShowReminder) {{
+  if (text) text.textContent = "You have not clocked in yet today.";
+  if (dot) dot.style.display = "block";
+}} else {{
+  if (text) text.textContent = "No clock-in reminder right now.";
+  if (dot) dot.style.display = "none";
+}}
 
               if (!canNotify()) {{
                 if (btn) {{
@@ -2095,7 +2098,7 @@ def home_impl(core):
             }}
 
             function scheduleReminderCheck(){{
-              if (!isEmployee || isClockedIn) return;
+  if (!isEmployee || isClockedIn || !shouldShowReminder) return;
 
               var now = new Date();
               var hour = now.getHours();
