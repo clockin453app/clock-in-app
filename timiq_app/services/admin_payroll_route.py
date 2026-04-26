@@ -1269,8 +1269,8 @@ def admin_payroll_impl(core):
 }}
               .payrollEmpName{{
   display:block;
-  font-size:15px;
-  line-height:1.15;
+  font-size:14px;
+  line-height:1.12;
   font-weight:900;
 }}
 
@@ -1287,12 +1287,21 @@ def admin_payroll_impl(core):
 
 @media (min-width: 900px){{
   .payrollEmpName{{
-    font-size:17px;
+    font-size:15px;
   }}
 
   .payrollEmpRole{{
     font-size:12px;
   }}
+
+  .payrollFiltersCard .kpiMini .v{{
+    font-size:15px !important;
+  }}
+}}
+.payrollFiltersCard .kpiMini .v{{
+  font-size:15px !important;
+  line-height:1.12 !important;
+  font-weight:900 !important;
 }}
 
 
@@ -1300,6 +1309,123 @@ def admin_payroll_impl(core):
               color:#0b63ff;
               text-decoration:underline;
             }}
+            .payrollSheet{{
+  width:100%;
+  border-collapse:separate;
+  border-spacing:0;
+  overflow:hidden;
+  background:#fff;
+  border:1px solid #e9edf5;
+  border-radius:14px;
+}}
+
+.payrollSheet thead .payrollHeaderCell{{
+  background:#ffffff !important;
+  color:#07152f !important;
+  padding:16px 14px 14px !important;
+  border-bottom:3px solid #6d28d9 !important;
+  border-right:1px solid #edf1f7 !important;
+  vertical-align:middle !important;
+  white-space:nowrap !important;
+  box-shadow:none !important;
+}}
+
+.payrollSheet thead .payrollHeaderCell:first-child{{
+  border-top-left-radius:14px;
+}}
+
+.payrollSheet thead .payrollHeaderCell:last-child{{
+  border-top-right-radius:14px;
+  border-right:0;
+}}
+
+.payrollHeaderTop{{
+  display:block;
+  font-size:12px;
+  font-weight:900;
+  line-height:1.1;
+  letter-spacing:.02em;
+  text-transform:uppercase;
+  color:#07152f !important;
+}}
+
+.payrollHeaderSub{{
+  display:block;
+  margin-top:6px;
+  font-size:11px;
+  font-weight:800;
+  line-height:1.1;
+  color:#7a859f !important;
+  text-transform:uppercase;
+}}
+
+.payrollSheet thead th{{
+  background:#ffffff !important;
+  color:#07152f !important;
+}}
+
+.payrollSheet thead tr{{
+  background:#ffffff !important;
+}}
+
+.payrollSheet thead{{
+  background:#ffffff !important;
+}}
+
+.payrollHeaderEmployee{{
+  min-width:180px;
+  text-align:left;
+}}
+
+.payrollHeaderDay,
+.payrollHeaderMetric{{
+  text-align:center;
+}}
+
+.payrollSheet tbody td{{
+  border-top:1px solid #edf1f7;
+}}
+
+.payrollSheet tbody tr:first-child td{{
+  border-top:0;
+}}
+.payrollSheet thead th.payrollHeaderCell{{
+  display:table-cell !important;
+  opacity:1 !important;
+  visibility:visible !important;
+  background:#ffffff !important;
+  color:#07152f !important;
+  height:64px !important;
+  padding:14px 12px 12px !important;
+  border-bottom:3px solid #0b63ff !important;
+  border-right:1px solid #edf1f7 !important;
+  vertical-align:middle !important;
+  text-align:center !important;
+  -webkit-text-fill-color:#07152f !important;
+}}
+
+.payrollSheet thead th.payrollHeaderCell:first-child{{
+  text-align:left !important;
+}}
+
+.payrollSheet thead th.payrollHeaderCell span,
+.payrollSheet thead th.payrollHeaderCell .payrollHeaderTop,
+.payrollSheet thead th.payrollHeaderCell .payrollHeaderSub{{
+  display:block !important;
+  opacity:1 !important;
+  visibility:visible !important;
+}}
+
+.payrollSheet thead th.payrollHeaderCell .payrollHeaderTop{{
+  color:#07152f !important;
+  -webkit-text-fill-color:#07152f !important;
+}}
+
+.payrollSheet thead th.payrollHeaderCell .payrollHeaderSub{{
+  color:#7a859f !important;
+  -webkit-text-fill-color:#7a859f !important;
+}}
+            
           </style>
           <div class="payrollMenuBackdrop" id="payrollMenuBackdrop"></div>
 
@@ -1325,22 +1451,67 @@ def admin_payroll_impl(core):
             <div class="payrollWrap" style="margin-top:12px;">
       <table class="payrollSheet">
         <thead>
-            <tr>
-        <th>Employee</th>
-        <th class="payrollDayCell">Mon</th>
-        <th class="payrollDayCell">Tue</th>
-        <th class="payrollDayCell">Wed</th>
-        <th class="payrollDayCell">Thu</th>
-        <th class="payrollDayCell">Fri</th>
-        <th class="payrollDayCell">Sat</th>
-        <th class="payrollDayCell">Sun</th>
-        <th class="payrollSummaryTotal">O</th>
-        <th class="payrollSummaryTotal">Hours</th>
-        <th class="payrollSummaryMoney">Gross</th>
-        <th class="payrollSummaryMoney" style="width:110px; min-width:110px; text-align:right;">CIS Tax</th>
-        <th class="payrollSummaryMoney" style="width:150px; min-width:150px; text-align:right;">NET/PAY</th>
-      </tr>
-    </thead>
+  <tr class="payrollHeaderRow">
+    <th class="payrollHeaderCell payrollHeaderEmployee">
+      <span class="payrollHeaderTop">Employee</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderDay">
+      <span class="payrollHeaderTop">Mon</span>
+      <span class="payrollHeaderSub">{(week_start + timedelta(days=0)).strftime("%d %b").upper()}</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderDay">
+      <span class="payrollHeaderTop">Tue</span>
+      <span class="payrollHeaderSub">{(week_start + timedelta(days=1)).strftime("%d %b").upper()}</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderDay">
+      <span class="payrollHeaderTop">Wed</span>
+      <span class="payrollHeaderSub">{(week_start + timedelta(days=2)).strftime("%d %b").upper()}</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderDay">
+      <span class="payrollHeaderTop">Thu</span>
+      <span class="payrollHeaderSub">{(week_start + timedelta(days=3)).strftime("%d %b").upper()}</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderDay">
+      <span class="payrollHeaderTop">Fri</span>
+      <span class="payrollHeaderSub">{(week_start + timedelta(days=4)).strftime("%d %b").upper()}</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderDay">
+      <span class="payrollHeaderTop">Sat</span>
+      <span class="payrollHeaderSub">{(week_start + timedelta(days=5)).strftime("%d %b").upper()}</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderDay">
+      <span class="payrollHeaderTop">Sun</span>
+      <span class="payrollHeaderSub">{(week_start + timedelta(days=6)).strftime("%d %b").upper()}</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderMetric">
+      <span class="payrollHeaderTop">O</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderMetric">
+      <span class="payrollHeaderTop">Hours</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderMetric">
+      <span class="payrollHeaderTop">Gross</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderMetric" style="width:110px; min-width:110px;">
+      <span class="payrollHeaderTop">CIS Tax</span>
+    </th>
+
+    <th class="payrollHeaderCell payrollHeaderMetric" style="width:150px; min-width:150px;">
+      <span class="payrollHeaderTop">Net/Pay</span>
+    </th>
+  </tr>
+</thead>
         <tbody>
           {sheet_html}
         </tbody>
