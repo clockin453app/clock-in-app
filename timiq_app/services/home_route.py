@@ -376,6 +376,70 @@ def home_impl(core):
     else:
         dashboard_status_html = f'<a href="/clock" class="statusLink" title="Open clock page"><span class="chip {status_class}">{escape(status_text)}</span></a>'
 
+        if dashboard_active_start_iso:
+            clock_status_card_html = f"""
+              <div class="modernMetricCard">
+                <div>
+                  <div class="modernMetricLabel">Clock Status</div>
+                  <div class="modernMetricValue liveTimeValue" id="dashboardMetricLiveTimer">00:00:00</div>
+                  <div class="modernMetricSub">Live time since clock-in</div>
+                </div>
+                <div class="modernMetricIcon green">
+                  <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="9"></circle>
+                    <path d="M12 7v6l4 2"></path>
+                  </svg>
+                </div>
+
+                <script>
+                  (function() {{
+                    const startIso = "{escape(dashboard_active_start_iso)}";
+                    const start = new Date(startIso);
+                    const el = document.getElementById("dashboardMetricLiveTimer");
+
+                    function pad(n) {{
+                      return String(n).padStart(2, "0");
+                    }}
+
+                    function tick() {{
+                      if (!el || isNaN(start.getTime())) return;
+
+                      const now = new Date();
+                      let diff = Math.floor((now - start) / 1000);
+                      if (diff < 0) diff = 0;
+
+                      const h = Math.floor(diff / 3600);
+                      const m = Math.floor((diff % 3600) / 60);
+                      const s = diff % 60;
+
+                      el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+                    }}
+
+                    tick();
+                    setInterval(tick, 1000);
+                  }})();
+                </script>
+              </div>
+            """
+        else:
+            clock_status_card_html = f"""
+              <div class="modernMetricCard">
+                <div>
+                  <div class="modernMetricLabel">Clock Status</div>
+                  <div class="modernMetricValue">Out</div>
+                  <div class="modernMetricSub">Your current status</div>
+                </div>
+                <div class="modernMetricIcon blue">
+                  <svg viewBox="0 0 24 24">
+                    <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="9" cy="7" r="4"></circle>
+                    <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+                  </svg>
+                </div>
+              </div>
+            """
+
     employee_count = 0
     clocked_in_count = 0
     active_locations_count = 0
@@ -426,6 +490,81 @@ def home_impl(core):
         active_locations_count = len(_get_active_locations())
     except Exception:
         active_locations_count = 0
+
+    if role in ("admin", "master_admin"):
+        clock_status_card_html = f"""
+          <div class="modernMetricCard">
+            <div>
+              <div class="modernMetricLabel">Active Workers</div>
+              <div class="modernMetricValue">{clocked_in_count}</div>
+              <div class="modernMetricSub">On site today</div>
+            </div>
+            <div class="modernMetricIcon blue">
+              <svg viewBox="0 0 24 24">
+                <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path>
+                <circle cx="9" cy="7" r="4"></circle>
+                <path d="M22 21v-2a4 4 0 0 0-3-3.87"></path>
+                <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+              </svg>
+            </div>
+          </div>
+        """
+    elif dashboard_active_start_iso:
+        clock_status_card_html = f"""
+              <a class="clockStatusCardLink" href="/clock">
+                <div class="modernMetricCard noMetricIcon">
+                  <div>
+                    <div class="modernMetricLabel clockLiveLabel">
+                      <span>Clocked In</span>
+                      <span class="clockLiveDot" aria-hidden="true"></span>
+                    </div>
+                    <div class="modernMetricValue liveTimeValue" id="dashboardMetricLiveTimer">00:00:00</div>
+                    <div class="modernMetricSub">Live time since clock-in</div>
+                  </div>
+                </div>
+              </a>
+
+              <script>
+            (function() {{
+              const startIso = "{escape(dashboard_active_start_iso)}";
+              const start = new Date(startIso);
+              const el = document.getElementById("dashboardMetricLiveTimer");
+
+              function pad(n) {{
+                return String(n).padStart(2, "0");
+              }}
+
+              function tick() {{
+                if (!el || isNaN(start.getTime())) return;
+
+                const now = new Date();
+                let diff = Math.floor((now - start) / 1000);
+                if (diff < 0) diff = 0;
+
+                const h = Math.floor(diff / 3600);
+                const m = Math.floor((diff % 3600) / 60);
+                const s = diff % 60;
+
+                el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+              }}
+
+              tick();
+              setInterval(tick, 1000);
+            }})();
+          </script>
+        """
+    else:
+        clock_status_card_html = f"""
+          <a class="clockStatusCardLink" href="/clock">
+            <div class="modernMetricCard noMetricIcon">
+              <div>
+                <div class="modernMetricLabel">Clocked Out</div>
+                <div class="modernMetricValue">Out</div>
+                <div class="modernMetricSub">Your current status</div>
+              </div>
+            </div>
+          </a>
+        """
 
     best_week_gross = max(weekly_gross) if weekly_gross else 0.0
     avg_weekly_gross = (sum(weekly_gross) / len(weekly_gross)) if weekly_gross else 0.0
@@ -1141,6 +1280,49 @@ def home_impl(core):
           letter-spacing:-.04em;
           font-variant-numeric:tabular-nums;
         }
+                .liveTimeValue{
+          font-size:34px !important;
+          letter-spacing:-.03em !important;
+          white-space:nowrap;
+        }
+        
+                .clockLiveLabel{
+          display:inline-flex;
+          align-items:center;
+          gap:8px;
+        }
+
+        .clockLiveDot{
+          width:9px;
+          height:9px;
+          border-radius:999px;
+          background:#22c55e;
+          box-shadow:0 0 0 5px rgba(34,197,94,.14);
+          flex:0 0 9px;
+        }
+
+        .clockStatusCardLink{
+          text-decoration:none !important;
+          color:inherit !important;
+          display:block;
+        }
+
+        .clockStatusCardLink .modernMetricCard{
+          cursor:pointer;
+          transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+        }
+
+        .clockStatusCardLink .modernMetricCard:hover{
+          transform:translateY(-2px);
+          border-color:#bfdbfe;
+          box-shadow:0 18px 38px rgba(37,99,235,.12);
+        }
+
+        @media (max-width:620px){
+          .liveTimeValue{
+            font-size:30px !important;
+          }
+        }
 
         .modernMetricSub{
           margin-top:12px;
@@ -1620,16 +1802,7 @@ def home_impl(core):
         </div>
 
         <div class="modernMetricGrid">
-          <div class="modernMetricCard">
-            <div>
-                            <div class="modernMetricLabel">{escape(metric_1_label)}</div>
-              <div class="modernMetricValue">{escape(metric_1_value)}</div>
-              <div class="modernMetricSub">{escape(metric_1_sub)}</div>
-            </div>
-            <div class="modernMetricIcon blue">
-              <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M22 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
-            </div>
-          </div>
+                    {clock_status_card_html}
 
           <div class="modernMetricCard">
             <div>
