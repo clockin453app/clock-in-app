@@ -224,6 +224,21 @@ def admin_payroll_impl(core):
         if (rec.get("Username") or "").strip()
     ]
     current_usernames = set(current_users)
+    employee_role_lookup = {}
+    for rec in employee_records:
+        username_key = (rec.get("Username") or "").strip()
+        if not username_key:
+            continue
+
+        role_value = (
+            rec.get("Position")
+            or rec.get("Role")
+            or rec.get("JobTitle")
+            or rec.get("Job_Title")
+            or ""
+        )
+
+        employee_role_lookup[username_key] = str(role_value or "").strip()
 
 
     month_start = None
@@ -710,9 +725,19 @@ def admin_payroll_impl(core):
             except Exception:
                 return ""
 
+        employee_detail_id = "employee-week-" + re.sub(r"[^a-zA-Z0-9]+", "-", u).strip("-").lower()
+
+        employee_role = employee_role_lookup.get(u, "") or "Employee"
+
         cells = [f"""
               <td class="payrollEmpCell">
-                <span class="emp">{escape(display)}</span>
+                <button
+                  type="button"
+                  class="payrollEmployeeOpen"
+                  data-target="{escape(employee_detail_id)}">
+                  <span class="payrollEmpName">{escape(display)}</span>
+                  <span class="payrollEmpRole">{escape(employee_role)}</span>
+                </button>
               </td>
             """]
 
@@ -996,19 +1021,25 @@ def admin_payroll_impl(core):
                   </tr>
                 """)
 
+        employee_detail_id = "employee-week-" + re.sub(r"[^a-zA-Z0-9]+", "-", u).strip("-").lower()
+
         blocks.append(
-            build_payroll_employee_card(
-                display=display,
-                rows_html=rows_html,
-                wk_hours=wk_hours,
-                wk_gross=wk_gross,
-                wk_tax=wk_tax,
-                wk_net=wk_net,
-                paid=paid,
-                paid_at=paid_at,
-                currency=currency,
-                money=money,
-            )
+            f"""
+            <div class="payrollEmployeeDetail" id="{escape(employee_detail_id)}">
+              {build_payroll_employee_card(
+                  display=display,
+                  rows_html=rows_html,
+                  wk_hours=wk_hours,
+                  wk_gross=wk_gross,
+                  wk_tax=wk_tax,
+                  wk_net=wk_net,
+                  paid=paid,
+                  paid_at=paid_at,
+                  currency=currency,
+                  money=money,
+              )}
+            </div>
+            """
         )
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
@@ -1215,6 +1246,61 @@ def admin_payroll_impl(core):
     """
 
     content = f"""
+              <style>
+            .payrollEmployeeDetail{{
+              display:none;
+              margin-top:14px;
+            }}
+
+            .payrollEmployeeDetail.open{{
+              display:block;
+            }}
+
+            .payrollEmployeeOpen{{
+  background:none;
+  border:0;
+  padding:0;
+  margin:0;
+  color:#07152f;
+  font:inherit;
+  font-weight:900;
+  cursor:pointer;
+  text-align:left;
+}}
+              .payrollEmpName{{
+  display:block;
+  font-size:15px;
+  line-height:1.15;
+  font-weight:900;
+}}
+
+.payrollEmpRole{{
+  display:block;
+  margin-top:3px;
+  font-size:11px;
+  line-height:1.15;
+  font-weight:800;
+  color:#6f7b93;
+  text-transform:uppercase;
+  letter-spacing:.04em;
+}}
+
+@media (min-width: 900px){{
+  .payrollEmpName{{
+    font-size:17px;
+  }}
+
+  .payrollEmpRole{{
+    font-size:12px;
+  }}
+}}
+
+
+            .payrollEmployeeOpen:hover{{
+              color:#0b63ff;
+              text-decoration:underline;
+            }}
+          </style>
           <div class="payrollMenuBackdrop" id="payrollMenuBackdrop"></div>
 
           <div class="headerTop">
@@ -1379,6 +1465,36 @@ def admin_payroll_impl(core):
                               {monthly_filter_html if not use_range else ""}
           {''.join(blocks) if not use_range else ""}
           {pay_confirm_modal_html}
+          
+                  <script>
+    (function(){{
+      document.addEventListener("click", function(e){{
+        const btn = e.target.closest(".payrollEmployeeOpen");
+        if (!btn) return;
+
+        const targetId = btn.getAttribute("data-target");
+        const target = document.getElementById(targetId);
+        if (!target) return;
+
+        document.querySelectorAll(".payrollEmployeeDetail.open").forEach(function(card){{
+          if (card !== target) {{
+            card.classList.remove("open");
+          }}
+        }});
+
+        target.classList.toggle("open");
+
+        if (target.classList.contains("open")) {{
+          setTimeout(function(){{
+            target.scrollIntoView({{
+              behavior: "smooth",
+              block: "start"
+            }});
+          }}, 50);
+        }}
+      }});
+    }})();
+    </script>
 
     <script>
     (function(){{

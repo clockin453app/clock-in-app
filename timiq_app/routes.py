@@ -4462,12 +4462,36 @@ def sidebar_html(active: str, role: str) -> str:
           </a>
         """)
 
+        try:
+            company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
+        except Exception:
+            company_name = "Main"
+
     return f"""
-      <div class="sidebar">
+      <div class="sidebar" style="display:flex; flex-direction:column;">
         <div style="padding:26px 0 32px; display:flex; justify-content:center; align-items:center;">
           {timiq_logo_html()}
         </div>
-        {''.join(links)}
+
+        <div style="display:flex; flex-direction:column; flex:1;">
+          <div>
+            {''.join(links)}
+          </div>
+
+                    <div style="
+            margin-top:auto;
+            padding:18px 20px 88px;
+            color:rgba(255,255,255,0.72);
+            font-size:12px;
+            font-weight:800;
+            letter-spacing:.06em;
+            text-transform:uppercase;
+            line-height:1.4;
+            text-align:center;
+          ">
+            {escape(company_name)}
+          </div>
+        </div>
       </div>
     """
 
@@ -4538,25 +4562,22 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     )
 
     company_bar = f"""
-      <div class="topBarFixed">
-        <a href="/" class="mobileTopLogo" aria-label="TimIQ home">
-          {timiq_logo_html("mobile")}
-        </a>
-        <span class="topBrandBadge">{escape(company_name)}</span>
-        <div class="topAccountWrap">
-          <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
-          </button>
-          <div class="topAccountMenu">
-  <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
-  {mobile_current_sessions_link}
-  {mobile_work_progress_link}
-  <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
-  <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
-</div>
-        </div>
-      </div>
-      <script>
+          <div class="topBarFixed">
+            <div></div>
+            <div class="topAccountWrap">
+              <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+              </button>
+              <div class="topAccountMenu">
+      <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
+      {mobile_current_sessions_link}
+      {mobile_work_progress_link}
+      <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
+      <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
+    </div>
+            </div>
+          </div>
+          <script>
       (function(){{
         if (window.__topAccountMenuBound) return;
         window.__topAccountMenuBound = true;
