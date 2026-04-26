@@ -257,6 +257,7 @@ def home_impl(core):
     week_hours = 0.0
     week_pay = 0.0
     week_days = set()
+    completed_shift_today = False
 
     for r in rows[1:]:
         if len(r) <= COL_PAY:
@@ -284,6 +285,12 @@ def home_impl(core):
         if d_str == today.strftime("%Y-%m-%d"):
             today_hours += h_val
             today_pay += p_val
+
+            today_clock_in = (r[COL_IN] if len(r) > COL_IN else "") or ""
+            today_clock_out = (r[COL_OUT] if len(r) > COL_OUT else "") or ""
+
+            if today_clock_in.strip() and today_clock_out.strip():
+                completed_shift_today = True
 
         try:
             d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
@@ -1819,7 +1826,7 @@ def home_impl(core):
     """
 
     reminder_is_employee = role not in ("admin", "master_admin")
-    reminder_should_show = reminder_is_employee and not is_clocked_in
+    reminder_should_show = reminder_is_employee and not is_clocked_in and not completed_shift_today
     reminder_enabled_js = "true" if reminder_is_employee else "false"
     reminder_clocked_in_js = "true" if is_clocked_in else "false"
     reminder_should_show_js = "true" if reminder_should_show else "false"
