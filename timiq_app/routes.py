@@ -4863,6 +4863,101 @@ def my_reports_csv():
 def onboarding():
     return onboarding_impl(core=globals())
 
+@routes.get("/onboarding/view")
+def onboarding_view():
+    gate = require_login()
+    if gate:
+        return gate
+
+    username = session.get("username", "").strip()
+    role = session.get("role", "employee")
+
+    rec = get_onboarding_record(username)
+    if not rec:
+        abort(404)
+
+    rec_wp = (rec.get("Workplace_ID") or "").strip() or "default"
+    if rec_wp != _session_workplace_id():
+        abort(404)
+
+    def row(label, key, link=False):
+        value = rec.get(key, "") or ""
+        shown_value = linkify(value) if link else escape(value)
+        return f"<tr><th style='width:260px;'>{escape(label)}</th><td>{shown_value}</td></tr>"
+
+    details = ""
+    for label, key in [
+        ("Username", "Username"),
+        ("First name", "FirstName"),
+        ("Last name", "LastName"),
+        ("Birth date", "BirthDate"),
+        ("Phone CC", "PhoneCountryCode"),
+        ("Phone", "PhoneNumber"),
+        ("Email", "Email"),
+        ("Street", "StreetAddress"),
+        ("City", "City"),
+        ("Postcode", "Postcode"),
+        ("Emergency contact", "EmergencyContactName"),
+        ("Emergency CC", "EmergencyContactPhoneCountryCode"),
+        ("Emergency phone", "EmergencyContactPhoneNumber"),
+        ("Medical", "MedicalCondition"),
+        ("Medical details", "MedicalDetails"),
+        ("Position", "Position"),
+        ("CSCS number", "CSCSNumber"),
+        ("CSCS expiry", "CSCSExpiryDate"),
+        ("Employment type", "EmploymentType"),
+        ("Right to work UK", "RightToWorkUK"),
+        ("NI", "NationalInsurance"),
+        ("UTR", "UTR"),
+        ("Start date", "StartDate"),
+        ("Bank account", "BankAccountNumber"),
+        ("Sort code", "SortCode"),
+        ("Account holder", "AccountHolderName"),
+        ("Company trading", "CompanyTradingName"),
+        ("Company reg", "CompanyRegistrationNo"),
+        ("Date of contract", "DateOfContract"),
+        ("Site address", "SiteAddress"),
+    ]:
+        details += row(label, key)
+
+    details += row("Passport/Birth cert", "PassportOrBirthCertLink", link=True)
+    details += row("CSCS front/back", "CSCSFrontBackLink", link=True)
+    details += row("Public liability", "PublicLiabilityLink", link=True)
+    details += row("Share code", "ShareCodeLink", link=True)
+    details += row("Contract accepted", "ContractAccepted")
+    details += row("Signature name", "SignatureName")
+    details += row("Signature time", "SignatureDateTime")
+    details += row("Last saved", "SubmittedAt")
+
+    content = f"""
+      <div class="headerTop">
+        <div>
+          <h1>My Documents</h1>
+          <p class="sub">{escape(username)}</p>
+        </div>
+        <div class="badge admin">EMPLOYEE</div>
+      </div>
+
+      <a href="/" style="display:inline-block; margin:12px 0 14px 0; color:#1f416d; font-weight:700; text-decoration:none;">Back</a>
+
+      <div class="card" style="padding:12px;">
+        <div class="actionRow" style="margin-bottom:12px; grid-template-columns:1fr auto;">
+          <div class="sub">Your submitted onboarding details and documents.</div>
+        </div>
+
+        <div class="tablewrap">
+          <table style="min-width:720px;">
+            <tbody>{details}</tbody>
+          </table>
+        </div>
+      </div>
+    """
+
+    return render_template_string(
+        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
+        layout_shell("home", role, content)
+    )
+
 
 def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typed, missing_fields):
     typed = typed or {}

@@ -558,9 +558,9 @@ def home_impl(core):
           <a class="clockStatusCardLink" href="/clock">
             <div class="modernMetricCard noMetricIcon">
               <div>
-                <div class="modernMetricLabel">Clocked Out</div>
-                <div class="modernMetricValue">Out</div>
-                <div class="modernMetricSub">Your current status</div>
+                <div class="modernMetricLabel">Not Clocked In</div>
+                <div class="modernMetricValue clockStartValue">Start Now</div>
+                <div class="modernMetricSub">Open clock page</div>
               </div>
             </div>
           </a>
@@ -848,6 +848,18 @@ def home_impl(core):
     clocked_pct = _pct(clocked_in_count, max(employee_count, 1))
     sites_pct = min(100, max(0, int(active_locations_count or 0) * 25))
     forms_pct = _pct(completed_onboarding, onboarding_total)
+    # Employee clock progress: fills from 0% to 100% over 9 hours after clock-in
+    clock_shift_target_seconds = 9 * 60 * 60
+    clock_shift_progress_pct = 0
+
+    if dashboard_active_start_iso:
+        try:
+            clock_start_dt = datetime.fromisoformat(dashboard_active_start_iso)
+            elapsed_seconds = max(0, int((now - clock_start_dt).total_seconds()))
+            clock_shift_progress_pct = int(round(min(1.0, elapsed_seconds / clock_shift_target_seconds) * 100))
+        except Exception:
+            clock_shift_progress_pct = 0
+
     is_admin_dashboard = role in ("admin", "master_admin")
 
     if is_admin_dashboard:
@@ -872,7 +884,10 @@ def home_impl(core):
         progress_4_label = "Active sites setup"
         progress_4_pct = sites_pct
 
+        onboarding_card_title = "Onboarding"
         onboarding_card_text = f"{onboarding_pending_count} starter forms need attention."
+        onboarding_card_button = "View onboarding"
+        onboarding_card_url = "/admin/onboarding"
         onboarding_card_progress_label = f"{completed_onboarding} / {onboarding_total} completed"
         onboarding_card_pct = onboarding_pct
 
@@ -889,8 +904,8 @@ def home_impl(core):
         metric_4_value = "Done" if employee_onboarding_completed else "Open"
         metric_4_sub = "Your onboarding"
 
-        progress_2_label = "Clock status"
-        progress_2_pct = 100 if is_clocked_in else 0
+        progress_2_label = "Clock progress"
+        progress_2_pct = clock_shift_progress_pct if is_clocked_in else 0
 
         progress_3_label = "Starter form"
         progress_3_pct = 100 if employee_onboarding_completed else 0
@@ -898,13 +913,20 @@ def home_impl(core):
         progress_4_label = "Weekly activity"
         progress_4_pct = min(100, len(week_days) * 20)
 
-        onboarding_card_text = (
-            "Your starter form is complete."
-            if employee_onboarding_completed
-            else "Review your starter form."
-        )
-        onboarding_card_progress_label = "1 / 1 completed" if employee_onboarding_completed else "0 / 1 completed"
-        onboarding_card_pct = 100 if employee_onboarding_completed else 0
+        if employee_onboarding_completed:
+            onboarding_card_title = "My Documents"
+            onboarding_card_text = "Starter form complete. View your submitted onboarding details and uploaded documents."
+            onboarding_card_button = "View my documents"
+            onboarding_card_url = "/onboarding/view"
+            onboarding_card_progress_label = "Complete"
+            onboarding_card_pct = 100
+        else:
+            onboarding_card_title = "Onboarding"
+            onboarding_card_text = "Review your starter form and upload any required documents."
+            onboarding_card_button = "View onboarding"
+            onboarding_card_url = "/onboarding/view"
+            onboarding_card_progress_label = "0 / 1 completed"
+            onboarding_card_pct = 0
 
     def _initials(name):
         parts = [p for p in str(name or "").strip().split() if p]
@@ -1284,6 +1306,9 @@ def home_impl(core):
           font-size:34px !important;
           letter-spacing:-.03em !important;
           white-space:nowrap;
+        }
+                .clockStartValue{
+          color:#7fc7ee !important;
         }
         
                 .clockLiveLabel{
@@ -1858,8 +1883,8 @@ def home_impl(core):
           </div>
 
           <div class="modernPanel">
-            <h2 class="modernPanelTitle">Work Progress</h2>
-            <p class="modernPanelSub">Projects overview</p>
+  <h2 class="modernPanelTitle">{'Work Progress' if role in ('admin', 'master_admin') else 'My Week'}</h2>
+  <p class="modernPanelSub">{'Projects overview' if role in ('admin', 'master_admin') else 'Your work summary'}</p>
 
             <div class="modernProgressList">
               <div>
@@ -1883,7 +1908,9 @@ def home_impl(core):
               </div>
             </div>
 
-            <a class="modernPanelLink" href="/work-progress">View all projects ›</a>
+            <a class="modernPanelLink" href="{"/work-progress" if role in ("admin", "master_admin") else "/clock"}">
+  {'View all projects ›' if role in ('admin', 'master_admin') else 'Open clock page ›'}
+</a>
           </div>
         </div>
 
@@ -1898,7 +1925,7 @@ def home_impl(core):
           </div>
 
           <div>
-            <div class="modernOnboardingTitle">Onboarding</div>
+            <div class="modernOnboardingTitle">{escape(onboarding_card_title)}</div>
             <div class="modernOnboardingText">
               {escape(onboarding_card_text)}
             </div>
@@ -1909,7 +1936,7 @@ def home_impl(core):
             <div class="modernProgressTrack"><span style="width:{onboarding_card_pct}%;"></span></div>
           </div>
 
-          <a class="modernBtn" href="{"/admin/onboarding" if role in ("admin", "master_admin") else "/onboarding"}">View onboarding</a>
+          <a class="modernBtn" href="{escape(onboarding_card_url)}">{escape(onboarding_card_button)}</a>
         </div>
         
         
