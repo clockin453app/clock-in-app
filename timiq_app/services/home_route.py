@@ -255,6 +255,7 @@ def home_impl(core):
     today_hours = 0.0
     today_pay = 0.0
     week_hours = 0.0
+    week_pay = 0.0
     week_days = set()
 
     for r in rows[1:]:
@@ -288,6 +289,7 @@ def home_impl(core):
             d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
             if d_obj >= monday:
                 week_hours += h_val
+                week_pay += p_val
                 if h_val > 0:
                     week_days.add(d_str)
         except Exception:
@@ -900,9 +902,14 @@ def home_impl(core):
         metric_3_value = str(len(week_days))
         metric_3_sub = "This week"
 
-        metric_4_label = "Starter Form"
-        metric_4_value = "Done" if employee_onboarding_completed else "Open"
-        metric_4_sub = "Your onboarding"
+        metric_4_label = "Gross Pay"
+        metric_4_value = (
+            f'<div class="grossPayValue">'
+            f'<span class="grossPayToday">Today: {escape(currency)}{money(today_pay)}</span>'
+            f'<span class="grossPayWeek">Week: {escape(currency)}{money(week_pay)}</span>'
+            f'</div>'
+        )
+        metric_4_sub = "Estimated"
 
         progress_2_label = "Clock progress"
         progress_2_pct = clock_shift_progress_pct if is_clocked_in else 0
@@ -1310,6 +1317,36 @@ def home_impl(core):
                 .clockStartValue{
           color:#7fc7ee !important;
         }
+        
+        .grossPayValue{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  font-size:28px !important;
+  line-height:1.05 !important;
+  letter-spacing:-.03em !important;
+}
+
+.grossPayValue span{
+  display:block;
+  white-space:nowrap;
+}
+
+.grossPayToday{
+  color:#0b63ff;
+}
+
+.grossPayWeek{
+  color:#07152f;
+}
+
+@media (max-width:620px){
+  .grossPayValue{
+    font-size:22px !important;
+  }
+}
+        
+        
         
                 .clockLiveLabel{
           display:inline-flex;
@@ -1851,15 +1888,23 @@ def home_impl(core):
             </div>
           </div>
 
-          <div class="modernMetricCard">
+                    <div class="modernMetricCard {'noMetricIcon' if role not in ('admin', 'master_admin') else ''}">
             <div>
-                            <div class="modernMetricLabel">{escape(metric_4_label)}</div>
-              <div class="modernMetricValue">{escape(metric_4_value)}</div>
+              <div class="modernMetricLabel">{escape(metric_4_label)}</div>
+              <div class="modernMetricValue">{metric_4_value if not (role in ("admin", "master_admin")) else escape(metric_4_value)}</div>
               <div class="modernMetricSub">{escape(metric_4_sub)}</div>
             </div>
+
+            {'' if role not in ('admin', 'master_admin') else '''
             <div class="modernMetricIcon orange">
-              <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><path d="M14 2v6h6"></path><path d="M8 13h8"></path><path d="M8 17h6"></path></svg>
+              <svg viewBox="0 0 24 24">
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <path d="M14 2v6h6"></path>
+                <path d="M8 13h8"></path>
+                <path d="M8 17h6"></path>
+              </svg>
             </div>
+            '''}
           </div>
         </div>
 
