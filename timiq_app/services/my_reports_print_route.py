@@ -670,6 +670,16 @@ def my_reports_print_impl(core):
     ni_number = ni_number or "—"
     utr_number = utr_number or "—"
 
+    is_gross_payment = selected_week_payment_mode == "gross"
+
+    payment_type_label = "Gross payment" if is_gross_payment else "Net payment"
+    payment_status_label = "Gross Paid" if is_gross_payment else "Paid"
+
+    cis_label = "CIS deducted" if is_gross_payment else "CIS tax"
+    cis_display_amount = 0.0 if is_gross_payment else w_t
+
+    total_paid_label = "Total gross paid" if is_gross_payment else "Total net pay"
+    total_paid_amount = w_g if is_gross_payment else w_n
     content = f"""
           {page_css}
 
@@ -707,22 +717,35 @@ def my_reports_print_impl(core):
                   <div>
                     <div class="statementSectionTitle" style="margin-bottom:8px;">Pay summary</div>
 
-                    <div class="statementSummary" style="margin-bottom:0;">
+                                        <div class="statementSummary" style="margin-bottom:0;">
+                      <div class="statementSummaryRow">
+                        <div class="label">Status</div>
+                        <div class="value">{escape(payment_status_label)}</div>
+                      </div>
+
+                      <div class="statementSummaryRow">
+                        <div class="label">Payment type</div>
+                        <div class="value">{escape(payment_type_label)}</div>
+                      </div>
+
                       <div class="statementSummaryRow">
                         <div class="label">Hours worked</div>
                         <div class="value">{escape(fmt_hours(selected_week_hours))}</div>
                       </div>
+
                       <div class="statementSummaryRow">
                         <div class="label">Gross pay</div>
                         <div class="value">{escape(currency)}{money(w_g)}</div>
                       </div>
+
                       <div class="statementSummaryRow">
-                        <div class="label">Tax</div>
-                        <div class="value">{escape(currency)}{money(w_t)}</div>
+                        <div class="label">{escape(cis_label)}</div>
+                        <div class="value">{escape(currency)}{money(cis_display_amount)}</div>
                       </div>
+
                       <div class="statementSummaryRow total">
-                        <div class="label">Total net pay</div>
-                        <div class="value">{escape(currency)}{money(w_n)}</div>
+                        <div class="label">{escape(total_paid_label)}</div>
+                        <div class="value">{escape(currency)}{money(total_paid_amount)}</div>
                       </div>
                     </div>
                   </div>
@@ -739,7 +762,7 @@ def my_reports_print_impl(core):
                       </div>
 
                       <div class="statementYtdRow">
-                        <div class="label">CIS Tax</div>
+                        <div class="label">CIS deducted YTD</div>
                         <div class="value">{escape(currency)}{money(ytd_cis_tax)}</div>
                       </div>
                     </div>
