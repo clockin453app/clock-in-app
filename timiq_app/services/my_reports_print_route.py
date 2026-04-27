@@ -680,12 +680,20 @@ def my_reports_print_impl(core):
 
     total_paid_label = "Total gross paid" if is_gross_payment else "Total net pay"
     total_paid_amount = w_g if is_gross_payment else w_n
+    back_source = (request.args.get("back") or "").strip().lower()
+
+    if back_source == "payments":
+        payslip_back_href = "/payments"
+        payslip_back_label = "Back to payments"
+    else:
+        payslip_back_href = f"/my-reports?wk={wk_offset}"
+        payslip_back_label = "Back to timesheets"
     content = f"""
           {page_css}
 
           <div class="printSheetWrap">
             <div class="printToolbar noPrint">
-              {page_back_button(f"/my-reports?wk={wk_offset}", "Back to timesheets")}
+              {page_back_button(payslip_back_href, payslip_back_label)}
               <button class="btnSoft" type="button" onclick="window.print()">Save / Print Payslip</button>
             </div>
 
