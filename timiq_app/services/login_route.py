@@ -560,7 +560,7 @@ def login_impl(core):
                 <input id="login-username" class="input loginInput" name="username" value="{escape(entered_username)}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username" required>
               </div>
 
-                            <div>
+                                          <div>
                 <label class="loginFieldLabel" for="login-workplace">Workplace ID</label>
                 <input
                   id="login-workplace"
@@ -573,8 +573,10 @@ def login_impl(core):
                   spellcheck="false"
                   inputmode="text"
                   enterkeyhint="next"
-                  placeholder="e.g. north01"
-                  required>
+                  placeholder="e.g. north01">
+                <div class="sub" style="margin-top:6px; font-size:12px;">
+                  Required for workplace users. Global master admin can leave this blank.
+                </div>
               </div>
 
               <div>
