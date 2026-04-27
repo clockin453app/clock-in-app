@@ -701,13 +701,23 @@ def my_reports_print_impl(core):
               <div class="statementHead" style="padding:18px 24px 12px;">
                 <div class="statementHeadGrid" style="grid-template-columns:1.2fr 1fr; gap:18px;">
                   <div class="statementCompany">
-      {f'<img src="{escape(company_logo)}" alt="Company logo" class="statementLogo">' if company_logo else ''}
-      <div class="statementCompanyName">{escape(display_name)}</div>
-      <div class="statementCompanySub">
-        <strong>UTR:</strong> {escape(utr_number)}<br>
-        <strong>National Insurance:</strong> {escape(ni_number)}
-      </div>
+  <div class="statementCompanyName">{escape(company_name)}</div>
+
+  <div class="statementCompanySub" style="margin-top:4px;">
+    Company
+  </div>
+
+  <div style="margin-top:14px;">
+    <div style="font-size:18px; font-weight:900; color:#07152f; line-height:1.15;">
+      {escape(display_name)}
     </div>
+
+    <div class="statementCompanySub" style="margin-top:5px;">
+      <strong>UTR:</strong> {escape(utr_number)}<br>
+      <strong>National Insurance:</strong> {escape(ni_number)}
+    </div>
+  </div>
+</div>
 
     <div class="statementTitleBlock" style="text-align:right;">
       <div class="statementTitle">CIS Pay Statement</div>
@@ -782,4 +792,4 @@ def my_reports_print_impl(core):
             </div>
           </div>
         """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content))
+    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{content}")

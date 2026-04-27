@@ -296,6 +296,26 @@ def my_reports_impl(core):
 
     page_css = """
         <style>
+                  /* Payslip page should behave like a clean document, not a normal app page */
+          .topBarFixed,
+          .topAccountWrap,
+          .topAccountTrigger,
+          .topAccountMenu,
+          #mobileRailToggle,
+          #mobileRailBackdrop{
+            display:none !important;
+            visibility:hidden !important;
+          }
+
+          @media (max-width:979px){
+            body{
+              padding-top:0 !important;
+            }
+
+            .main{
+              padding-top:0 !important;
+            }
+          }
           .reportsListShell{
             max-width: 1320px;
             margin: 0 auto;

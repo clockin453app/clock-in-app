@@ -147,7 +147,7 @@ def payments_page_impl(core):
                 <td class="num">{escape(currency)}{money(item['tax'])}</td>
                 <td class="num">{escape(currency)}{money(item['net'])}</td>
                 <td class="num">
-                  <a class="reportsListDownloadBtn" href="/my-reports-print?wk={item['wk_offset']}" target="_blank" rel="noopener" title="Download payslip">↓</a>
+                  <a class="reportsListDownloadBtn" href="/my-reports-print?wk={item['wk_offset']}&back=payments" title="Open payslip">↓</a>
                 </td>
               </tr>
             """)
