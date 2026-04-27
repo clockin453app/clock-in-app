@@ -170,6 +170,49 @@ def login_impl(core):
 
     login_page_style = """
     <style>
+          html,
+      body{
+        width:100% !important;
+        max-width:100% !important;
+        overflow-x:hidden !important;
+        -webkit-text-size-adjust:100% !important;
+        text-size-adjust:100% !important;
+      }
+
+      body{
+        touch-action:manipulation;
+      }
+
+      .loginShellPro,
+      .loginShellPro .main,
+      .loginCardPro{
+        width:100% !important;
+        max-width:760px !important;
+        box-sizing:border-box !important;
+      }
+
+      @media (max-width:560px){
+        .loginShellPro{
+          max-width:100% !important;
+          margin:0 !important;
+          padding:0 !important;
+        }
+
+        .loginShellPro .main{
+          width:100% !important;
+          max-width:100% !important;
+          padding:0 !important;
+          margin:0 !important;
+        }
+
+        .loginCardPro{
+          width:100% !important;
+          max-width:100% !important;
+          margin:0 !important;
+          border-left:0 !important;
+          border-right:0 !important;
+        }
+      }
       .loginShellPro{
         max-width: 760px;
         margin: 0 auto;
@@ -314,9 +357,10 @@ def login_impl(core):
         letter-spacing: .02em;
       }
 
-            .loginInput{
+                  .loginInput{
         margin-top: 0 !important;
         height: 56px !important;
+        min-height: 56px !important;
         padding: 0 16px !important;
         border-radius: 0 !important;
         border: 1px solid rgba(68,130,195,.12) !important;
@@ -325,10 +369,13 @@ def login_impl(core):
         box-shadow: 0 6px 18px rgba(15,23,42,.04);
 
         font-size: 16px !important;
-        line-height: 1.2 !important;
-        -webkit-appearance: none;
-        appearance: none;
-        transform: translateZ(0);
+        line-height: 20px !important;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
+        -webkit-appearance: none !important;
+        appearance: none !important;
+        transform: none !important;
+        zoom: 1 !important;
+        box-sizing: border-box !important;
       }
 
       .loginInput::placeholder{
@@ -475,6 +522,7 @@ def login_impl(core):
       }
     </style>
     """
+    login_viewport = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">'
 
     html = f"""
     <div class="shell loginShellPro" style="grid-template-columns:1fr;">
@@ -545,4 +593,4 @@ def login_impl(core):
       </div>
     </div>
     """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}{login_page_style}{html}")
+    return render_template_string(f"{login_viewport}{PWA_TAGS}{STYLE}{login_page_style}{html}")
