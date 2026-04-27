@@ -281,9 +281,7 @@ def my_reports_impl(core):
                 <td>{escape(item['company'])}</td>
                 <td class="num">
                   <a class="reportsListDownloadBtn"
-                     href="/my-week-report?wk={item['wk_offset']}"
-                     target="_blank"
-                     rel="noopener"
+                     href="/my-week-report?wk={item['wk_offset']}"                     
                      title="View slip">
                     &#8250;
                   </a>
