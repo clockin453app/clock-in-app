@@ -314,7 +314,7 @@ def login_impl(core):
         letter-spacing: .02em;
       }
 
-      .loginInput{
+            .loginInput{
         margin-top: 0 !important;
         height: 56px !important;
         padding: 0 16px !important;
@@ -323,6 +323,12 @@ def login_impl(core):
         background: #ffffff !important;
         color: #1f2547 !important;
         box-shadow: 0 6px 18px rgba(15,23,42,.04);
+
+        font-size: 16px !important;
+        line-height: 1.2 !important;
+        -webkit-appearance: none;
+        appearance: none;
+        transform: translateZ(0);
       }
 
       .loginInput::placeholder{
@@ -439,24 +445,14 @@ def login_impl(core):
         }
       }
 
-      @media (max-width: 560px){
+            @media (max-width: 560px){
         .loginHeroPro h1{
           font-size: 40px;
         }
 
-        .loginLogoNew{
-  padding:18px 24px;
-}
-
-.loginLogoClock{
-  width:34px;
-  height:34px;
-  flex-basis:34px;
-}
-
-.loginLogoWord{
-  font-size:26px;
-}
+        .loginBrandLogo{
+          width:150px;
+        }
 
         .loginLead{
           font-size: 15px;
@@ -469,6 +465,7 @@ def login_impl(core):
 
         .loginInput{
           height: 54px !important;
+          font-size: 16px !important;
         }
 
         .loginPrimaryBtn{
@@ -515,10 +512,22 @@ def login_impl(core):
                 <input id="login-username" class="input loginInput" name="username" value="{escape(entered_username)}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username" required>
               </div>
 
-              <div>
-  <label class="loginFieldLabel" for="login-workplace">Workplace ID</label>
-  <input id="login-workplace" class="input loginInput" name="workplace_id" value="{escape(entered_workplace_id)}" autocomplete="organization" autocapitalize="none" spellcheck="false" placeholder=" e.g. company name workplace">
-</div>
+                            <div>
+                <label class="loginFieldLabel" for="login-workplace">Workplace ID</label>
+                <input
+                  id="login-workplace"
+                  class="input loginInput"
+                  name="workplace_id"
+                  value="{escape(entered_workplace_id)}"
+                  autocomplete="off"
+                  autocapitalize="none"
+                  autocorrect="off"
+                  spellcheck="false"
+                  inputmode="text"
+                  enterkeyhint="next"
+                  placeholder="e.g. north01"
+                  required>
+              </div>
 
               <div>
                 <label class="loginFieldLabel" for="login-password">Password</label>
