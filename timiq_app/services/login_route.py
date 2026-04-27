@@ -575,7 +575,7 @@ def login_impl(core):
                   enterkeyhint="next"
                   placeholder="e.g. north01">
                 <div class="sub" style="margin-top:6px; font-size:12px;">
-                  Required for workplace users. Global master admin can leave this blank.
+                  Required for workplace users.
                 </div>
               </div>
 
