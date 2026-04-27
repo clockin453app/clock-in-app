@@ -868,16 +868,31 @@ def admin_payroll_impl(core):
 
         if paid:
             paid_label = "Gross Paid" if paid_mode == "gross" else "Paid"
+            paid_amount = paid_display_net if paid_display_net > 0 else (gross if paid_mode == "gross" else net)
+
             cells.append(f"""
-              <td class='num payrollSummaryMoney net paidNetCell' style='width:150px; min-width:150px; white-space:nowrap; vertical-align:top !important; padding-top:12px !important;'>
-                <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
-                  <span style="display:flex; align-items:center; justify-content:center; width:108px; min-width:108px; height:24px; padding:0 6px; font-size:12px; line-height:1.2; font-weight:900; color:#07152f; margin-left:auto; margin-right:auto; transform:translateY(10mm);">
-  {escape(currency)}{money(net)}
-</span>
-                  <span class='paidNetBadge' style="width:108px; min-width:108px; justify-content:center;">
-                    {escape(paid_label)}
-                  </span>
-                </div>
+              <td class='num payrollSummaryMoney net paidNetCell'
+                  style='width:150px; min-width:150px; white-space:nowrap; vertical-align:middle !important; text-align:center;'>
+
+                <span style="
+                  display:inline-flex;
+                  align-items:center;
+                  justify-content:center;
+                  width:108px;
+                  min-width:108px;
+                  height:30px;
+                  padding:0 8px;
+                  border:1px solid #86efac;
+                  background:#dcfce7;
+                  color:#15803d;
+                  font-size:11px;
+                  line-height:1.1;
+                  font-weight:900;
+                  box-sizing:border-box;
+                ">
+                  {escape(currency)}{money(paid_amount)}<br>{escape(paid_label)}
+                </span>
+
               </td>
             """)
 
@@ -898,7 +913,7 @@ def admin_payroll_impl(core):
                   align-items:center;
                 ">
 
-                  <form method="POST" action="/admin/mark-paid" class="payCellForm"
+                  <form id="pay_approved_{pay_form_key}" method="POST" action="/admin/mark-paid" class="payCellForm"
                         style="margin:0; width:108px; display:flex; flex-direction:column; gap:4px; align-items:center;">
                     <input type="hidden" name="csrf" value="{escape(csrf)}">
                     <input type="hidden" name="week_start" value="{escape(week_start_str)}">
@@ -925,6 +940,13 @@ def admin_payroll_impl(core):
                                 form.querySelector('[name=display_tax]').value = mode === 'gross' ? '0' : '{tax}';
                                 form.querySelector('[name=display_net]').value = mode === 'gross' ? '{gross}' : '{net}';
                                 amount.textContent = mode === 'gross' ? '{escape(currency)}{money(gross)}' : '{escape(currency)}{money(net)}';
+
+var payBtn = form.querySelector('.confirmPayTrigger');
+if (payBtn) {{
+  payBtn.setAttribute('data-pay-kind', mode);
+  payBtn.setAttribute('data-pay-type-label', mode === 'gross' ? 'Gross payment' : 'Net payment');
+  payBtn.setAttribute('data-pay-amount', mode === 'gross' ? '{escape(currency)}{money(gross)}' : '{escape(currency)}{money(net)}');
+}}
                               "
                               style="
                                 width:64px;
@@ -941,25 +963,31 @@ def admin_payroll_impl(core):
                         <option value="gross">Gross</option>
                       </select>
 
-                      <button type="submit"
-                        onclick="return confirm('Mark this approved week as paid?');"
-                        style="
-                          display:inline-flex;
-                          align-items:center;
-                          justify-content:center;
-                          width:40px;
-                          height:24px;
-                          padding:0 4px;
-                          border:1px solid #0b63ff;
-                          background:#0b63ff;
-                          color:#fff;
-                          font-size:10px;
-                          font-weight:900;
-                          cursor:pointer;
-                          box-sizing:border-box;
-                        ">
-                        Pay
-                      </button>
+                      <button class="confirmPayTrigger"
+  type="button"
+  data-form-id="pay_approved_{pay_form_key}"
+  data-pay-kind="net"
+  data-pay-type-label="Payment"
+  data-pay-employee="{pay_display_name}"
+  data-pay-week="{escape(pay_week_text)}"
+  data-pay-amount="{net_amount_text}"
+  style="
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    width:40px;
+    height:24px;
+    padding:0 4px;
+    border:1px solid #0b63ff;
+    background:#0b63ff;
+    color:#fff;
+    font-size:10px;
+    font-weight:900;
+    cursor:pointer;
+    box-sizing:border-box;
+  ">
+  Pay
+</button>
                     </div>
 
                     <span class="approvedNetAmount" style="
@@ -2223,17 +2251,22 @@ def admin_payroll_impl(core):
         submitBtn.style.cursor = checkEl.checked ? "pointer" : "not-allowed";
       }});
 
-      submitBtn.addEventListener("click", function(){{
+            submitBtn.addEventListener("click", function(){{
         if (!activeForm || !checkEl.checked) return;
 
-        if (activeTrigger) {{
-          activeTrigger.disabled = true;
-          activeTrigger.style.opacity = "0.65";
-          activeTrigger.style.cursor = "not-allowed";
+        const formToSubmit = activeForm;
+        const triggerToDisable = activeTrigger;
+
+        if (triggerToDisable) {{
+          triggerToDisable.disabled = true;
+          triggerToDisable.style.opacity = "0.65";
+          triggerToDisable.style.cursor = "not-allowed";
         }}
 
-        closePayModal();
-        activeForm.submit();
+        modal.style.display = "none";
+        backdrop.style.display = "none";
+
+        formToSubmit.submit();
       }});
 
       document.addEventListener("keydown", function(e){{

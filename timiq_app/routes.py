@@ -4362,25 +4362,15 @@ def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> 
         i_pa = idx("PaidAt")
         i_paid = idx("Paid")
         i_wp = idx("Workplace_ID")
+        i_pb = idx("PaidBy")
 
         current_wp = _session_workplace_id()
         allowed_wps = set(_workplace_ids_for_read(current_wp))
 
-        for r in vals[1:]:
-            ws = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
-            we = (r[i_we] if i_we is not None and i_we < len(r) else "").strip()
-            uu = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
-            wp = ((r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip() or "default")
+        paid_match = None
+        approved_match = None
 
-            if ws != week_start or we != week_end or uu != username or wp not in allowed_wps:
-                continue
-
-            paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
-            paid_status = (r[i_paid] if i_paid is not None and i_paid < len(r) else "").strip()
-            paid_flag = paid_status.lower()
-
-            is_paid = bool(paid_at) or paid_flag in {"true", "1", "yes", "paid", "locked"}
-
+        def build_record(r, paid_status_raw, paid_at):
             gross = safe_float(r[i_g] if i_g is not None and i_g < len(r) else "0", 0.0)
             tax = safe_float(r[i_t] if i_t is not None and i_t < len(r) else "0", 0.0)
             net = safe_float(r[i_n] if i_n is not None and i_n < len(r) else "0", 0.0)
@@ -4392,10 +4382,13 @@ def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> 
             if payment_mode not in {"gross", "net"}:
                 payment_mode = "gross" if abs(display_tax) < 0.005 and abs(display_net - gross) < 0.005 else "net"
 
+            is_paid = bool(paid_at) or paid_status_raw in {"true", "1", "yes", "paid", "locked"}
+
             return {
                 "paid": is_paid,
-                "paid_status": paid_status,
+                "paid_status": paid_status_raw,
                 "paid_at": paid_at,
+                "paid_by": (r[i_pb] if i_pb is not None and i_pb < len(r) else "").strip(),
                 "gross": round(gross, 2),
                 "tax": round(tax, 2),
                 "net": round(net, 2),
@@ -4403,6 +4396,35 @@ def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> 
                 "display_net": round(display_net, 2),
                 "payment_mode": payment_mode,
             }
+
+        for r in vals[1:]:
+            ws = (r[i_ws] if i_ws is not None and i_ws < len(r) else "").strip()
+            we = (r[i_we] if i_we is not None and i_we < len(r) else "").strip()
+            uu = (r[i_u] if i_u is not None and i_u < len(r) else "").strip()
+            wp = ((r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip() or "default")
+
+            if ws != week_start or we != week_end or uu != username or wp not in allowed_wps:
+                continue
+
+            paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
+            paid_status_raw = (r[i_paid] if i_paid is not None and i_paid < len(r) else "").strip().lower()
+
+            rec = build_record(r, paid_status_raw, paid_at)
+
+            # Important:
+            # Prefer real PAID rows over APPROVED rows.
+            # If the sheet/DB has both, the admin payroll table must show PAID.
+            if rec["paid"]:
+                paid_match = rec
+
+            elif paid_status_raw == "approved":
+                approved_match = rec
+
+        if paid_match:
+            return paid_match
+
+        if approved_match:
+            return approved_match
 
         return empty
 

@@ -6,6 +6,7 @@ def admin_mark_paid_impl(core):
     safe_float = core["safe_float"]
     session = core["session"]
     _append_paid_record_safe = core["_append_paid_record_safe"]
+    _get_paid_record_for_week = core["_get_paid_record_for_week"]
 
     gate = require_admin()
     if gate:
@@ -33,6 +34,18 @@ def admin_mark_paid_impl(core):
         paid_by = session.get("username", "admin")
 
         if week_start and week_end and username:
+            existing_paid = _get_paid_record_for_week(week_start, week_end, username)
+
+            if existing_paid.get("paid"):
+                back_url = request.referrer or "/admin/payroll"
+                back_url = (
+                    back_url
+                    .replace("&locked_week=1", "")
+                    .replace("?locked_week=1&", "?")
+                    .replace("?locked_week=1", "")
+                )
+                return redirect(back_url)
+
             _append_paid_record_safe(
                 week_start,
                 week_end,
@@ -48,4 +61,11 @@ def admin_mark_paid_impl(core):
     except Exception:
         pass
 
-    return redirect(request.referrer or "/admin/payroll")
+    back_url = request.referrer or "/admin/payroll"
+    back_url = (
+        back_url
+        .replace("&locked_week=1", "")
+        .replace("?locked_week=1&", "?")
+        .replace("?locked_week=1", "")
+    )
+    return redirect(back_url)
