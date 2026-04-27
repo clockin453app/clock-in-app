@@ -356,6 +356,29 @@ def admin_impl(core):
                 <div class="adminToolTitle">Connect Drive</div>
                 <div class="adminToolSub">Reconnect Google Drive for onboarding uploads.</div>
               </a>
+                            <a class="adminToolCard system" href="/admin/system-health">
+                <div class="adminToolTop">
+                  <div class="adminToolIcon">
+  <svg width="45" height="45" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+    <rect x="4" y="4" width="56" height="56" rx="14" fill="#EFF6FF"/>
+    <path d="M32 9L50 16V29C50 42.5 41.5 52.5 32 56C22.5 52.5 14 42.5 14 29V16L32 9Z" fill="url(#healthShieldGrad)" stroke="#0B63FF" stroke-width="2.5"/>
+    <path d="M20 33H27L30 25L35 43L39 33H44" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="47" cy="47" r="10" fill="#10B981" stroke="white" stroke-width="3"/>
+    <path d="M42.5 47L46 50.5L52 43.5" stroke="white" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+    <defs>
+      <linearGradient id="healthShieldGrad" x1="14" y1="9" x2="52" y2="54" gradientUnits="userSpaceOnUse">
+        <stop stop-color="#22C7FF"/>
+        <stop offset="0.55" stop-color="#0B63FF"/>
+        <stop offset="1" stop-color="#123A9F"/>
+      </linearGradient>
+    </defs>
+  </svg>
+</div>
+                  <div class="chev">›</div>
+                </div>
+                <div class="adminToolTitle">System Health</div>
+                <div class="adminToolSub">Master-only checks for database, storage, backups and app status.</div>
+              </a>
             '''
     if session.get("role") == "master_admin"
     else ""

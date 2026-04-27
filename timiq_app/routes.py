@@ -671,6 +671,7 @@ from .services.public_preview_route import public_preview_impl
 from .services.my_reports_route import my_reports_impl
 from .services.my_times_route import my_times_impl
 from .services.admin_log_activities_route import admin_log_activities_impl
+from .services.admin_system_health_route import admin_system_health_impl, admin_system_backup_export_impl
 from .services.admin_route import admin_impl
 from .services.admin_onboarding_download_route import admin_onboarding_download_impl
 from .services.admin_locations_route import admin_locations_impl
@@ -5595,6 +5596,14 @@ def admin_mark_paid():
 @routes.post("/admin/payroll-status")
 def admin_payroll_status():
     return admin_payroll_status_impl(core=globals())
+
+@routes.get("/admin/system-health")
+def admin_system_health():
+    return admin_system_health_impl(core=globals())
+
+@routes.get("/admin/system-health/backup/<dataset>")
+def admin_system_health_backup(dataset):
+    return admin_system_backup_export_impl(core=globals(), dataset=dataset)
 
 @routes.get("/admin/payroll")
 def admin_payroll():
