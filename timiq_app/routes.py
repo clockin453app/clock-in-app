@@ -683,6 +683,7 @@ from .services.admin_onboarding_detail_route import admin_onboarding_detail_impl
 from .services.admin_employee_sites_route import admin_employee_sites_impl
 from .services.admin_employee_sites_save_route import admin_employee_sites_save_impl
 from .services.admin_save_shift_route import admin_save_shift_impl
+from .services.admin_payroll_status_route import admin_payroll_status_impl
 from .services.admin_force_clockin_route import admin_force_clockin_impl
 from .services.admin_force_clockout_route import admin_force_clockout_impl
 from .services.admin_mark_paid_route import admin_mark_paid_impl
@@ -4326,12 +4327,23 @@ def _legacy_append_paid_record_safe_before_db_patch(week_start: str, week_end: s
 
 
 def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> dict:
+    empty = {
+        "paid": False,
+        "paid_status": "",
+        "paid_at": "",
+        "gross": 0.0,
+        "tax": 0.0,
+        "net": 0.0,
+        "display_tax": 0.0,
+        "display_net": 0.0,
+        "payment_mode": "net",
+    }
+
     try:
         _ensure_payroll_headers()
         vals = get_payroll_rows()
         if not vals or len(vals) < 2:
-            return {"paid": False, "paid_at": "", "gross": 0.0, "tax": 0.0, "net": 0.0, "display_tax": 0.0,
-                    "display_net": 0.0, "payment_mode": "net"}
+            return empty
 
         headers = vals[0]
 
@@ -4364,10 +4376,10 @@ def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> 
                 continue
 
             paid_at = (r[i_pa] if i_pa is not None and i_pa < len(r) else "").strip()
-            paid_flag = (r[i_paid] if i_paid is not None and i_paid < len(r) else "").strip().lower()
-            is_paid = bool(paid_at) or paid_flag in {"true", "1", "yes", "paid"}
-            if not is_paid:
-                continue
+            paid_status = (r[i_paid] if i_paid is not None and i_paid < len(r) else "").strip()
+            paid_flag = paid_status.lower()
+
+            is_paid = bool(paid_at) or paid_flag in {"true", "1", "yes", "paid", "locked"}
 
             gross = safe_float(r[i_g] if i_g is not None and i_g < len(r) else "0", 0.0)
             tax = safe_float(r[i_t] if i_t is not None and i_t < len(r) else "0", 0.0)
@@ -4381,7 +4393,8 @@ def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> 
                 payment_mode = "gross" if abs(display_tax) < 0.005 and abs(display_net - gross) < 0.005 else "net"
 
             return {
-                "paid": True,
+                "paid": is_paid,
+                "paid_status": paid_status,
                 "paid_at": paid_at,
                 "gross": round(gross, 2),
                 "tax": round(tax, 2),
@@ -4391,11 +4404,10 @@ def _get_paid_record_for_week(week_start: str, week_end: str, username: str) -> 
                 "payment_mode": payment_mode,
             }
 
-        return {"paid": False, "paid_at": "", "gross": 0.0, "tax": 0.0, "net": 0.0, "display_tax": 0.0,
-                "display_net": 0.0, "payment_mode": "net"}
+        return empty
+
     except Exception:
-        return {"paid": False, "paid_at": "", "gross": 0.0, "tax": 0.0, "net": 0.0, "display_tax": 0.0,
-                "display_net": 0.0, "payment_mode": "net"}
+        return empty
 
 
 def _is_paid_for_week(week_start: str, week_end: str, username: str) -> tuple[bool, str]:
@@ -5557,6 +5569,10 @@ def admin_force_clockout():
 @routes.post("/admin/mark-paid")
 def admin_mark_paid():
     return admin_mark_paid_impl(core=globals())
+
+@routes.post("/admin/payroll-status")
+def admin_payroll_status():
+    return admin_payroll_status_impl(core=globals())
 
 @routes.get("/admin/payroll")
 def admin_payroll():

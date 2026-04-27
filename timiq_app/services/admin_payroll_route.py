@@ -729,6 +729,31 @@ def admin_payroll_impl(core):
 
         employee_role = employee_role_lookup.get(u, "") or "Employee"
 
+        employee_paid_rec = _get_paid_record_for_week(week_start_str, week_end_str, u)
+        employee_paid_status_raw = str(employee_paid_rec.get("paid_status") or "").strip().lower()
+        employee_is_approved_only = employee_paid_status_raw == "approved"
+
+        employee_approved_badge = ""
+        if employee_is_approved_only:
+            employee_approved_badge = """
+              <span style="
+                display:inline-flex;
+                align-items:center;
+                justify-content:center;
+                margin-top:5px;
+                width:72px;
+                height:20px;
+                border:1px solid #86efac;
+                background:#dcfce7;
+                color:#15803d;
+                font-size:10px;
+                font-weight:900;
+                line-height:1;
+              ">
+                Approved
+              </span>
+            """
+
         cells = [f"""
               <td class="payrollEmpCell">
                 <button
@@ -737,6 +762,7 @@ def admin_payroll_impl(core):
                   data-target="{escape(employee_detail_id)}">
                   <span class="payrollEmpName">{escape(display)}</span>
                   <span class="payrollEmpRole">{escape(employee_role)}</span>
+                  {employee_approved_badge}
                 </button>
               </td>
             """]
@@ -813,18 +839,24 @@ def admin_payroll_impl(core):
         tax = round(gross * tax_rate, 2)
         net = round(gross - tax, 2)
 
-        paid, _paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
-
         cells.append(
-            f"<td class='num payrollSummaryTotal' style='color:#7c3aed !important; font-weight:900;'>{show_num(total_o)}</td>")
+            f"<td class='num payrollSummaryTotal' style='color:#7c3aed !important; font-weight:900;'>{show_num(total_o)}</td>"
+        )
         cells.append(
-            f"<td class='num payrollSummaryTotal' style='color:#1d4ed8 !important; font-weight:900;'>{show_num(total_hours)}</td>")
+            f"<td class='num payrollSummaryTotal' style='color:#1d4ed8 !important; font-weight:900;'>{show_num(total_hours)}</td>"
+        )
         cells.append(
-            f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(gross)) if gross > 0 else ''}</td>")
-        cells.append(f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(tax)) if tax > 0 else ''}</td>")
+            f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(gross)) if gross > 0 else ''}</td>"
+        )
+        cells.append(
+            f"<td class='num payrollSummaryMoney'>{(escape(currency) + money(tax)) if tax > 0 else ''}</td>"
+        )
 
         paid_rec = _get_paid_record_for_week(week_start_str, week_end_str, u)
         paid = bool(paid_rec.get("paid"))
+        paid_status_raw = str(paid_rec.get("paid_status") or "").strip().lower()
+        is_approved_only = paid_status_raw == "approved"
+
         paid_display_net = round(float(paid_rec.get("display_net", 0.0) or 0.0), 2)
         paid_mode = str(paid_rec.get("payment_mode") or "net").strip().lower()
 
@@ -836,69 +868,218 @@ def admin_payroll_impl(core):
 
         if paid:
             paid_label = "Gross Paid" if paid_mode == "gross" else "Paid"
-            cells.append(
-                f"<td class='num payrollSummaryMoney net paidNetCell' style='width:150px; min-width:150px; white-space:nowrap;'><span class='paidNetBadge'>{escape(currency)}{money(paid_display_net)} · {escape(paid_label)}</span></td>"
-            )
+            cells.append(f"""
+              <td class='num payrollSummaryMoney net paidNetCell' style='width:150px; min-width:150px; white-space:nowrap; vertical-align:top !important; padding-top:12px !important;'>
+                <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+                  <span style="display:flex; align-items:center; justify-content:center; width:108px; min-width:108px; height:24px; padding:0 6px; font-size:12px; line-height:1.2; font-weight:900; color:#07152f; margin-left:auto; margin-right:auto; transform:translateY(10mm);">
+  {escape(currency)}{money(net)}
+</span>
+                  <span class='paidNetBadge' style="width:108px; min-width:108px; justify-content:center;">
+                    {escape(paid_label)}
+                  </span>
+                </div>
+              </td>
+            """)
+
+        elif is_approved_only:
+            cells.append(f"""
+              <td class='num payrollSummaryMoney net paidNetCell'
+                  style='width:150px; min-width:150px; height:104px; white-space:nowrap; vertical-align:top !important; position:relative !important;'>
+
+                <div style="
+                  position:absolute;
+                  left:50%;
+                  top:18px;
+                  transform:translateX(-50%);
+                  width:108px;
+                  display:flex;
+                  flex-direction:column;
+                  gap:5px;
+                  align-items:center;
+                ">
+
+                  <form method="POST" action="/admin/mark-paid" class="payCellForm"
+                        style="margin:0; width:108px; display:flex; flex-direction:column; gap:4px; align-items:center;">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                    <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                    <input type="hidden" name="user" value="{escape(u)}">
+                    <input type="hidden" name="gross" value="{gross}">
+                    <input type="hidden" name="tax" value="{tax}">
+                    <input type="hidden" name="net" value="{net}">
+                    <input type="hidden" name="display_tax" value="{tax}">
+                    <input type="hidden" name="display_net" value="{net}">
+
+                    <div style="
+                      width:108px;
+                      display:grid;
+                      grid-template-columns:64px 40px;
+                      gap:4px;
+                      align-items:center;
+                    ">
+                      <select name="payment_mode"
+                              onchange="
+                                var form=this.form;
+                                var mode=this.value;
+                                var amount=form.querySelector('.approvedNetAmount');
+                                form.querySelector('[name=display_tax]').value = mode === 'gross' ? '0' : '{tax}';
+                                form.querySelector('[name=display_net]').value = mode === 'gross' ? '{gross}' : '{net}';
+                                amount.textContent = mode === 'gross' ? '{escape(currency)}{money(gross)}' : '{escape(currency)}{money(net)}';
+                              "
+                              style="
+                                width:64px;
+                                height:24px;
+                                padding:0 4px;
+                                border:1px solid #dbeafe;
+                                background:#fff;
+                                color:#07152f;
+                                font-size:10px;
+                                font-weight:800;
+                                box-sizing:border-box;
+                              ">
+                        <option value="net">Net</option>
+                        <option value="gross">Gross</option>
+                      </select>
+
+                      <button type="submit"
+                        onclick="return confirm('Mark this approved week as paid?');"
+                        style="
+                          display:inline-flex;
+                          align-items:center;
+                          justify-content:center;
+                          width:40px;
+                          height:24px;
+                          padding:0 4px;
+                          border:1px solid #0b63ff;
+                          background:#0b63ff;
+                          color:#fff;
+                          font-size:10px;
+                          font-weight:900;
+                          cursor:pointer;
+                          box-sizing:border-box;
+                        ">
+                        Pay
+                      </button>
+                    </div>
+
+                    <span class="approvedNetAmount" style="
+                      display:flex;
+                      align-items:center;
+                      justify-content:center;
+                      width:108px;
+                      height:24px;
+                      padding:0 6px;
+                      font-size:12px;
+                      line-height:1.2;
+                      font-weight:900;
+                      color:#07152f;
+                      box-sizing:border-box;
+                    ">
+                      {escape(currency)}{money(net)}
+                    </span>
+                  </form>
+
+                  <form method="POST" action="/admin/payroll-status"
+                        style="
+                          margin:0;
+                          width:108px;
+                          display:grid;
+                          grid-template-columns:58px 46px;
+                          gap:4px;
+                          align-items:center;
+                        "
+                        onsubmit="return confirm('Unlock this approved payroll week? This will allow shift editing again.');">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="action" value="unlock">
+                    <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                    <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                    <input type="hidden" name="user" value="{escape(u)}">
+
+                    <input type="password"
+                           name="unlock_password"
+                           required
+                           autocomplete="current-password"
+                           placeholder="Password"
+                           style="
+                             width:58px;
+                             height:24px;
+                             padding:0 5px;
+                             border:1px solid #e5e7eb;
+                             background:#fff;
+                             color:#07152f;
+                             font-size:10px;
+                             font-weight:700;
+                             box-sizing:border-box;
+                           ">
+
+                    <button type="submit"
+  style="
+    display:inline-flex !important;
+    align-items:center !important;
+    justify-content:center !important;
+    width:46px !important;
+    height:24px !important;
+    padding:0 6px !important;
+    border:1px solid #eab308 !important;
+    background:#facc15 !important;
+    color:#713f12 !important;
+    font-size:10px !important;
+    font-weight:900 !important;
+    cursor:pointer !important;
+    box-sizing:border-box !important;
+  ">
+  Unlock
+</button>
+                  </form>
+
+                </div>
+              </td>
+            """)
+
         elif gross > 0:
             cells.append(f"""
-                     <td class='num payrollSummaryMoney net' style='width:150px; min-width:150px; white-space:nowrap;'>
-                       <div style="display:flex; flex-direction:column; gap:4px; align-items:flex-end;">
+              <td class='num payrollSummaryMoney net'
+                  style='width:150px; min-width:150px; height:86px; white-space:nowrap; vertical-align:middle !important; position:relative !important;'>
 
-                         <form id="pay_net_{pay_form_key}" method="POST" action="/admin/mark-paid" class="payCellForm"
-      style="margin:0; width:auto; display:flex; justify-content:flex-end;">
-  <input type="hidden" name="csrf" value="{escape(csrf)}">
-  <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-  <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-  <input type="hidden" name="user" value="{escape(u)}">
-  <input type="hidden" name="gross" value="{gross}">
-  <input type="hidden" name="tax" value="{tax}">
-  <input type="hidden" name="net" value="{net}">
-  <input type="hidden" name="payment_mode" value="net">
-  <input type="hidden" name="display_tax" value="{tax}">
-  <input type="hidden" name="display_net" value="{net}">
-  <button class="confirmPayTrigger"
-        type="button"
-        data-form-id="pay_net_{pay_form_key}"
-        data-pay-kind="net"
-        data-pay-type-label="Net payment"
-        data-pay-employee="{pay_display_name}"
-        data-pay-week="{escape(pay_week_text)}"
-        data-pay-amount="{net_amount_text}"
-        style="display:grid; grid-template-columns:1fr 34px; align-items:center; gap:4px; width:108px; min-width:108px; height:26px; padding:0 5px; border:1px solid #ecd58a; background:#fff6d8; color:#1f2547; font-size:10px; font-weight:800; white-space:nowrap; cursor:pointer; box-sizing:border-box;">
-  <span style="text-align:left; overflow:hidden;">{escape(currency)}{money(net)}</span>
-  <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:15px; background:#f6e7b3; color:#b45309; font-size:9px; font-weight:800;">Net</span>
-</button>
-</form>
+                <span style="
+                  position:absolute;
+                  left:50%;
+                  top:34px;
+                  transform:translateX(-50%);
+                  display:flex;
+                  align-items:center;
+                  justify-content:center;
+                  width:108px;
+                  min-width:108px;
+                  height:47px;
+                  padding:0 6px;
+                  font-size:12px;
+                  line-height:1.2;
+                  font-weight:900;
+                  color:#07152f;
+                  box-sizing:border-box;
+                ">
+                  {escape(currency)}{money(net)}
+                </span>
 
-                         <form id="pay_gross_{pay_form_key}" method="POST" action="/admin/mark-paid" class="payCellForm"
-      style="margin:0; width:auto; display:flex; justify-content:flex-end;">
-  <input type="hidden" name="csrf" value="{escape(csrf)}">
-  <input type="hidden" name="week_start" value="{escape(week_start_str)}">
-  <input type="hidden" name="week_end" value="{escape(week_end_str)}">
-  <input type="hidden" name="user" value="{escape(u)}">
-  <input type="hidden" name="gross" value="{gross}">
-  <input type="hidden" name="tax" value="{tax}">
-  <input type="hidden" name="net" value="{net}">
-  <input type="hidden" name="payment_mode" value="gross">
-  <input type="hidden" name="display_tax" value="0">
-  <input type="hidden" name="display_net" value="{gross}">
-  <button class="confirmPayTrigger"
-        type="button"
-        data-form-id="pay_gross_{pay_form_key}"
-        data-pay-kind="gross"
-        data-pay-type-label="Gross payment"
-        data-pay-employee="{pay_display_name}"
-        data-pay-week="{escape(pay_week_text)}"
-        data-pay-amount="{gross_amount_text}"
-        style="display:grid; grid-template-columns:1fr 34px; align-items:center; gap:4px; width:108px; min-width:108px; height:26px; padding:0 5px; border:1px solid #5b21b6; background:#6d28d9; color:#fff; font-size:10px; font-weight:800; white-space:nowrap; cursor:pointer; box-sizing:border-box;">
-  <span style="text-align:left; overflow:hidden;">{escape(currency)}{money(gross)}</span>
-  <span style="display:inline-flex; align-items:center; justify-content:center; width:34px; height:15px; background:rgba(255,255,255,.16); color:#f3e8ff; font-size:8px; font-weight:800;">Gross</span>
-</button>
-</form>
+                <form method="POST" action="/admin/payroll-status"
+                      style="position:absolute; left:50%; bottom:8px; transform:translateX(-50%); margin:0;">
+                  <input type="hidden" name="csrf" value="{escape(csrf)}">
+                  <input type="hidden" name="action" value="approve">
+                  <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                  <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                  <input type="hidden" name="user" value="{escape(u)}">
+                  <input type="hidden" name="gross" value="{gross}">
+                  <input type="hidden" name="tax" value="{tax}">
+                  <input type="hidden" name="net" value="{net}">
 
-                       </div>
-                     </td>
-                   """)
+                  <button type="submit"
+                    style="display:inline-flex; align-items:center; justify-content:center; width:108px; min-width:108px; height:24px; padding:0 8px; border:1px solid #bbf7d0; background:#dcfce7; color:#15803d; font-size:10px; font-weight:900; cursor:pointer;">
+                    Approve
+                  </button>
+                </form>
+              </td>
+            """)
         else:
             cells.append("<td class='num payrollSummaryMoney'></td>")
 
@@ -1245,7 +1426,84 @@ def admin_payroll_impl(core):
       </div>
     """
 
+
     content = f"""
+              {'''
+          <div id="lockedWeekModal" style="
+            position:fixed;
+            inset:0;
+            z-index:9999;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:18px;
+            background:rgba(15,23,42,.38);
+            backdrop-filter:blur(4px);
+            -webkit-backdrop-filter:blur(4px);
+          ">
+            <div style="
+              width:min(420px, 100%);
+              background:#ffffff;
+              border:1px solid #e5e7eb;
+              box-shadow:0 24px 70px rgba(15,23,42,.24);
+              padding:18px;
+              text-align:left;
+            ">
+              <div style="
+                display:flex;
+                align-items:center;
+                gap:10px;
+                font-size:16px;
+                font-weight:900;
+                color:#07152f;
+              ">
+                <span style="
+                  width:30px;
+                  height:30px;
+                  display:inline-flex;
+                  align-items:center;
+                  justify-content:center;
+                  background:#eff6ff;
+                  color:#0b63ff;
+                  border:1px solid #bfdbfe;
+                  font-weight:900;
+                ">!</span>
+                Employee week approved
+              </div>
+
+              <div style="
+                margin-top:30px;
+                color:#64748b;
+                font-size:13px;
+                line-height:1.45;
+                font-weight:700;
+              ">
+                This employee’s payroll for this week has already been approved. To edit their shift times, enter the admin password and press <b>Unlock</b> first.
+              </div>
+
+              <button type="button"
+                onclick="
+                  document.getElementById('lockedWeekModal').remove();
+                  var url = new URL(window.location.href);
+                  url.searchParams.delete('locked_week');
+                  window.history.replaceState({}, document.title, url.pathname + url.search);
+                "
+                style="
+                  margin-top:14px;
+                  width:100%;
+                  height:36px;
+                  border:0;
+                  background:#0b63ff;
+                  color:#fff;
+                  font-size:13px;
+                  font-weight:900;
+                  cursor:pointer;
+                ">
+                Got It
+              </button>
+            </div>
+          </div>
+          ''' if request.args.get("locked_week") == "1" else ""}
               <style>
             .payrollEmployeeDetail{{
               display:none;
@@ -1984,6 +2242,7 @@ def admin_payroll_impl(core):
         }}
       }});
     }})();
+         
     </script>
     
         """

@@ -6,6 +6,7 @@ def admin_save_shift_impl(core):
     DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
     datetime = core["datetime"]
     WorkHour = core["WorkHour"]
+    PayrollReport = core["PayrollReport"]
     db = core["db"]
     make_response = core["make_response"]
     work_sheet = core["work_sheet"]
@@ -15,6 +16,7 @@ def admin_save_shift_impl(core):
     _compute_hours_from_times = core["_compute_hours_from_times"]
     _workhour_query_for_user = core["_workhour_query_for_user"]
     _session_workplace_id = core["_session_workplace_id"]
+    get_payroll_rows = core["get_payroll_rows"]
     timedelta = core["timedelta"]
     gspread = core["gspread"]
     COL_IN = core["COL_IN"]
@@ -44,6 +46,72 @@ def admin_save_shift_impl(core):
 
     if not username or not date_str:
         return redirect(request.referrer or "/admin/payroll")
+    def _payroll_week_is_locked_for_shift():
+        try:
+            shift_date = datetime.strptime(date_str, "%Y-%m-%d").date()
+        except Exception:
+            return False, ""
+
+        week_start = shift_date - timedelta(days=shift_date.weekday())
+        week_end = week_start + timedelta(days=6)
+        wp = _session_workplace_id()
+
+        locked_values = {"approved", "true", "1", "yes", "paid", "locked"}
+
+        if DB_MIGRATION_MODE:
+            try:
+                rec = PayrollReport.query.filter_by(
+                    username=username,
+                    workplace_id=wp,
+                    week_start=week_start,
+                    week_end=week_end,
+                ).first()
+
+                if not rec:
+                    return False, ""
+
+                status = str(getattr(rec, "paid", "") or "").strip()
+                return status.lower() in locked_values, status
+            except Exception:
+                return False, ""
+
+        try:
+            vals = get_payroll_rows()
+            headers = vals[0] if vals else []
+
+            def idx(name):
+                return headers.index(name) if name in headers else None
+
+            i_ws = idx("WeekStart")
+            i_we = idx("WeekEnd")
+            i_u = idx("Username")
+            i_paid = idx("Paid")
+            i_wp = idx("Workplace_ID")
+
+            ws = week_start.isoformat()
+            we = week_end.isoformat()
+
+            for row in vals[1:]:
+                row_ws = (row[i_ws] if i_ws is not None and i_ws < len(row) else "").strip()
+                row_we = (row[i_we] if i_we is not None and i_we < len(row) else "").strip()
+                row_u = (row[i_u] if i_u is not None and i_u < len(row) else "").strip()
+                row_paid = (row[i_paid] if i_paid is not None and i_paid < len(row) else "").strip()
+                row_wp = (row[i_wp] if i_wp is not None and i_wp < len(row) else "").strip() or "default"
+
+                if row_ws == ws and row_we == we and row_u == username and row_wp == wp:
+                    return row_paid.lower() in locked_values, row_paid
+
+            return False, ""
+        except Exception:
+            return False, ""
+
+    locked, locked_status = _payroll_week_is_locked_for_shift()
+    if locked:
+        return redirect(
+            (request.referrer or "/admin/payroll")
+            + ("&" if "?" in (request.referrer or "") else "?")
+            + "locked_week=1"
+        )
 
     # If the admin clears all fields for a day, treat that as "delete this shift".
     delete_shift = (cin == "" and cout == "" and hours_in == "" and pay_in == "")
