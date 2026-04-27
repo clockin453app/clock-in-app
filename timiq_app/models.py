@@ -143,6 +143,7 @@ class OnboardingRecord(db.Model):
 
     contract_accepted = db.Column(db.String(20))
     signature_name = db.Column(db.String(255))
+    signature_image_data = db.Column(db.Text)
     signature_datetime = db.Column(db.String(100))
     submitted_at = db.Column(db.String(100))
 

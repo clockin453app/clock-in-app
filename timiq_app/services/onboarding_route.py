@@ -114,6 +114,7 @@ def onboarding_impl(core):
         site_address = g("site_address")
         contract_accept = (request.form.get("contract_accept", "") == "yes")
         signature_name = g("signature_name")
+        signature_image_data = g("signature_image_data")
 
         passport_file = request.files.get("passport_file")
         cscs_file = request.files.get("cscs_file")
@@ -163,6 +164,9 @@ def onboarding_impl(core):
                 missing_fields.add("contract_accept")
 
             req(signature_name, "signature_name", "Signature name")
+            if not signature_image_data.startswith("data:image/png;base64,"):
+                missing.append("Drawn signature")
+                missing_fields.add("signature_image_data")
 
             if not passport_file or not passport_file.filename:
                 missing.append("Passport/Birth Certificate file")
@@ -247,6 +251,7 @@ def onboarding_impl(core):
                 "ShareCodeLink": share_link,
                 "ContractAccepted": "TRUE" if (is_final and contract_accept) else "FALSE",
                 "SignatureName": signature_name,
+                "SignatureImageData": signature_image_data,
                 "SignatureDateTime": now_str if is_final else "",
                 "SubmittedAt": now_str,
             }
@@ -272,6 +277,12 @@ def onboarding_impl(core):
                         db_row.emergency_contact_phone = emergency_phone_full
                         db_row.medical_condition = medical
                         db_row.position = position
+
+                        if hasattr(db_row, "signature_image_data"):
+                            db_row.signature_image_data = signature_image_data
+                        db_row.signature_name = signature_name
+                        db_row.signature_datetime = now_str if is_final else ""
+                        db_row.contract_accepted = "TRUE" if (is_final and contract_accept) else "FALSE"
                     else:
                         db.session.add(
                             OnboardingRecord(
@@ -287,6 +298,10 @@ def onboarding_impl(core):
                                 emergency_contact_phone=emergency_phone_full,
                                 medical_condition=medical,
                                 position=position,
+                                contract_accepted="TRUE" if (is_final and contract_accept) else "FALSE",
+                                signature_name=signature_name,
+                                signature_image_data=signature_image_data,
+                                signature_datetime=now_str if is_final else "",
                             )
                         )
 

@@ -75,6 +75,18 @@ def admin_onboarding_download_impl(core, username):
         f"<tr><th>Start date</th><td>{show('StartDate')}</td></tr>",
     ])
 
+    signature_image_data = str(rec.get("SignatureImageData", "") or "").strip()
+
+    signature_image_row = ""
+    if signature_image_data.startswith("data:image/png;base64,"):
+        signature_image_row = (
+            "<tr>"
+            "<th>Drawn signature</th>"
+            f"<td><img src='{escape(signature_image_data)}' alt='Signature' "
+            "style='max-width:320px; max-height:120px; border:1px solid #e5e7eb; background:#fff; padding:8px;'></td>"
+            "</tr>"
+        )
+
     company_rows = "".join([
         f"<tr><th>Bank account</th><td>{show('BankAccountNumber')}</td></tr>",
         f"<tr><th>Sort code</th><td>{show('SortCode')}</td></tr>",
@@ -85,6 +97,7 @@ def admin_onboarding_download_impl(core, username):
         f"<tr><th>Site address</th><td>{show('SiteAddress')}</td></tr>",
         f"<tr><th>Contract accepted</th><td>{show('ContractAccepted')}</td></tr>",
         f"<tr><th>Signature name</th><td>{show('SignatureName')}</td></tr>",
+        signature_image_row,
         f"<tr><th>Signature time</th><td>{show('SignatureDateTime')}</td></tr>",
         f"<tr><th>Last saved</th><td>{show('SubmittedAt')}</td></tr>",
     ])

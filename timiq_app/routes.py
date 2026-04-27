@@ -561,7 +561,8 @@ def db_upgrade_onboarding_table():
             "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS share_code_link TEXT",
             "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS contract_accepted VARCHAR(20)",
             "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_name VARCHAR(255)",
-            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_date_time VARCHAR(100)",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_image_data TEXT",
+            "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS signature_datetime VARCHAR(100)",
             "ALTER TABLE onboarding_records ADD COLUMN IF NOT EXISTS submitted_at VARCHAR(100)",
         ]
 
@@ -3912,6 +3913,7 @@ def update_or_append_onboarding(username: str, data: dict):
                 "share_code_link": "ShareCodeLink",
                 "contract_accepted": "ContractAccepted",
                 "signature_name": "SignatureName",
+                "signature_image_data": "SignatureImageData",
                 "signature_datetime": "SignatureDateTime",
                 "submitted_at": "SubmittedAt",
                 "address": "StreetAddress",
@@ -4025,6 +4027,7 @@ def get_onboarding_record(username: str):
                     "ShareCodeLink": gv("share_code_link"),
                     "ContractAccepted": gv("contract_accepted"),
                     "SignatureName": gv("signature_name"),
+                    "SignatureImageData": gv("signature_image_data"),
                     "SignatureDateTime": gv("signature_datetime"),
                     "SubmittedAt": gv("submitted_at"),
                 }
@@ -5283,8 +5286,120 @@ def _render_onboarding_page(display_name, role, csrf, existing, msg, msg_ok, typ
             I have read and accept the contract terms (required for Final)
           </label>
 
-          <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature (type your full name)</label>
-          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name', 'SignatureName'))}">
+                    <label class="sub {bad_label('signature_name')}" style="margin-top:10px; display:block;">Signature name</label>
+          <input class="input {bad('signature_name')}" name="signature_name" value="{escape(val('signature_name', 'SignatureName'))}" placeholder="Type your name">
+
+          <label class="sub {bad_label('signature_image_data')}" style="margin-top:10px; display:block;">Draw your signature</label>
+
+          <div style="border:1px solid #dbeafe; background:#fff; padding:10px; margin-top:6px;">
+            <canvas id="signatureCanvas"
+                    width="720"
+                    height="180"
+                    style="width:100%; height:180px; display:block; background:#fff; border:1px dashed #94a3b8; touch-action:none;"></canvas>
+
+            <input type="hidden"
+                   id="signatureImageData"
+                   name="signature_image_data"
+                   value="{escape(val('signature_image_data', 'SignatureImageData'))}">
+
+            <div style="display:flex; gap:8px; justify-content:space-between; align-items:center; margin-top:8px; flex-wrap:wrap;">
+              <div class="sub">Use your finger or mouse. Required for Final submit.</div>
+              <button type="button"
+                      id="clearSignatureBtn"
+                      class="btnTiny"
+                      style="border:1px solid #fecaca; background:#fff1f2; color:#be123c;">
+                Clear signature
+              </button>
+            </div>
+          </div>
+
+          <script>
+          (function(){{
+            const canvas = document.getElementById("signatureCanvas");
+            const hidden = document.getElementById("signatureImageData");
+            const clearBtn = document.getElementById("clearSignatureBtn");
+
+            if (!canvas || !hidden) return;
+
+            const ctx = canvas.getContext("2d");
+            let drawing = false;
+            let hasSignature = false;
+
+            function resetCanvas(){{
+              ctx.fillStyle = "#ffffff";
+              ctx.fillRect(0, 0, canvas.width, canvas.height);
+              ctx.lineWidth = 3;
+              ctx.lineCap = "round";
+              ctx.lineJoin = "round";
+              ctx.strokeStyle = "#07152f";
+            }}
+
+            function getPos(evt){{
+              const rect = canvas.getBoundingClientRect();
+              const clientX = evt.touches && evt.touches.length ? evt.touches[0].clientX : evt.clientX;
+              const clientY = evt.touches && evt.touches.length ? evt.touches[0].clientY : evt.clientY;
+
+              return {{
+                x: (clientX - rect.left) * (canvas.width / rect.width),
+                y: (clientY - rect.top) * (canvas.height / rect.height)
+              }};
+            }}
+
+            function saveSignature(){{
+              if (!hasSignature) {{
+                hidden.value = "";
+                return;
+              }}
+
+              hidden.value = canvas.toDataURL("image/png");
+            }}
+
+            function start(evt){{
+              evt.preventDefault();
+              drawing = true;
+              hasSignature = true;
+
+              const p = getPos(evt);
+              ctx.beginPath();
+              ctx.moveTo(p.x, p.y);
+            }}
+
+            function move(evt){{
+              if (!drawing) return;
+              evt.preventDefault();
+
+              const p = getPos(evt);
+              ctx.lineTo(p.x, p.y);
+              ctx.stroke();
+              saveSignature();
+            }}
+
+            function end(evt){{
+              if (!drawing) return;
+              evt.preventDefault();
+              drawing = false;
+              saveSignature();
+            }}
+
+            resetCanvas();
+
+            canvas.addEventListener("mousedown", start);
+            canvas.addEventListener("mousemove", move);
+            window.addEventListener("mouseup", end);
+
+            canvas.addEventListener("touchstart", start, {{passive:false}});
+            canvas.addEventListener("touchmove", move, {{passive:false}});
+            canvas.addEventListener("touchend", end, {{passive:false}});
+
+            if (clearBtn) {{
+              clearBtn.addEventListener("click", function(){{
+                hasSignature = false;
+                hidden.value = "";
+                resetCanvas();
+              }});
+            }}
+          }})();
+          </script>
 
           <div class="row2 onboardActionRow">
             <button class="btnSoft onboardDraftBtn" name="submit_type" value="draft" type="submit">Save Draft</button>

@@ -1,9 +1,11 @@
+from datetime import date, datetime, timedelta
 def admin_onboarding_list_impl(core):
     require_admin = core["require_admin"]
     request = core["request"]
     onboarding_sheet = core["onboarding_sheet"]
     DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
     OnboardingRecord = core["OnboardingRecord"]
+    get_onboarding_record = core["get_onboarding_record"]
     _session_workplace_id = core["_session_workplace_id"]
     _workplace_ids_for_read = core["_workplace_ids_for_read"]
     user_in_same_workplace = core["user_in_same_workplace"]
@@ -22,6 +24,96 @@ def admin_onboarding_list_impl(core):
         return gate
 
     q = (request.args.get("q", "") or "").strip().lower()
+    def parse_onboarding_date(value):
+        text = str(value or "").strip()
+        if not text:
+            return None
+
+        for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
+            try:
+                return datetime.strptime(text[:10], fmt).date()
+            except Exception:
+                pass
+
+        return None
+
+    def badge_html(text, kind="ok"):
+        if kind == "bad":
+            bg = "#fee2e2"
+            border = "#fecaca"
+            color = "#b91c1c"
+        elif kind == "warn":
+            bg = "#fef3c7"
+            border = "#fde68a"
+            color = "#92400e"
+        else:
+            bg = "#dcfce7"
+            border = "#bbf7d0"
+            color = "#15803d"
+
+        return (
+            f"<span style='display:inline-flex; align-items:center; justify-content:center; "
+            f"padding:4px 8px; border:1px solid {border}; background:{bg}; color:{color}; "
+            f"font-size:11px; font-weight:900; white-space:nowrap; margin:2px;'>"
+            f"{escape(text)}</span>"
+        )
+
+    def cscs_status_badge(expiry_value):
+        d = parse_onboarding_date(expiry_value)
+        today = date.today()
+
+        if not d:
+            return badge_html("CSCS missing", "warn")
+
+        if d < today:
+            return badge_html("CSCS expired", "bad")
+
+        if d <= today + timedelta(days=30):
+            return badge_html("CSCS expiring", "warn")
+
+        return badge_html("CSCS valid", "ok")
+
+    def docs_status_badge(rec):
+        missing = 0
+
+        for key in [
+            "PassportOrBirthCertLink",
+            "CSCSFrontBackLink",
+            "PublicLiabilityLink",
+            "ShareCodeLink",
+        ]:
+            if not str((rec or {}).get(key, "") or "").strip():
+                missing += 1
+
+        if missing <= 0:
+            return badge_html("Docs complete", "ok")
+
+        return badge_html(f"{missing} docs missing", "warn")
+
+    def build_status_html(username):
+        try:
+            full_rec = get_onboarding_record(username) or {}
+        except Exception:
+            full_rec = {}
+
+        status_parts = [
+            cscs_status_badge(full_rec.get("CSCSExpiryDate", "")),
+            docs_status_badge(full_rec),
+        ]
+
+        if str(full_rec.get("RightToWorkUK", "") or "").strip().lower() == "yes":
+            status_parts.append(badge_html("RTW yes", "ok"))
+        else:
+            status_parts.append(badge_html("RTW check", "warn"))
+
+        contract_value = str(full_rec.get("ContractAccepted", "") or "").strip().lower()
+
+        if contract_value in {"true", "yes", "1", "accepted", "signed"}:
+            status_parts.append(badge_html("Contract signed", "ok"))
+        else:
+            status_parts.append(badge_html("Contract unsigned", "warn"))
+
+        return "<div style='display:flex; gap:4px; flex-wrap:wrap; align-items:center;'>" + "".join(status_parts) + "</div>"
     vals = onboarding_sheet.get_all_values() if not DB_MIGRATION_MODE else [
                                                                                ["Username", "FirstName", "LastName",
                                                                                 "SubmittedAt", "Workplace_ID"]
@@ -41,7 +133,7 @@ def admin_onboarding_list_impl(core):
                                                                                for rec in OnboardingRecord.query.all()
                                                                            ]
     if not vals:
-        body = "<tr><td colspan='4'>No onboarding data.</td></tr>"
+        body = "<tr><td colspan='5'>No onboarding data.</td></tr>"
     else:
         headers = vals[0]
 
@@ -77,18 +169,21 @@ def admin_onboarding_list_impl(core):
             name = (fn + " " + ln).strip() or u
             if q and (q not in u.lower() and q not in name.lower()):
                 continue
+            status_html = build_status_html(u)
+
             rows_html.append(
                 f"<tr>"
                 f"<td><a href='/admin/onboarding/{escape(u)}' style='color:var(--navy);font-weight:600;'>{escape(name)}</a></td>"
                 f"<td>{escape(u)}</td>"
                 f"<td>{escape(sub)}</td>"
+                f"<td>{status_html}</td>"
                 f"<td style='text-align:center; white-space:nowrap;'>"
                 f"<a href='/admin/onboarding/{escape(u)}/download' target='_blank' rel='noopener' "
                 f"style='display:inline-block; text-decoration:none; font-size:12px; font-weight:700; color:#3b74ad; line-height:1;'>PDF</a>"
                 f"</td>"
                 f"</tr>"
             )
-        body = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No matches.</td></tr>"
+        body = "".join(rows_html) if rows_html else "<tr><td colspan='5'>No matches.</td></tr>"
 
     content = f"""
           <div class="headerTop">
@@ -112,7 +207,7 @@ def admin_onboarding_list_impl(core):
 
             <div class="tablewrap" style="margin-top:12px;">
               <table style="min-width: 720px;">
-                <thead><tr><th>Name</th><th>Username</th><th>Last saved</th><th style="text-align:center; width:70px;">PDF</th></tr></thead>
+                <thead><tr><th>Name</th><th>Username</th><th>Last saved</th><th>Status</th><th style="text-align:center; width:70px;">PDF</th></tr></thead>
                 <tbody>{body}</tbody>
               </table>
             </div>
