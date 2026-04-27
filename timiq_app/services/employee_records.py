@@ -26,6 +26,7 @@ def employee_record_from_model(rec):
         "FirstName": first_name,
         "LastName": last_name,
         "Site": str(getattr(rec, "site", "") or "").strip(),
+        "Site2": str(getattr(rec, "site2", "") or "").strip(),
         "Workplace_ID": str(
             getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
         ).strip() or "default",
@@ -53,6 +54,7 @@ def employee_records_compat(records):
                 rec.get("Workplace_ID") or rec.get("workplace_id") or rec.get("workplace") or "default"
             ).strip() or "default"
             site = str(rec.get("Site") or rec.get("site") or "").strip()
+            site2 = str(rec.get("Site2") or rec.get("site2") or "").strip()
         else:
             username = str(getattr(rec, "username", None) or getattr(rec, "email", "") or "").strip()
             first_name = str(getattr(rec, "first_name", "") or "").strip()
@@ -69,6 +71,7 @@ def employee_records_compat(records):
                 getattr(rec, "workplace_id", None) or getattr(rec, "workplace", None) or "default"
             ).strip() or "default"
             site = str(getattr(rec, "site", "") or "").strip()
+            site2 = str(getattr(rec, "site2", "") or "").strip()
 
         if (not first_name and not last_name) and full_name:
             parts = [p for p in full_name.split() if p]
@@ -89,6 +92,7 @@ def employee_records_compat(records):
             "Active": active,
             "Workplace_ID": workplace_id,
             "Site": site,
+            "Site2": site2,
         })
 
     return out

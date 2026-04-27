@@ -547,6 +547,11 @@ def admin_employees_impl(core):
         f"<option value='{escape(r)}'></option>"
         for r in role_suggestions
     )
+
+    role_select_options_html = "".join(
+        f"<option value='{escape(r)}' {'selected' if r == 'employee' else ''}>{escape(r)}</option>"
+        for r in role_suggestions
+    )
     table = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No employees found.</td></tr>"
 
     created_card = ""
@@ -719,10 +724,9 @@ def admin_employees_impl(core):
           <div class="row2">
             <div>
               <label class="sub">Role</label>
-<input class="input" name="role" list="role_list" value="employee">
-<datalist id="role_list">
-  {role_options_html}
-</datalist>
+<select class="input" name="role" required>
+  {role_select_options_html}
+</select>
             </div>
             <div>
               <label class="sub">Hourly rate</label>
@@ -764,7 +768,10 @@ def admin_employees_impl(core):
     <div class="row2" style="margin-top:10px;">
   <div>
     <label class="sub">New role (optional)</label>
-    <input class="input" name="edit_role" list="role_list" placeholder="Leave blank to keep existing">
+    <select class="input" name="edit_role">
+  <option value="">Leave blank to keep existing</option>
+  {role_select_options_html}
+</select>
   </div>
   <div>
     <label class="sub">New hourly rate (optional)</label>

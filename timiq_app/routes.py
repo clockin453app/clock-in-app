@@ -696,6 +696,7 @@ from .services.admin_clock_selfies_route import admin_clock_selfies_impl
 from .services.work_progress_route import work_progress_impl
 from .services.work_progress_storage import build_work_progress_storage_runtime
 from .services.admin_recalculate_shifts_route import admin_recalculate_shifts_impl
+from .services.site_manager_route import site_manager_impl, site_manager_force_clockin_impl, site_manager_force_clockout_impl
 from .services.auth_runtime import build_auth_runtime
 try:
     from PIL import Image, ImageOps
@@ -2845,6 +2846,8 @@ def role_label(role: str) -> str:
         return "MASTER ADMIN"
     if r == "admin":
         return "ADMIN"
+    if r == "site_manager":
+        return "SITE MANAGER"
     if r == "manager":
         return "MANAGER"
     return r.upper() if r else ""
@@ -3379,9 +3382,11 @@ def _allowed_assignable_roles_for_actor(actor_role: str) -> set[str]:
     }
 
     if actor == "master_admin":
-        return default_worker_roles | {"admin"}
+        return default_worker_roles | {"admin", "site_manager"}
+
     if actor == "admin":
         return default_worker_roles
+
     return {"employee"}
 
 
@@ -4472,6 +4477,8 @@ def bottom_nav(active: str, role: str) -> str:
 
 
 def sidebar_html(active: str, role: str) -> str:
+    role_l = (role or "").strip().lower()
+
     items = [
         ("home", "/", "Dashboard", _icon_dashboard(28)),
         ("clock", "/clock", "Clock In & Out", _icon_clock(28)),
@@ -4481,10 +4488,15 @@ def sidebar_html(active: str, role: str) -> str:
         ("work-progress", "/work-progress", "Work Progress", _icon_work_progress(28)),
     ]
 
-    if role in ("admin", "master_admin"):
+    if role_l == "site_manager":
+        items.append(
+            ("site-manager", "/site-manager", "Site Manager", _icon_admin(28))
+        )
+
+    if role_l in ("admin", "master_admin"):
         items.append(("admin", "/admin", "Admin", _svg_shield()))
 
-    if role == "master_admin":
+    if role_l == "master_admin":
         items.append(("current-sessions", "/admin/current-sessions", "Current Sessions", _icon_current_sessions(28)))
         items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(28)))
 
@@ -5694,7 +5706,19 @@ def admin_company():
 def admin_save_shift():
     return admin_save_shift_impl(core=globals())
 
+@routes.get("/site-manager")
+def site_manager():
+    return site_manager_impl(core=globals())
 
+
+@routes.post("/site-manager/force-clockin")
+def site_manager_force_clockin():
+    return site_manager_force_clockin_impl(core=globals())
+
+
+@routes.post("/site-manager/force-clockout")
+def site_manager_force_clockout():
+    return site_manager_force_clockout_impl(core=globals())
 
 @routes.post("/admin/force-clockin")
 def admin_force_clockin():
