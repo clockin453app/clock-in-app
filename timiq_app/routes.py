@@ -4787,7 +4787,7 @@ def logout_confirm():
             <a href="/" style="display:block;">
               <button class="btnSoft" type="button" style="width:100%;">Cancel</button>
             </a>
-            <button class="btnOut" type="submit" style="width:100%;">Logout</button>
+            <button class="btnOut" type="submit" style="width:100%; background:#dc2626 !important; color:#ffffff !important; border:1px solid #b91c1c !important;">Logout</button>
           </div>
         </form>
       </div>

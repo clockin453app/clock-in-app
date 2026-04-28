@@ -1102,9 +1102,9 @@ if (payBtn) {{
                   <input type="hidden" name="net" value="{net}">
 
                   <button type="submit"
-                    style="display:inline-flex; align-items:center; justify-content:center; width:108px; min-width:108px; height:24px; padding:0 8px; border:1px solid #bbf7d0; background:#dcfce7; color:#15803d; font-size:10px; font-weight:900; cursor:pointer;">
-                    Approve
-                  </button>
+  style="display:inline-flex; align-items:center; justify-content:center; width:108px; min-width:108px; height:24px; padding:0 8px; border:1px solid #14532d; background:#166534; color:#ffffff; font-size:10px; font-weight:900; cursor:pointer;">
+  Approve
+</button>
                 </form>
               </td>
             """)
