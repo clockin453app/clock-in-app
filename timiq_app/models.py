@@ -16,6 +16,7 @@ class Employee(db.Model):
     last_name = db.Column(db.String(255))
     password = db.Column(db.Text)
     rate = db.Column(db.Numeric(10, 2))
+    tax_rate = db.Column(db.Numeric(5, 2))
     early_access = db.Column(db.String(10))
     active = db.Column(db.String(10))
     workplace_id = db.Column(db.String(255), index=True)

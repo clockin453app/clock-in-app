@@ -43,6 +43,20 @@ def admin_employees_impl(core):
     msg = ""
     ok = False
     created = None
+    def _parse_optional_tax_percent(raw_value: str):
+        raw_value = (raw_value or "").strip()
+        if raw_value == "":
+            return None, ""
+
+        try:
+            value = float(raw_value)
+        except Exception:
+            return None, "Tax % must be a number."
+
+        if value < 0 or value > 100:
+            return None, "Tax % must be between 0 and 100."
+
+        return str(value), ""
 
     if request.method == "POST":
         require_csrf()
@@ -53,6 +67,7 @@ def admin_employees_impl(core):
             raw_edit_role = (request.form.get("edit_role") or "").strip()
             edit_role = raw_edit_role
             edit_rate_raw = (request.form.get("edit_rate") or "").strip()
+            edit_tax_rate_raw = (request.form.get("edit_tax_rate") or "").strip()
             edit_early_access = (request.form.get("edit_early_access") or "").strip()
             actor_role = (session.get("role") or "employee").strip().lower()
             if raw_edit_role:
@@ -79,6 +94,12 @@ def admin_employees_impl(core):
                         except Exception:
                             ok = False
                             msg = "Hourly rate must be a number."
+                    new_tax_rate_str = None
+                    if not msg:
+                        new_tax_rate_str, tax_msg = _parse_optional_tax_percent(edit_tax_rate_raw)
+                        if tax_msg:
+                            ok = False
+                            msg = tax_msg
 
                     changed = []
                     if not msg:
@@ -95,6 +116,9 @@ def admin_employees_impl(core):
                                 if new_rate_str is not None and hasattr(db_row, "rate"):
                                     db_row.rate = Decimal(new_rate_str)
                                     changed.append(f"rate={new_rate_str}")
+                                if new_tax_rate_str is not None and hasattr(db_row, "tax_rate"):
+                                    db_row.tax_rate = Decimal(new_tax_rate_str)
+                                    changed.append(f"tax_rate={new_tax_rate_str}")
 
                                 if edit_early_access in ("TRUE", "FALSE") and hasattr(db_row, "early_access"):
                                     db_row.early_access = edit_early_access
@@ -130,6 +154,12 @@ def admin_employees_impl(core):
                         except Exception:
                             ok = False
                             msg = "Hourly rate must be a number."
+                    new_tax_rate_str = None
+                    if not msg:
+                        new_tax_rate_str, tax_msg = _parse_optional_tax_percent(edit_tax_rate_raw)
+                        if tax_msg:
+                            ok = False
+                            msg = tax_msg
 
                     if not msg:
                         existing = employees_sheet.row_values(rownum)
@@ -144,6 +174,9 @@ def admin_employees_impl(core):
                         if new_rate_str is not None and "Rate" in headers:
                             row[headers.index("Rate")] = new_rate_str
                             changed.append(f"rate={new_rate_str}")
+                        if new_tax_rate_str is not None and "TaxRate" in headers:
+                            row[headers.index("TaxRate")] = new_tax_rate_str
+                            changed.append(f"tax_rate={new_tax_rate_str}")
 
                         if edit_early_access in ("TRUE", "FALSE") and "EarlyAccess" in headers:
                             row[headers.index("EarlyAccess")] = edit_early_access
@@ -194,6 +227,13 @@ def admin_employees_impl(core):
                                                 rate_db = Decimal(rate_raw_db)
                                             except Exception:
                                                 rate_db = None
+                                        tax_rate_db = None
+                                        tax_rate_raw_db = _row_str("TaxRate")
+                                        if tax_rate_raw_db != "":
+                                            try:
+                                                tax_rate_db = Decimal(tax_rate_raw_db)
+                                            except Exception:
+                                                tax_rate_db = None
 
                                         db_row = _employee_query_for_write(username_db, workplace_id_db).first()
 
@@ -206,6 +246,7 @@ def admin_employees_impl(core):
                                             db_row.last_name = last_name_db
                                             db_row.password = password_db or db_row.password
                                             db_row.rate = rate_db
+                                            db_row.tax_rate = tax_rate_db
                                             db_row.early_access = early_access_db
                                             db_row.active = active_db
                                             if hasattr(db_row, "site"):
@@ -223,6 +264,7 @@ def admin_employees_impl(core):
                                                     last_name=last_name_db,
                                                     password=password_db,
                                                     rate=rate_db,
+                                                    tax_rate=tax_rate_db,
                                                     early_access=early_access_db,
                                                     active=active_db,
                                                     workplace_id=workplace_id_db,
@@ -388,6 +430,7 @@ def admin_employees_impl(core):
             raw_role_new = (request.form.get("role") or "employee").strip() or "employee"
             role_new = _sanitize_requested_role(raw_role_new, actor_role)
             rate_raw = (request.form.get("rate") or "").strip()
+            tax_rate_raw = (request.form.get("tax_rate") or "").strip()
 
             if not role_new:
                 return make_response("You are not allowed to create a user with that role.", 403)
@@ -396,6 +439,11 @@ def admin_employees_impl(core):
                 rate_val = float(rate_raw) if rate_raw != "" else 0.0
             except Exception:
                 rate_val = 0.0
+            tax_rate_str, tax_msg = _parse_optional_tax_percent(tax_rate_raw)
+            if tax_msg:
+                return make_response(tax_msg, 400)
+
+            tax_rate_db = Decimal(tax_rate_str) if tax_rate_str is not None else None
 
             wp = _session_workplace_id()
 
@@ -416,6 +464,7 @@ def admin_employees_impl(core):
             set_col("Password", hashed)
             set_col("Role", role_new)
             set_col("Rate", str(rate_val))
+            set_col("TaxRate", tax_rate_str or "")
             set_col("EarlyAccess", "TRUE")
             set_col("OnboardingCompleted", "")
             set_col("FirstName", first)
@@ -451,6 +500,7 @@ def admin_employees_impl(core):
                             db_row.last_name = last
                             db_row.password = hashed
                             db_row.rate = Decimal(str(rate_val))
+                            db_row.tax_rate = tax_rate_db
                             db_row.early_access = "TRUE"
                             db_row.active = "TRUE"
                             db_row.workplace_id = wp
@@ -468,6 +518,7 @@ def admin_employees_impl(core):
                                     last_name=last,
                                     password=hashed,
                                     rate=Decimal(str(rate_val)),
+                                    tax_rate=tax_rate_db,
                                     early_access="TRUE",
                                     active="TRUE",
                                     workplace_id=wp,
@@ -505,6 +556,7 @@ def admin_employees_impl(core):
             ln = (rec.get("LastName") or "").strip()
             rr = (rec.get("Role") or "").strip()
             rate = str(rec.get("Rate") or "").strip()
+            tax_rate = str(rec.get("TaxRate") or "").strip()
             early = str(rec.get("EarlyAccess") or "").strip()
             active = str(rec.get("Active") or "TRUE").strip().lower()
 
@@ -513,7 +565,7 @@ def admin_employees_impl(core):
             disp = ((fn + " " + ln).strip() or u) + inactive_tag
 
             rows_html.append(
-                f"<tr><td>{escape(disp)}</td><td>{escape(u)}</td><td>{escape(rr)}</td><td>{escape(early_label)}</td><td class='num'>{escape(rate)}</td></tr>"
+                f"<tr><td>{escape(disp)}</td><td>{escape(u)}</td><td>{escape(rr)}</td><td>{escape(early_label)}</td><td class='num'>{escape(rate)}</td><td class='num'>{escape(tax_rate)}</td></tr>"
             )
     except Exception:
         rows_html = []
@@ -552,7 +604,11 @@ def admin_employees_impl(core):
         f"<option value='{escape(r)}' {'selected' if r == 'employee' else ''}>{escape(r)}</option>"
         for r in role_suggestions
     )
-    table = "".join(rows_html) if rows_html else "<tr><td colspan='4'>No employees found.</td></tr>"
+    update_role_options_html = "".join(
+        f"<option value='{escape(r)}'>{escape(r)}</option>"
+        for r in role_suggestions
+    )
+    table = "".join(rows_html) if rows_html else "<tr><td colspan='6'>No employees found.</td></tr>"
 
     created_card = ""
     if created:
@@ -733,6 +789,13 @@ def admin_employees_impl(core):
               <input class="input" name="rate" placeholder="e.g. 25">
             </div>
           </div>
+                    <div class="row2" style="margin-top:10px;">
+            <div>
+              <label class="sub">Tax % </label>
+              <input class="input" name="tax_rate" placeholder="Blank = company default, e.g. 20">
+            </div>
+            <div></div>
+          </div>
 
           <button class="btnSoft" type="submit" style="margin-top:12px;">Create</button>
         </form>
@@ -770,13 +833,20 @@ def admin_employees_impl(core):
     <label class="sub">New role (optional)</label>
     <select class="input" name="edit_role">
   <option value="">Leave blank to keep existing</option>
-  {role_select_options_html}
+    {update_role_options_html}
 </select>
   </div>
   <div>
     <label class="sub">New hourly rate (optional)</label>
     <input class="input" name="edit_rate" placeholder="Leave blank to keep existing">
   </div>
+</div>
+<div class="row2" style="margin-top:10px;">
+  <div>
+    <label class="sub">New Tax % </label>
+    <input class="input" name="edit_tax_rate" placeholder="Blank = keep existing, e.g. 20">
+  </div>
+  <div></div>
 </div>
 
 <div style="margin-top:10px;">
@@ -801,6 +871,7 @@ def admin_employees_impl(core):
                 <th>Role</th>
                 <th>Early Access</th>
                 <th class="num">Rate</th>
+                                <th class="num">Tax %</th>
               </tr>
             </thead>
             <tbody>{table}</tbody>

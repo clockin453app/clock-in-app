@@ -69,6 +69,27 @@ def admin_payroll_report_csv_impl(core):
         for rec in employee_records
         if (rec.get("Username") or "").strip()
     }
+    employee_tax_rate_lookup = {}
+    for rec in employee_records:
+        username_key = (rec.get("Username") or "").strip()
+        if not username_key:
+            continue
+
+        raw_tax_value = rec.get("TaxRate")
+        if raw_tax_value is None:
+            raw_tax_value = rec.get("tax_rate")
+
+        raw_tax = str(raw_tax_value).strip()
+        if raw_tax == "":
+            continue
+
+        try:
+            employee_tax_rate_lookup[username_key] = max(0.0, min(100.0, float(raw_tax))) / 100.0
+        except Exception:
+            pass
+
+    def tax_rate_for_user(username):
+        return employee_tax_rate_lookup.get((username or "").strip(), tax_rate)
 
     totals_by_user = {}
 
@@ -115,7 +136,7 @@ def admin_payroll_report_csv_impl(core):
     export_rows = []
     for user, vals in totals_by_user.items():
         gross = round(vals["gross"], 2)
-        tax = round(gross * tax_rate, 2)
+        tax = round(gross * tax_rate_for_user(user), 2)
         net = round(gross - tax, 2)
         hours = round(vals["hours"], 2)
 

@@ -15,12 +15,15 @@ def employee_record_from_model(rec):
 
     rate_val = getattr(rec, "rate", None)
     rate_str = "" if rate_val in (None, "") else str(rate_val).strip()
+    tax_rate_val = getattr(rec, "tax_rate", None)
+    tax_rate_str = "" if tax_rate_val in (None, "") else str(tax_rate_val).strip()
 
     return {
         "Username": username,
         "Password": str(getattr(rec, "password", "") or "").strip(),
         "Role": str(getattr(rec, "role", "") or "").strip(),
         "Rate": rate_str,
+        "TaxRate": tax_rate_str,
         "EarlyAccess": str(getattr(rec, "early_access", "") or "").strip(),
         "Active": str(getattr(rec, "active", "TRUE") or "TRUE").strip() or "TRUE",
         "FirstName": first_name,
@@ -47,6 +50,10 @@ def employee_records_compat(records):
             if rate_raw in (None, ""):
                 rate_raw = rec.get("rate")
             rate = "" if rate_raw in (None, "") else str(rate_raw).strip()
+            tax_rate_raw = rec.get("TaxRate")
+            if tax_rate_raw in (None, ""):
+                tax_rate_raw = rec.get("tax_rate")
+            tax_rate = "" if tax_rate_raw in (None, "") else str(tax_rate_raw).strip()
 
             early_access = str(rec.get("EarlyAccess") or rec.get("early_access") or "").strip()
             active = str(rec.get("Active") or rec.get("active") or "TRUE").strip() or "TRUE"
@@ -64,6 +71,8 @@ def employee_records_compat(records):
 
             rate_val = getattr(rec, "rate", None)
             rate = "" if rate_val is None else str(rate_val).strip()
+            tax_rate_val = getattr(rec, "tax_rate", None)
+            tax_rate = "" if tax_rate_val is None else str(tax_rate_val).strip()
 
             early_access = str(getattr(rec, "early_access", "") or "").strip()
             active = str(getattr(rec, "active", "TRUE") or "TRUE").strip() or "TRUE"
@@ -88,6 +97,7 @@ def employee_records_compat(records):
             "LastName": last_name,
             "Role": role,
             "Rate": rate,
+            "TaxRate": tax_rate,
             "EarlyAccess": early_access,
             "Active": active,
             "Workplace_ID": workplace_id,

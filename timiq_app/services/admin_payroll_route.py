@@ -240,6 +240,28 @@ def admin_payroll_impl(core):
 
         employee_role_lookup[username_key] = str(role_value or "").strip()
 
+    employee_tax_rate_lookup = {}
+    for rec in employee_records:
+        username_key = (rec.get("Username") or "").strip()
+        if not username_key:
+            continue
+
+        raw_tax_value = rec.get("TaxRate")
+        if raw_tax_value is None:
+            raw_tax_value = rec.get("tax_rate")
+
+        raw_tax = str(raw_tax_value).strip()
+        if raw_tax == "":
+            continue
+
+        try:
+            employee_tax_rate_lookup[username_key] = max(0.0, min(100.0, float(raw_tax))) / 100.0
+        except Exception:
+            pass
+
+    def tax_rate_for_user(username):
+        return employee_tax_rate_lookup.get((username or "").strip(), tax_rate)
+
 
     month_start = None
     month_end = None
@@ -388,7 +410,10 @@ def admin_payroll_impl(core):
             overall_o += o_h
             overall_gross += g
 
-    overall_tax = round(overall_gross * tax_rate, 2)
+    overall_tax = round(sum(
+        round(float(vals.get("gross", 0.0) or 0.0) * tax_rate_for_user(u), 2)
+        for u, vals in by_user.items()
+    ), 2)
     overall_net = round(overall_gross - overall_tax, 2)
 
     monthly_by_user = {}
@@ -430,7 +455,7 @@ def admin_payroll_impl(core):
     for u in sorted(monthly_by_user.keys(), key=lambda s: get_employee_display_name(s).lower()):
         rec = monthly_by_user[u]
         gross = round(rec["gross"], 2)
-        tax = round(gross * tax_rate, 2)
+        tax = round(gross * tax_rate_for_user(u), 2)
         net = round(gross - tax, 2)
 
         monthly_rows_html.append(f"""
@@ -658,7 +683,7 @@ def admin_payroll_impl(core):
     summary_rows = []
     for u in sorted(all_users, key=lambda s: s.lower()):
         gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
-        tax = round(gross * tax_rate, 2)
+        tax = round(gross * tax_rate_for_user(u), 2)
         net = round(gross - tax, 2)
         hours = round(by_user.get(u, {}).get("hours", 0.0), 2)
 
@@ -836,7 +861,7 @@ def admin_payroll_impl(core):
                    """)
 
         gross = round(gross, 2)
-        tax = round(gross * tax_rate, 2)
+        tax = round(gross * tax_rate_for_user(u), 2)
         net = round(gross - tax, 2)
 
         cells.append(
@@ -865,6 +890,11 @@ def admin_payroll_impl(core):
         pay_display_name = escape(display)
         net_amount_text = f"{escape(currency)}{money(net)}"
         gross_amount_text = f"{escape(currency)}{money(gross)}"
+        approved_payment_mode = "gross" if abs(tax) < 0.005 and abs(net - gross) < 0.005 else "net"
+        approved_display_tax = 0.0 if approved_payment_mode == "gross" else tax
+        approved_display_net = gross if approved_payment_mode == "gross" else net
+        approved_amount_text = gross_amount_text if approved_payment_mode == "gross" else net_amount_text
+        approved_pay_type_label = "Gross payment" if approved_payment_mode == "gross" else "Net payment"
 
         if paid:
             paid_label = "Gross Paid" if paid_mode == "gross" else "Paid"
@@ -922,73 +952,35 @@ def admin_payroll_impl(core):
                     <input type="hidden" name="gross" value="{gross}">
                     <input type="hidden" name="tax" value="{tax}">
                     <input type="hidden" name="net" value="{net}">
-                    <input type="hidden" name="display_tax" value="{tax}">
-                    <input type="hidden" name="display_net" value="{net}">
+                    <input type="hidden" name="display_tax" value="{approved_display_tax}">
+                    <input type="hidden" name="display_net" value="{approved_display_net}">
+                    <input type="hidden" name="payment_mode" value="{approved_payment_mode}">
 
-                    <div style="
-                      width:108px;
-                      display:grid;
-                      grid-template-columns:64px 40px;
-                      gap:4px;
-                      align-items:center;
-                    ">
-                      <select name="payment_mode"
-                              onchange="
-                                var form=this.form;
-                                var mode=this.value;
-                                var amount=form.querySelector('.approvedNetAmount');
-                                form.querySelector('[name=display_tax]').value = mode === 'gross' ? '0' : '{tax}';
-                                form.querySelector('[name=display_net]').value = mode === 'gross' ? '{gross}' : '{net}';
-                                amount.textContent = mode === 'gross' ? '{escape(currency)}{money(gross)}' : '{escape(currency)}{money(net)}';
-
-var payBtn = form.querySelector('.confirmPayTrigger');
-if (payBtn) {{
-  payBtn.setAttribute('data-pay-kind', mode);
-  payBtn.setAttribute('data-pay-type-label', mode === 'gross' ? 'Gross payment' : 'Net payment');
-  payBtn.setAttribute('data-pay-amount', mode === 'gross' ? '{escape(currency)}{money(gross)}' : '{escape(currency)}{money(net)}');
-}}
-                              "
-                              style="
-                                width:64px;
-                                height:24px;
-                                padding:0 4px;
-                                border:1px solid #dbeafe;
-                                background:#fff;
-                                color:#07152f;
-                                font-size:10px;
-                                font-weight:800;
-                                box-sizing:border-box;
-                              ">
-                        <option value="net">Net</option>
-                        <option value="gross">Gross</option>
-                      </select>
-
-                      <button class="confirmPayTrigger"
-  type="button"
-  data-form-id="pay_approved_{pay_form_key}"
-  data-pay-kind="net"
-  data-pay-type-label="Payment"
-  data-pay-employee="{pay_display_name}"
-  data-pay-week="{escape(pay_week_text)}"
-  data-pay-amount="{net_amount_text}"
-  style="
-    display:inline-flex;
-    align-items:center;
-    justify-content:center;
-    width:40px;
-    height:24px;
-    padding:0 4px;
-    border:1px solid #0b63ff;
-    background:#0b63ff;
-    color:#fff;
-    font-size:10px;
-    font-weight:900;
-    cursor:pointer;
-    box-sizing:border-box;
-  ">
-  Pay
-</button>
-                    </div>
+                                        <button class="confirmPayTrigger"
+                      type="button"
+                      data-form-id="pay_approved_{pay_form_key}"
+                      data-pay-kind="{approved_payment_mode}"
+                      data-pay-type-label="{approved_pay_type_label}"
+                      data-pay-employee="{pay_display_name}"
+                      data-pay-week="{escape(pay_week_text)}"
+                      data-pay-amount="{approved_amount_text}"
+                      style="
+                        display:inline-flex;
+                        align-items:center;
+                        justify-content:center;
+                        width:64px;
+                        height:24px;
+                        padding:0 8px;
+                        border:1px solid #0b63ff;
+                        background:#0b63ff;
+                        color:#fff;
+                        font-size:10px;
+                        font-weight:900;
+                        cursor:pointer;
+                        box-sizing:border-box;
+                      ">
+                      Pay
+                    </button>
 
                     <span class="approvedNetAmount" style="
                       display:flex;
@@ -1003,7 +995,7 @@ if (payBtn) {{
                       color:#07152f;
                       box-sizing:border-box;
                     ">
-                      {escape(currency)}{money(net)}
+                        Payable&nbsp;{approved_amount_text}
                     </span>
                   </form>
 
@@ -1174,7 +1166,7 @@ if (payBtn) {{
 
         wk_hours = round(wk_hours, 2)
         wk_gross = round(wk_gross, 2)
-        wk_tax = round(wk_gross * tax_rate, 2)
+        wk_tax = round(wk_gross * tax_rate_for_user(u), 2)
         wk_net = round(wk_gross - wk_tax, 2)
 
         paid, paid_at = _is_paid_for_week(week_start_str, week_end_str, u)
@@ -1241,7 +1233,7 @@ if (payBtn) {{
                     <td style="font-weight:700; text-align:center;">{escape(cout_txt)}</td>
                     <td class="num" style="font-weight:700;">{escape(hrs_txt)}</td>
                     <td class="num" style="font-weight:700;">{escape(pay_txt)}</td>
-                    <td class="num" style="font-weight:800; color:rgba(15,23,42,.92);">{escape(money(round(safe_float(pay, 0.0) * (1 - tax_rate), 2))) if has_row else ""}</td>
+                    <td class="num" style="font-weight:800; color:rgba(15,23,42,.92);">{escape(money(round(safe_float(pay, 0.0) * (1 - tax_rate_for_user(u)), 2))) if has_row else ""}</td>
                   </tr>
                 """)
 
@@ -1313,7 +1305,7 @@ if (payBtn) {{
             if hrs <= 0 and gross <= 0 and not cin and not cout:
                 continue
 
-            tax = round(gross * tax_rate, 2)
+            tax = round(gross * tax_rate_for_user(user), 2)
             net = round(gross - tax, 2)
 
             detail_rows.append({

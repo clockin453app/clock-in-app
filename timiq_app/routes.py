@@ -488,6 +488,7 @@ def db_upgrade_employees_table():
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS last_name VARCHAR(255)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS password TEXT",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS rate NUMERIC(10,2)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS early_access VARCHAR(10)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS active VARCHAR(10)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS workplace_id VARCHAR(255)",
@@ -1940,7 +1941,7 @@ def _ensure_employees_columns():
     if not employees_sheet:
         return
     needed = [
-        "Username", "Password", "Role", "Rate",
+        "Username", "Password", "Role", "Rate", "TaxRate",
         "EarlyAccess", "OnboardingCompleted",
         "FirstName", "LastName", "Site", "Workplace_ID",
     ]
@@ -3266,6 +3267,8 @@ def set_employee_field(username: str, field: str, value: str):
                 db_row.role = value
             elif field == "Rate" and hasattr(db_row, "rate"):
                 db_row.rate = Decimal(str(value)) if str(value).strip() != "" else None
+            elif field == "TaxRate" and hasattr(db_row, "tax_rate"):
+                db_row.tax_rate = Decimal(str(value)) if str(value).strip() != "" else None
             elif field == "EarlyAccess" and hasattr(db_row, "early_access"):
                 db_row.early_access = value
             elif field == "Active" and hasattr(db_row, "active"):
@@ -6020,7 +6023,7 @@ class _ProxySheetBase:
 
 
 class _EmployeesProxy(_ProxySheetBase):
-    headers = ["Username", "Password", "Role", "Rate", "EarlyAccess", "OnboardingCompleted", "FirstName", "LastName",
+    headers = ["Username", "Password", "Role", "Rate", "TaxRate", "EarlyAccess", "OnboardingCompleted", "FirstName", "LastName",
                "Site", "Active", "Workplace_ID", "Site2"]
     model = Employee
 
@@ -6035,6 +6038,7 @@ class _EmployeesProxy(_ProxySheetBase):
             str(getattr(rec, "password", "") or ""),
             str(getattr(rec, "role", "") or ""),
             _db_format_decimal(getattr(rec, "rate", None)),
+            _db_format_decimal(getattr(rec, "tax_rate", None)),
             _db_bool_text(getattr(rec, "early_access", "TRUE")),
             str(getattr(rec, "onboarding_completed", "") or ""),
             str(getattr(rec, "first_name", "") or ""),
@@ -6074,6 +6078,8 @@ class _EmployeesProxy(_ProxySheetBase):
         rec.role = str(data.get("Role") or getattr(rec, "role", "") or "")
         rate_txt = str(data.get("Rate") or "").strip()
         rec.rate = Decimal(rate_txt) if rate_txt else None
+        tax_rate_txt = str(data.get("TaxRate") or "").strip()
+        rec.tax_rate = Decimal(tax_rate_txt) if tax_rate_txt else None
         rec.early_access = _db_bool_text(data.get("EarlyAccess"), getattr(rec, "early_access", "TRUE"))
         rec.onboarding_completed = str(
             data.get("OnboardingCompleted") or getattr(rec, "onboarding_completed", "") or "")
@@ -6528,6 +6534,7 @@ def _ensure_database_schema(app):
         statements = [
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS onboarding_completed VARCHAR(20)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS site2 VARCHAR(255)",
+            "ALTER TABLE employees ADD COLUMN IF NOT EXISTS tax_rate NUMERIC(5,2)",
             "ALTER TABLE employees ADD COLUMN IF NOT EXISTS active_session_token VARCHAR(255)",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS hours NUMERIC(10,2)",
             "ALTER TABLE workhours ADD COLUMN IF NOT EXISTS pay NUMERIC(10,2)",
