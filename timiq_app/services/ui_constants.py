@@ -27,10 +27,17 @@ PWA_TAGS = """
   var oldBtn = document.getElementById('mobileRailToggle');
   var oldBackdrop = document.getElementById('mobileRailBackdrop');
 
-  if (window.innerWidth > 979 || !shell || !sidebar) {
+    if (window.innerWidth > 979) {
     document.body.classList.remove('mobileRailClosed');
+    document.body.classList.remove('mobileRailOpen');
     if (oldBtn) oldBtn.remove();
     if (oldBackdrop) oldBackdrop.remove();
+    return;
+  }
+
+  if (!shell || !sidebar) {
+    document.body.classList.add('mobileRailClosed');
+    document.body.classList.remove('mobileRailOpen');
     return;
   }
 
@@ -59,7 +66,8 @@ PWA_TAGS = """
     // It opens only when the user taps the blue menu button.
     var closed = stored !== '0';
 
-    document.body.classList.toggle('mobileRailClosed', closed);
+        document.body.classList.toggle('mobileRailClosed', closed);
+    document.body.classList.toggle('mobileRailOpen', !closed);
   }
 
   function openRail(){
@@ -173,12 +181,14 @@ PWA_TAGS = """
 
       var dx = touchLastX - touchStartX;
 
-      if (swipeMode === 'open' && dx > 45) {
+            if (swipeMode === 'open' && dx > 45) {
         localStorage.setItem('mobileRailClosed', '0');
         document.body.classList.remove('mobileRailClosed');
+        document.body.classList.add('mobileRailOpen');
       } else if (swipeMode === 'close' && dx < -45) {
         localStorage.setItem('mobileRailClosed', '1');
         document.body.classList.add('mobileRailClosed');
+        document.body.classList.remove('mobileRailOpen');
       }
 
       trackingSwipe = false;
@@ -6119,6 +6129,89 @@ align-items:start !important;
 
 .adminToolsShell .adminToolTop .chev{
   display:none !important;
+}
+/* Payroll mobile: keep employee names floating over horizontal table */
+@media (max-width: 900px){
+  .payrollWrap{
+    position:relative !important;
+    overflow-x:auto !important;
+    overflow-y:hidden !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+
+  .payrollWrap .payrollSheet{
+    width:max-content !important;
+    min-width:1120px !important;
+    table-layout:fixed !important;
+  }
+
+  .payrollWrap .payrollSheet thead th:first-child,
+  .payrollWrap .payrollSheet tbody td:first-child{
+    position:sticky !important;
+    left:0 !important;
+    width:142px !important;
+    min-width:142px !important;
+    max-width:142px !important;
+    z-index:30 !important;
+    background:#ffffff !important;
+    box-shadow:12px 0 18px rgba(15,23,42,.10) !important;
+  }
+
+  .payrollWrap .payrollSheet thead th:first-child{
+    z-index:40 !important;
+  }
+
+  .payrollWrap .payrollEmpCell{
+    width:142px !important;
+    min-width:142px !important;
+    max-width:142px !important;
+  }
+
+  .payrollWrap .payrollSheet .emp{
+    white-space:normal !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    line-height:1.12 !important;
+  }
+
+  .payrollWrap .payrollSheet .empSub{
+    white-space:normal !important;
+    overflow:visible !important;
+    text-overflow:clip !important;
+    line-height:1.12 !important;
+  }
+}
+/* Mobile rail: open only when explicitly requested */
+@media (max-width:979px){
+  body:not(.mobileRailOpen) .sidebar,
+  body:not(.mobileRailOpen) .dashboardShellModern .sidebar{
+    transform:translateX(-105%) !important;
+  }
+
+  body.mobileRailOpen .sidebar,
+  body.mobileRailOpen .dashboardShellModern .sidebar{
+    transform:translateX(0) !important;
+  }
+
+  body:not(.mobileRailOpen) #mobileRailBackdrop{
+    opacity:0 !important;
+    pointer-events:none !important;
+  }
+
+  body.mobileRailOpen #mobileRailBackdrop{
+    opacity:1 !important;
+    pointer-events:auto !important;
+  }
+
+  body:not(.mobileRailOpen) #mobileRailToggle:before{
+    content:"☰" !important;
+    font-size:25px !important;
+  }
+
+  body.mobileRailOpen #mobileRailToggle:before{
+    content:"×" !important;
+    font-size:32px !important;
+  }
 }
 </style>
 

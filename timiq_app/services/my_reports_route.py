@@ -296,16 +296,7 @@ def my_reports_impl(core):
 
     page_css = """
         <style>
-                  /* Payslip page should behave like a clean document, not a normal app page */
-          .topBarFixed,
-          .topAccountWrap,
-          .topAccountTrigger,
-          .topAccountMenu,
-          #mobileRailToggle,
-          #mobileRailBackdrop{
-            display:none !important;
-            visibility:hidden !important;
-          }
+                           /* Timesheets page keeps normal app navigation controls. */
 
           @media (max-width:979px){
             body{
