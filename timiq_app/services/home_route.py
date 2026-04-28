@@ -1079,11 +1079,16 @@ def home_impl(core):
                 <div class="attendanceSiteSub" id="dashboardSiteSub">{escape(dashboard_site_sub)}</div>
               </div>
 
-              <div class="modernMetricIcon maps" id="dashboardSiteIcon">
-                <svg viewBox="0 0 24 24">
-                  <path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11z"></path>
-                  <circle cx="12" cy="10" r="2.5"></circle>
-                </svg>
+                            <div class="modernMetricIcon maps locatingIcon" id="dashboardSiteIcon" aria-hidden="true">
+                <div class="geoLoader">
+                  <span class="geoSphere"></span>
+                  <span class="geoLat geoLat1"></span>
+                  <span class="geoLat geoLat2"></span>
+                  <span class="geoLon geoLon1"></span>
+                  <span class="geoLon geoLon2"></span>
+                  <span class="geoScan"></span>
+                  <span class="geoPing"></span>
+                </div>
               </div>
             </div>
           </a>
@@ -1645,6 +1650,89 @@ def home_impl(core):
 
 .dashboardShellModern .menuItem .chev{
   display:none !important;
+}
+.locatingIcon{
+  overflow:hidden;
+}
+
+.geoLoader{
+  position:relative;
+  width:34px;
+  height:34px;
+  flex:0 0 34px;
+}
+
+.geoSphere{
+  position:absolute;
+  inset:0;
+  border:2px solid currentColor;
+  border-radius:50%;
+  opacity:.95;
+}
+
+.geoLat,
+.geoLon{
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%, -50%);
+  border:1.7px solid currentColor;
+  border-radius:50%;
+  opacity:.45;
+}
+
+.geoLat1{ width:100%; height:42%; }
+.geoLat2{ width:100%; height:70%; }
+.geoLon1{ width:42%; height:100%; }
+.geoLon2{ width:70%; height:100%; }
+
+.geoScan{
+  position:absolute;
+  inset:-4px;
+  border-radius:50%;
+  background:conic-gradient(
+    from 0deg,
+    transparent 0deg 250deg,
+    currentColor 305deg,
+    transparent 360deg
+  );
+  opacity:.16;
+  animation:geoScanSpin 1.8s linear infinite;
+}
+
+.geoPing{
+  position:absolute;
+  right:1px;
+  bottom:2px;
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:currentColor;
+  box-shadow:0 0 0 0 rgba(34,197,94,.35);
+  animation:geoPingPulse 1.5s ease-out infinite;
+}
+
+@keyframes geoScanSpin{
+  from{ transform:rotate(0deg); }
+  to{ transform:rotate(360deg); }
+}
+
+@keyframes geoPingPulse{
+  0%{ box-shadow:0 0 0 0 rgba(34,197,94,.35); }
+  100%{ box-shadow:0 0 0 10px rgba(34,197,94,0); }
+}
+
+@media (max-width:620px){
+  .geoLoader{
+    width:28px;
+    height:28px;
+    flex:0 0 28px;
+  }
+
+  .geoPing{
+    width:7px;
+    height:7px;
+  }
 }
         
         .modernDash{
@@ -3182,9 +3270,116 @@ def home_impl(core):
             min-width:54px !important;
           }
         }
-        
+        /* FINAL MOBILE ICON FIX: keeps small-card icons inside the cards */
+@media (max-width:620px){
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard){
+    position:relative !important;
+    overflow:hidden !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) > div:first-child{
+    max-width:calc(100% - 50px) !important;
+    min-width:0 !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricValue,
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricSub{
+    max-width:calc(100% - 50px) !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon{
+    position:absolute !important;
+    right:10px !important;
+    left:auto !important;
+    top:50% !important;
+    transform:translateY(-50%) !important;
+    width:42px !important;
+    height:42px !important;
+    min-width:42px !important;
+    flex:0 0 42px !important;
+    margin:0 !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon svg{
+    width:21px !important;
+    height:21px !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .geoLoader{
+    width:24px !important;
+    height:24px !important;
+    flex:0 0 24px !important;
+  }
+}
+
+@media (max-width:380px){
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon{
+    right:8px !important;
+    width:38px !important;
+    height:38px !important;
+    min-width:38px !important;
+    flex:0 0 38px !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon svg{
+    width:19px !important;
+    height:19px !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .geoLoader{
+    width:22px !important;
+    height:22px !important;
+    flex:0 0 22px !important;
+  }
+
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricValue,
+  .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricSub{
+    max-width:calc(100% - 46px) !important;
+  }
+}
     
-        
+     /* ===== Light-blue Earth style for the live locating globe only ===== */
+.modernMetricIcon.maps.locatingIcon{
+  background:#E0F2FE !important;   /* soft ocean blue */
+  color:#38BDF8 !important;        /* globe line colour */
+  border:1px solid #BAE6FD !important;
+}
+
+/* Globe outer ring */
+.modernMetricIcon.maps.locatingIcon .geoSphere{
+  border-color:#38BDF8 !important;
+  opacity:.95;
+}
+
+/* Latitude / longitude lines */
+.modernMetricIcon.maps.locatingIcon .geoLat,
+.modernMetricIcon.maps.locatingIcon .geoLon{
+  border-color:#0EA5E9 !important;
+  opacity:.42;
+}
+
+/* Rotating scan glow */
+.modernMetricIcon.maps.locatingIcon .geoScan{
+  background:conic-gradient(
+    from 0deg,
+    transparent 0deg 245deg,
+    rgba(14,165,233,.90) 300deg,
+    transparent 360deg
+  ) !important;
+  opacity:.20;
+}
+
+/* Ping dot */
+.modernMetricIcon.maps.locatingIcon .geoPing{
+  background:#0EA5E9 !important;
+  box-shadow:0 0 0 0 rgba(14,165,233,.35);
+  animation:geoPingPulseBlue 1.5s ease-out infinite;
+}
+
+@keyframes geoPingPulseBlue{
+  0%{ box-shadow:0 0 0 0 rgba(14,165,233,.35); }
+  100%{ box-shadow:0 0 0 10px rgba(14,165,233,0); }
+}   
       </style>
     """
 
@@ -3245,6 +3440,26 @@ def home_impl(core):
           const label = document.getElementById("dashboardSiteLabel");
           const sub = document.getElementById("dashboardSiteSub");
           const icon = document.getElementById("dashboardSiteIcon");
+          const loadingIconHtml = icon ? icon.innerHTML : "";
+const pinIconHtml = `
+  <svg viewBox="0 0 24 24">
+    <path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11z"></path>
+    <circle cx="12" cy="10" r="2.5"></circle>
+  </svg>
+`;
+
+function showLocating(){{
+  if (!icon) return;
+  icon.innerHTML = loadingIconHtml;
+}}
+
+function stopLocating(){{
+  if (!icon) return;
+  icon.classList.remove("locatingIcon");
+  icon.innerHTML = pinIconHtml;
+}}
+
+showLocating();
 
           if (!card || !label || !sub || !icon) return;
 
@@ -3254,9 +3469,10 @@ def home_impl(core):
           }}
 
           function setSite(name, subtitle, tone){{
-            label.textContent = name;
-            sub.textContent = subtitle;
-            setIcon(tone);
+  stopLocating();
+  label.textContent = name;
+  sub.textContent = subtitle;
+  setIcon(tone);
 
             if (tone === "green") {{
               card.classList.add("isOnSite");
