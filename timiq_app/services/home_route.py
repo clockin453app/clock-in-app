@@ -464,7 +464,7 @@ def home_impl(core):
                 else "Clocked in"
             )
         else:
-            dashboard_site_label = "Load..."
+            dashboard_site_label = "search..."
             dashboard_site_sub = "Please wait"
 
     if dashboard_active_start_iso:
