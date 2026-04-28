@@ -393,11 +393,112 @@ h2{ font-size:var(--h2); margin:0 0 8px 0; font-weight:600; }
 }
 
 .topBarFixed{
+  position:sticky;
+  top:0;
+  z-index:120;
   display:flex;
   align-items:center;
-  justify-content:flex-end;
+  justify-content:space-between;
   gap:10px;
+  min-height:48px;
+  padding:4px 0 10px;
   margin-bottom:10px;
+  background:linear-gradient(180deg, rgba(247,249,252,.98), rgba(247,249,252,.88) 72%, rgba(247,249,252,0));
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+}
+.pageTopActions{
+  position:relative !important;
+  top:auto !important;
+  z-index:20 !important;
+  display:flex !important;
+  align-items:center !important;
+  justify-content:space-between !important;
+  gap:10px !important;
+  width:100% !important;
+  min-height:40px !important;
+  padding:0 !important;
+  margin:0 0 14px 0 !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  backdrop-filter:none !important;
+  -webkit-backdrop-filter:none !important;
+}
+
+.pageTopActions .topShellBack{
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  min-height:40px !important;
+  padding:0 !important;
+  color:#10213f !important;
+  background:transparent !important;
+  border:0 !important;
+  box-shadow:none !important;
+  text-decoration:none !important;
+  font-size:14px !important;
+  font-weight:800 !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+}
+
+.pageTopActions .topAccountWrap{
+  position:relative !important;
+  margin-left:auto !important;
+}
+
+.pageTopActions .topAccountTrigger{
+  width:40px !important;
+  height:40px !important;
+  display:inline-flex !important;
+  align-items:center !important;
+  justify-content:center !important;
+  border:0 !important;
+  background:transparent !important;
+  color:#10213f !important;
+  box-shadow:none !important;
+  padding:0 !important;
+}
+
+.pageTopActions .topAccountTrigger svg{
+  width:18px !important;
+  height:18px !important;
+}
+
+.pageTopActions .topAccountTrigger:hover,
+.pageTopActions .topShellBack:hover{
+  color:#0b63ff !important;
+}
+
+.topShellBackPlaceholder{
+  display:block;
+  width:1px;
+  height:1px;
+}
+
+.topShellBack,
+.pageBackLink{
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-height:40px;
+  padding:0 4px;
+  color:#10213f;
+  text-decoration:none;
+  font-size:14px;
+  font-weight:800;
+  line-height:1;
+  background:none;
+  border:0;
+  box-shadow:none;
+  cursor:pointer;
+  font-family:inherit;
+}
+
+.topShellBack:hover,
+.pageBackLink:hover{
+  color:#0b63ff;
 }
 
 .mobileTopLogo{
@@ -2809,14 +2910,15 @@ body.mobileRailClosed #mobileRailBackdrop{
     padding-right:0 !important;
   }
 
-  .topBarFixed{
-    position:sticky;
+    .topBarFixed{
     top:0;
-    z-index:120;
     padding:4px 0 10px;
+    margin-bottom:8px;
     background:linear-gradient(180deg, rgba(245,247,252,.98), rgba(245,247,252,.85) 70%, rgba(245,247,252,0));
-    backdrop-filter:blur(8px);
-    -webkit-backdrop-filter:blur(8px);
+  }
+
+  .topShellBack{
+    min-height:40px;
   }
 }
 
@@ -5868,6 +5970,27 @@ textarea.input:focus{
 
   .bottomNav{
     display:none !important;
+  }
+}
+@media (max-width:979px){
+  .pageTopActions{
+    position:relative !important;
+    top:auto !important;
+    display:flex !important;
+    align-items:center !important;
+    justify-content:space-between !important;
+    width:100% !important;
+    padding:0 !important;
+    margin:0 0 12px 0 !important;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+    backdrop-filter:none !important;
+    -webkit-backdrop-filter:none !important;
+  }
+
+  .pageTopActions .topAccountWrap{
+    margin-left:auto !important;
   }
 }
 </style>

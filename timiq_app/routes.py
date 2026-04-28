@@ -4546,51 +4546,34 @@ def sidebar_html(active: str, role: str) -> str:
     """
 
 
-def page_back_button(href: str | None = None, label: str = "Back") -> str:
+def page_back_button(href: str | None = None, label: str = "← Back") -> str:
     text = escape(label or "Back")
+
     if href:
+        safe_href = escape(href)
         return f'''
-        <div class="pageBackRow">
-          <a href="{escape(href)}"
-             aria-label="{text}"
-             title="{text}"
-             style="
-               display:inline-block;
-               color:#000;
-               text-decoration:none;
-               font-size:14px;
-               font-weight:400;
-               line-height:1.2;
-               background:none;
-               border:0;
-               padding:0;
-               box-shadow:none;
-             ">
-            Back
-          </a>
+        <div class="pageBackRow"
+             data-shell-back="1"
+             data-shell-back-href="{safe_href}"
+             data-shell-back-label="{text}">
+          <a class="pageBackLink" href="{safe_href}" aria-label="{text}" title="{text}">
+  ← Back
+</a>
         </div>
         '''
+
     return f'''
-    <div class="pageBackRow">
+    <div class="pageBackRow"
+         data-shell-back="1"
+         data-shell-back-history="1"
+         data-shell-back-label="{text}">
       <button type="button"
-              aria-label="{text}"
-              title="{text}"
-              onclick="window.history.back()"
-              style="
-                display:inline-block;
-                color:#000;
-                text-decoration:none;
-                font-size:14px;
-                font-weight:400;
-                line-height:1.2;
-                background:none;
-                border:0;
-                padding:0;
-                box-shadow:none;
-                cursor:pointer;
-              ">
-        Back
-      </button>
+        class="pageBackLink"
+        aria-label="{text}"
+        title="{text}"
+        onclick="window.history.back()">
+  ← Back
+</button>
     </div>
     '''
 
@@ -4610,11 +4593,44 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     mobile_work_progress_link = (
         '<a class="topAccountMenuItem" href="/work-progress"><span>Work Progress</span><span class="topAccountMenuMark">›</span></a>'
     )
+    shell_back_html = '<span class="topShellBackPlaceholder"></span>'
+
+    back_match = re.search(
+        r'<div\s+class="pageBackRow"(?P<attrs>[^>]*)>.*?</div>\s*',
+        content_html,
+        flags=re.DOTALL,
+    )
+
+    if back_match:
+        attrs = back_match.group("attrs") or ""
+
+        href_match = re.search(r'data-shell-back-href="([^"]*)"', attrs)
+        history_match = re.search(r'data-shell-back-history="1"', attrs)
+        label_match = re.search(r'data-shell-back-label="([^"]*)"', attrs)
+
+        label = html.unescape(label_match.group(1)) if label_match else "Back"
+        safe_label = escape(label)
+
+        if href_match:
+            href = html.unescape(href_match.group(1))
+            shell_back_html = (
+                f'<a class="topShellBack" href="{escape(href)}" '
+                f'aria-label="{safe_label}" title="{safe_label}">← Back</a>'
+            )
+        elif history_match:
+            shell_back_html = (
+                f'<button type="button" class="topShellBack" '
+                f'aria-label="{safe_label}" title="{safe_label}" '
+                f'onclick="window.history.back()">← Back</button>'
+            )
+
+        content_html = content_html[:back_match.start()] + content_html[back_match.end():]
 
     company_bar = f"""
-          <div class="topBarFixed">
-            <div></div>
-            <div class="topAccountWrap">
+              <div class="pageTopActions">
+                {shell_back_html}
+                <div class="topAccountWrap">
+                    
               <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
               </button>
@@ -5675,25 +5691,15 @@ def admin_current_sessions_force_logout():
 
 
 def admin_back_link(href: str = "/admin") -> str:
+    safe_href = escape(href or "/admin")
     return f"""
-      <div style="margin:8px 0 14px;">
-        <a href="{href}"
-           aria-label="Back"
-           title="Back"
-           style="
-             display:inline-block;
-             color:#000;
-             text-decoration:none;
-             font-size:14px;
-             font-weight:400;
-             line-height:1.2;
-             background:none;
-             border:0;
-             padding:0;
-             box-shadow:none;
-           ">
-          Back
-        </a>
+      <div class="pageBackRow"
+           data-shell-back="1"
+           data-shell-back-href="{safe_href}"
+           data-shell-back-label="Back">
+        <a class="pageBackLink" href="{safe_href}" aria-label="Back" title="Back">
+  ← Back
+</a>
       </div>
     """
 

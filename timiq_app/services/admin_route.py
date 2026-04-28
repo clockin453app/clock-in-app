@@ -35,6 +35,7 @@ def admin_impl(core):
     render_template_string = core["render_template_string"]
     _icon_clock_selfies = core["_icon_clock_selfies"]
     _icon_work_progress = core["_icon_work_progress"]
+    admin_back_link = core["admin_back_link"]
 
     gate = require_admin()
     if gate:
@@ -252,25 +253,6 @@ def admin_impl(core):
         </div>
       </div>
 
-                  <div class="kpiStrip adminStats" style="margin-bottom:12px;">
-        <div class="kpiMini adminStatCard employees">
-          <div class="k">Employees</div>
-          <div class="v">{employees_total}</div>
-        </div>
-        <div class="kpiMini adminStatCard clocked">
-          <div class="k">Clocked In</div>
-          <div class="v">{open_total}</div>
-        </div>
-        <div class="kpiMini adminStatCard locations">
-          <div class="k">Active Locations</div>
-          <div class="v">{locations_total}</div>
-        </div>
-        <div class="kpiMini adminStatCard onboarding">
-          <div class="k">Onboarding Records</div>
-          <div class="v">{onboarding_total}</div>
-        </div>
-      </div>
-
             <div class="card menu adminToolsShell" style="padding:14px;">
              <div class="adminGrid">
 
@@ -429,26 +411,4 @@ def admin_impl(core):
     )
 
 
-def admin_back_link(href: str = "/admin") -> str:
-    return f"""
-      <div style="margin:8px 0 14px;">
-        <a href="{href}"
-           aria-label="Back"
-           title="Back"
-           style="
-             display:inline-block;
-             color:#000;
-             text-decoration:none;
-             font-size:14px;
-             font-weight:400;
-             line-height:1.2;
-             background:none;
-             border:0;
-             padding:0;
-             box-shadow:none;
-           ">
-          Back
-        </a>
-      </div>
-    """
 
