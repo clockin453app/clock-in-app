@@ -4805,6 +4805,7 @@ def logout():
     auth_scope = str(session.get("auth_scope") or "").strip().lower()
     session_key = f"{auth_scope or 'employee_workplace'}:{username}:{active_session_token}" if username and active_session_token else ""
 
+
     if username and active_session_token:
         if auth_scope == "global_master_admin":
             _clear_global_master_admin_session_token(username, expected_token=active_session_token)
