@@ -359,7 +359,7 @@ def admin_workplaces_impl(core):
 
           <div class="headerTop">
             <div>
-              <h1>Workplaces</h1>
+              <h1>Companies</h1>
               <p class="sub">Master admin only.</p>
             </div>
             <div class="badge admin">{escape(role_label(session.get('role', 'master_admin')))}</div>
@@ -370,7 +370,7 @@ def admin_workplaces_impl(core):
           {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
 
           <div class="card" style="padding:12px;">
-            <h2>Create workplace</h2>
+            <h2>Create company</h2>
             <form method="POST">
               <input type="hidden" name="csrf" value="{escape(csrf)}">
               <input type="hidden" name="action" value="create">
@@ -428,7 +428,7 @@ def admin_workplaces_impl(core):
           {created_card}
 
           <div class="card" style="padding:12px; margin-top:12px;">
-      <h2>Existing workplaces</h2>
+      <h2>Existing companies</h2>
       <div class="tablewrap workplacesTableWrap" style="margin-top:12px;">
         <table class="workplacesTable" style="table-layout:fixed;">
           <thead>

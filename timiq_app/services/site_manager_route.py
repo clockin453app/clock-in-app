@@ -369,9 +369,9 @@ def site_manager_impl(core):
         <h2 style="margin:0;">Other tools</h2>
         <p class="sub" style="margin-top:4px;">Clock selfies will be added here in Phase 2 without giving access to Admin payroll.</p>
         <div style="display:flex; gap:10px; flex-wrap:wrap; margin-top:12px;">
-          <a class="btnTiny" style="text-decoration:none;" href="/clock">Clock In & Out</a>
-          <a class="btnTiny" style="text-decoration:none;" href="/my-times">My Time Logs</a>
-          <a class="btnTiny" style="text-decoration:none;" href="/work-progress">Work Progress</a>
+          <a class="btnTiny" style="text-decoration:none;" href="/clock">Attendance</a>
+<a class="btnTiny" style="text-decoration:none;" href="/my-times">Time Records</a>
+<a class="btnTiny" style="text-decoration:none;" href="/work-progress">Site Progress</a>
         </div>
       </div>
     """

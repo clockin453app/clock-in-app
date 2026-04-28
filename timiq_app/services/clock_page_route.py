@@ -915,7 +915,7 @@ def clock_page_impl(core):
                 <button class="clockSecondaryAction" id="btnClockOut" type="button">Clock Out</button>
               </form>
 
-              <a href="/my-times" class="clockTextLink">View time logs</a>
+              <a href="/my-times" class="clockTextLink">View Time Records</a>
               <div><button class="clockBackLink" id="backToStepOne" type="button">Retake selfie</button></div>
             </div>
           </div>

@@ -4487,11 +4487,11 @@ def sidebar_html(active: str, role: str) -> str:
 
     items = [
         ("home", "/", "Dashboard", _icon_dashboard(28)),
-        ("clock", "/clock", "Clock In & Out", _icon_clock(28)),
-        ("times", "/my-times", "Time logs", _icon_timelogs(28)),
+        ("clock", "/clock", "Attendance", _icon_clock(28)),
+        ("times", "/my-times", "Time Records", _icon_timelogs(28)),
         ("reports", "/my-reports", "Timesheets", _icon_timesheets(28)),
-        ("payments", "/payments", "Payments", _icon_payments(28)),
-        ("work-progress", "/work-progress", "Work Progress", _icon_work_progress(28)),
+        ("payments", "/payments", "Pay History", _icon_payments(28)),
+        ("work-progress", "/work-progress", "Site Progress", _icon_work_progress(28)),
     ]
 
     if role_l == "site_manager":
@@ -4500,11 +4500,11 @@ def sidebar_html(active: str, role: str) -> str:
         )
 
     if role_l in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Admin", _svg_shield()))
+        items.append(("admin", "/admin", "Management", _svg_shield()))
 
     if role_l == "master_admin":
-        items.append(("current-sessions", "/admin/current-sessions", "Current Sessions", _icon_current_sessions(28)))
-        items.append(("workplaces", "/admin/workplaces", "Workplaces", _icon_workplaces(28)))
+        items.append(("current-sessions", "/admin/current-sessions", "Live Attendance", _icon_current_sessions(28)))
+        items.append(("workplaces", "/admin/workplaces", "Companies", _icon_workplaces(28)))
 
     links = []
     for key, href, label, icon in items:
@@ -4592,12 +4592,12 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
         company_name = "Main"
 
     mobile_current_sessions_link = (
-        '<a class="topAccountMenuItem" href="/admin/current-sessions"><span>Current Sessions</span><span class="topAccountMenuMark">›</span></a>'
+        '<a class="topAccountMenuItem" href="/admin/current-sessions"><span>Live Attendance</span><span class="topAccountMenuMark">›</span></a>'
         if role == "master_admin" else ""
     )
 
     mobile_work_progress_link = (
-        '<a class="topAccountMenuItem" href="/work-progress"><span>Work Progress</span><span class="topAccountMenuMark">›</span></a>'
+        '<a class="topAccountMenuItem" href="/work-progress"><span>Site Progress</span><span class="topAccountMenuMark">›</span></a>'
     )
     shell_back_html = '<span class="topShellBackPlaceholder"></span>'
 
@@ -5608,7 +5608,7 @@ def admin_current_sessions():
 
       <div class="headerTop">
         <div>
-          <h1>Current Sessions</h1>
+          <h1>Live Attendance</h1>
           <p class="sub">Master admin only • authenticated users active in the last {LIVE_SESSION_TTL_SECONDS} seconds.</p>
         </div>
         <div class="badge admin">MASTER ADMIN</div>

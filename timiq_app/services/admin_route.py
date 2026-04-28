@@ -120,7 +120,7 @@ def admin_impl(core):
               <div class="adminSectionHeadLeft">
                 <div class="adminSectionIcon live">{_svg_user()}</div>
                 <div>
-                  <h2 class="adminSectionTitle">Live Clocked-In TEST</h2>
+                  <h2 class="adminSectionTitle">Live Attendance</h2>
                   <p class="adminSectionSub">Employees currently clocked in. Live time updates every second.</p>
                 </div>
               </div>
@@ -132,7 +132,7 @@ def admin_impl(core):
   <th>Employee</th>
   <th>Started</th>
   <th class="num">Live Time</th>
-  <th class="num">EST HOURS TEST</th>
+  <th class="num">Est. Hours</th>
   <th>Actions</th>
 </tr></thead>
                 <tbody>{''.join(rows)}</tbody>
@@ -177,7 +177,7 @@ def admin_impl(core):
               <div class="adminSectionHeadLeft">
                 <div class="adminSectionIcon live">{_svg_user()}</div>
                 <div>
-                  <h2 class="adminSectionTitle">Live Clocked-In</h2>
+                  <h2 class="adminSectionTitle">Live Attendance</h2>
                   <p class="adminSectionSub">See who is currently active on site in real time.</p>
                 </div>
               </div>
@@ -246,7 +246,7 @@ def admin_impl(core):
       <div class="adminHeroCard plainSection">
         <div class="adminHeroTop">
           <div>
-            <h1>Admin</h1>
+            <h1>Management</h1>
             <p class="sub">Payroll, onboarding, employees and workplace controls.</p>
           </div>
           <div class="badge admin">{escape(role_label(session.get('role', 'admin')))}</div>
@@ -261,7 +261,7 @@ def admin_impl(core):
               <div class="adminToolIcon">{_icon_payroll_report(45)}</div>
               <div class="chev">›</div>
             </div>
-            <div class="adminToolTitle">Payroll Report</div>
+            <div class="adminToolTitle">Payroll</div>
             <div class="adminToolSub">Weekly payroll, tax, net pay and paid status.</div>
           </a>
 
@@ -288,7 +288,7 @@ def admin_impl(core):
               <div class="adminToolIcon">{_icon_locations(45)}</div>
               <div class="chev">›</div>
             </div>
-            <div class="adminToolTitle">Locations</div>
+            <div class="adminToolTitle">Site Locations</div>
             <div class="adminToolSub">Manage geo-fence sites and allowed clock-in zones.</div>
           </a>
 
@@ -297,7 +297,7 @@ def admin_impl(core):
               <div class="adminToolIcon">{_icon_employee_sites(45)}</div>
               <div class="chev">›</div>
             </div>
-            <div class="adminToolTitle">Employee Sites</div>
+            <div class="adminToolTitle">Site Access</div>
             <div class="adminToolSub">Assign employees to site locations for clock-in access.</div>
           </a>
           
@@ -306,7 +306,7 @@ def admin_impl(core):
     <div class="adminToolIcon">{_icon_clock_selfies(45)}</div>
     <div class="chev">›</div>
    </div>
-  <div class="adminToolTitle">Clock Selfies</div>
+  <div class="adminToolTitle">Clock Photos</div>
   <div class="adminToolSub">View employee clock-in and clock-out photos for this workplace.</div>
 </a>
 
@@ -315,7 +315,7 @@ def admin_impl(core):
     <div class="adminToolIcon">{_icon_work_progress(45)}</div>
     <div class="chev">›</div>
   </div>
-  <div class="adminToolTitle">Work Progress</div>
+  <div class="adminToolTitle">Site Progress</div>
   <div class="adminToolSub">Upload and review site progress photos for this workplace.</div>
 </a>
 
@@ -372,7 +372,7 @@ def admin_impl(core):
           <div class="adminSectionHeadLeft">
             <div class="adminSectionIcon clockin">{_svg_clock()}</div>
             <div>
-              <h2 class="adminSectionTitle">Force Clock-In</h2>
+              <h2 class="adminSectionTitle">Manual Clock-In</h2>
               <p class="adminSectionSub">Use this if someone forgot to clock in.</p>
             </div>
           </div>
@@ -396,7 +396,7 @@ def admin_impl(core):
     {site_options_html}
   </select>
 
-  <button class="adminPrimaryBtn" type="submit">Force Clock-In</button>
+  <button class="adminPrimaryBtn" type="submit">Manual Clock-In</button>
 </div>
         </form>
       </div>

@@ -663,7 +663,7 @@ def work_progress_impl(core):
 
       <div class="headerTop">
         <div>
-          <h1>Work Progress</h1>
+          <h1>Site Progress</h1>
           <p class="sub">Upload and review site progress photos for workplace <b>{escape(wp)}</b>.</p>
         </div>
         <div class="badge admin">{badge}</div>

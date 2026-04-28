@@ -115,7 +115,7 @@ def admin_employee_sites_impl(core):
     content = f"""
           <div class="headerTop">
             <div>
-              <h1>Employee Sites</h1>
+              <h1>Site Access</h1>
               <p class="sub">Assign each employee to up to 2 sites (used for geo-fence clock in/out).</p>
             </div>
             <div class="badge admin">ADMIN</div>
@@ -129,7 +129,7 @@ def admin_employee_sites_impl(core):
               If no site is set for an employee, clock-in is <b>blocked</b> until a site is assigned.
             </p>
             <a href="/admin/locations" style="display:inline-block; margin-top:8px;">
-              <button class="btnSoft" type="button">Manage Locations</button>
+              <button class="btnSoft" type="button">Manage Site Locations</button>
             </a>
           </div>
 
