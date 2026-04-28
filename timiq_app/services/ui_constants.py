@@ -6213,68 +6213,7 @@ align-items:start !important;
     font-size:32px !important;
   }
 }
-/* Payroll mobile: force employee name column to float over horizontal scroll */
-@media (max-width:979px){
-  .payrollWrap{
-    position:relative !important;
-    overflow-x:auto !important;
-    overflow-y:visible !important;
-    -webkit-overflow-scrolling:touch !important;
-    isolation:isolate !important;
-  }
 
-  .payrollWrap .payrollSheet{
-    width:max-content !important;
-    min-width:1120px !important;
-    table-layout:fixed !important;
-    border-collapse:separate !important;
-    border-spacing:0 !important;
-  }
-
-  .payrollWrap .payrollEmpCell,
-  .payrollWrap .payrollSheet thead th:first-child,
-  .payrollWrap .payrollSheet tbody td:first-child{
-    width:156px !important;
-    min-width:156px !important;
-    max-width:156px !important;
-  }
-
-  .payrollWrap .payrollSheet thead th:first-child{
-    position:-webkit-sticky !important;
-    position:sticky !important;
-    left:0 !important;
-    z-index:80 !important;
-    background:#ffffff !important;
-    background-image:none !important;
-    box-shadow:12px 0 20px rgba(15,23,42,.14) !important;
-  }
-
-  .payrollWrap .payrollSheet tbody td:first-child{
-    position:-webkit-sticky !important;
-    position:sticky !important;
-    left:0 !important;
-    z-index:70 !important;
-    background:#ffffff !important;
-    background-image:none !important;
-    box-shadow:12px 0 20px rgba(15,23,42,.12) !important;
-  }
-
-  .payrollWrap .payrollSheet tbody tr:nth-child(even) td:first-child{
-    background:#f8fafc !important;
-  }
-
-  .payrollWrap .payrollSheet tbody tr:hover td:first-child,
-  .payrollWrap .payrollSheet tbody tr.is-selected td:first-child{
-    background:#eff6ff !important;
-  }
-
-  .payrollWrap .payrollSheet .emp,
-  .payrollWrap .payrollSheet .empSub{
-    white-space:normal !important;
-    overflow:visible !important;
-    text-overflow:clip !important;
-  }
-}
 </style>
 
 """
