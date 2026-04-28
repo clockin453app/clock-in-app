@@ -6215,6 +6215,13 @@ align-items:start !important;
   }
 }
 
+/* Mobile payroll sticky column fix:
+   the table must not clip the sticky first column on real mobile browsers. */
+@media (max-width:979px){
+  .payrollWrap .payrollSheet{
+    overflow:visible !important;
+  }
+}
 </style>
 
 """
