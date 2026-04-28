@@ -5993,6 +5993,133 @@ textarea.input:focus{
     margin-left:auto !important;
   }
 }
+/* Admin page compact 4-card grid */
+.adminToolsShell{
+  padding:12px !important;
+}
+
+.adminToolsShell .adminGrid{
+  display:grid !important;
+  grid-template-columns:repeat(4, minmax(0, 1fr)) !important;
+  gap:10px !important;
+  margin-top:0 !important;
+}
+
+.adminToolsShell .adminToolCard{
+  min-height:118px !important;
+  padding:13px !important;
+  gap:9px !important;
+  box-shadow:0 8px 18px rgba(15,23,42,.06) !important;
+}
+
+.adminToolsShell .adminToolCard:hover{
+  transform:translateY(-1px) !important;
+  box-shadow:0 12px 24px rgba(15,23,42,.09) !important;
+}
+
+.adminToolsShell .adminToolTop{
+  gap:8px !important;
+}
+
+.adminToolsShell .adminToolIcon{
+  width:42px !important;
+  height:42px !important;
+}
+
+.adminToolsShell .adminToolIcon svg{
+  width:20px !important;
+  height:20px !important;
+}
+
+.adminToolsShell .adminToolCard.selfies .adminToolIcon svg{
+  width:34px !important;
+  height:34px !important;
+}
+
+.adminToolsShell .adminToolTitle{
+  font-size:14px !important;
+  line-height:1.15 !important;
+}
+
+.adminToolsShell .adminToolSub{
+  font-size:12px !important;
+  line-height:1.3 !important;
+}
+
+@media (max-width:1200px){
+  .adminToolsShell .adminGrid{
+    grid-template-columns:repeat(3, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width:900px){
+  .adminToolsShell .adminGrid{
+    grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width:700px){
+  .adminToolsShell .adminGrid{
+    grid-template-columns:1fr !important;
+  }
+
+  .adminToolsShell .adminToolCard{
+    min-height:112px !important;
+  }
+}
+/* Admin cards: put title/subtitle to the right of the icon */
+.adminToolsShell .adminToolCard{
+  display:grid !important;
+  grid-template-columns:42px minmax(0, 1fr) !important;
+  grid-template-areas:
+  "icon title"
+  ". sub" !important;
+grid-template-rows:42px auto !important;
+column-gap:12px !important;
+row-gap:4px !important;
+align-items:start !important;
+}
+.adminToolsShell .adminToolTop{
+  align-self:center !important;
+}
+
+.adminToolsShell .adminToolTitle{
+  min-height:42px !important;
+  display:flex !important;
+  align-items:center !important;
+}
+
+.adminToolsShell .adminToolTop{
+  grid-area:icon !important;
+  display:block !important;
+  width:42px !important;
+  min-width:42px !important;
+  min-height:42px !important;
+  margin:0 !important;
+}
+
+.adminToolsShell .adminToolIcon{
+  width:42px !important;
+  height:42px !important;
+  margin:0 !important;
+}
+
+.adminToolsShell .adminToolTitle{
+  grid-area:title !important;
+  display:block !important;
+  align-self:center !important;
+  margin:0 !important;
+}
+
+.adminToolsShell .adminToolSub{
+  grid-area:sub !important;
+  display:block !important;
+  margin:0 !important;
+}
+
+.adminToolsShell .adminToolTop .chev{
+  display:none !important;
+}
 </style>
 
 """
