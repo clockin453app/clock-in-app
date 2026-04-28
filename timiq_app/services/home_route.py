@@ -3131,35 +3131,29 @@ def home_impl(core):
           }
 
           .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricValue{
-            font-size:34px !important;
-            line-height:1 !important;
-            letter-spacing:-0.04em !important;
-            max-width:calc(100% - 64px) !important;
-          }
+  max-width:calc(100% - 54px) !important;
+}
 
-          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricSub{
-            margin-top:10px !important;
-            font-size:12px !important;
-            line-height:1.25 !important;
-            max-width:calc(100% - 64px) !important;
-          }
+.modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricSub{
+  max-width:calc(100% - 54px) !important;
+}
 
           .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon{
-            position:absolute !important;
-            right:14px !important;
-            top:50% !important;
-            transform:translateY(-50%) !important;
-            width:52px !important;
-            height:52px !important;
-            min-width:52px !important;
-            flex:0 0 52px !important;
-            margin:0 !important;
-          }
+  position:absolute !important;
+  right:10px !important;
+  top:50% !important;
+  transform:translateY(-50%) !important;
+  width:44px !important;
+  height:44px !important;
+  min-width:44px !important;
+  flex:0 0 44px !important;
+  margin:0 !important;
+}
 
           .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon svg{
-            width:26px !important;
-            height:26px !important;
-          }
+  width:22px !important;
+  height:22px !important;
+}
 
           .modernTimesheetTable th:nth-child(2),
           .modernTimesheetTable td:nth-child(2){
