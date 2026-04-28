@@ -361,6 +361,25 @@ def admin_impl(core):
                 <div class="adminToolTitle">System Health</div>
                 <div class="adminToolSub">Master-only checks for database, storage, backups and app status.</div>
               </a>
+                            <a class="adminToolCard audit" href="/admin/audit">
+                <div class="adminToolTop">
+                  <div class="adminToolIcon">
+                    <svg width="45" height="45" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <rect x="4" y="4" width="56" height="56" rx="14" fill="#F8FAFC"/>
+                      <path d="M20 14H42L50 22V50H20V14Z" fill="#FFFFFF" stroke="#0B63FF" stroke-width="2.5" stroke-linejoin="round"/>
+                      <path d="M42 14V23H50" stroke="#0B63FF" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      <path d="M27 30H43" stroke="#315F8F" stroke-width="2.5" stroke-linecap="round"/>
+                      <path d="M27 37H43" stroke="#315F8F" stroke-width="2.5" stroke-linecap="round"/>
+                      <path d="M27 44H36" stroke="#315F8F" stroke-width="2.5" stroke-linecap="round"/>
+                      <circle cx="19" cy="48" r="10" fill="#DCFCE7" stroke="#10B981" stroke-width="2.5"/>
+                      <path d="M14.5 48L18 51.5L24.5 44.5" stroke="#059669" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+                    </svg>
+                  </div>
+                  <div class="chev">›</div>
+                </div>
+                <div class="adminToolTitle">Audit Log</div>
+                <div class="adminToolSub">Master-only activity history for payroll, employees and management actions.</div>
+              </a>
             '''
     if session.get("role") == "master_admin"
     else ""

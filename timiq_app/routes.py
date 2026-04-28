@@ -673,6 +673,7 @@ from .services.public_preview_route import public_preview_impl
 from .services.my_reports_route import my_reports_impl
 from .services.my_times_route import my_times_impl
 from .services.admin_log_activities_route import admin_log_activities_impl
+from .services.admin_audit_route import admin_audit_impl
 from .services.admin_system_health_route import admin_system_health_impl, admin_system_backup_export_impl
 from .services.admin_route import admin_impl
 from .services.admin_onboarding_download_route import admin_onboarding_download_impl
@@ -4924,6 +4925,10 @@ def my_times():
 @routes.get("/admin/log-activities")
 def admin_log_activities():
     return admin_log_activities_impl(core=globals())
+
+@routes.get("/admin/audit")
+def admin_audit():
+    return admin_audit_impl(core=globals())
 
 
 @routes.get("/my-reports")

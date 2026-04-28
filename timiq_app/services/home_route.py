@@ -46,6 +46,13 @@ def home_impl(core):
     render_template_string = core["render_template_string"]
     request = core["request"]
     url_for = core["url_for"]
+    json_mod = core["json"]
+
+    get_payroll_rows = core.get("get_payroll_rows")
+    _list_employee_records_for_workplace = core.get("_list_employee_records_for_workplace")
+    AuditLog = core.get("AuditLog")
+    WorkHour = core.get("WorkHour")
+    DB_MIGRATION_MODE = core.get("DB_MIGRATION_MODE", False)
 
     gate = require_login()
     if gate:
@@ -354,6 +361,112 @@ def home_impl(core):
         except Exception:
             pass
 
+    # Current site card: shows where the logged-in user is currently clocked in.
+    # DB first, sheet fallback. This fixes Manual Clock-In with selected site.
+    current_site_name = ""
+    current_site_date = ""
+    current_site_time = ""
+
+    if DB_MIGRATION_MODE and WorkHour is not None:
+        try:
+            db_open_shift = (
+                WorkHour.query
+                .filter(
+                    WorkHour.employee_email == username,
+                    WorkHour.clock_out.is_(None),
+                )
+                .order_by(WorkHour.date.desc(), WorkHour.id.desc())
+                .first()
+            )
+
+            if db_open_shift:
+                rec_wp = str(
+                    getattr(db_open_shift, "workplace_id", "")
+                    or getattr(db_open_shift, "workplace", "")
+                    or ""
+                ).strip() or "default"
+
+                if rec_wp in allowed_wps:
+                    current_site_name = str(
+                        getattr(db_open_shift, "in_site", "")
+                        or getattr(db_open_shift, "out_site", "")
+                        or ""
+                    ).strip()
+
+                    rec_date = getattr(db_open_shift, "date", None)
+                    rec_clock_in = getattr(db_open_shift, "clock_in", None)
+
+                    current_site_date = rec_date.isoformat() if rec_date else ""
+                    current_site_time = rec_clock_in.strftime("%H:%M:%S") if rec_clock_in else ""
+        except Exception:
+            current_site_name = ""
+
+    if not current_site_name:
+        header_lookup = {}
+        for i, h in enumerate(headers or []):
+            key = str(h or "").strip().lower().replace("_", "").replace(" ", "")
+            if key:
+                header_lookup[key] = i
+
+        site_idx_candidates = []
+        for site_col_name in (
+            "insite",
+            "outsite",
+            "site",
+            "clockinsite",
+            "location",
+            "sitename",
+            "insitename",
+        ):
+            if site_col_name in header_lookup:
+                site_idx_candidates.append(header_lookup[site_col_name])
+
+        for r in rows[1:]:
+            if len(r) <= max(COL_USER, COL_DATE, COL_IN, COL_OUT):
+                continue
+
+            row_user = (r[COL_USER] or "").strip()
+            if row_user != username:
+                continue
+
+            if wp_idx is not None:
+                row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+                if row_wp not in allowed_wps:
+                    continue
+            else:
+                if not user_in_same_workplace(row_user):
+                    continue
+
+            d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+            cin = (r[COL_IN] if len(r) > COL_IN else "").strip()
+            cout = (r[COL_OUT] if len(r) > COL_OUT else "").strip()
+
+            if not cin or cout:
+                continue
+
+            row_site_name = ""
+            for site_idx in site_idx_candidates:
+                if site_idx < len(r):
+                    row_site_name = str(r[site_idx] or "").strip()
+                    if row_site_name:
+                        break
+
+            if not current_site_date or (d_str, cin) >= (current_site_date, current_site_time):
+                current_site_date = d_str
+                current_site_time = cin
+                current_site_name = row_site_name
+
+        if dashboard_active_start_iso:
+            dashboard_site_label = current_site_name or "Site missing"
+            dashboard_site_sub = (
+                f"Started {dashboard_active_start_label[-8:-3]}"
+                if dashboard_active_start_label
+                else "Clocked in"
+            )
+        else:
+            dashboard_site_label = "Load..."
+            dashboard_site_sub = "Please wait"
+
     if dashboard_active_start_iso:
         dashboard_status_html = f"""
               <div class="dashboardLiveClockWrap">
@@ -495,10 +608,381 @@ def home_impl(core):
     except Exception:
         pass
 
+    active_locations = []
     try:
-        active_locations_count = len(_get_active_locations())
+        active_locations = _get_active_locations() or []
+        active_locations_count = len(active_locations)
     except Exception:
+        active_locations = []
         active_locations_count = 0
+
+    # ================= SMART DASHBOARD: admin/master only, read-only =================
+    is_admin_like = role in ("admin", "master_admin")
+    current_week_start = monday
+    current_week_end = monday + timedelta(days=6)
+    current_week_start_str = current_week_start.isoformat()
+    current_week_end_str = current_week_end.isoformat()
+
+    week_users_with_work = set()
+    open_shift_users = set()
+    older_open_shift_count = 0
+    live_site_summary = {}
+
+    in_site_idx = headers.index("InSite") if (headers and "InSite" in headers) else None
+    out_site_idx = headers.index("OutSite") if (headers and "OutSite" in headers) else None
+
+    for r in rows[1:]:
+        if len(r) <= COL_USER or len(r) <= COL_DATE:
+            continue
+
+        row_user = (r[COL_USER] or "").strip()
+        if not row_user:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+        else:
+            if not user_in_same_workplace(row_user):
+                continue
+
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        cin = (r[COL_IN] if len(r) > COL_IN else "").strip()
+        cout = (r[COL_OUT] if len(r) > COL_OUT else "").strip()
+        h_val = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        p_val = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
+
+        try:
+            d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
+        except Exception:
+            d_obj = None
+
+        if d_obj and current_week_start <= d_obj <= current_week_end and (h_val > 0 or p_val > 0):
+            week_users_with_work.add(row_user)
+
+        if cin and not cout:
+            open_shift_users.add(row_user)
+
+            if d_obj and d_obj < today:
+                older_open_shift_count += 1
+
+            row_in_site = (r[in_site_idx] if in_site_idx is not None and len(r) > in_site_idx else "").strip()
+            row_out_site = (r[out_site_idx] if out_site_idx is not None and len(r) > out_site_idx else "").strip()
+            site_name = row_out_site or row_in_site or "No site"
+
+            live_site_summary.setdefault(site_name, set())
+            live_site_summary[site_name].add(row_user)
+
+    active_employee_records = []
+    employee_rate_lookup = {}
+    employees_without_site = 0
+
+    try:
+        if callable(_list_employee_records_for_workplace):
+            try:
+                employee_records = _list_employee_records_for_workplace(current_wp, include_inactive=True) or []
+            except TypeError:
+                employee_records = _list_employee_records_for_workplace(include_inactive=True) or []
+        else:
+            employee_records = []
+    except Exception:
+        employee_records = []
+
+    for rec in employee_records:
+        rec_wp = str(
+            rec.get("Workplace_ID")
+            or rec.get("workplace_id")
+            or rec.get("workplace")
+            or "default"
+        ).strip() or "default"
+
+        if rec_wp not in allowed_wps:
+            continue
+
+        rec_user = str(rec.get("Username") or rec.get("username") or "").strip()
+        if not rec_user:
+            continue
+
+        active_raw = str(rec.get("Active") or rec.get("active") or "TRUE").strip().lower()
+        is_active_employee = active_raw not in ("false", "0", "no", "n", "off")
+
+        if not is_active_employee:
+            continue
+
+        active_employee_records.append(rec)
+
+        rate_raw = rec.get("Rate")
+        if rate_raw in (None, ""):
+            rate_raw = rec.get("rate")
+
+        try:
+            employee_rate_lookup[rec_user] = safe_float(rate_raw, 0.0)
+        except Exception:
+            employee_rate_lookup[rec_user] = 0.0
+
+        site_1 = str(rec.get("Site") or rec.get("site") or "").strip()
+        site_2 = str(rec.get("Site2") or rec.get("site2") or "").strip()
+        if not site_1 and not site_2:
+            employees_without_site += 1
+
+    missing_rate_users = [
+        u for u in week_users_with_work
+        if safe_float(employee_rate_lookup.get(u, 0.0), 0.0) <= 0
+    ]
+    missing_rate_count = len(missing_rate_users)
+
+    payroll_paid_users = set()
+    payroll_approved_users = set()
+
+    try:
+        payroll_vals = get_payroll_rows() if callable(get_payroll_rows) else []
+        payroll_headers = payroll_vals[0] if payroll_vals else []
+
+        def payroll_idx(name):
+            return payroll_headers.index(name) if name in payroll_headers else None
+
+        i_ws = payroll_idx("WeekStart")
+        i_we = payroll_idx("WeekEnd")
+        i_u = payroll_idx("Username")
+        i_paid = payroll_idx("Paid")
+        i_pa = payroll_idx("PaidAt")
+        i_wp = payroll_idx("Workplace_ID")
+
+        for pr in payroll_vals[1:]:
+            pr_ws = (pr[i_ws] if i_ws is not None and i_ws < len(pr) else "").strip()
+            pr_we = (pr[i_we] if i_we is not None and i_we < len(pr) else "").strip()
+            pr_user = (pr[i_u] if i_u is not None and i_u < len(pr) else "").strip()
+            pr_paid = (pr[i_paid] if i_paid is not None and i_paid < len(pr) else "").strip().lower()
+            pr_paid_at = (pr[i_pa] if i_pa is not None and i_pa < len(pr) else "").strip()
+            pr_wp = (pr[i_wp] if i_wp is not None and i_wp < len(pr) else "").strip() or "default"
+
+            if pr_wp not in allowed_wps:
+                continue
+            if pr_ws != current_week_start_str or pr_we != current_week_end_str:
+                continue
+            if not pr_user:
+                continue
+
+            if pr_paid_at or pr_paid in ("true", "1", "yes", "paid", "locked"):
+                payroll_paid_users.add(pr_user)
+            elif pr_paid == "approved":
+                payroll_approved_users.add(pr_user)
+    except Exception:
+        payroll_paid_users = set()
+        payroll_approved_users = set()
+
+    payroll_awaiting_pay_count = len(payroll_approved_users - payroll_paid_users)
+    payroll_paid_count = len(payroll_paid_users)
+    payroll_approved_count = len(payroll_approved_users)
+    payroll_unapproved_count = len(week_users_with_work - payroll_paid_users - payroll_approved_users)
+
+    smart_warning_count = (
+            older_open_shift_count
+            + missing_rate_count
+            + employees_without_site
+            + payroll_unapproved_count
+    )
+
+    def smart_status_class(count_value):
+        return "bad" if int(count_value or 0) > 0 else "ok"
+
+    def smart_status_text(count_value):
+        return "Needs attention" if int(count_value or 0) > 0 else "Clear"
+
+    attention_items = [
+        ("Open shifts from previous days", older_open_shift_count, "/admin/log-activities"),
+        ("Payroll not approved", payroll_unapproved_count, "/admin/payroll"),
+        ("Approved, awaiting payment", payroll_awaiting_pay_count, "/admin/payroll"),
+        ("Employees missing rate", missing_rate_count, "/admin/employees"),
+        ("Employees without site access", employees_without_site, "/admin/employee-sites"),
+        ("Pending starter forms", onboarding_pending_count, "/admin/onboarding"),
+    ]
+
+    attention_rows_html = ""
+    for label, count_value, href in attention_items:
+        tone = smart_status_class(count_value)
+        attention_rows_html += f"""
+          <a class="smartDashRow" href="{escape(href)}">
+            <span>{escape(label)}</span>
+            <strong class="{tone}">{int(count_value or 0)}</strong>
+          </a>
+        """
+
+    live_sites_html = ""
+    if live_site_summary:
+        for site_name, site_users in sorted(live_site_summary.items(), key=lambda item: item[0].lower()):
+            live_sites_html += f"""
+              <div class="smartSitePill">
+                <span>{escape(site_name)}</span>
+                <strong>{len(site_users)}</strong>
+              </div>
+            """
+    else:
+        live_sites_html = """
+          <div class="smartEmptyLine">No workers currently clocked in.</div>
+        """
+
+    warning_rows_html = ""
+    smart_warnings = [
+        ("Previous-day open shifts", older_open_shift_count),
+        ("Missing hourly rates", missing_rate_count),
+        ("Missing site access", employees_without_site),
+        ("Unapproved payroll rows", payroll_unapproved_count),
+        ("No active site locations", 1 if active_locations_count <= 0 else 0),
+    ]
+
+    for label, count_value in smart_warnings:
+        if int(count_value or 0) <= 0:
+            continue
+
+        warning_rows_html += f"""
+          <div class="smartWarningLine">
+            <span>{escape(label)}</span>
+            <strong>{int(count_value or 0)}</strong>
+          </div>
+        """
+
+    if not warning_rows_html:
+        warning_rows_html = """
+          <div class="smartGoodLine">No setup or payroll warnings for this workplace.</div>
+        """
+
+    recent_actions_html = ""
+    if is_admin_like and DB_MIGRATION_MODE and AuditLog is not None:
+        try:
+            audit_rows = (
+                AuditLog.query
+                .filter(AuditLog.workplace_id.in_(list(allowed_wps)))
+                .order_by(AuditLog.created_at.desc())
+                .limit(5)
+                .all()
+            )
+
+            for a in audit_rows:
+                action = str(getattr(a, "action", "") or "").replace("_", " ").title()
+                actor = str(getattr(a, "actor", "") or "").strip() or "System"
+                target = str(getattr(a, "username", "") or "").strip()
+                created = getattr(a, "created_at", None)
+                when = created.strftime("%d %b • %H:%M") if created else ""
+
+                detail_text = f"{actor}"
+                if target:
+                    detail_text += f" → {target}"
+
+                recent_actions_html += f"""
+                  <div class="smartActionLine">
+                    <div>
+                      <strong>{escape(action or "Activity")}</strong>
+                      <span>{escape(detail_text)}</span>
+                    </div>
+                    <em>{escape(when)}</em>
+                  </div>
+                """
+        except Exception:
+            recent_actions_html = ""
+
+    if not recent_actions_html:
+        recent_actions_html = """
+          <div class="smartEmptyLine">No recent admin actions available.</div>
+        """
+
+    audit_view_all_link = (
+        '<a class="smartMiniLink" href="/admin/audit">View all</a>'
+        if role == "master_admin"
+        else ""
+    )
+
+    audit_view_all_link = (
+        '<a class="modernPanelLink small" href="/admin/audit">View all ›</a>'
+        if role == "master_admin"
+        else ""
+    )
+
+    recent_activity_panel_html = ""
+    if is_admin_like:
+        recent_activity_panel_html = f"""
+          <div class="modernPanel modernActivityPanel">
+            <div class="modernPanelHeaderRow">
+              <div>
+                <h2 class="modernPanelTitle">Recent Activity</h2>
+                <p class="modernPanelSub">Latest workplace actions.</p>
+              </div>
+              {audit_view_all_link}
+            </div>
+            <div class="professionalActionList">
+              {recent_actions_html}
+            </div>
+          </div>
+        """
+
+    smart_dashboard_html = ""
+    if is_admin_like:
+        smart_dashboard_html = f"""
+          <div class="professionalDashboard">
+            <div class="professionalMainGrid">
+              <div class="professionalCard professionalAttentionCard">
+                <div class="professionalCardHead">
+                  <div>
+                    <h2>Operational Attention</h2>
+                    <p>Items that may need action before payroll or site review.</p>
+                  </div>
+                  <span class="professionalStatus {smart_status_class(smart_warning_count)}">
+                    {escape(str(int(smart_warning_count or 0)) + " issue" + ("" if int(smart_warning_count or 0) == 1 else "s"))}
+                  </span>
+                </div>
+
+                <div class="professionalAttentionList">
+                  {attention_rows_html}
+                </div>
+              </div>
+
+              <div class="professionalCard professionalPayrollCard">
+                <div class="professionalCardHead">
+                  <div>
+                    <h2>Payroll Snapshot</h2>
+                    <p>{escape(current_week_start.strftime("%d %b"))} – {escape(current_week_end.strftime("%d %b %Y"))}</p>
+                  </div>
+                  <a class="professionalLink" href="/admin/payroll">Open Payroll</a>
+                </div>
+
+                <div class="professionalPayrollStats">
+                  <div>
+                    <span>Workers</span>
+                    <strong>{len(week_users_with_work)}</strong>
+                  </div>
+                  <div>
+                    <span>Approved</span>
+                    <strong>{payroll_approved_count}</strong>
+                  </div>
+                  <div>
+                    <span>Paid</span>
+                    <strong>{payroll_paid_count}</strong>
+                  </div>
+                  <div>
+                    <span>Awaiting pay</span>
+                    <strong>{payroll_awaiting_pay_count}</strong>
+                  </div>
+                </div>
+
+                <div class="professionalWarnings">
+                  {warning_rows_html}
+                </div>
+              </div>
+            </div>
+
+            <div class="professionalLiveStrip">
+              <div>
+                <strong>Live Attendance</strong>
+                <span>{len(open_shift_users)} worker(s) clocked in now.</span>
+              </div>
+              <div class="professionalLiveSites">
+                {live_sites_html}
+              </div>
+              <a class="professionalLink" href="/admin/log-activities">View logs</a>
+            </div>
+          </div>
+        """
 
     if role in ("admin", "master_admin"):
         clock_status_card_html = f"""
@@ -520,20 +1004,35 @@ def home_impl(core):
         """
     elif dashboard_active_start_iso:
         clock_status_card_html = f"""
-              <a class="clockStatusCardLink" href="/clock">
-                <div class="modernMetricCard noMetricIcon">
-                  <div>
-                    <div class="modernMetricLabel clockLiveLabel">
-                      <span>Clocked In</span>
-                      <span class="clockLiveDot" aria-hidden="true"></span>
-                    </div>
-                    <div class="modernMetricValue liveTimeValue" id="dashboardMetricLiveTimer">00:00:00</div>
-                    <div class="modernMetricSub">Live time since clock-in</div>
-                  </div>
-                </div>
-              </a>
+          <a class="modernMetricCard clockStatusCardLink attendanceCombinedCard isClockedIn" href="/clock" title="Open clock page">
+            <div class="attendanceCombinedMain">
+              <div class="modernMetricLabel clockLiveLabel">
+                <span>Clocked In</span>
+                <span class="clockLiveDot" aria-hidden="true"></span>
+              </div>
+              <div class="modernMetricValue liveTimeValue" id="dashboardMetricLiveTimer">00:00:00</div>
+              <div class="modernMetricSub">Live time since clock-in</div>
+            </div>
 
-              <script>
+            <div class="attendanceCombinedDivider"></div>
+
+            <div class="attendanceCombinedSite" id="dashboardSiteCard">
+              <div class="attendanceSiteText">
+                <div class="attendanceSiteLabel">Current Site</div>
+                <div class="attendanceSiteValue" id="dashboardSiteLabel">{escape(dashboard_site_label)}</div>
+                <div class="attendanceSiteSub" id="dashboardSiteSub">{escape(dashboard_site_sub)}</div>
+              </div>
+
+              <div class="modernMetricIcon maps" id="dashboardSiteIcon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11z"></path>
+                  <circle cx="12" cy="10" r="2.5"></circle>
+                </svg>
+              </div>
+            </div>
+          </a>
+
+          <script>
             (function() {{
               const startIso = "{escape(dashboard_active_start_iso)}";
               const start = new Date(startIso);
@@ -564,12 +1063,27 @@ def home_impl(core):
         """
     else:
         clock_status_card_html = f"""
-          <a class="clockStatusCardLink" href="/clock">
-            <div class="modernMetricCard noMetricIcon">
-              <div>
-                <div class="modernMetricLabel">Not Clocked In</div>
-                <div class="modernMetricValue clockStartValue">Start Now</div>
-                <div class="modernMetricSub">Open clock page</div>
+          <a class="modernMetricCard clockStatusCardLink attendanceCombinedCard" href="/clock" title="Open clock page">
+            <div class="attendanceCombinedMain">
+              <div class="modernMetricLabel">Clock In</div>
+              <div class="modernMetricValue clockStartValue">Start</div>
+              <div class="modernMetricSub">Tap to clock in</div>
+            </div>
+
+            <div class="attendanceCombinedDivider"></div>
+
+            <div class="attendanceCombinedSite" id="dashboardSiteCard">
+              <div class="attendanceSiteText">
+                <div class="attendanceSiteLabel">Current Site</div>
+                <div class="attendanceSiteValue" id="dashboardSiteLabel">{escape(dashboard_site_label)}</div>
+                <div class="attendanceSiteSub" id="dashboardSiteSub">{escape(dashboard_site_sub)}</div>
+              </div>
+
+              <div class="modernMetricIcon maps" id="dashboardSiteIcon">
+                <svg viewBox="0 0 24 24">
+                  <path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11z"></path>
+                  <circle cx="12" cy="10" r="2.5"></circle>
+                </svg>
               </div>
             </div>
           </a>
@@ -1281,11 +1795,19 @@ def home_impl(core):
           box-shadow:0 12px 28px rgba(37,99,235,.25);
         }
 
-        .modernMetricGrid{
+                .modernMetricGrid{
           display:grid;
           grid-template-columns:repeat(4,minmax(0,1fr));
           gap:20px;
           margin-bottom:24px;
+          align-items:stretch;
+        }
+
+        .modernMetricGrid > .modernMetricCard,
+        .modernMetricGrid > .dashboardSiteCard{
+          height:100%;
+          min-height:150px;
+          box-sizing:border-box;
         }
 
         .modernMetricCard{
@@ -1322,8 +1844,10 @@ def home_impl(core):
           white-space:nowrap;
         }
                 .clockStartValue{
-          color:#7fc7ee !important;
-        }
+  color:#0b63ff !important;
+  font-size:38px !important;
+  letter-spacing:-.05em !important;
+}
         
         .grossPayValue{
   display:flex;
@@ -1370,28 +1894,289 @@ def home_impl(core):
           flex:0 0 9px;
         }
 
-        .clockStatusCardLink{
-          text-decoration:none !important;
-          color:inherit !important;
-          display:block;
-        }
+                .clockStatusCardLink{
+  text-decoration:none !important;
+  color:inherit !important;
+  min-height:150px;
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+}
 
-        .clockStatusCardLink .modernMetricCard{
-          cursor:pointer;
-          transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
-        }
+.clockStatusCardLink:hover{
+  transform:translateY(-2px);
+  border-color:#bfdbfe;
+  box-shadow:0 18px 38px rgba(37,99,235,.12);
+}
 
-        .clockStatusCardLink .modernMetricCard:hover{
-          transform:translateY(-2px);
-          border-color:#bfdbfe;
-          box-shadow:0 18px 38px rgba(37,99,235,.12);
-        }
+.attendanceCombinedCard{
+  grid-column:span 2;
+  min-height:150px;
+  display:grid !important;
+  grid-template-columns:minmax(0,.9fr) 1px minmax(0,1.1fr);
+  gap:0;
+  padding:0;
+  overflow:hidden;
+  align-items:stretch;
+}
 
-        @media (max-width:620px){
-          .liveTimeValue{
-            font-size:30px !important;
-          }
-        }
+.attendanceCombinedMain,
+.attendanceCombinedSite{
+  min-width:0;
+  min-height:150px;
+  padding:24px;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  justify-content:flex-start;
+  gap:0;
+  box-sizing:border-box;
+}
+
+.attendanceCombinedSite{
+  position:relative;
+  padding-right:96px;
+}
+
+.attendanceCombinedDivider{
+  width:1px;
+  background:#e8eef7;
+  align-self:stretch;
+}
+
+.attendanceSiteText{
+  min-width:0;
+  flex:1 1 auto;
+}
+
+.attendanceSiteLabel{
+  font-size:16px;
+  line-height:1.15;
+  font-weight:900;
+  color:#0c1733;
+  margin:0 0 22px 0;
+}
+
+.attendanceSiteValue{
+  display:block;
+  max-width:100%;
+  font-size:34px;
+  line-height:1;
+  font-weight:900;
+  color:#07152f;
+  letter-spacing:-.04em;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  margin:0;
+}
+
+.attendanceSiteSub{
+  margin-top:16px;
+  color:#52627d;
+  font-size:14px;
+  line-height:1.25;
+  font-weight:600;
+}
+.attendanceCombinedSite .modernMetricIcon{
+  position:absolute;
+  right:24px;
+  top:50%;
+  transform:translateY(-50%);
+  width:64px;
+  height:64px;
+  min-width:64px;
+  flex:0 0 64px;
+  margin:0;
+}
+
+.attendanceCombinedSite .modernMetricIcon svg{
+  width:30px;
+  height:30px;
+}
+
+.attendanceCombinedSite.isOnSite{
+  background:linear-gradient(180deg, rgba(34,197,94,.05), rgba(34,197,94,.02));
+}
+
+.attendanceCombinedSite.isOnSite .attendanceSiteValue{
+  color:#0f172a;
+}
+
+.liveTimeValue{
+  font-size:34px !important;
+  letter-spacing:-.03em !important;
+  white-space:nowrap;
+}
+
+.clockStartValue{
+  color:#0b63ff !important;
+  font-size:38px !important;
+  letter-spacing:-.05em !important;
+}
+
+.clockLiveLabel{
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+}
+
+.clockLiveDot{
+  width:9px;
+  height:9px;
+  border-radius:999px;
+  background:#22c55e;
+  box-shadow:0 0 0 5px rgba(34,197,94,.14);
+  flex:0 0 9px;
+}
+
+.modernMetricSub{
+  margin-top:12px;
+  color:#52627d;
+  font-size:14px;
+  font-weight:600;
+}
+
+.modernMetricIcon{
+  width:72px;
+  height:72px;
+  border-radius:999px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  flex:0 0 72px;
+}
+
+.modernMetricIcon svg{
+  width:34px;
+  height:34px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.modernMetricIcon.blue{ background:#eaf2ff; color:#0b63ff; }
+.modernMetricIcon.green{ background:#dcfce7; color:#16a34a; }
+.modernMetricIcon.purple{ background:#eee9ff; color:#6d5dfc; }
+.modernMetricIcon.maps{ background:#fff7db; color:#f4b400; }
+
+.dashboardSiteCard.isOnSite{
+  border-color:#bbf7d0 !important;
+  box-shadow:0 18px 38px rgba(22,163,74,.10) !important;
+}
+
+.dashboardSiteCard.isOnSite:hover{
+  border-color:#86efac !important;
+  box-shadow:0 18px 38px rgba(22,163,74,.16) !important;
+}
+
+.dashboardSiteCard{
+  text-decoration:none !important;
+  color:inherit !important;
+  cursor:pointer;
+  transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+  min-height:150px;
+}
+
+.dashboardSiteCard:hover{
+  transform:translateY(-2px);
+  border-color:#fde68a;
+  box-shadow:0 18px 38px rgba(251,188,4,.14);
+}
+
+.dashboardSiteText{
+  min-width:0;
+  max-width:calc(100% - 88px);
+  padding-right:10px;
+}
+
+.dashboardSiteValue{
+  max-width:100%;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+  font-size:30px !important;
+  letter-spacing:-.04em !important;
+}
+
+@media (max-width:980px){
+  .attendanceCombinedCard{
+    grid-column:1 / -1;
+  }
+}
+
+@media (max-width:620px){
+  .liveTimeValue{
+    font-size:30px !important;
+  }
+
+  .clockStartValue{
+    font-size:34px !important;
+  }
+
+    .attendanceCombinedCard{
+    grid-template-columns:1fr 1px 1fr;
+    grid-template-rows:auto;
+  }
+
+  .attendanceCombinedDivider{
+    display:block;
+  }
+
+  .attendanceCombinedMain,
+  .attendanceCombinedSite{
+    min-height:154px;
+    padding:18px 16px;
+    align-items:flex-start;
+    justify-content:flex-start;
+  }
+
+  .attendanceCombinedSite{
+    padding-right:66px;
+  }
+
+  .attendanceSiteLabel{
+  font-size:16px;
+  line-height:1.15;
+  margin:0 0 22px 0;
+}
+
+.attendanceSiteValue{
+  font-size:34px !important;
+  line-height:1 !important;
+  white-space:nowrap !important;
+  overflow:hidden !important;
+  text-overflow:ellipsis !important;
+}
+
+.attendanceSiteSub{
+  margin-top:16px;
+  font-size:14px;
+  line-height:1.25;
+}
+
+    .attendanceCombinedSite .modernMetricIcon{
+    position:absolute;
+    right:14px;
+    top:50%;
+    transform:translateY(-50%);
+    width:42px;
+    height:42px;
+    min-width:42px;
+    flex:0 0 42px;
+    margin:0;
+  }
+
+  .attendanceCombinedSite .modernMetricIcon svg{
+    width:22px;
+    height:22px;
+  }
+
+  .dashboardSiteValue{
+    max-width:210px;
+    font-size:30px !important;
+  }
+}
 
         .modernMetricSub{
           margin-top:12px;
@@ -1423,7 +2208,64 @@ def home_impl(core):
         .modernMetricIcon.blue{ background:#eaf2ff; color:#0b63ff; }
         .modernMetricIcon.green{ background:#dcfce7; color:#16a34a; }
         .modernMetricIcon.purple{ background:#eee9ff; color:#6d5dfc; }
-        .modernMetricIcon.orange{ background:#ffeddc; color:#f97316; }
+                .modernMetricIcon.maps{
+          background:#fff7db;
+          color:#f4b400;
+        }
+
+        .dashboardSiteCard.isOnSite{
+          border-color:#bbf7d0 !important;
+          box-shadow:0 18px 38px rgba(22,163,74,.10) !important;
+        }
+
+        .dashboardSiteCard.isOnSite:hover{
+          border-color:#86efac !important;
+          box-shadow:0 18px 38px rgba(22,163,74,.16) !important;
+        }
+                       .dashboardSiteCard{
+          text-decoration:none !important;
+          color:inherit !important;
+          cursor:pointer;
+          transition:transform .15s ease, box-shadow .15s ease, border-color .15s ease;
+        }
+
+                .dashboardSiteCard:hover{
+          transform:translateY(-2px);
+          border-color:#fde68a;
+          box-shadow:0 18px 38px rgba(251,188,4,.14);
+        }
+
+        .dashboardSiteText{
+          min-width:0;
+          padding-right:8px;
+        }
+
+                .dashboardSiteValue{
+          max-width:100%;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          white-space:nowrap;
+          font-size:30px !important;
+          letter-spacing:-.04em !important;
+        }
+
+        .dashboardSiteCard{
+          min-height:150px;
+        }
+
+        .dashboardSiteText{
+          min-width:0;
+          max-width:calc(100% - 88px);
+          padding-right:10px;
+        }
+
+        @media (max-width:620px){
+          .dashboardSiteValue{
+            max-width:210px;
+            font-size:30px !important;
+          }
+        }
+        
 
         .modernTwoCol{
           display:grid;
@@ -1632,8 +2474,597 @@ def home_impl(core):
           color:#64748b;
           font-weight:700;
         }
+                /* ================= Professional dashboard layout ================= */
+
+        .professionalDashboard{
+          display:grid;
+          gap:18px;
+          margin:22px 0 24px;
+        }
+
+        .professionalMainGrid{
+          display:grid;
+          grid-template-columns:minmax(0,1.15fr) minmax(360px,.85fr);
+          gap:18px;
+          align-items:start;
+        }
+
+        .professionalCard{
+          background:#fff;
+          border:1px solid #dbe7f6;
+          border-radius:18px;
+          box-shadow:0 14px 34px rgba(15,23,42,.055);
+          padding:22px;
+          min-width:0;
+        }
+
+        .professionalCardHead,
+        .modernPanelHeaderRow{
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:16px;
+          margin-bottom:18px;
+        }
+
+        .professionalCardHead h2{
+          margin:0;
+          color:#07152f;
+          font-size:20px;
+          line-height:1.15;
+          font-weight:900;
+          letter-spacing:-.025em;
+        }
+
+        .professionalCardHead p{
+          margin:6px 0 0;
+          color:#64748b;
+          font-size:13px;
+          font-weight:700;
+          line-height:1.35;
+        }
+
+        .professionalStatus{
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          min-height:30px;
+          padding:0 10px;
+          border-radius:999px;
+          border:1px solid #dbeafe;
+          background:#eff6ff;
+          color:#1d4ed8;
+          font-size:12px;
+          font-weight:900;
+          white-space:nowrap;
+        }
+
+        .professionalStatus.bad{
+          border-color:#fed7aa;
+          background:#fff7ed;
+          color:#c2410c;
+        }
+
+        .professionalAttentionCard{
+          background:#fff;
+        }
+
+        .professionalAttentionList{
+          display:grid;
+          gap:0;
+        }
+
+        .professionalAttentionList .smartDashRow{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:16px;
+          padding:12px 0;
+          border-bottom:1px solid #edf2f8;
+          color:#0f172a;
+          font-size:14px;
+          font-weight:850;
+          text-decoration:none;
+        }
+
+        .professionalAttentionList .smartDashRow:last-child{
+          border-bottom:0;
+        }
+
+        .professionalAttentionList .smartDashRow strong{
+          min-width:34px;
+          text-align:right;
+          color:#64748b;
+          font-size:14px;
+          font-weight:900;
+        }
+
+        .professionalAttentionList .smartDashRow strong.bad{
+          color:#c2410c;
+        }
+
+        .professionalAttentionList .smartDashRow strong.ok{
+          color:#64748b;
+        }
+
+        .professionalPayrollStats{
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:10px;
+          margin-bottom:14px;
+        }
+
+        .professionalPayrollStats div{
+          padding:14px 12px;
+          border:1px solid #e2eaf5;
+          border-radius:12px;
+          background:#f8fbff;
+        }
+
+        .professionalPayrollStats span{
+          display:block;
+          color:#64748b;
+          font-size:11px;
+          font-weight:900;
+          text-transform:uppercase;
+          letter-spacing:.045em;
+        }
+
+        .professionalPayrollStats strong{
+          display:block;
+          margin-top:7px;
+          color:#07152f;
+          font-size:26px;
+          line-height:1;
+          font-weight:900;
+          letter-spacing:-.03em;
+        }
+
+        .professionalWarnings{
+          display:grid;
+          gap:8px;
+        }
+
+        .professionalWarnings .smartWarningLine,
+        .professionalWarnings .smartGoodLine,
+        .professionalWarnings .smartEmptyLine{
+          padding:10px 12px;
+          border-radius:10px;
+          font-size:13px;
+          font-weight:850;
+        }
+
+        .professionalWarnings .smartWarningLine{
+          display:flex;
+          justify-content:space-between;
+          gap:12px;
+          background:#fff7ed;
+          border:1px solid #fed7aa;
+          color:#9a3412;
+        }
+
+        .professionalWarnings .smartGoodLine{
+          background:#f8fbff;
+          border:1px solid #dbeafe;
+          color:#1d4ed8;
+        }
+
+        .professionalLiveStrip{
+          display:grid;
+          grid-template-columns:auto minmax(0,1fr) auto;
+          align-items:center;
+          gap:16px;
+          background:#fff;
+          border:1px solid #dbe7f6;
+          border-radius:18px;
+          box-shadow:0 14px 34px rgba(15,23,42,.045);
+          padding:16px 18px;
+        }
+
+        .professionalLiveStrip strong{
+          display:block;
+          color:#07152f;
+          font-size:16px;
+          font-weight:900;
+        }
+
+        .professionalLiveStrip span{
+          display:block;
+          margin-top:3px;
+          color:#64748b;
+          font-size:13px;
+          font-weight:700;
+        }
+
+        .professionalLiveSites{
+          min-width:0;
+        }
+
+        .professionalLiveSites .smartEmptyLine{
+          padding:0;
+          border:0;
+          background:transparent;
+          color:#64748b;
+          font-size:13px;
+          font-weight:800;
+        }
+
+        .professionalLiveSites .smartSitePill{
+          display:inline-flex;
+          align-items:center;
+          gap:10px;
+          padding:7px 10px;
+          margin:2px 5px 2px 0;
+          border-radius:999px;
+          border:1px solid #dbeafe;
+          background:#eff6ff;
+          color:#1d4ed8;
+          font-size:12px;
+          font-weight:900;
+        }
+
+        .professionalLink{
+          color:#0b63ff;
+          font-size:13px;
+          font-weight:900;
+          text-decoration:none;
+          white-space:nowrap;
+        }
+
+        .dashboardActivityGrid{
+          grid-template-columns:minmax(0,1.2fr) minmax(360px,.8fr) !important;
+          align-items:start;
+          margin-bottom:24px;
+        }
+
+        .dashboardActivityGrid.singleCol{
+          grid-template-columns:1fr !important;
+        }
+
+        .modernPanelHeaderRow{
+          margin-bottom:16px;
+        }
+
+        .modernPanelLink.small{
+          margin-top:0 !important;
+          font-size:13px;
+          white-space:nowrap;
+          text-decoration:none;
+        }
+
+        .modernActivityPanel{
+          align-self:start;
+        }
+
+        .professionalActionList{
+          display:grid;
+          gap:0;
+        }
+
+        .professionalActionList .smartActionLine{
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:14px;
+          padding:12px 0;
+          border-bottom:1px solid #edf2f8;
+        }
+
+        .professionalActionList .smartActionLine:last-child{
+          border-bottom:0;
+        }
+
+        .professionalActionList .smartActionLine strong{
+          display:block;
+          color:#07152f;
+          font-size:14px;
+          font-weight:900;
+        }
+
+        .professionalActionList .smartActionLine span{
+          display:block;
+          margin-top:3px;
+          color:#64748b;
+          font-size:13px;
+          font-weight:700;
+        }
+
+        .professionalActionList .smartActionLine em{
+          color:#94a3b8;
+          font-style:normal;
+          font-size:12px;
+          font-weight:850;
+          white-space:nowrap;
+        }
+
+        .dashboardProgressPanel{
+          margin-bottom:24px;
+        }
+
+        .professionalProgressList{
+          gap:20px !important;
+        }
+
+        .professionalProgressList .modernProgressTrack span{
+          background:linear-gradient(90deg,#0b63ff,#0057e7) !important;
+        }
+
+                .modernMetricIcon.blue{ background:#eaf2ff; color:#0b63ff; }
+        .modernMetricIcon.green{ background:#dcfce7; color:#16a34a; }
+        .modernMetricIcon.purple{ background:#eee9ff; color:#6d5dfc; }
+        .modernMetricIcon.orange{ background:#ffeddc; color:#f97316; }
+        
+        
+        
+                        .smartDashboardGrid{
+          display:grid;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          gap:16px;
+          margin:18px 0;
+          align-items:start;
+        }
+
+        .smartWide{
+          grid-column:1 / -1;
+        }
+
+        .smartLiveStrip{
+          padding:16px 18px;
+        }
+
+        .smartLiveStrip .smartCardHead{
+          margin-bottom:10px;
+        }
+
+        .smartLiveStrip .smartSiteList{
+          display:block;
+        }
+
+        .smartActionsCard .smartActionList{
+          display:grid;
+          grid-template-columns:repeat(2,minmax(0,1fr));
+          column-gap:28px;
+          row-gap:0;
+        }
+
+        .smartDashboardCard{
+  background:#fff;
+  border:1px solid rgba(15,23,42,.08);
+  box-shadow:0 14px 34px rgba(15,23,42,.06);
+  padding:18px;
+  min-width:0;
+  align-self:start;
+}
+
+        .smartDashboardCard.attention{
+          border-color:rgba(245,158,11,.22);
+          background:linear-gradient(180deg,#ffffff,#fffbeb);
+        }
+
+        .smartCardHead{
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:14px;
+          margin-bottom:14px;
+        }
+
+        .smartCardHead h2{
+          margin:0;
+          font-size:16px;
+          font-weight:900;
+          color:#07152f;
+          letter-spacing:-.02em;
+        }
+
+        .smartCardHead p{
+          margin:5px 0 0 0;
+          color:#64748b;
+          font-size:12px;
+          font-weight:700;
+          line-height:1.35;
+        }
+
+        .smartBadge{
+          display:inline-flex;
+          align-items:center;
+          justify-content:center;
+          white-space:nowrap;
+          padding:6px 9px;
+          font-size:11px;
+          font-weight:900;
+          border:1px solid transparent;
+        }
+
+        .smartBadge.ok{
+          background:#dcfce7;
+          color:#166534;
+          border-color:#bbf7d0;
+        }
+
+        .smartBadge.bad{
+          background:#fee2e2;
+          color:#b91c1c;
+          border-color:#fecaca;
+        }
+
+        .smartMiniLink{
+          color:#0b63ff;
+          font-size:12px;
+          font-weight:900;
+          white-space:nowrap;
+        }
+
+        .smartDashList,
+        .smartActionList,
+        .smartWarnings,
+        .smartSiteList{
+          display:grid;
+          gap:8px;
+        }
+
+        .smartDashRow{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          padding:10px 0;
+          border-bottom:1px solid rgba(15,23,42,.06);
+          color:#07152f;
+          font-size:13px;
+          font-weight:800;
+        }
+
+        .smartDashRow:last-child{
+          border-bottom:0;
+        }
+
+        .smartDashRow strong{
+          font-size:13px;
+          font-weight:900;
+        }
+
+        .smartDashRow strong.ok{
+          color:#166534;
+        }
+
+        .smartDashRow strong.bad{
+          color:#b91c1c;
+        }
+
+        .smartPayrollStats{
+          display:grid;
+          grid-template-columns:repeat(4,minmax(0,1fr));
+          gap:10px;
+          margin-bottom:14px;
+        }
+
+        .smartPayrollStats div{
+          padding:12px 10px;
+          background:#f8fbff;
+          border:1px solid rgba(15,23,42,.06);
+        }
+
+        .smartPayrollStats span{
+          display:block;
+          color:#64748b;
+          font-size:11px;
+          font-weight:900;
+          text-transform:uppercase;
+          letter-spacing:.04em;
+        }
+
+        .smartPayrollStats strong{
+          display:block;
+          margin-top:4px;
+          color:#07152f;
+          font-size:22px;
+          font-weight:900;
+        }
+
+        .smartWarningLine,
+        .smartGoodLine,
+        .smartEmptyLine{
+          padding:9px 10px;
+          background:#f8fafc;
+          border:1px solid rgba(15,23,42,.06);
+          color:#64748b;
+          font-size:12px;
+          font-weight:800;
+        }
+
+        .smartWarningLine{
+          display:flex;
+          justify-content:space-between;
+          gap:12px;
+          background:#fff7ed;
+          border-color:#fed7aa;
+          color:#9a3412;
+        }
+
+        .smartGoodLine{
+          background:#f0fdf4;
+          border-color:#bbf7d0;
+          color:#166534;
+        }
+
+        .smartSitePill{
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          padding:10px 12px;
+          background:#eff6ff;
+          border:1px solid #dbeafe;
+          color:#1e40af;
+          font-size:13px;
+          font-weight:900;
+        }
+
+        .smartSitePill strong{
+          color:#07152f;
+        }
+
+        .smartActionLine{
+          display:flex;
+          align-items:flex-start;
+          justify-content:space-between;
+          gap:12px;
+          padding:10px 0;
+          border-bottom:1px solid rgba(15,23,42,.06);
+        }
+
+        .smartActionLine:last-child{
+          border-bottom:0;
+        }
+
+        .smartActionLine strong{
+          display:block;
+          color:#07152f;
+          font-size:13px;
+          font-weight:900;
+        }
+
+        .smartActionLine span{
+          display:block;
+          margin-top:3px;
+          color:#64748b;
+          font-size:12px;
+          font-weight:700;
+        }
+
+        .smartActionLine em{
+          color:#94a3b8;
+          font-style:normal;
+          font-size:11px;
+          font-weight:800;
+          white-space:nowrap;
+        }
 
         @media (max-width: 1100px){
+        
+                  .professionalMainGrid,
+          .dashboardActivityGrid{
+            grid-template-columns:1fr !important;
+          }
+
+          .professionalLiveStrip{
+            grid-template-columns:1fr;
+            align-items:flex-start;
+          }
+
+          .professionalPayrollStats{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+          }
+        
+                  .smartDashboardGrid{
+            grid-template-columns:1fr;
+          }
+
+          .smartPayrollStats{
+            grid-template-columns:repeat(2,minmax(0,1fr));
+          }
+          
   .dashboardShellModern{
     display:block !important;
     grid-template-columns:1fr !important;
@@ -1663,163 +3094,101 @@ def home_impl(core):
           }
         }
 
-        @media (max-width: 620px){
+                @media (max-width: 620px){
           .modernDashHeader{
             align-items:flex-start;
             flex-direction:column;
           }
+
           .modernMetricGrid{
-  grid-template-columns:repeat(2,minmax(0,1fr)) !important;
-  gap:14px !important;
-}
+            grid-template-columns:repeat(2,minmax(0,1fr)) !important;
+            gap:14px !important;
+          }
 
-.modernMetricCard{
-  min-height:184px !important;
-  padding:20px 20px !important;
-  display:flex !important;
-  align-items:flex-start !important;
-  justify-content:space-between !important;
-  gap:12px !important;
-  overflow:hidden !important;
-}
+          /* Small metric cards only. Do not touch the joined Clock/Site card. */
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard){
+            position:relative !important;
+            min-height:150px !important;
+            padding:20px 16px 18px !important;
+            display:block !important;
+            overflow:hidden !important;
+          }
 
-.modernMetricCard > div:first-child{
-  min-width:0 !important;
-  max-width:calc(100% - 58px) !important;
-}
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) > div:first-child{
+            min-width:0 !important;
+            max-width:none !important;
+            padding-right:0 !important;
+          }
 
-.modernMetricIcon{
-  width:52px !important;
-  height:52px !important;
-  min-width:52px !important;
-  flex:0 0 52px !important;
-  margin-top:42px !important;
-}
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricLabel{
+            font-size:14px !important;
+            line-height:1.15 !important;
+            margin:0 0 18px 0 !important;
+            max-width:100% !important;
+            white-space:nowrap !important;
+            overflow:hidden !important;
+            text-overflow:ellipsis !important;
+          }
 
-.modernMetricIcon svg{
-  width:26px !important;
-  height:26px !important;
-}
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricValue{
+            font-size:34px !important;
+            line-height:1 !important;
+            letter-spacing:-0.04em !important;
+            max-width:calc(100% - 64px) !important;
+          }
 
-.modernMetricLabel{
-  font-size:15px !important;
-  line-height:1.15 !important;
-  margin-bottom:14px !important;
-}
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricSub{
+            margin-top:10px !important;
+            font-size:12px !important;
+            line-height:1.25 !important;
+            max-width:calc(100% - 64px) !important;
+          }
 
-.modernMetricValue{
-  font-size:36px !important;
-}
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon{
+            position:absolute !important;
+            right:14px !important;
+            top:50% !important;
+            transform:translateY(-50%) !important;
+            width:52px !important;
+            height:52px !important;
+            min-width:52px !important;
+            flex:0 0 52px !important;
+            margin:0 !important;
+          }
 
-.modernMetricSub{
-  font-size:13px !important;
-  line-height:1.25 !important;
-}
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon svg{
+            width:26px !important;
+            height:26px !important;
+          }
+
           .modernTimesheetTable th:nth-child(2),
           .modernTimesheetTable td:nth-child(2){
             display:none;
           }
         }
         
-        @media (max-width: 380px){
-  .modernMetricGrid{
-    grid-template-columns:1fr !important;
-  }
+                @media (max-width: 380px){
+          .modernMetricGrid{
+            grid-template-columns:1fr !important;
+          }
 
-  .modernMetricCard{
-    min-height:150px !important;
-  }
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard){
+            min-height:140px !important;
+          }
 
-  .modernMetricCard > div:first-child{
-    max-width:calc(100% - 64px) !important;
-  }
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricValue,
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricSub{
+            max-width:calc(100% - 72px) !important;
+          }
 
-  .modernMetricIcon{
-    width:56px !important;
-    height:56px !important;
-    min-width:56px !important;
-    flex-basis:56px !important;
-    margin-top:32px !important;
-  }
-}
-    
-    /* FINAL MOBILE METRIC CARD FIX */
-@media (max-width: 620px){
-  .modernMetricGrid{
-    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
-    gap: 14px !important;
-  }
-
-  .modernMetricCard{
-    position: relative !important;
-    min-height: 152px !important;
-    padding: 20px 14px 18px 16px !important;
-    display: block !important;
-    overflow: hidden !important;
-  }
-
-  .modernMetricCard > div:first-child{
-    max-width: none !important;
-    min-width: 0 !important;
-    padding-right: 48px !important;
-  }
-
-  .modernMetricIcon{
-    position: absolute !important;
-    right: 12px !important;
-    top: 58px !important;
-    width: 46px !important;
-    height: 46px !important;
-    min-width: 46px !important;
-    flex: 0 0 46px !important;
-    margin: 0 !important;
-  }
-
-  .modernMetricIcon svg{
-    width: 24px !important;
-    height: 24px !important;
-  }
-
-  .modernMetricLabel{
-    font-size: 14px !important;
-    line-height: 1.12 !important;
-    margin-bottom: 18px !important;
-    max-width: 86px !important;
-  }
-
-  .modernMetricValue{
-    font-size: 34px !important;
-    line-height: 1 !important;
-    letter-spacing: -0.04em !important;
-  }
-
-  .modernMetricSub{
-    margin-top: 9px !important;
-    font-size: 12px !important;
-    line-height: 1.25 !important;
-    max-width: 78px !important;
-  }
-}
-
-@media (max-width: 360px){
-  .modernMetricGrid{
-    grid-template-columns: 1fr !important;
-  }
-
-  .modernMetricCard{
-    min-height: 138px !important;
-  }
-
-  .modernMetricIcon{
-    top: 48px !important;
-    right: 16px !important;
-  }
-
-  .modernMetricLabel,
-  .modernMetricSub{
-    max-width: none !important;
-  }
-}
+          .modernMetricGrid > .modernMetricCard:not(.attendanceCombinedCard) .modernMetricIcon{
+            right:16px !important;
+            width:54px !important;
+            height:54px !important;
+            min-width:54px !important;
+          }
+        }
+        
     
         
       </style>
@@ -1830,6 +3199,156 @@ def home_impl(core):
     reminder_enabled_js = "true" if reminder_is_employee else "false"
     reminder_clocked_in_js = "true" if is_clocked_in else "false"
     reminder_should_show_js = "true" if reminder_should_show else "false"
+
+    dashboard_geo_sites = []
+    try:
+        for loc in active_locations:
+            site_name = str(
+                loc.get("name")
+                or loc.get("site_name")
+                or loc.get("SiteName")
+                or loc.get("Site")
+                or ""
+            ).strip()
+
+            site_lat = safe_float(loc.get("lat"), None)
+            site_lon = safe_float(loc.get("lon"), None)
+            site_radius = safe_float(loc.get("radius"), 0.0)
+
+            if site_name and site_lat is not None and site_lon is not None and site_radius > 0:
+                dashboard_geo_sites.append({
+                    "name": site_name,
+                    "lat": float(site_lat),
+                    "lon": float(site_lon),
+                    "radius": float(site_radius),
+                })
+    except Exception:
+        dashboard_geo_sites = []
+
+    dashboard_geo_sites_json = json_mod.dumps(dashboard_geo_sites)
+
+    current_site_metric_card_html = f"""
+      <div class="modernMetricCard dashboardSiteCard" id="dashboardSiteCard" title="Current site">
+        <div class="dashboardSiteText">
+          <div class="modernMetricLabel">Current Site</div>
+          <div class="modernMetricValue dashboardSiteValue" id="dashboardSiteLabel">{escape(dashboard_site_label)}</div>
+          <div class="modernMetricSub" id="dashboardSiteSub">{escape(dashboard_site_sub)}</div>
+        </div>
+        <div class="modernMetricIcon maps" id="dashboardSiteIcon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11z"></path>
+            <circle cx="12" cy="10" r="2.5"></circle>
+          </svg>
+        </div>
+      </div>
+    """
+
+    dashboard_site_geo_script_html = f"""
+      <script>
+        (function(){{
+          const SITES = {dashboard_geo_sites_json};
+          const card = document.getElementById("dashboardSiteCard") || document.querySelector(".dashboardSiteCard");
+          const label = document.getElementById("dashboardSiteLabel");
+          const sub = document.getElementById("dashboardSiteSub");
+          const icon = document.getElementById("dashboardSiteIcon");
+
+          if (!card || !label || !sub || !icon) return;
+
+          function setIcon(tone){{
+            icon.classList.remove("maps", "green", "blue", "purple", "orange");
+            icon.classList.add(tone);
+          }}
+
+          function setSite(name, subtitle, tone){{
+            label.textContent = name;
+            sub.textContent = subtitle;
+            setIcon(tone);
+
+            if (tone === "green") {{
+              card.classList.add("isOnSite");
+            }} else {{
+              card.classList.remove("isOnSite");
+            }}
+          }}
+
+          function distanceMeters(lat1, lon1, lat2, lon2){{
+            const R = 6371000;
+            const toRad = function(v) {{ return v * Math.PI / 180; }};
+            const dLat = toRad(lat2 - lat1);
+            const dLon = toRad(lon2 - lon1);
+            const a =
+              Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+              Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+              Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+          }}
+
+          function nearestSite(lat, lon){{
+            let best = null;
+
+            for (const site of SITES) {{
+              const sLat = Number(site.lat);
+              const sLon = Number(site.lon);
+              const radius = Number(site.radius || 0);
+
+              if (!site.name || !Number.isFinite(sLat) || !Number.isFinite(sLon) || radius <= 0) {{
+                continue;
+              }}
+
+              const dist = distanceMeters(lat, lon, sLat, sLon);
+              const item = {{
+                name: String(site.name),
+                distance: dist,
+                radius: radius,
+                inside: dist <= radius
+              }};
+
+              if (!best || dist < best.distance) {{
+                best = item;
+              }}
+            }}
+
+            return best;
+          }}
+
+          if (!navigator.geolocation) {{
+            setSite("Off site", "Location unavailable", "maps");
+            return;
+          }}
+
+          if (!Array.isArray(SITES) || SITES.length === 0) {{
+            setSite("Off site", "No site locations", "maps");
+            return;
+          }}
+
+          navigator.geolocation.getCurrentPosition(function(pos){{
+            const lat = Number(pos.coords.latitude);
+            const lon = Number(pos.coords.longitude);
+            const best = nearestSite(lat, lon);
+
+            if (!best) {{
+              setSite("Off site", "No nearby site", "maps");
+              return;
+            }}
+
+            if (best.inside) {{
+              setSite(best.name, "Location verified", "green");
+            }} else {{
+              setSite("Off site", "Nearest: " + best.name, "maps");
+            }}
+          }}, function(){{
+            setSite("Off site", "Location unavailable", "maps");
+          }}, {{
+            enableHighAccuracy: true,
+            timeout: 8000,
+            maximumAge: 30000
+          }});
+        }})();
+      </script>
+    """
+
+
 
 
     content = f"""
@@ -1870,54 +3389,57 @@ def home_impl(core):
           </div>
         </div>
 
-        <div class="modernMetricGrid">
-                    {clock_status_card_html}
+                  <div class="modernMetricGrid">
+          {clock_status_card_html}
 
-          <div class="modernMetricCard">
+                    <div class="modernMetricCard">
             <div>
               <div class="modernMetricLabel">Hours This Week</div>
               <div class="modernMetricValue">{escape(fmt_hours(week_hours))}</div>
               <div class="modernMetricSub">Total hours</div>
             </div>
-            <div class="modernMetricIcon green">
-              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"></circle><path d="M12 7v6l4 2"></path></svg>
+            <div class="modernMetricIcon blue">
+              <svg viewBox="0 0 24 24">
+                <circle cx="12" cy="12" r="9"></circle>
+                <path d="M12 7v6l4 2"></path>
+              </svg>
             </div>
           </div>
 
           <div class="modernMetricCard">
             <div>
-                            <div class="modernMetricLabel">{escape(metric_3_label)}</div>
+              <div class="modernMetricLabel">{escape(metric_3_label)}</div>
               <div class="modernMetricValue">{escape(metric_3_value)}</div>
               <div class="modernMetricSub">{escape(metric_3_sub)}</div>
             </div>
             <div class="modernMetricIcon purple">
-              <svg viewBox="0 0 24 24"><path d="M3 21h18"></path><path d="M5 21V7l8-4v18"></path><path d="M19 21V11l-6-4"></path><path d="M9 9h1"></path><path d="M9 13h1"></path><path d="M9 17h1"></path></svg>
-            </div>
-          </div>
-
-                    <div class="modernMetricCard {'noMetricIcon' if role not in ('admin', 'master_admin') else ''}">
-            <div>
-              <div class="modernMetricLabel">{escape(metric_4_label)}</div>
-              <div class="modernMetricValue">{metric_4_value if not (role in ("admin", "master_admin")) else escape(metric_4_value)}</div>
-              <div class="modernMetricSub">{escape(metric_4_sub)}</div>
-            </div>
-
-            {'' if role not in ('admin', 'master_admin') else '''
-            <div class="modernMetricIcon orange">
               <svg viewBox="0 0 24 24">
-                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                <path d="M14 2v6h6"></path>
-                <path d="M8 13h8"></path>
-                <path d="M8 17h6"></path>
+                <path d="M3 21h18"></path>
+                <path d="M5 21V7l8-4v18"></path>
+                <path d="M19 21V11l-6-4"></path>
+                <path d="M9 9h1"></path>
+                <path d="M9 13h1"></path>
+                <path d="M9 17h1"></path>
               </svg>
             </div>
-            '''}
           </div>
-        </div>
 
-        <div class="modernTwoCol">
-          <div class="modernPanel">
-            <h2 class="modernPanelTitle">Recent Timesheets</h2>
+          {current_site_metric_card_html if role in ("admin", "master_admin") else ""}
+        </div>
+                {dashboard_site_geo_script_html}
+
+        {smart_dashboard_html}
+
+                <div class="modernTwoCol dashboardActivityGrid {'singleCol' if role not in ('admin', 'master_admin') else ''}">
+          <div class="modernPanel modernTimesheetsPanel">
+            <div class="modernPanelHeaderRow">
+              <div>
+                <h2 class="modernPanelTitle">Recent Timesheets</h2>
+                <p class="modernPanelSub">Latest completed time records.</p>
+              </div>
+              <a class="modernPanelLink small" href="{"/admin/log-activities" if role in ("admin", "master_admin") else "/my-times"}">View all ›</a>
+            </div>
+
             <table class="modernTimesheetTable">
               <thead>
                 <tr>
@@ -1931,38 +3453,42 @@ def home_impl(core):
                 {modern_recent_rows}
               </tbody>
             </table>
-            <a class="modernPanelLink" href="{"/admin/log-activities" if role in ("admin", "master_admin") else "/my-times"}">View all timesheets ›</a>
           </div>
 
-          <div class="modernPanel">
-  <h2 class="modernPanelTitle">{'Work Progress' if role in ('admin', 'master_admin') else 'My Week'}</h2>
-  <p class="modernPanelSub">{'Projects overview' if role in ('admin', 'master_admin') else 'Your work summary'}</p>
+          {recent_activity_panel_html}
+        </div>
 
-            <div class="modernProgressList">
-              <div>
-                <div class="modernProgressTop"><span>Weekly hours target</span><span>{week_progress_pct}%</span></div>
-                <div class="modernProgressTrack"><span style="width:{week_progress_pct}%;"></span></div>
-              </div>
+        <div class="modernPanel dashboardProgressPanel">
+          <div class="modernPanelHeaderRow">
+            <div>
+              <h2 class="modernPanelTitle">{'Work Progress' if role in ('admin', 'master_admin') else 'My Week'}</h2>
+              <p class="modernPanelSub">{'Projects overview' if role in ('admin', 'master_admin') else 'Your work summary'}</p>
+            </div>
+            <a class="modernPanelLink small" href="{"/work-progress" if role in ("admin", "master_admin") else "/clock"}">
+              {'View all projects ›' if role in ('admin', 'master_admin') else 'Open clock page ›'}
+            </a>
+          </div>
 
-              <div>
-                                <div class="modernProgressTop"><span>{escape(progress_2_label)}</span><span>{progress_2_pct}%</span></div>
-                <div class="modernProgressTrack"><span style="width:{progress_2_pct}%;"></span></div>
-              </div>
-
-              <div>
-                <div class="modernProgressTop"><span>{escape(progress_3_label)}</span><span>{progress_3_pct}%</span></div>
-                <div class="modernProgressTrack"><span style="width:{progress_3_pct}%;"></span></div>
-              </div>
-
-              <div>
-                <div class="modernProgressTop"><span>{escape(progress_4_label)}</span><span>{progress_4_pct}%</span></div>
-                <div class="modernProgressTrack"><span style="width:{progress_4_pct}%;"></span></div>
-              </div>
+          <div class="modernProgressList professionalProgressList">
+            <div>
+              <div class="modernProgressTop"><span>Weekly hours target</span><span>{week_progress_pct}%</span></div>
+              <div class="modernProgressTrack"><span style="width:{week_progress_pct}%;"></span></div>
             </div>
 
-            <a class="modernPanelLink" href="{"/work-progress" if role in ("admin", "master_admin") else "/clock"}">
-  {'View all projects ›' if role in ('admin', 'master_admin') else 'Open clock page ›'}
-</a>
+            <div>
+              <div class="modernProgressTop"><span>{escape(progress_2_label)}</span><span>{progress_2_pct}%</span></div>
+              <div class="modernProgressTrack"><span style="width:{progress_2_pct}%;"></span></div>
+            </div>
+
+            <div>
+              <div class="modernProgressTop"><span>{escape(progress_3_label)}</span><span>{progress_3_pct}%</span></div>
+              <div class="modernProgressTrack"><span style="width:{progress_3_pct}%;"></span></div>
+            </div>
+
+            <div>
+              <div class="modernProgressTop"><span>{escape(progress_4_label)}</span><span>{progress_4_pct}%</span></div>
+              <div class="modernProgressTrack"><span style="width:{progress_4_pct}%;"></span></div>
+            </div>
           </div>
         </div>
 
