@@ -554,59 +554,52 @@ def admin_payroll_impl(core):
     )
 
     payroll_week_bar_html = f"""
-          <div style="display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap;">
-            <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap; min-width:0;">
+        <form method="GET" style="margin:0;">
+          <input type="hidden" name="q" value="{escape(q)}">
+          <input type="hidden" name="from" value="{escape(date_from)}">
+          <input type="hidden" name="to" value="{escape(date_to)}">
+          <input type="hidden" name="wk" value="{prev_wk}">
+          <button type="submit"
+                  title="Previous week"
+                  aria-label="Previous week"
+                  style="width:34px; height:34px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#0b63ff; color:#fff; font-size:18px; font-weight:900; cursor:pointer; padding:0;">
+            ‹
+          </button>
+        </form>
 
-              <form method="GET" style="margin:0;">
-                <input type="hidden" name="q" value="{escape(q)}">
-                <input type="hidden" name="from" value="{escape(date_from)}">
-                <input type="hidden" name="to" value="{escape(date_to)}">
-                <input type="hidden" name="wk" value="{prev_wk}">
-                <button type="submit"
-                        title="Previous week"
-                        aria-label="Previous week"
-                        style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#fff; color:#3b74ad; font-size:22px; font-weight:900; cursor:pointer;">
-                  ‹
-                </button>
-              </form>
+        <form method="GET" style="margin:0; display:flex; align-items:center; gap:7px; flex-wrap:nowrap; min-width:0;">
+          <input type="hidden" name="q" value="{escape(q)}">
+          <input type="hidden" name="from" value="{escape(date_from)}">
+          <input type="hidden" name="to" value="{escape(date_to)}">
 
-              <form method="GET" style="margin:0; display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
-                <input type="hidden" name="q" value="{escape(q)}">
-                <input type="hidden" name="from" value="{escape(date_from)}">
-                <input type="hidden" name="to" value="{escape(date_to)}">
-
-                <div style="font-size:12px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:#6f6c85;">
-                  Week
-                </div>
-
-                <select name="wk"
-                        onchange="this.form.submit()"
-                        style="min-width:320px; max-width:100%; height:40px; padding:0 12px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#fff; color:#1f2547; font-size:14px; font-weight:400;">
-                  {''.join(week_options)}
-                </select>
-              </form>
-
-              <form method="GET" style="margin:0;">
-                <input type="hidden" name="q" value="{escape(q)}">
-                <input type="hidden" name="from" value="{escape(date_from)}">
-                <input type="hidden" name="to" value="{escape(date_to)}">
-                <input type="hidden" name="wk" value="{next_wk}">
-                <button type="submit"
-                        title="Next week"
-                        aria-label="Next week"
-                        style="width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#fff; color:#3b74ad; font-size:22px; font-weight:900; cursor:pointer;"
-                        {"disabled style='width:38px; height:38px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#f8f7ff; color:#c4b5fd; font-size:22px; font-weight:900; cursor:not-allowed;'" if wk_offset == 0 else ""}
-                >
-                  ›
-                </button>
-              </form>
-            </div>
-
-            <div style="font-size:13px; color:#6f6c85;">
-              Browse the weekly history shown in the payroll table.
-            </div>
+          <div style="font-size:11px; font-weight:900; letter-spacing:.06em; text-transform:uppercase; color:#6f6c85; white-space:nowrap;">
+            Week
           </div>
-        """
+
+          <select name="wk"
+                  onchange="this.form.submit()"
+                  style="width:260px; max-width:260px; height:34px; padding:0 10px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#fff; color:#1f2547; font-size:13px; font-weight:400;">
+            {''.join(week_options)}
+          </select>
+        </form>
+
+        <form method="GET" style="margin:0;">
+          <input type="hidden" name="q" value="{escape(q)}">
+          <input type="hidden" name="from" value="{escape(date_from)}">
+          <input type="hidden" name="to" value="{escape(date_to)}">
+          <input type="hidden" name="wk" value="{next_wk}">
+          <button type="submit"
+                  title="Next week"
+                  aria-label="Next week"
+                  style="width:28px; height:28px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#0b63ff; color:#fff; font-size:16px; font-weight:900; cursor:pointer;"
+                  {"disabled style='width:30px; height:30px; border-radius:0 !important; border:1px solid rgba(68,130,195,.14); background:#f8f7ff; color:#c4b5fd; font-size:16px; font-weight:900; cursor:not-allowed;'" if wk_offset == 0 else ""}
+          >
+            ›
+          </button>
+        </form>
+      </div>
+    """
 
 
     monthly_filter_html = f"""
@@ -718,7 +711,7 @@ def admin_payroll_impl(core):
         name_cell = f"""
               <div>
                 <div>
-                  <div style="font-weight:600;">{escape(display)}</div>
+                  <div style="font-weight:400;">{escape(display)}</div>
                   <div class="sub" style="margin:2px 0 0 0;">{escape(u)}</div>
                   {paid_line}
                 </div>
@@ -732,6 +725,14 @@ def admin_payroll_impl(core):
     grand_gross = 0.0
     grand_tax = 0.0
     grand_net = 0.0
+
+    footer_employees_with_hours = 0
+    footer_approved_count = 0
+    footer_paid_count = 0
+    footer_awaiting_pay_count = 0
+    footer_not_approved_count = 0
+    footer_missing_clockout_count = 0
+    footer_missing_rate_count = 0
 
     sheet_rows = []
 
@@ -881,6 +882,34 @@ def admin_payroll_impl(core):
         paid = bool(paid_rec.get("paid"))
         paid_status_raw = str(paid_rec.get("paid_status") or "").strip().lower()
         is_approved_only = paid_status_raw == "approved"
+        row_has_work = total_hours > 0 or gross > 0
+
+        if row_has_work:
+            footer_employees_with_hours += 1
+
+            if paid:
+                footer_paid_count += 1
+            elif is_approved_only:
+                footer_approved_count += 1
+                footer_awaiting_pay_count += 1
+            else:
+                footer_not_approved_count += 1
+
+            try:
+                if _get_user_rate(u) <= 0:
+                    footer_missing_rate_count += 1
+            except Exception:
+                pass
+
+        for day_rec in (user_days.values() if isinstance(user_days, dict) else []):
+            if not isinstance(day_rec, dict):
+                continue
+
+            day_cin = str(day_rec.get("cin") or "").strip()
+            day_cout = str(day_rec.get("cout") or "").strip()
+
+            if day_cin and not day_cout:
+                footer_missing_clockout_count += 1
 
         paid_display_net = round(float(paid_rec.get("display_net", 0.0) or 0.0), 2)
         paid_mode = str(paid_rec.get("payment_mode") or "net").strip().lower()
@@ -1126,6 +1155,60 @@ def admin_payroll_impl(core):
 
         sheet_rows.append("<tr>" + "".join(cells) + "</tr>")
 
+    footer_issue_count = footer_missing_clockout_count + footer_missing_rate_count + footer_not_approved_count
+
+    attention_color = "#b91c1c" if footer_issue_count else "#64748b"
+    awaiting_color = "#92400e" if footer_awaiting_pay_count else "#64748b"
+    not_approved_color = "#b91c1c" if footer_not_approved_count else "#64748b"
+    missing_clockout_color = "#b91c1c" if footer_missing_clockout_count else "#64748b"
+    missing_rate_color = "#b91c1c" if footer_missing_rate_count else "#64748b"
+
+    payroll_table_top_summary_html = f"""
+      <div style="
+        min-width:1120px;
+        padding:12px 18px;
+        border-bottom:1px solid rgba(109,40,217,.10);
+        background:linear-gradient(180deg,#ffffff,#faf8ff);
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:10px;
+        flex-wrap:nowrap;
+      ">
+        <div style="flex:0 0 auto;">
+          {payroll_week_bar_html}
+        </div>
+
+        <div style="
+          flex:1 1 auto;
+          min-width:0;
+          display:flex;
+          align-items:center;
+          justify-content:flex-end;
+          gap:10px;
+flex-wrap:wrap;
+color:#07152f;
+font-size:12.5px;
+font-weight:900;
+white-space:nowrap;
+          line-height:1.35;
+          text-align:right;
+        ">       
+          <span>Employees {footer_employees_with_hours}</span>
+          <span>Hours {escape(fmt_hours(round(grand_hours, 2)))}</span>
+          <span>Gross {escape(currency)}{escape(money(round(grand_gross, 2)))}</span>
+          <span>CIS {escape(currency)}{escape(money(round(grand_tax, 2)))}</span>
+          <span>Net/payable {escape(currency)}{escape(money(round(grand_net, 2)))}</span>
+          <span>Paid {footer_paid_count}</span>
+          <span>Approved {footer_approved_count}</span>
+          <span style="color:{awaiting_color};">Awaiting pay {footer_awaiting_pay_count}</span>
+          <span style="color:{not_approved_color};">Not approved {footer_not_approved_count}</span>
+          <span style="color:{missing_clockout_color};">Missing clock-out {footer_missing_clockout_count}</span>
+          <span style="color:{missing_rate_color};">Missing rate {footer_missing_rate_count}</span>
+          <span style="color:{attention_color};">Checks {footer_issue_count}</span>
+        </div>
+      </div>
+    """
 
     sheet_html = "".join(sheet_rows)
 
@@ -1742,6 +1825,8 @@ def admin_payroll_impl(core):
                data-refresh-url="{escape(payroll_refresh_url)}"
                data-refresh-ms="10000">
             <div class="payrollWrap" style="margin-top:12px;">
+                  {payroll_table_top_summary_html}
+
       <table class="payrollSheet">
         <thead>
   <tr class="payrollHeaderRow">
@@ -1805,14 +1890,10 @@ def admin_payroll_impl(core):
     </th>
   </tr>
 </thead>
-        <tbody>
+                <tbody>
           {sheet_html}
         </tbody>
-      </table>
-
-      <div style="padding:14px 18px; border-top:1px solid rgba(109,40,217,.10); background:linear-gradient(180deg,#ffffff,#faf8ff);">
-        {payroll_week_bar_html}
-      </div>
+            </table>
     </div>
 
     <div class="payrollTopGrid" style="margin-top:12px;">
