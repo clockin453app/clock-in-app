@@ -138,6 +138,7 @@ PWA_TAGS = """
       var target = e.target;
       if (target && target.closest('input, select, textarea, button, a, .tablewrap, .payrollWrap, .payrollSheet')) return;
 
+
       var closed = document.body.classList.contains('mobileRailClosed');
 
       trackingSwipe = false;
