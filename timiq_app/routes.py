@@ -2021,19 +2021,22 @@ def _generate_unique_username(first: str, last: str, wp: str) -> str:
     if not base:
         base = "user"
 
-    cand = base
-    if cand.lower() not in existing:
-        return cand
-
-    # Try random numeric suffixes (fast, avoids long loops)
+    # Preferred format: first initial + last name + 3 random digits, e.g. jsmith342
     for _ in range(200):
-        suffix = 1000 + secrets.randbelow(9000)
+        suffix = f"{secrets.randbelow(1000):03d}"
+        cand = f"{base}{suffix}"
+        if cand.lower() not in existing:
+            return cand
+
+    # Wider fallback if the 3-digit space is exhausted for this name/workplace
+    for _ in range(200):
+        suffix = f"{secrets.randbelow(10000):04d}"
         cand = f"{base}{suffix}"
         if cand.lower() not in existing:
             return cand
 
     # Worst-case fallback
-    return f"{base}{secrets.token_hex(2)}"
+    return f"{base}{secrets.token_hex(3)}"
 
 
 def _generate_temp_password(length: int = 10) -> str:
