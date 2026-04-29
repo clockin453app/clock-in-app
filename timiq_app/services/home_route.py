@@ -562,6 +562,8 @@ def home_impl(core):
               </div>
             """
 
+    employee_assigned_sites = set()
+
     employee_count = 0
     clocked_in_count = 0
     active_locations_count = 0
@@ -575,6 +577,8 @@ def home_impl(core):
             i_user = emp_headers.index("Username") if "Username" in emp_headers else None
             i_wp = emp_headers.index("Workplace_ID") if "Workplace_ID" in emp_headers else None
             i_onb = emp_headers.index("OnboardingCompleted") if "OnboardingCompleted" in emp_headers else None
+            i_site = emp_headers.index("Site") if "Site" in emp_headers else None
+            i_site2 = emp_headers.index("Site2") if "Site2" in emp_headers else None
 
             for r in emp_vals[1:]:
                 if i_user is None or i_user >= len(r):
@@ -596,6 +600,12 @@ def home_impl(core):
 
                     if u == username:
                         employee_onboarding_completed = done_bool
+
+                        for site_idx in (i_site, i_site2):
+                            if site_idx is not None and site_idx < len(r):
+                                assigned_site = (r[site_idx] or "").strip()
+                                if assigned_site and assigned_site.lower() not in ("none", "—", "-"):
+                                    employee_assigned_sites.add(assigned_site.lower())
 
                     if not done_bool:
                         onboarding_pending_count += 1
@@ -3405,6 +3415,12 @@ def home_impl(core):
             site_radius = safe_float(loc.get("radius"), 0.0)
 
             if site_name and site_lat is not None and site_lon is not None and site_radius > 0:
+                # Employees must only verify against their assigned Site/Site2.
+                # Admin/master admin can still see/check all active locations.
+                if role not in ("admin", "master_admin"):
+                    if site_name.strip().lower() not in employee_assigned_sites:
+                        continue
+
                 dashboard_geo_sites.append({
                     "name": site_name,
                     "lat": float(site_lat),
@@ -3528,9 +3544,9 @@ showLocating();
           }}
 
           if (!Array.isArray(SITES) || SITES.length === 0) {{
-            setSite("Off site", "No site locations", "maps");
-            return;
-          }}
+  setSite("Off site", "No assigned site", "maps");
+  return;
+}}
 
           navigator.geolocation.getCurrentPosition(function(pos){{
             const lat = Number(pos.coords.latitude);

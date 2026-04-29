@@ -387,6 +387,62 @@ def login_impl(core):
         box-shadow: 0 0 0 4px rgba(68,130,195,.08), 0 8px 24px rgba(15,23,42,.08) !important;
         outline: none;
       }
+      .passwordFieldWrap{
+  position:relative;
+  width:100%;
+}
+
+.passwordFieldInput{
+  padding-right:54px !important;
+}
+
+.passwordEyeBtn{
+  position:absolute;
+  right:12px;
+  top:50%;
+  transform:translateY(-50%);
+  width:36px;
+  height:36px;
+  border:0;
+  border-radius:999px;
+  background:rgba(31,45,99,.06);
+  color:#1f2d63;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+  padding:0;
+}
+
+.passwordEyeBtn:hover{
+  background:rgba(31,45,99,.11);
+}
+
+.passwordEyeBtn .eyeIcon{
+  width:20px;
+  height:20px;
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.passwordEyeBtn .eyeOpen{
+  display:none;
+}
+
+.passwordEyeBtn .eyeClosed{
+  display:block;
+}
+
+.passwordEyeBtn.isVisible .eyeOpen{
+  display:block;
+}
+
+.passwordEyeBtn.isVisible .eyeClosed{
+  display:none;
+}
 
       .loginPrimaryBtn{
         margin-top: 4px;
@@ -580,9 +636,39 @@ def login_impl(core):
               </div>
 
               <div>
-                <label class="loginFieldLabel" for="login-password">Password</label>
-                <input id="login-password" class="input loginInput" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required>
-              </div>
+  <label class="loginFieldLabel" for="login-password">Password</label>
+
+  <div class="passwordFieldWrap">
+    <input
+      id="login-password"
+      class="input loginInput passwordFieldInput"
+      type="password"
+      name="password"
+      autocomplete="current-password"
+      placeholder="Enter your password"
+      required
+    >
+
+    <button
+      class="passwordEyeBtn"
+      type="button"
+      data-password-toggle="login-password"
+      aria-label="Show password"
+      aria-pressed="false"
+    >
+      <svg class="eyeIcon eyeOpen" viewBox="0 0 24 24">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+      </svg>
+
+      <svg class="eyeIcon eyeClosed" viewBox="0 0 24 24">
+        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+        <circle cx="12" cy="12" r="3"></circle>
+        <path d="M4 20L20 4"></path>
+      </svg>
+    </button>
+  </div>
+</div>
 
               <button class="loginPrimaryBtn" type="submit">Sign in</button>
             </form>
@@ -593,6 +679,25 @@ def login_impl(core):
           </div>
         </div>
       </div>
+      <script>
+(function(){{
+  document.querySelectorAll("[data-password-toggle]").forEach(function(btn){{
+    btn.addEventListener("click", function(){{
+      var inputId = btn.getAttribute("data-password-toggle");
+      var input = document.getElementById(inputId);
+      if (!input) return;
+
+      var isHidden = input.type === "password";
+      input.type = isHidden ? "text" : "password";
+
+      btn.classList.toggle("isVisible", isHidden);
+      btn.setAttribute("aria-pressed", isHidden ? "true" : "false");
+      btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    }});
+  }});
+}})();
+</script>
     </div>
     """
+
     return render_template_string(f"{login_viewport}{PWA_TAGS}{STYLE}{login_page_style}{html}")
