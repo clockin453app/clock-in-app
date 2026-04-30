@@ -352,64 +352,135 @@ def home_impl(core):
 
     dashboard_active_start_iso = ""
     dashboard_active_start_label = ""
-    dashboard_open_shift = find_open_shift(rows, username)
-    if dashboard_open_shift:
-        _, d, t = dashboard_open_shift
-        try:
-            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-            dashboard_active_start_iso = start_dt.isoformat()
-            dashboard_active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            pass
 
-    # Current site card: shows where the logged-in user is currently clocked in.
-    # DB first, sheet fallback. This fixes Manual Clock-In with selected site.
+    # Safe defaults: these must always exist before dashboard HTML is built.
     current_site_name = ""
     current_site_date = ""
     current_site_time = ""
+    dashboard_site_label = "search..."
+    dashboard_site_sub = "Please wait"
+
+    def _dashboard_start_dt_from_db(rec_date, rec_clock_in):
+        """
+        WorkHour.clock_in may be either a datetime, a time, or a string.
+        Build a real datetime so the live timer works correctly.
+        """
+        if not rec_clock_in:
+            return None
+
+        try:
+            # Already a datetime.
+            if hasattr(rec_clock_in, "date") and hasattr(rec_clock_in, "time"):
+                start_dt = rec_clock_in
+            else:
+                if not rec_date:
+                    return None
+
+                if isinstance(rec_date, str):
+                    rec_date_obj = datetime.strptime(rec_date[:10], "%Y-%m-%d").date()
+                else:
+                    rec_date_obj = rec_date
+
+                if isinstance(rec_clock_in, str):
+                    clock_text = rec_clock_in.strip()
+                    if len(clock_text) == 5:
+                        clock_text += ":00"
+                    rec_time_obj = datetime.strptime(clock_text[:8], "%H:%M:%S").time()
+                else:
+                    rec_time_obj = rec_clock_in
+
+                start_dt = datetime.combine(rec_date_obj, rec_time_obj)
+
+            if getattr(start_dt, "tzinfo", None) is None:
+                start_dt = start_dt.replace(tzinfo=TZ)
+
+            return start_dt
+        except Exception:
+            return None
+
+    # DB-first open shift lookup.
+    db_dashboard_open = None
 
     if DB_MIGRATION_MODE and WorkHour is not None:
         try:
-            db_open_shift = (
+            db_open_candidates = (
                 WorkHour.query
                 .filter(
                     WorkHour.employee_email == username,
                     WorkHour.clock_out.is_(None),
                 )
                 .order_by(WorkHour.date.desc(), WorkHour.id.desc())
-                .first()
+                .all()
             )
 
-            if db_open_shift:
+            for candidate in db_open_candidates:
                 rec_wp = str(
-                    getattr(db_open_shift, "workplace_id", "")
-                    or getattr(db_open_shift, "workplace", "")
+                    getattr(candidate, "workplace_id", "")
+                    or getattr(candidate, "workplace", "")
                     or ""
                 ).strip() or "default"
 
                 if rec_wp in allowed_wps:
-                    current_site_name = str(
-                        getattr(db_open_shift, "in_site", "")
-                        or getattr(db_open_shift, "out_site", "")
-                        or ""
-                    ).strip()
+                    db_dashboard_open = candidate
+                    break
 
-                    rec_date = getattr(db_open_shift, "date", None)
-                    rec_clock_in = getattr(db_open_shift, "clock_in", None)
+            if db_dashboard_open:
+                is_clocked_in = True
+                status_text = "Clocked In"
+                status_class = "ok"
 
-                    current_site_date = rec_date.isoformat() if rec_date else ""
-                    current_site_time = rec_clock_in.strftime("%H:%M:%S") if rec_clock_in else ""
+                rec_date = getattr(db_dashboard_open, "date", None)
+                rec_clock_in = getattr(db_dashboard_open, "clock_in", None)
+
+                start_dt = _dashboard_start_dt_from_db(rec_date, rec_clock_in)
+
+                if start_dt:
+                    dashboard_active_start_iso = start_dt.isoformat()
+                    dashboard_active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+                    current_site_date = start_dt.date().isoformat()
+                    current_site_time = start_dt.strftime("%H:%M:%S")
+
+                current_site_name = str(
+                    getattr(db_dashboard_open, "in_site", "")
+                    or getattr(db_dashboard_open, "out_site", "")
+                    or ""
+                ).strip()
+
         except Exception:
-            current_site_name = ""
+            db_dashboard_open = None
 
+    # Sheet fallback only if DB did not provide the active start.
+    if not dashboard_active_start_iso:
+        dashboard_open_shift = find_open_shift(rows, username)
+
+        if dashboard_open_shift:
+            _, d, t = dashboard_open_shift
+
+            try:
+                start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
+
+                dashboard_active_start_iso = start_dt.isoformat()
+                dashboard_active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+                current_site_date = d
+                current_site_time = t
+
+                is_clocked_in = True
+                status_text = "Clocked In"
+                status_class = "ok"
+            except Exception:
+                pass
+
+    # Sheet site-name fallback only if DB did not provide the current site.
     if not current_site_name:
         header_lookup = {}
+
         for i, h in enumerate(headers or []):
             key = str(h or "").strip().lower().replace("_", "").replace(" ", "")
             if key:
                 header_lookup[key] = i
 
         site_idx_candidates = []
+
         for site_col_name in (
             "insite",
             "outsite",
@@ -446,6 +517,7 @@ def home_impl(core):
                 continue
 
             row_site_name = ""
+
             for site_idx in site_idx_candidates:
                 if site_idx < len(r):
                     row_site_name = str(r[site_idx] or "").strip()
@@ -457,30 +529,17 @@ def home_impl(core):
                 current_site_time = cin
                 current_site_name = row_site_name
 
-            if dashboard_active_start_iso:
-                dashboard_site_label = current_site_name or "Site missing"
-                dashboard_site_sub = (
-                    f"Started {dashboard_active_start_label[-8:-3]}"
-                    if dashboard_active_start_label
-                    else "Clocked in"
-                )
-            else:
-                dashboard_site_label = "search..."
-                dashboard_site_sub = "Please wait"
-
-        # Safety fallback: DB clock-in can already provide current_site_name,
-        # which skips the sheet lookup block where these were previously created.
-        if "dashboard_site_label" not in locals():
-            if dashboard_active_start_iso:
-                dashboard_site_label = current_site_name or "Site missing"
-                dashboard_site_sub = (
-                    f"Started {dashboard_active_start_label[-8:-3]}"
-                    if dashboard_active_start_label
-                    else "Clocked in"
-                )
-            else:
-                dashboard_site_label = "search..."
-                dashboard_site_sub = "Please wait"
+    # Final dashboard site text.
+    if dashboard_active_start_iso:
+        dashboard_site_label = current_site_name or "Site missing"
+        dashboard_site_sub = (
+            f"Started {dashboard_active_start_label[-8:-3]}"
+            if dashboard_active_start_label
+            else "Clocked in"
+        )
+    else:
+        dashboard_site_label = "search..."
+        dashboard_site_sub = "Please wait"
 
     if dashboard_active_start_iso:
         dashboard_status_html = f"""
@@ -3837,6 +3896,14 @@ showLocating();
         locations_total=active_locations_count,
         active_workers=clocked_in_count,
 
+        is_clocked_in=is_clocked_in,
+        status_text=status_text,
+        status_class=status_class,
+        dashboard_active_start_iso=dashboard_active_start_iso,
+        dashboard_active_start_label=dashboard_active_start_label,
+        dashboard_site_label=dashboard_site_label,
+        dashboard_site_sub=dashboard_site_sub,
+
         currency_symbol=currency,
         attendance_rate=f"{attendance_today_pct}%",
         payroll_total=f"{currency}{money(dashboard_week_pay)}",
@@ -3860,319 +3927,3 @@ showLocating();
         role_label_text=role_label(role),
     )
 
-    content = f"""
-      {modern_dashboard_css}
-
-      <div class="modernDash">
-        <div class="modernDashHeader">
-          <div class="modernDashTitle">
-            <h1>Dashboard</h1>
-            <p>{escape(now.strftime("%A • %d %b %Y"))} • {escape(role_label(role))}</p>
-          </div>
-
-          <div class="modernTopUser">
-                        <div class="modernNotifyWrap">
-              <button class="modernBell" id="clockReminderBell" type="button" title="Clock-in reminders">
-                <span class="modernBellDot" id="clockReminderDot" style="display:{'block' if reminder_should_show else 'none'};"></span>
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#07152f" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 7h18s-3 0-3-7"></path>
-                  <path d="M13.73 21a2 2 0 0 1-3.46 0"></path>
-                </svg>
-              </button>
-
-              <div class="modernNotifyPanel" id="clockReminderPanel">
-                <div class="modernNotifyTitle">Clock-in reminder</div>
-                <div class="modernNotifyText" id="clockReminderText">
-                  {'You have not clocked in yet today.' if reminder_should_show else 'No clock-in reminder right now.'}
-                </div>
-                <div class="modernNotifySmall">
-                  Default reminder time: 08:00. Browser notifications need permission once.
-                </div>
-                <button class="modernNotifyBtn" id="enableClockReminderBtn" type="button">
-                  Enable browser reminder
-                </button>
-              </div>
-            </div>
-            <div class="modernUserAvatar">{escape(_initials(display_name))}</div>
-            <div>{escape(display_name)}</div>
-          </div>
-        </div>
-
-                  <div class="modernMetricGrid">
-          {clock_status_card_html}
-
-                    <div class="modernMetricCard">
-            <div>
-              <div class="modernMetricLabel">Hours This Week</div>
-              <div class="modernMetricValue">{escape(fmt_hours(week_hours))}</div>
-              <div class="modernMetricSub">Total hours</div>
-            </div>
-            <div class="modernMetricIcon blue">
-              <svg viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="9"></circle>
-                <path d="M12 7v6l4 2"></path>
-              </svg>
-            </div>
-          </div>
-
-          <div class="modernMetricCard">
-            <div>
-              <div class="modernMetricLabel">{escape(metric_3_label)}</div>
-              <div class="modernMetricValue">{escape(metric_3_value)}</div>
-              <div class="modernMetricSub">{escape(metric_3_sub)}</div>
-            </div>
-            <div class="modernMetricIcon purple">
-              <svg viewBox="0 0 24 24">
-                <path d="M3 21h18"></path>
-                <path d="M5 21V7l8-4v18"></path>
-                <path d="M19 21V11l-6-4"></path>
-                <path d="M9 9h1"></path>
-                <path d="M9 13h1"></path>
-                <path d="M9 17h1"></path>
-              </svg>
-            </div>
-          </div>
-
-          {current_site_metric_card_html if role in ("admin", "master_admin") else ""}
-        </div>
-                {dashboard_site_geo_script_html}
-
-        {smart_dashboard_html}
-
-                <div class="modernTwoCol dashboardActivityGrid {'singleCol' if role not in ('admin', 'master_admin') else ''}">
-          <div class="modernPanel modernTimesheetsPanel">
-            <div class="modernPanelHeaderRow">
-              <div>
-                <h2 class="modernPanelTitle">Recent Timesheets</h2>
-                <p class="modernPanelSub">Latest completed time records.</p>
-              </div>
-              <a class="modernPanelLink small" href="{"/admin/log-activities" if role in ("admin", "master_admin") else "/my-times"}">View all ›</a>
-            </div>
-
-            <table class="modernTimesheetTable">
-              <thead>
-                <tr>
-                  <th>Worker</th>
-                  <th>Site</th>
-                  <th>Date</th>
-                  <th style="text-align:right;">Hours</th>
-                </tr>
-              </thead>
-              <tbody>
-                {modern_recent_rows}
-              </tbody>
-            </table>
-          </div>
-
-          {recent_activity_panel_html}
-        </div>
-
-        <div class="modernPanel dashboardProgressPanel">
-          <div class="modernPanelHeaderRow">
-            <div>
-              <h2 class="modernPanelTitle">{'Work Progress' if role in ('admin', 'master_admin') else 'My Week'}</h2>
-              <p class="modernPanelSub">{'Projects overview' if role in ('admin', 'master_admin') else 'Your work summary'}</p>
-            </div>
-            <a class="modernPanelLink small" href="{"/work-progress" if role in ("admin", "master_admin") else "/clock"}">
-              {'View all projects ›' if role in ('admin', 'master_admin') else 'Open clock page ›'}
-            </a>
-          </div>
-
-          <div class="modernProgressList professionalProgressList">
-            <div>
-              <div class="modernProgressTop"><span>Weekly hours target</span><span>{week_progress_pct}%</span></div>
-              <div class="modernProgressTrack"><span style="width:{week_progress_pct}%;"></span></div>
-            </div>
-
-            <div>
-              <div class="modernProgressTop"><span>{escape(progress_2_label)}</span><span>{progress_2_pct}%</span></div>
-              <div class="modernProgressTrack"><span style="width:{progress_2_pct}%;"></span></div>
-            </div>
-
-            <div>
-              <div class="modernProgressTop"><span>{escape(progress_3_label)}</span><span>{progress_3_pct}%</span></div>
-              <div class="modernProgressTrack"><span style="width:{progress_3_pct}%;"></span></div>
-            </div>
-
-            <div>
-              <div class="modernProgressTop"><span>{escape(progress_4_label)}</span><span>{progress_4_pct}%</span></div>
-              <div class="modernProgressTrack"><span style="width:{progress_4_pct}%;"></span></div>
-            </div>
-          </div>
-        </div>
-
-        <div class="modernOnboardingCard">
-          <div class="modernDocIcon">
-            <svg viewBox="0 0 24 24">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-              <path d="M14 2v6h6"></path>
-              <path d="M8 13h8"></path>
-              <path d="M8 17h6"></path>
-            </svg>
-          </div>
-
-          <div>
-            <div class="modernOnboardingTitle">{escape(onboarding_card_title)}</div>
-            <div class="modernOnboardingText">
-              {escape(onboarding_card_text)}
-            </div>
-          </div>
-
-          <div>
-            <div class="modernOnboardingProgressLabel">{escape(onboarding_card_progress_label)}</div>
-            <div class="modernProgressTrack"><span style="width:{onboarding_card_pct}%;"></span></div>
-          </div>
-
-          <a class="modernBtn" href="{escape(onboarding_card_url)}">{escape(onboarding_card_button)}</a>
-        </div>
-        
-        
-                <script>
-          (function(){{
-            var isEmployee = {reminder_enabled_js};
-            var isClockedIn = {reminder_clocked_in_js};
-            var shouldShowReminder = {reminder_should_show_js};
-
-            var bell = document.getElementById("clockReminderBell");
-            var panel = document.getElementById("clockReminderPanel");
-            var btn = document.getElementById("enableClockReminderBtn");
-            var dot = document.getElementById("clockReminderDot");
-            var text = document.getElementById("clockReminderText");
-
-            if (!bell || !panel) return;
-
-            function closePanel(){{
-              panel.classList.remove("open");
-            }}
-
-            function openPanel(){{
-              panel.classList.add("open");
-            }}
-
-            bell.addEventListener("click", function(e){{
-              e.preventDefault();
-              e.stopPropagation();
-              panel.classList.toggle("open");
-            }});
-
-            document.addEventListener("click", function(e){{
-              if (!panel.contains(e.target) && !bell.contains(e.target)) {{
-                closePanel();
-              }}
-            }});
-
-            function canNotify(){{
-              return "Notification" in window;
-            }}
-
-            function showBrowserReminder(){{
-  if (!isEmployee || isClockedIn || !shouldShowReminder) return;
-              if (!canNotify()) return;
-              if (Notification.permission !== "granted") return;
-
-              new Notification("TimIQ reminder", {{
-                body: "You have not clocked in yet. Please clock in when you arrive on site.",
-                icon: "/static/icon-192.png"
-              }});
-            }}
-
-            function updatePanel(){{
-              if (!isEmployee) {{
-                if (text) text.textContent = "Admin notifications will be added here later.";
-                if (btn) btn.style.display = "none";
-                if (dot) dot.style.display = "none";
-                return;
-              }}
-
-              if (isClockedIn) {{
-  if (text) text.textContent = "You are already clocked in.";
-  if (dot) dot.style.display = "none";
-}} else if (shouldShowReminder) {{
-  if (text) text.textContent = "You have not clocked in yet today.";
-  if (dot) dot.style.display = "block";
-}} else {{
-  if (text) text.textContent = "No clock-in reminder right now.";
-  if (dot) dot.style.display = "none";
-}}
-
-              if (!canNotify()) {{
-                if (btn) {{
-                  btn.disabled = true;
-                  btn.textContent = "Browser notifications not supported";
-                }}
-                return;
-              }}
-
-              if (Notification.permission === "granted") {{
-                if (btn) btn.textContent = "Browser reminder enabled";
-              }} else if (Notification.permission === "denied") {{
-                if (btn) {{
-                  btn.disabled = true;
-                  btn.textContent = "Notifications blocked in browser";
-                }}
-              }} else {{
-                if (btn) btn.textContent = "Enable browser reminder";
-              }}
-            }}
-
-            if (btn) {{
-              btn.addEventListener("click", function(e){{
-                e.preventDefault();
-                e.stopPropagation();
-
-                if (!canNotify()) return;
-
-                Notification.requestPermission().then(function(permission){{
-                  updatePanel();
-
-                  if (permission === "granted" && shouldShowReminder) {{
-                    showBrowserReminder();
-                  }}
-                }});
-              }});
-            }}
-
-            function scheduleReminderCheck(){{
-  if (!isEmployee || isClockedIn || !shouldShowReminder) return;
-
-              var now = new Date();
-              var hour = now.getHours();
-              var minute = now.getMinutes();
-
-              // Default reminder: after 08:00, if employee is not clocked in.
-              if (hour > 8 || (hour === 8 && minute >= 0)) {{
-                showBrowserReminder();
-              }}
-
-              // Keep reminding every 30 minutes while the dashboard/app is open.
-              window.setInterval(function(){{
-                showBrowserReminder();
-              }}, 30 * 60 * 1000);
-            }}
-
-            updatePanel();
-            scheduleReminderCheck();
-          }})();
-        </script>
-        
-        
-        
-        
-      </div>
-    """
-
-    return render_page(
-        template_name="admin/dashboard.html",
-        active="home",
-        role=role,
-        layout_shell=layout_shell,
-        style=STYLE,
-        viewport=VIEWPORT,
-        pwa_tags=PWA_TAGS,
-
-        employees_total=employee_count,
-        locations_total=active_locations_count,
-        attendance_rate="98%",
-        payroll_total=f"{currency}{money(week_pay)}",
-        role_label_text=role_label(role),
-    )
