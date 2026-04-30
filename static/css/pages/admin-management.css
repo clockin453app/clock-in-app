@@ -941,6 +941,7 @@ body:has(.mgmtPage) main.main {
   white-space: nowrap !important;
 }
 
+
 .mgRefManualPair .mgRefAuditHint {
   grid-column: 1 / -1 !important;
   min-width: 0 !important;
