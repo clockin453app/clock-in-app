@@ -457,16 +457,30 @@ def home_impl(core):
                 current_site_time = cin
                 current_site_name = row_site_name
 
-        if dashboard_active_start_iso:
-            dashboard_site_label = current_site_name or "Site missing"
-            dashboard_site_sub = (
-                f"Started {dashboard_active_start_label[-8:-3]}"
-                if dashboard_active_start_label
-                else "Clocked in"
-            )
-        else:
-            dashboard_site_label = "search..."
-            dashboard_site_sub = "Please wait"
+            if dashboard_active_start_iso:
+                dashboard_site_label = current_site_name or "Site missing"
+                dashboard_site_sub = (
+                    f"Started {dashboard_active_start_label[-8:-3]}"
+                    if dashboard_active_start_label
+                    else "Clocked in"
+                )
+            else:
+                dashboard_site_label = "search..."
+                dashboard_site_sub = "Please wait"
+
+        # Safety fallback: DB clock-in can already provide current_site_name,
+        # which skips the sheet lookup block where these were previously created.
+        if "dashboard_site_label" not in locals():
+            if dashboard_active_start_iso:
+                dashboard_site_label = current_site_name or "Site missing"
+                dashboard_site_sub = (
+                    f"Started {dashboard_active_start_label[-8:-3]}"
+                    if dashboard_active_start_label
+                    else "Clocked in"
+                )
+            else:
+                dashboard_site_label = "search..."
+                dashboard_site_sub = "Please wait"
 
     if dashboard_active_start_iso:
         dashboard_status_html = f"""
