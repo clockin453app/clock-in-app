@@ -700,6 +700,7 @@ from .services.work_progress_storage import build_work_progress_storage_runtime
 from .services.admin_recalculate_shifts_route import admin_recalculate_shifts_impl
 from .services.site_manager_route import site_manager_impl, site_manager_force_clockin_impl, site_manager_force_clockout_impl
 from .services.auth_runtime import build_auth_runtime
+from .ui.render import render_page
 try:
     from PIL import Image, ImageOps
 except Exception:
@@ -3751,7 +3752,7 @@ def admin_migrate_workplace_id():
 
     return render_template_string(
         f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
-        layout_shell("admin", session.get("role", "admin"), content)
+        layout_shell("admin", session.get("role", "../static/css/pages/admin"), content)
     )
 
 
@@ -4496,9 +4497,7 @@ def sidebar_html(active: str, role: str) -> str:
     ]
 
     if role_l == "site_manager":
-        items.append(
-            ("site-manager", "/site-manager", "Site Manager", _icon_admin(28))
-        )
+        items.append(("site-manager", "/site-manager", "Site Manager", _icon_admin(28)))
 
     if role_l in ("admin", "master_admin"):
         items.append(("admin", "/admin", "Management", _svg_shield()))
@@ -4515,41 +4514,35 @@ def sidebar_html(active: str, role: str) -> str:
               <div class="sideIcon">{icon}</div>
               <div class="sideText">{escape(label)}</div>
             </div>
-            <div class="chev">›</div>
           </a>
         """)
 
-        try:
-            company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
-        except Exception:
-            company_name = "Main"
+    try:
+        company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
+    except Exception:
+        company_name = "Main"
 
     return f"""
-      <div class="sidebar" style="display:flex; flex-direction:column;">
-        <div style="padding:26px 0 32px; display:flex; justify-content:center; align-items:center;">
+      <aside class="sidebar refSidebar">
+        <div class="refSidebarLogo">
           {timiq_logo_html()}
         </div>
 
-        <div style="display:flex; flex-direction:column; flex:1;">
-          <div>
-            {''.join(links)}
-          </div>
+        <nav class="refSidebarNav">
+          {''.join(links)}
+        </nav>
 
-                    <div style="
-            margin-top:auto;
-            padding:18px 20px 88px;
-            color:rgba(255,255,255,0.72);
-            font-size:12px;
-            font-weight:800;
-            letter-spacing:.06em;
-            text-transform:uppercase;
-            line-height:1.4;
-            text-align:center;
-          ">
-            {escape(company_name)}
-          </div>
+        <div class="refSidebarCompany">
+          <div class="refSidebarCompanyIcon">▦</div>
+          <div class="refSidebarCompanyName">{escape(company_name)}</div>
+          <div class="refSidebarCompanyChevron">⌄</div>
         </div>
-      </div>
+
+        <div class="refSidebarCollapse">
+          <span>‹</span>
+          <span>Collapse</span>
+        </div>
+      </aside>
     """
 
 
@@ -4700,6 +4693,8 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
         </div>
       </div>
       {heartbeat_script}
+      <link rel="stylesheet" href="/static/css/timiq-reference-theme.css?v=30">
+      <link rel="stylesheet" href="/static/css/pages/admin-final-clean.css?v=12">
     """
 
 
@@ -5561,102 +5556,35 @@ def admin_current_sessions():
     live_count = sum(1 for r in rows if r.get("is_live"))
     total_count = len(rows)
 
-    body_rows = []
+    session_items = []
     for r in rows:
-        status_html = (
-            "<span class='chip ok'>Live</span>"
-            if r.get("is_live")
-            else "<span class='chip'>Idle</span>"
-        )
+        session_items.append({
+            "is_live": bool(r.get("is_live")),
+            "scope_label": "Global admin" if r.get("auth_scope") == "global_master_admin" else "Workplace login",
+            "workplace_label": r.get("workplace_id") or "default",
+            "username": r.get("username") or "",
+            "role_label": (r.get("role") or "employee").upper(),
+            "ip": r.get("ip") or "—",
+            "user_agent": r.get("user_agent") or "—",
+            "age": ago_text(r.get("age_seconds", 0)),
+            "last_seen_iso": r.get("last_seen_iso") or "—",
+            "session_key": r.get("session_key") or "",
+        })
 
-        scope_label = "Global admin" if r.get("auth_scope") == "global_master_admin" else "Workplace login"
-        workplace_label = r.get("workplace_id") or "default"
-        username = r.get("username") or ""
-        role_label_text = (r.get("role") or "employee").upper()
-        ip = r.get("ip") or "—"
-        ua = r.get("user_agent") or "—"
-        age = ago_text(r.get("age_seconds", 0))
-        last_seen_iso = r.get("last_seen_iso") or "—"
-        session_key = r.get("session_key") or ""
-
-        body_rows.append(f"""
-          <tr>
-            <td>
-              <div style="font-weight:700;">{escape(username)}</div>
-              <div class="sub" style="margin-top:3px;">{escape(scope_label)}</div>
-            </td>
-            <td>{escape(role_label_text)}</td>
-            <td>{escape(workplace_label)}</td>
-            <td>{status_html}</td>
-            <td>{escape(age)}</td>
-            <td>
-              <div>{escape(last_seen_iso)}</div>
-              <div class="sub" style="margin-top:3px;">IP: {escape(ip)}</div>
-            </td>
-            <td style="max-width:260px;">
-              <div class="sub" style="white-space:normal; word-break:break-word;">{escape(ua)}</div>
-            </td>
-            <td>
-              <form method="POST" action="/admin/current-sessions/force-logout" style="margin:0;">
-                <input type="hidden" name="csrf" value="{escape(csrf)}">
-                <input type="hidden" name="session_key" value="{escape(session_key)}">
-                <button class="btnOut" type="submit">Force logout</button>
-              </form>
-            </td>
-          </tr>
-        """)
-
-    table_html = "".join(body_rows) if body_rows else "<tr><td colspan='8'>No live sessions found.</td></tr>"
-
-    content = f"""
-      {admin_back_link("/admin")}
-
-      <div class="headerTop">
-        <div>
-          <h1>Live Attendance</h1>
-          <p class="sub">Master admin only • authenticated users active in the last {LIVE_SESSION_TTL_SECONDS} seconds.</p>
-        </div>
-        <div class="badge admin">MASTER ADMIN</div>
-      </div>
-
-      <div class="metricsRow" style="display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px;">
-        <div class="metricCard"><div class="k">Live now</div><div class="v">{live_count}</div></div>
-        <div class="metricCard"><div class="k">Tracked sessions</div><div class="v">{total_count}</div></div>
-      </div>
-
-      <div class="card" style="padding:12px; margin-top:12px;">
-        <div class="sub" style="margin-bottom:10px;">This page auto-refreshes every 15 seconds.</div>
-        <div class="tablewrap">
-          <table style="min-width:1100px;">
-            <thead>
-              <tr>
-                <th>User</th>
-                <th>Role</th>
-                <th>Workplace</th>
-                <th>Status</th>
-                <th>Seen</th>
-                <th>Last Seen / IP</th>
-                <th>User Agent</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>{table_html}</tbody>
-          </table>
-        </div>
-      </div>
-
-      <script>
-        window.setTimeout(function(){{
-          window.location.reload();
-        }}, 15000);
-      </script>
-    """
-
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
-        layout_shell("current-sessions", role, content)
+    return render_page(
+        template_name="admin/live_attendance.html",
+        active="current-sessions",
+        role=role,
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+        csrf=csrf,
+        ttl_seconds=LIVE_SESSION_TTL_SECONDS,
+        live_count=live_count,
+        total_count=total_count,
+        sessions=session_items,
     )
-
 
 @routes.post("/admin/current-sessions/force-logout")
 def admin_current_sessions_force_logout():

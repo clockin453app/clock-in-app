@@ -1,3 +1,4 @@
+from ..ui.render import render_page
 def home_impl(core):
     require_login = core["require_login"]
     session = core["session"]
@@ -3574,8 +3575,276 @@ showLocating();
       </script>
     """
 
+    # ================= LIVE DASHBOARD DATA FOR admin/dashboard.html =================
+    def _dashboard_pct(value, total):
+        try:
+            value = float(value or 0)
+            total = float(total or 0)
+            if total <= 0:
+                return 0
+            return int(round(max(0.0, min(1.0, value / total)) * 100))
+        except Exception:
+            return 0
 
+    def _dashboard_delta(curr, prev, suffix="", up_word="Higher", down_word="Lower", same_word="No change"):
+        try:
+            curr = float(curr or 0)
+            prev = float(prev or 0)
 
+            if prev <= 0 and curr <= 0:
+                return same_word
+
+            if prev <= 0 and curr > 0:
+                return f"{up_word} this period"
+
+            pct = int(round(((curr - prev) / prev) * 100))
+
+            if pct == 0:
+                return same_word
+
+            if pct > 0:
+                return f"{up_word} by {abs(pct)}{suffix}"
+
+            return f"{down_word} by {abs(pct)}{suffix}"
+        except Exception:
+            return same_word
+
+    def _attendance_delta_text(today_pct, yesterday_pct):
+        try:
+            today_pct = int(today_pct or 0)
+            yesterday_pct = int(yesterday_pct or 0)
+        except Exception:
+            today_pct = 0
+            yesterday_pct = 0
+
+        if today_pct <= 0:
+            return "No attendance today"
+
+        if yesterday_pct <= 0:
+            return "Attendance recorded today"
+
+        return _dashboard_delta(
+            today_pct,
+            yesterday_pct,
+            "%",
+            up_word="Higher than yesterday",
+            down_word="Lower than yesterday",
+            same_word="Same as yesterday",
+        )
+
+    def _money_delta_text(curr, prev):
+        return _dashboard_delta(
+            curr,
+            prev,
+            "%",
+            up_word="Higher than last week",
+            down_word="Lower than last week",
+            same_word="Same as last week",
+        )
+
+    def _hours_delta_text(curr, prev):
+        return _dashboard_delta(
+            curr,
+            prev,
+            "%",
+            up_word="More hours than last week",
+            down_word="Fewer hours than last week",
+            same_word="Same hours as last week",
+        )
+
+    def _dashboard_initials(name):
+        parts = [p for p in str(name or "").strip().split() if p]
+        if not parts:
+            return "AD"
+        return "".join(p[0].upper() for p in parts[:2])
+
+    dashboard_days = [today - timedelta(days=(6 - i)) for i in range(7)]
+    dashboard_day_users = {d: set() for d in dashboard_days}
+    dashboard_day_pay = {d: 0.0 for d in dashboard_days}
+    dashboard_day_hours = {d: 0.0 for d in dashboard_days}
+
+    previous_week_start = current_week_start - timedelta(days=7)
+    previous_week_end = current_week_start - timedelta(days=1)
+
+    dashboard_week_pay = 0.0
+    dashboard_week_hours = 0.0
+    dashboard_previous_week_pay = 0.0
+    dashboard_previous_week_hours = 0.0
+
+    today_users_with_work = set()
+    yesterday_users_with_work = set()
+
+    for r in rows[1:]:
+        if len(r) <= max(COL_USER, COL_DATE, COL_IN, COL_OUT, COL_HOURS, COL_PAY):
+            continue
+
+        row_user = (r[COL_USER] or "").strip()
+        if not row_user:
+            continue
+
+        if role not in ("admin", "master_admin") and row_user != username:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+        else:
+            if not user_in_same_workplace(row_user):
+                continue
+
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
+        try:
+            d_obj = datetime.strptime(d_str, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        cin = (r[COL_IN] if len(r) > COL_IN else "").strip()
+        cout = (r[COL_OUT] if len(r) > COL_OUT else "").strip()
+        h_val = safe_float((r[COL_HOURS] if len(r) > COL_HOURS else "") or "0", 0.0)
+        p_val = safe_float((r[COL_PAY] if len(r) > COL_PAY else "") or "0", 0.0)
+
+        has_work = bool(cin or cout or h_val > 0 or p_val > 0)
+
+        if d_obj in dashboard_day_users:
+            if has_work:
+                dashboard_day_users[d_obj].add(row_user)
+            dashboard_day_pay[d_obj] += p_val
+            dashboard_day_hours[d_obj] += h_val
+
+        if d_obj == today and has_work:
+            today_users_with_work.add(row_user)
+
+        if d_obj == today - timedelta(days=1) and has_work:
+            yesterday_users_with_work.add(row_user)
+
+        if current_week_start <= d_obj <= current_week_end:
+            dashboard_week_pay += p_val
+            dashboard_week_hours += h_val
+
+        if previous_week_start <= d_obj <= previous_week_end:
+            dashboard_previous_week_pay += p_val
+            dashboard_previous_week_hours += h_val
+
+    dashboard_employee_base = max(int(employee_count or 0), 1)
+
+    attendance_today_pct = _dashboard_pct(len(today_users_with_work), dashboard_employee_base)
+    attendance_yesterday_pct = _dashboard_pct(len(yesterday_users_with_work), dashboard_employee_base)
+
+    attendance_chart = []
+    for i, d in enumerate(dashboard_days):
+        pct = _dashboard_pct(len(dashboard_day_users.get(d, set())), dashboard_employee_base)
+        x = 0 if len(dashboard_days) <= 1 else round((i / (len(dashboard_days) - 1)) * 100, 2)
+        attendance_chart.append({
+            "label": d.strftime("%d %b"),
+            "pct": pct,
+            "x": x,
+        })
+
+    attendance_polyline = " ".join(
+        f"{p['x']},{100 - p['pct']}"
+        for p in attendance_chart
+    )
+
+    weekly_average_pct = int(
+        round(sum(p["pct"] for p in attendance_chart) / len(attendance_chart))) if attendance_chart else 0
+    previous_average_pct = attendance_yesterday_pct
+
+    max_pay_bar = max([dashboard_day_pay[d] for d in dashboard_days] + [1.0])
+    payroll_bars = []
+    for d in dashboard_days:
+        val = dashboard_day_pay[d]
+        pct = int(round((val / max_pay_bar) * 100)) if max_pay_bar > 0 else 0
+        if val > 0 and pct < 6:
+            pct = 6
+        payroll_bars.append({
+            "label": d.strftime("%d %b"),
+            "value": val,
+            "pct": pct,
+        })
+
+    payroll_tick_max = max_pay_bar
+    payroll_ticks = [
+        f"{currency}{money(payroll_tick_max)}",
+        f"{currency}{money(payroll_tick_max * 0.75)}",
+        f"{currency}{money(payroll_tick_max * 0.50)}",
+        f"{currency}{money(payroll_tick_max * 0.25)}",
+        f"{currency}0",
+    ]
+
+    avg_hourly_value = 0.0
+    if dashboard_week_hours > 0:
+        avg_hourly_value = dashboard_week_pay / dashboard_week_hours
+
+    recent_activity = []
+    if is_admin_like and DB_MIGRATION_MODE and AuditLog is not None:
+        try:
+            audit_rows = (
+                AuditLog.query
+                .filter(AuditLog.workplace_id.in_(list(allowed_wps)))
+                .order_by(AuditLog.created_at.desc())
+                .limit(4)
+                .all()
+            )
+            for a in audit_rows:
+                created = getattr(a, "created_at", None)
+                recent_activity.append({
+                    "tone": "blue",
+                    "title": str(getattr(a, "action", "") or "Activity").replace("_", " ").title(),
+                    "subtitle": str(getattr(a, "username", "") or getattr(a, "details", "") or "Workplace action"),
+                    "when": created.strftime("%d %b, %H:%M") if created else "",
+                    "actor": str(getattr(a, "actor", "") or "System"),
+                })
+        except Exception:
+            recent_activity = []
+
+    if not recent_activity:
+        for rr in recent_rows[:4]:
+            recent_activity.append({
+                "tone": "green" if rr.get("status") == "Complete" else "blue",
+                "title": f"Timesheet {rr.get('status') or 'updated'}",
+                "subtitle": f"{get_employee_display_name(rr.get('user'))} • {rr.get('date')}",
+                "when": (rr.get("cin") or "")[:5],
+                "actor": "",
+            })
+
+    return render_page(
+        template_name="admin/dashboard.html",
+        active="home",
+        role=role,
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+
+        display_name=display_name,
+        user_initials=_dashboard_initials(display_name),
+        employees_total=employee_count,
+        locations_total=active_locations_count,
+        active_workers=clocked_in_count,
+
+        currency_symbol=currency,
+        attendance_rate=f"{attendance_today_pct}%",
+        payroll_total=f"{currency}{money(dashboard_week_pay)}",
+        total_hours=f"{fmt_hours(dashboard_week_hours)}h",
+        avg_hourly_cost=f"{currency}{money(avg_hourly_value)}",
+
+        employees_delta_text="Current total",
+        sites_delta_text="Current total",
+        attendance_delta_text=_attendance_delta_text(attendance_today_pct, attendance_yesterday_pct),
+        payroll_delta_text=_money_delta_text(dashboard_week_pay, dashboard_previous_week_pay),
+        hours_delta_text=_hours_delta_text(dashboard_week_hours, dashboard_previous_week_hours),
+        avg_hourly_delta_text="Based on payroll / hours",
+
+        attendance_chart=attendance_chart,
+        attendance_polyline=attendance_polyline,
+        weekly_average=f"{weekly_average_pct}%",
+        weekly_average_delta_text=_attendance_delta_text(weekly_average_pct, previous_average_pct),
+        payroll_bars=payroll_bars,
+        payroll_ticks=payroll_ticks,
+        recent_activity=recent_activity,
+        role_label_text=role_label(role),
+    )
 
     content = f"""
       {modern_dashboard_css}
@@ -3878,6 +4147,18 @@ showLocating();
       </div>
     """
 
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("home", role, content, shell_class="dashboardShellModern")
+    return render_page(
+        template_name="admin/dashboard.html",
+        active="home",
+        role=role,
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+
+        employees_total=employee_count,
+        locations_total=active_locations_count,
+        attendance_rate="98%",
+        payroll_total=f"{currency}{money(week_pay)}",
+        role_label_text=role_label(role),
     )

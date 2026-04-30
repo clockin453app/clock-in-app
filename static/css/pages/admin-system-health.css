@@ -1,0 +1,407 @@
+.refPage {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.refBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #66718b;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.refBreadcrumb a {
+  color: #46516d;
+  text-decoration: none;
+}
+
+.refBreadcrumb span:last-child {
+  color: #121a3a;
+}
+
+.refPageHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 22px;
+}
+
+.refPageHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+  font-weight: 800;
+}
+
+.refPageHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.refHeaderActions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.refAdminBadge {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 9px;
+  background: #eeeaff;
+  color: #5b3ff4;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .035em;
+}
+
+.refGhostButton,
+.refPrimaryButton {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 11px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.refGhostButton {
+  color: #293553;
+  background: #fff;
+  border: 1px solid #e3e8f4;
+}
+
+.refPrimaryButton {
+  color: #fff;
+  background: linear-gradient(135deg, #5b3ff4, #6848ff);
+  border: 1px solid transparent;
+  box-shadow: 0 12px 28px rgba(91, 63, 244, .22);
+}
+
+.healthHeroGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.healthMetricCard {
+  min-height: 128px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+}
+
+.healthMetricIcon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.healthOk {
+  background: #ecfdf3;
+  color: #16a34a;
+}
+
+.healthWarn {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.healthBad {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.healthInfo {
+  background: #f1eeff;
+  color: #5b3ff4;
+}
+
+.healthMetricLabel {
+  color: #303a59;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.healthMetricValue {
+  margin-top: 8px;
+  color: #11183a;
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.healthMetricSub {
+  margin-top: 8px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.healthMetricLink {
+  display: inline-flex;
+  margin-top: 10px;
+  color: #5b3ff4;
+  font-size: 14px;
+  font-weight: 900;
+  text-decoration: none;
+}
+
+.healthMainGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.36fr) minmax(340px, .64fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.refPanel {
+  padding: 18px;
+}
+
+.refPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.refPanelHeader.compact {
+  margin-bottom: 14px;
+}
+
+.refPanelHeader h2 {
+  margin: 0;
+  color: #11183a;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.refPanelHeader p {
+  margin: 6px 0 0;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.healthTableShell {
+  overflow: auto;
+  border: 1px solid #e3e8f4;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.healthTable {
+  width: 100%;
+  min-width: 820px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.healthTable th {
+  height: 48px;
+  padding: 0 16px;
+  background: #fbfcff;
+  color: #66718b;
+  border-bottom: 1px solid #e3e8f4;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.healthTable td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f8;
+  color: #25304e;
+  font-size: 13px;
+  font-weight: 750;
+  vertical-align: middle;
+}
+
+.healthTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.healthAreaName {
+  color: #17203d;
+  font-weight: 900;
+}
+
+.healthDetails {
+  color: #46516d;
+  font-weight: 750;
+  line-height: 1.45;
+}
+
+.healthStatus {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.healthStatus span,
+.statusDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.healthStatus.ok {
+  color: #16a34a;
+  background: #ecfdf3;
+}
+
+.healthStatus.ok span,
+.statusDot.ok {
+  background: #22b35b;
+}
+
+.healthStatus.warn {
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.healthStatus.warn span,
+.statusDot.warn {
+  background: #fb923c;
+}
+
+.healthStatus.bad {
+  color: #e11d48;
+  background: #fff1f2;
+}
+
+.healthStatus.bad span,
+.statusDot.bad {
+  background: #ef4444;
+}
+
+.healthSideStack {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.statusList,
+.backupList {
+  display: flex;
+  flex-direction: column;
+}
+
+.statusItem,
+.backupItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  padding: 0 4px;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.statusItem:last-child,
+.backupItem:last-child {
+  border-bottom: 0;
+}
+
+.statusLeft {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #46516d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.statusLeft span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.statusItem strong {
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.backupItem {
+  color: #293553;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.backupItem:hover {
+  color: #5b3ff4;
+}
+
+.backupIcon {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  color: #5b3ff4;
+  background: #f1eeff;
+}
+
+.backupItem span:nth-child(2) {
+  flex: 1;
+}
+
+.backupItem strong {
+  color: #5b3ff4;
+}
+
+@media (max-width: 1180px) {
+  .healthHeroGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .healthMainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .refPageHeader {
+    flex-direction: column;
+  }
+
+  .healthHeroGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .refPageHeader h1 {
+    font-size: 34px;
+  }
+}

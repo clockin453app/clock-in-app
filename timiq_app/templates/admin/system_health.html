@@ -1,0 +1,182 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-system-health.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+<div class="refPage">
+  <div class="refBreadcrumb">
+    <a href="/admin">Dashboard</a>
+    <span>›</span>
+    <span>System Health</span>
+  </div>
+
+  <div class="refPageHeader">
+    <div>
+      <h1>System Health</h1>
+      <p>Monitor database, storage, backups and live session status.</p>
+    </div>
+
+    <div class="refHeaderActions">
+      <div class="refAdminBadge">MASTER ADMIN</div>
+      <a class="refGhostButton" href="/admin">← Back</a>
+    </div>
+  </div>
+
+  <div class="healthHeroGrid">
+    <div class="healthMetricCard">
+      <div class="healthMetricIcon healthOk">✓</div>
+      <div>
+        <div class="healthMetricLabel">Checks Run</div>
+        <div class="healthMetricValue">{{ health_rows|length }}</div>
+        <div class="healthMetricSub">Checked {{ now_text }}</div>
+      </div>
+    </div>
+
+    <div class="healthMetricCard">
+      <div class="healthMetricIcon healthWarn">!</div>
+      <div>
+        <div class="healthMetricLabel">Warnings</div>
+        <div class="healthMetricValue">
+          {{ health_rows | selectattr("level", "equalto", "warn") | list | length }}
+        </div>
+        <div class="healthMetricSub">Items needing review</div>
+      </div>
+    </div>
+
+    <div class="healthMetricCard">
+      <div class="healthMetricIcon healthBad">×</div>
+      <div>
+        <div class="healthMetricLabel">Errors</div>
+        <div class="healthMetricValue">
+          {{ health_rows | selectattr("level", "equalto", "bad") | list | length }}
+        </div>
+        <div class="healthMetricSub">Critical system issues</div>
+      </div>
+    </div>
+
+    <div class="healthMetricCard">
+      <div class="healthMetricIcon healthInfo">↻</div>
+      <div>
+        <div class="healthMetricLabel">Refresh</div>
+        <a class="healthMetricLink" href="/admin/system-health">Run checks again</a>
+        <div class="healthMetricSub">Read-only operation</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="healthMainGrid">
+    <section class="refPanel healthChecksPanel">
+      <div class="refPanelHeader">
+        <div>
+          <h2>Health Checks</h2>
+          <p>Read-only checks for app, database, storage and session status.</p>
+        </div>
+
+        <a href="/admin/system-health" class="refPrimaryButton">Refresh</a>
+      </div>
+
+      <div class="healthTableShell">
+        <table class="healthTable">
+          <thead>
+            <tr>
+              <th>Area</th>
+              <th>Status</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if health_rows %}
+              {% for row in health_rows %}
+                <tr>
+                  <td>
+                    <div class="healthAreaName">{{ row.area }}</div>
+                  </td>
+                  <td>
+                    {% if row.level == "ok" %}
+                      <span class="healthStatus ok">
+                        <span></span>
+                        OK
+                      </span>
+                    {% elif row.level == "warn" %}
+                      <span class="healthStatus warn">
+                        <span></span>
+                        Warning
+                      </span>
+                    {% else %}
+                      <span class="healthStatus bad">
+                        <span></span>
+                        Error
+                      </span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="healthDetails">{{ row.details }}</div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="3" class="healthEmpty">
+                  No health checks available.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="healthSideStack">
+      <section class="refPanel">
+        <div class="refPanelHeader compact">
+          <div>
+            <h2>System Status</h2>
+            <p>Current operational overview.</p>
+          </div>
+        </div>
+
+        <div class="statusList">
+          {% for row in health_rows[:6] %}
+            <div class="statusItem">
+              <div class="statusLeft">
+                {% if row.level == "ok" %}
+                  <span class="statusDot ok"></span>
+                {% elif row.level == "warn" %}
+                  <span class="statusDot warn"></span>
+                {% else %}
+                  <span class="statusDot bad"></span>
+                {% endif %}
+                <span>{{ row.area }}</span>
+              </div>
+              <strong>
+                {% if row.level == "ok" %}
+                  Operational
+                {% elif row.level == "warn" %}
+                  Review
+                {% else %}
+                  Error
+                {% endif %}
+              </strong>
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+
+      <section class="refPanel">
+        <div class="refPanelHeader compact">
+          <div>
+            <h2>Backup Exports</h2>
+            <p>Download read-only CSV backups.</p>
+          </div>
+        </div>
+
+        <div class="backupList">
+          {% for backup in backup_links %}
+            <a class="backupItem" href="{{ backup.href }}">
+              <span class="backupIcon">▣</span>
+              <span>{{ backup.label }}</span>
+              <strong>→</strong>
+            </a>
+          {% endfor %}
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

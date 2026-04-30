@@ -1,6 +1,8 @@
 import csv
 import io
 
+from ..ui.render import render_page
+
 
 def admin_system_health_impl(core):
     require_master_admin = core["require_master_admin"]
@@ -33,14 +35,12 @@ def admin_system_health_impl(core):
 
     datetime = core["datetime"]
     TZ = core["TZ"]
-    escape = core["escape"]
     admin_back_link = core["admin_back_link"]
 
     STYLE = core["STYLE"]
     VIEWPORT = core["VIEWPORT"]
     PWA_TAGS = core["PWA_TAGS"]
     layout_shell = core["layout_shell"]
-    render_template_string = core["render_template_string"]
 
     gate = require_master_admin()
     if gate:
@@ -52,20 +52,11 @@ def admin_system_health_impl(core):
     health_rows = []
 
     def add_row(area, details="", level="ok"):
-        if level == "ok":
-            badge = "<span class='chip ok'>OK</span>"
-        elif level == "warn":
-            badge = "<span class='chip warn'>Warning</span>"
-        else:
-            badge = "<span class='chip bad'>Error</span>"
-
-        health_rows.append(f"""
-          <tr>
-            <td style="font-weight:800;">{escape(area)}</td>
-            <td>{badge}</td>
-            <td style="white-space:normal;">{escape(str(details or ""))}</td>
-          </tr>
-        """)
+        health_rows.append({
+            "area": str(area or ""),
+            "details": str(details or ""),
+            "level": level if level in ("ok", "warn", "bad") else "bad",
+        })
 
     def safe_check(label, fn):
         try:
@@ -158,75 +149,29 @@ def admin_system_health_impl(core):
     except Exception as e:
         add_row("Live sessions", str(e), "warn")
 
-    table_html = "".join(health_rows) or """
-      <tr>
-        <td colspan="3" style="padding:16px;">No health checks available.</td>
-      </tr>
-    """
+    backup_links = [
+        {"href": "/admin/system-health/backup/employees", "label": "Employees CSV"},
+        {"href": "/admin/system-health/backup/workhours", "label": "Workhours CSV"},
+        {"href": "/admin/system-health/backup/payroll", "label": "Payroll CSV"},
+        {"href": "/admin/system-health/backup/onboarding", "label": "Onboarding CSV"},
+        {"href": "/admin/system-health/backup/locations", "label": "Locations CSV"},
+        {"href": "/admin/system-health/backup/settings", "label": "Settings CSV"},
+        {"href": "/admin/system-health/backup/audit", "label": "Audit logs CSV"},
+    ]
 
-    content = f"""
-      {admin_back_link("/admin")}
-
-      <div class="headerTop">
-        <div>
-          <h1>System Health</h1>
-          <p class="sub">Master Admin only • read-only system checks.</p>
-          <p class="sub" style="margin-top:4px;">Checked: {escape(now_text)}</p>
-        </div>
-        <div class="badge admin">MASTER ADMIN</div>
-      </div>
-
-      <div class="card" style="padding:14px; margin-top:12px;">
-        <div style="display:flex; justify-content:space-between; gap:12px; flex-wrap:wrap; align-items:flex-start;">
-          <div>
-            <h2 style="margin:0;">Health checks</h2>
-            <p class="sub" style="margin:4px 0 0 0;">
-              This page does not change anything. It only checks app, database, storage and session status.
-            </p>
-          </div>
-
-          <a href="/admin/system-health" class="btnTiny" style="text-decoration:none;">Refresh</a>
-        </div>
-
-        <div class="tablewrap" style="margin-top:12px;">
-          <table style="min-width:900px;">
-            <thead>
-              <tr>
-                <th>Area</th>
-                <th>Status</th>
-                <th>Details</th>
-              </tr>
-            </thead>
-            <tbody>
-              {table_html}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div class="card" style="padding:14px; margin-top:12px;">
-        <h2 style="margin:0;">Backup exports</h2>
-        <p class="sub" style="margin:8px 0 0 0;">
-          Master Admin only. These buttons download read-only CSV backups. They do not change data.
-        </p>
-
-        <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:10px; margin-top:14px;">
-          <a class="btnTiny" style="text-decoration:none; text-align:center;" href="/admin/system-health/backup/employees">Employees CSV</a>
-          <a class="btnTiny" style="text-decoration:none; text-align:center;" href="/admin/system-health/backup/workhours">Workhours CSV</a>
-          <a class="btnTiny" style="text-decoration:none; text-align:center;" href="/admin/system-health/backup/payroll">Payroll CSV</a>
-          <a class="btnTiny" style="text-decoration:none; text-align:center;" href="/admin/system-health/backup/onboarding">Onboarding CSV</a>
-          <a class="btnTiny" style="text-decoration:none; text-align:center;" href="/admin/system-health/backup/locations">Locations CSV</a>
-          <a class="btnTiny" style="text-decoration:none; text-align:center;" href="/admin/system-health/backup/settings">Settings CSV</a>
-          <a class="btnTiny" style="text-decoration:none; text-align:center;" href="/admin/system-health/backup/audit">Audit logs CSV</a>
-        </div>
-      </div>
-    """
-
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
-        layout_shell("admin", role, content)
+    return render_page(
+        template_name="admin/system_health.html",
+        active="admin",
+        role=role,
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+        admin_back_html=admin_back_link("/admin"),
+        now_text=now_text,
+        health_rows=health_rows,
+        backup_links=backup_links,
     )
-
 
 def admin_system_backup_export_impl(core, dataset):
     require_master_admin = core["require_master_admin"]

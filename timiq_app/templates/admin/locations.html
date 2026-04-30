@@ -1,0 +1,201 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-locations.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+<div class="locationsPage">
+  <div class="locationsBreadcrumb">
+    <a href="/admin">Management</a>
+    <span>›</span>
+    <span>Site Locations</span>
+  </div>
+
+  <div class="locationsHeader">
+    <div>
+      <h1>Site Locations</h1>
+      <p>Manage geo-fence locations used for employee clock-in and clock-out.</p>
+    </div>
+    <div class="locationsBadge">ADMIN</div>
+  </div>
+
+  <div class="locationsMetrics">
+    <div class="locationMetric">
+      <div class="locationMetricIcon">📍</div>
+      <div>
+        <strong>{{ total_locations }}</strong>
+        <span>Total locations</span>
+      </div>
+    </div>
+
+    <div class="locationMetric">
+      <div class="locationMetricIcon green">✓</div>
+      <div>
+        <strong>{{ active_locations }}</strong>
+        <span>Active geo-fences</span>
+      </div>
+    </div>
+
+    <div class="locationMetric">
+      <div class="locationMetricIcon orange">◎</div>
+      <div>
+        <strong>{{ current_workplace }}</strong>
+        <span>Current workplace</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="locationsLayout">
+    <div class="locationsStack">
+      {% if chosen %}
+        <section class="locationsPanel">
+          <div class="locationsPanelHeader">
+            <div class="locationsPanelTitle">
+              <div class="locationsPanelIcon">🗺</div>
+              <div>
+                <h2>Map Preview</h2>
+                <p>{{ chosen.name }} • {{ chosen.lat }}, {{ chosen.lon }}</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="mapFrameShell">
+            <iframe title="map" src="{{ chosen.osm_url }}" loading="lazy"></iframe>
+          </div>
+
+          <div class="mapActions">
+            <a href="{{ chosen.google_url }}" target="_blank" rel="noopener noreferrer">Open in Google Maps</a>
+            <a href="{{ chosen.osm_link }}" target="_blank" rel="noopener noreferrer">Open in OpenStreetMap</a>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="locationsPanel">
+        <div class="locationsPanelHeader">
+          <div class="locationsPanelTitle">
+            <div class="locationsPanelIcon green">＋</div>
+            <div>
+              <h2>Add Location</h2>
+              <p>Add a new site radius for location-based attendance.</p>
+            </div>
+          </div>
+        </div>
+
+        <form class="locationForm" method="POST" action="/admin/locations/save">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="orig_name" value="">
+
+          <div class="locationFormGrid">
+            <div class="locationField">
+              <label>Site name</label>
+              <input name="name" placeholder="e.g. Site A" required>
+            </div>
+
+            <div class="locationField">
+              <label>Radius meters</label>
+              <input name="rad" placeholder="e.g. 150" required>
+            </div>
+
+            <div class="locationField">
+              <label>Latitude</label>
+              <input name="lat" placeholder="e.g. 51.5074" required>
+            </div>
+
+            <div class="locationField">
+              <label>Longitude</label>
+              <input name="lon" placeholder="e.g. -0.1278" required>
+            </div>
+          </div>
+
+          <label class="locationCheckbox">
+            <input type="checkbox" name="active" value="yes" checked>
+            Active
+          </label>
+
+          <button class="locationSubmit" type="submit">Add location</button>
+        </form>
+      </section>
+    </div>
+
+    <section class="locationsPanel">
+      <div class="locationsPanelHeader">
+        <div class="locationsPanelTitle">
+          <div class="locationsPanelIcon">▦</div>
+          <div>
+            <h2>All Locations</h2>
+            <p>Update site coordinates, radius and active status.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="locationsTableShell">
+        <table class="locationsTable">
+          <thead>
+            <tr>
+              <th>Site</th>
+              <th>Latitude</th>
+              <th>Longitude</th>
+              <th>Radius</th>
+              <th>Manage</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if locations %}
+              {% for site in locations %}
+                <tr>
+                  <td>
+                    <div class="locationName">{{ site.name }}</div>
+                    <div class="locationSub">
+                      {% if site.active %}
+                        <span class="locationStatus active"><span></span>Active</span>
+                      {% else %}
+                        <span class="locationStatus inactive"><span></span>Inactive</span>
+                      {% endif %}
+                    </div>
+                    <div class="locationSub">
+                      <a href="/admin/locations?site={{ site.name }}">View map</a>
+                    </div>
+                  </td>
+
+                  <td>{{ site.lat }}</td>
+                  <td>{{ site.lon }}</td>
+                  <td>{{ site.rad }} m</td>
+
+                  <td>
+                    <form class="locationMiniForm" method="POST" action="/admin/locations/save">
+                      <input type="hidden" name="csrf" value="{{ csrf }}">
+                      <input type="hidden" name="orig_name" value="{{ site.name }}">
+
+                      <input class="siteName" name="name" value="{{ site.name }}" placeholder="Site name">
+                      <input class="coord" name="lat" value="{{ site.lat }}" placeholder="Lat">
+                      <input class="coord" name="lon" value="{{ site.lon }}" placeholder="Lon">
+                      <input class="radius" name="rad" value="{{ site.rad }}" placeholder="Radius m">
+
+                      <label class="locationMiniCheckbox">
+                        <input type="checkbox" name="active" value="yes" {% if site.active %}checked{% endif %}>
+                        Active
+                      </label>
+
+                      <button class="locationSmallButton" type="submit">Save</button>
+                    </form>
+
+                    <form method="POST" action="/admin/locations/deactivate">
+                      <input type="hidden" name="csrf" value="{{ csrf }}">
+                      <input type="hidden" name="name" value="{{ site.name }}">
+                      <button class="locationSmallButton danger" type="submit">Deactivate</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td class="locationEmpty" colspan="5">No locations yet.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <div class="locationTip">
+        Tip: Use your phone’s Google Maps to read the site latitude/longitude.
+      </div>
+    </section>
+  </div>
+</div>

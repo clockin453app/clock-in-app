@@ -1,0 +1,207 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-companies.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+<div class="companiesPage">
+  <div class="companiesBreadcrumb">
+    <a href="/admin">Management</a>
+    <span>›</span>
+    <span>Companies</span>
+  </div>
+
+  <div class="companiesHeader">
+    <div>
+      <h1>Companies</h1>
+      <p>Create workplaces, configure company defaults and switch between organizations.</p>
+    </div>
+    <div class="companiesBadge">{{ role_label_text }}</div>
+  </div>
+
+  {% if msg %}
+    <div class="companiesMessage {% if not ok %}error{% endif %}">
+      {{ msg }}
+    </div>
+  {% endif %}
+
+  <div class="companiesMetricGrid">
+    <div class="companyMetric">
+      <div class="companyMetricIcon">▦</div>
+      <div>
+        <strong>{{ companies|length }}</strong>
+        <span>Total companies</span>
+      </div>
+    </div>
+
+    <div class="companyMetric">
+      <div class="companyMetricIcon">✓</div>
+      <div>
+        <strong>{{ current_workplace }}</strong>
+        <span>Current workplace</span>
+      </div>
+    </div>
+
+    <div class="companyMetric">
+      <div class="companyMetricIcon">£</div>
+      <div>
+        <strong>{{ current_currency }}</strong>
+        <span>Default currency</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="companiesLayout">
+    <section class="companiesStack">
+      <div class="companiesPanel">
+        <div class="companiesPanelHeader">
+          <div class="companiesPanelTitle">
+            <div class="companiesPanelIcon">＋</div>
+            <div>
+              <h2>Create Company</h2>
+              <p>Create a new workplace and first admin account.</p>
+            </div>
+          </div>
+        </div>
+
+        <form class="companyForm" method="POST">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+          <input type="hidden" name="action" value="create">
+
+          <div class="companyFormSection">
+            <h3>Company details</h3>
+            <div class="companyFormGrid">
+              <div class="companyField">
+                <label>Workplace ID</label>
+                <input name="workplace_id" placeholder="e.g. nw01" required>
+              </div>
+
+              <div class="companyField">
+                <label>Company name</label>
+                <input name="company_name" placeholder="e.g. Newera North" required>
+              </div>
+
+              <div class="companyField">
+                <label>Tax rate</label>
+                <input name="tax_rate" value="20" required>
+              </div>
+
+              <div class="companyField">
+                <label>Currency symbol</label>
+                <input name="currency_symbol" value="£" required>
+              </div>
+            </div>
+          </div>
+
+          <div class="companyFormSection">
+            <h3>First admin</h3>
+            <div class="companyFormGrid">
+              <div class="companyField">
+                <label>First name</label>
+                <input name="admin_first" required>
+              </div>
+
+              <div class="companyField">
+                <label>Last name</label>
+                <input name="admin_last" required>
+              </div>
+
+              <div class="companyField">
+                <label>Username</label>
+                <input name="admin_username" required>
+              </div>
+
+              <div class="companyField">
+                <label>Password</label>
+                <input name="admin_password" required>
+              </div>
+            </div>
+          </div>
+
+          <button class="companySubmit" type="submit">Create workplace</button>
+        </form>
+      </div>
+
+      {% if created_info %}
+        <div class="companiesPanel createdCard">
+          <div class="companiesPanelHeader">
+            <div class="companiesPanelTitle">
+              <div class="companiesPanelIcon green">✓</div>
+              <div>
+                <h2>First Admin Created</h2>
+                <p>Save these details now.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="createdDetails">
+            <div><strong>Company:</strong> {{ created_info.company_name }}</div>
+            <div><strong>Workplace ID:</strong> {{ created_info.workplace_id }}</div>
+            <div><strong>Admin username:</strong> {{ created_info.admin_username }}</div>
+            <div><strong>Admin password:</strong> {{ created_info.admin_password }}</div>
+          </div>
+        </div>
+      {% endif %}
+    </section>
+
+    <section class="companiesPanel">
+      <div class="companiesPanelHeader">
+        <div class="companiesPanelTitle">
+          <div class="companiesPanelIcon">▦</div>
+          <div>
+            <h2>Existing Companies</h2>
+            <p>Open a workplace to manage that company’s people and settings.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="companyTableShell">
+        <table class="companyTable">
+          <thead>
+            <tr>
+              <th>Company</th>
+              <th>Tax</th>
+              <th>Currency</th>
+              <th>Status</th>
+              <th>Open</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if companies %}
+              {% for company in companies %}
+                <tr>
+                  <td>
+                    <div class="companyName">{{ company.name }}</div>
+                    <div class="companyId">{{ company.workplace_id }}</div>
+                  </td>
+                  <td>{{ company.tax }}</td>
+                  <td>{{ company.currency }}</td>
+                  <td>
+                    {% if company.is_current %}
+                      <span class="companyStatus"><span></span>Current</span>
+                    {% else %}
+                      <span class="companyStatus empty"><span></span>Available</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if company.is_current %}
+                      <span class="companyOpened">Opened</span>
+                    {% else %}
+                      <form method="POST" style="margin:0;">
+                        <input type="hidden" name="csrf" value="{{ csrf }}">
+                        <input type="hidden" name="action" value="switch">
+                        <input type="hidden" name="target_workplace" value="{{ company.workplace_id }}">
+                        <button class="companyOpenButton" type="submit">Open</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td class="companyEmpty" colspan="5">No workplaces found.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+</div>

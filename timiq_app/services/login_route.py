@@ -170,410 +170,413 @@ def login_impl(core):
 
     login_page_style = """
     <style>
-          html,
+      html,
       body{
-        width:100% !important;
-        max-width:100% !important;
-        overflow-x:hidden !important;
-        -webkit-text-size-adjust:100% !important;
-        text-size-adjust:100% !important;
+        width:100%;
+        min-height:100%;
+        margin:0;
+        overflow-x:hidden;
+        background:#f6f9fd;
+        -webkit-text-size-adjust:100%;
+        text-size-adjust:100%;
       }
 
       body{
-        touch-action:manipulation;
-      }
-
-      .loginShellPro,
-      .loginShellPro .main,
-      .loginCardPro{
-        width:100% !important;
-        max-width:760px !important;
-        box-sizing:border-box !important;
-      }
-
-      @media (max-width:560px){
-        .loginShellPro{
-          max-width:100% !important;
-          margin:0 !important;
-          padding:0 !important;
-        }
-
-        .loginShellPro .main{
-          width:100% !important;
-          max-width:100% !important;
-          padding:0 !important;
-          margin:0 !important;
-        }
-
-        .loginCardPro{
-          width:100% !important;
-          max-width:100% !important;
-          margin:0 !important;
-          border-left:0 !important;
-          border-right:0 !important;
-        }
-      }
-      .loginShellPro{
-        max-width: 760px;
-        margin: 0 auto;
-        padding: 22px 0 30px;
-      }
-
-      .loginCardPro{
-        overflow: hidden;
-        border-radius: 0 !important;
-        border: 1px solid rgba(68,130,195,.10) !important;
+        font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
         background:
-          radial-gradient(circle at top right, rgba(68,130,195,.05), transparent 32%),
-          radial-gradient(circle at top left, rgba(37,99,235,.05), transparent 28%),
-          linear-gradient(180deg, #ffffff 0%, #f8fbfe 100%) !important;
-        box-shadow: 0 24px 60px rgba(15,23,42,.10) !important;
+          radial-gradient(900px 520px at 86% 0%, rgba(37,99,235,.08), transparent 55%),
+          linear-gradient(180deg, #fbfdff 0%, #f6f9fd 100%);
       }
 
-      .loginBrandWrap{
+      .loginOnlyPage{
+        width:100%;
+        min-height:100vh;
+        padding:40px 22px;
         display:flex;
-        flex-direction:column;
-        align-items:flex-start;
+        align-items:center;
+        justify-content:center;
+        box-sizing:border-box;
       }
 
-      .loginLogoNew{
-  display:inline-flex;
-  align-items:center;
-  gap:5px;
-  background:#1f2d63;
-  padding:24px 34px;
-  text-decoration:none;
-  margin:0 0 10px 0;
-}
-
-.loginLogoClock{
-  width:46px;
-  height:46px;
-  flex:0 0 46px;
-  display:block;
-}
-
-.loginLogoWord{
-  display:inline-flex;
-  align-items:center;
-  font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-  font-size:34px;
-  line-height:1;
-  letter-spacing:-0.075em;
-  font-weight:900;
-}
-
-.loginLogoTim{
-  color:#ffffff;
-}
-
-.loginLogoIQ{
-  color:#7fc7ee;
-}
-
-      .loginHeroPro{
-        display: flex;
-        align-items: flex-start;
-        justify-content: space-between;
-        gap: 18px;
-        padding: 26px 28px 20px 28px;
-        border-bottom: 1px solid rgba(68,130,195,.08);
-        background: linear-gradient(180deg, rgba(255,255,255,.82), rgba(248,247,255,.96));
+      .loginOnlyCard{
+        width:100%;
+        max-width:520px;
+        background:#ffffff;
+        border:1px solid #dfe8f4;
+        border-radius:24px;
+        box-shadow:0 28px 70px rgba(15,23,42,.12);
+        overflow:hidden;
+        box-sizing:border-box;
       }
 
-      .loginEyebrow{
-        display: inline-flex;
-        align-items: center;
-        padding: 8px 14px;
-        border-radius: 0 !important;
-        border: 1px solid rgba(68,130,195,.12);
-        background: rgba(68,130,195,.06);
-        color: #4482c3;
-        font-size: 13px;
-        font-weight: 800;
-        letter-spacing: .05em;
-        text-transform: uppercase;
+      .loginOnlyHero{
+        padding:32px 38px 24px;
+        border-bottom:1px solid #e6edf6;
+        background:
+          radial-gradient(circle at top right, rgba(37,99,235,.07), transparent 34%),
+          linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
       }
 
-      .loginHeroPro h1{
-        margin: 16px 0 10px 0;
-        font-size: clamp(52px, 7vw, 74px);
-        line-height: .95;
-        letter-spacing: -.04em;
-        color: #1f2547;
-        font-weight: 900;
+      .loginOnlyLogo{
+        display:inline-flex;
+        align-items:center;
+        gap:8px;
+        padding:18px 24px;
+        margin:0 0 14px 0;
+        background:#1f2d63;
+        text-decoration:none;
+        white-space:nowrap;
       }
 
-      .loginLead{
-        margin: 0;
-        color: #6f6c85 !important;
-        font-size: 18px;
-        line-height: 1.65;
-        max-width: 560px;
+      .loginOnlyLogoClock{
+        width:38px;
+        height:38px;
+        flex:0 0 38px;
+        display:block;
       }
 
-      .loginHeroBadge{
-        flex: 0 0 auto;
-        align-self: flex-start;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        min-height: 48px;
-        padding: 0 18px;
-        border-radius: 0 !important;
-        border: 1px solid rgba(37,99,235,.10);
-        background: linear-gradient(180deg, #f3f7ff, #edf2ff);
-        color: #4f46e5;
-        font-size: 13px;
-        font-weight: 800;
-        letter-spacing: .05em;
-        text-transform: uppercase;
-        box-shadow: 0 8px 20px rgba(15,23,42,.06);
+      .loginOnlyLogoWord{
+        display:inline-flex;
+        align-items:center;
+        font-size:34px;
+        line-height:1;
+        letter-spacing:-0.075em;
+        font-weight:900;
+        white-space:nowrap;
       }
 
-      .loginFormWrap{
-        padding: 26px 28px 28px 28px;
+      .loginOnlyLogoTim{
+        color:#ffffff;
       }
 
-      .loginSectionTitle{
-        margin: 0 0 14px 0;
-        color: #1f2547;
-        font-size: 28px;
-        font-weight: 800;
-        letter-spacing: -.02em;
+      .loginOnlyLogoIQ{
+        color:#7fc7ee;
       }
 
-      .loginFormGrid{
-        display: grid;
-        gap: 14px;
+      .loginOnlyLead{
+        margin:0;
+        color:#56647d;
+        font-size:14px;
+        line-height:1.5;
+        font-weight:600;
       }
 
-      .loginFieldLabel{
-        display: block;
-        margin: 0 0 8px 0;
-        color: #6f6c85;
-        font-size: 13px;
-        font-weight: 800;
-        letter-spacing: .02em;
+      .loginOnlyBody{
+        padding:32px 38px 38px;
       }
 
-                  .loginInput{
-        margin-top: 0 !important;
-        height: 56px !important;
-        min-height: 56px !important;
-        padding: 0 16px !important;
-        border-radius: 0 !important;
-        border: 1px solid rgba(68,130,195,.12) !important;
-        background: #ffffff !important;
-        color: #1f2547 !important;
-        box-shadow: 0 6px 18px rgba(15,23,42,.04);
-
-        font-size: 16px !important;
-        line-height: 20px !important;
-        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif !important;
-        -webkit-appearance: none !important;
-        appearance: none !important;
-        transform: none !important;
-        zoom: 1 !important;
-        box-sizing: border-box !important;
+      .loginOnlyTitle{
+        margin:0 0 22px 0;
+        color:#101a3d;
+        font-size:34px;
+        line-height:1.08;
+        letter-spacing:-.035em;
+        font-weight:850;
       }
 
-      .loginInput::placeholder{
-        color: #9a96ad;
+      .loginOnlyForm{
+        display:grid;
+        gap:15px;
       }
 
-      .loginInput:focus{
-        border-color: rgba(79,70,229,.35) !important;
-        box-shadow: 0 0 0 4px rgba(68,130,195,.08), 0 8px 24px rgba(15,23,42,.08) !important;
-        outline: none;
-      }
-      .passwordFieldWrap{
-  position:relative;
-  width:100%;
-}
-
-.passwordFieldInput{
-  padding-right:54px !important;
-}
-
-.passwordEyeBtn{
-  position:absolute;
-  right:12px;
-  top:50%;
-  transform:translateY(-50%);
-  width:36px;
-  height:36px;
-  border:0;
-  border-radius:999px;
-  background:rgba(31,45,99,.06);
-  color:#1f2d63;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  cursor:pointer;
-  padding:0;
-}
-
-.passwordEyeBtn:hover{
-  background:rgba(31,45,99,.11);
-}
-
-.passwordEyeBtn .eyeIcon{
-  width:20px;
-  height:20px;
-  fill:none;
-  stroke:currentColor;
-  stroke-width:2;
-  stroke-linecap:round;
-  stroke-linejoin:round;
-}
-
-.passwordEyeBtn .eyeOpen{
-  display:none;
-}
-
-.passwordEyeBtn .eyeClosed{
-  display:block;
-}
-
-.passwordEyeBtn.isVisible .eyeOpen{
-  display:block;
-}
-
-.passwordEyeBtn.isVisible .eyeClosed{
-  display:none;
-}
-
-      .loginPrimaryBtn{
-        margin-top: 4px;
-        width: 100%;
-        min-height: 58px;
-        border: 0;
-        border-radius: 0 !important;
-        background: linear-gradient(90deg, #2563eb, #5b8cff);
-        color: #ffffff;
-        font-size: 17px;
-        font-weight: 800;
-        letter-spacing: .01em;
-        box-shadow: 0 14px 30px rgba(37,99,235,.20);
-        transition: transform .18s ease, box-shadow .18s ease, filter .18s ease;
+      .loginOnlyLabel{
+        display:block;
+        margin:0 0 8px 0;
+        color:#5f6f89;
+        font-size:13px;
+        font-weight:750;
       }
 
-      .loginPrimaryBtn:hover{
-        transform: translateY(-1px);
-        box-shadow: 0 18px 34px rgba(37,99,235,.24);
-        filter: brightness(1.02);
+      .loginOnlyInput{
+        width:100%;
+        height:56px;
+        min-height:56px;
+        padding:0 17px;
+        border-radius:12px;
+        border:1px solid #d7e1ee;
+        background:#ffffff;
+        color:#101a3d;
+        box-shadow:0 6px 18px rgba(15,23,42,.035);
+        font-size:15px;
+        font-weight:650;
+        line-height:20px;
+        font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        box-sizing:border-box;
+        appearance:none;
       }
 
-      .loginMessageWrap{
-        margin-top: 16px;
+      .loginOnlyInput::placeholder{
+        color:#94a3b8;
       }
 
-      .loginMetaGrid{
-        margin-top: 20px;
-        display: grid;
-        grid-template-columns: repeat(3, minmax(0,1fr));
-        gap: 12px;
+      .loginOnlyInput:focus{
+        border-color:rgba(37,99,235,.45);
+        box-shadow:0 0 0 4px rgba(37,99,235,.08), 0 8px 24px rgba(15,23,42,.08);
+        outline:none;
       }
 
-      .loginMetaCard{
-        padding: 14px 16px;
-        border-radius: 0 !important;
-        border: 1px solid rgba(68,130,195,.10);
-        background: linear-gradient(180deg, #ffffff, #f8f7ff);
-        box-shadow: 0 10px 24px rgba(15,23,42,.06);
+      .loginOnlyHint{
+        margin-top:6px;
+        color:#7b86a0;
+        font-size:12px;
+        line-height:1.4;
+        font-weight:600;
       }
 
-      .loginMetaLabel{
-        display: block;
-        margin: 0 0 6px 0;
-        color: #8a84a3;
-        font-size: 11px;
-        font-weight: 800;
-        letter-spacing: .08em;
-        text-transform: uppercase;
+      .loginOnlyPasswordWrap{
+        position:relative;
       }
 
-      .loginMetaValue{
-        display: block;
-        color: #1f2547;
-        font-size: 15px;
-        font-weight: 800;
-        line-height: 1.45;
+      .loginOnlyPasswordInput{
+        padding-right:56px;
       }
 
-      .loginFooterNote{
-        margin-top: 16px;
-        color: #8a84a3;
-        font-size: 14px;
-        line-height: 1.65;
+      .loginOnlyEyeBtn{
+        position:absolute;
+        right:11px;
+        top:50%;
+        transform:translateY(-50%);
+        width:36px;
+        height:36px;
+        border:0;
+        border-radius:999px;
+        background:rgba(31,45,99,.06);
+        color:#1f2d63;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        cursor:pointer;
+        padding:0;
       }
 
-      @media (max-width: 760px){
-        .loginShellPro{
-          max-width: 100%;
-          padding-top: 10px;
+      .loginOnlyEyeBtn:hover{
+        background:rgba(31,45,99,.11);
+      }
+
+      .loginOnlyEyeBtn .eyeIcon{
+        width:20px;
+        height:20px;
+        fill:none;
+        stroke:currentColor;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .loginOnlyEyeBtn .eyeOpen{
+        display:none;
+      }
+
+      .loginOnlyEyeBtn .eyeClosed{
+        display:block;
+      }
+
+      .loginOnlyEyeBtn.isVisible .eyeOpen{
+        display:block;
+      }
+
+      .loginOnlyEyeBtn.isVisible .eyeClosed{
+        display:none;
+      }
+
+      .loginOnlyButton{
+        margin-top:8px;
+        width:100%;
+        min-height:56px;
+        border:0;
+        border-radius:12px;
+        background:linear-gradient(135deg, #0b63ff, #0057e7);
+        color:#ffffff;
+        font-size:15px;
+        font-weight:850;
+        letter-spacing:.01em;
+        box-shadow:0 14px 30px rgba(37,99,235,.20);
+        cursor:pointer;
+      }
+
+      .loginOnlyButton:hover{
+        filter:brightness(1.02);
+      }
+
+      .loginOnlyMessage{
+        margin-top:16px;
+      }
+
+      .loginOnlyFooter{
+        margin-top:18px;
+        color:#7b86a0;
+        font-size:13px;
+        line-height:1.6;
+        font-weight:600;
+      }
+
+      @media (max-width:620px){
+        .loginOnlyPage{
+          padding:18px 14px;
         }
 
-        .loginLogoNew{
-  padding:20px 28px;
-}
-
-.loginLogoClock{
-  width:38px;
-  height:38px;
-  flex-basis:38px;
-}
-
-.loginLogoWord{
-  font-size:28px;
-}
-
-        .loginHeroPro{
-          padding: 22px 20px 18px 20px;
-          flex-direction: column;
-          align-items: flex-start;
+        .loginOnlyCard{
+          max-width:100%;
+          border-radius:20px;
         }
 
-        .loginHeroPro h1{
-          font-size: 48px;
+        .loginOnlyHero{
+          padding:24px 22px 18px;
         }
 
-        .loginFormWrap{
-          padding: 20px;
+        .loginOnlyBody{
+          padding:24px 22px 28px;
         }
 
-        .loginMetaGrid{
-          grid-template-columns: 1fr;
+        .loginOnlyLogo{
+          padding:16px 20px;
+        }
+
+        .loginOnlyLogoClock{
+          width:34px;
+          height:34px;
+          flex-basis:34px;
+        }
+
+        .loginOnlyLogoWord{
+          font-size:30px;
+        }
+
+        .loginOnlyTitle{
+          font-size:30px;
+        }
+
+        .loginOnlyInput,
+        .loginOnlyButton{
+          height:54px;
+          min-height:54px;
         }
       }
+            /* ===== LOGIN FINAL SIZE + PLACEHOLDER CLEANUP ===== */
 
-            @media (max-width: 560px){
-        .loginHeroPro h1{
-          font-size: 40px;
+      .loginOnlyPage{
+        padding:34px 24px !important;
+        align-items:center !important;
+        justify-content:center !important;
+      }
+
+      .loginOnlyCard{
+        max-width:680px !important;
+        border-radius:24px !important;
+      }
+
+      .loginOnlyHero{
+        padding:40px 48px 30px !important;
+      }
+
+      .loginOnlyLogo{
+        padding:20px 28px !important;
+        margin-bottom:16px !important;
+      }
+
+      .loginOnlyLogoClock{
+        width:42px !important;
+        height:42px !important;
+        flex-basis:42px !important;
+      }
+
+      .loginOnlyLogoWord{
+        font-size:38px !important;
+      }
+
+      .loginOnlyLead{
+        font-size:15px !important;
+        line-height:1.55 !important;
+      }
+
+      .loginOnlyBody{
+        padding:38px 48px 46px !important;
+      }
+
+      .loginOnlyTitle{
+        font-size:40px !important;
+        line-height:1.04 !important;
+        margin-bottom:28px !important;
+      }
+
+      .loginOnlyForm{
+        gap:18px !important;
+      }
+
+      .loginOnlyLabel{
+        font-size:13px !important;
+        font-weight:750 !important;
+        margin-bottom:8px !important;
+      }
+
+      .loginOnlyInput{
+        height:62px !important;
+        min-height:62px !important;
+        padding:0 20px !important;
+        font-size:15px !important;
+        font-weight:500 !important;
+        color:#111b3f !important;
+        border-radius:14px !important;
+        background:#ffffff !important;
+      }
+
+      .loginOnlyInput::placeholder{
+        color:rgba(100,116,139,.62) !important;
+        font-weight:500 !important;
+        opacity:1 !important;
+      }
+
+      .loginOnlyPasswordInput{
+        padding-right:58px !important;
+      }
+
+      .loginOnlyEyeBtn{
+        right:12px !important;
+        width:38px !important;
+        height:38px !important;
+      }
+
+      .loginOnlyButton{
+        min-height:62px !important;
+        margin-top:10px !important;
+        border-radius:14px !important;
+        background:linear-gradient(135deg, #0b63ff, #0057e7) !important;
+        font-size:15px !important;
+        font-weight:850 !important;
+      }
+
+      .loginOnlyFooter{
+        margin-top:20px !important;
+        font-size:13px !important;
+        line-height:1.65 !important;
+        max-width:520px !important;
+      }
+
+      @media (max-width:620px){
+        .loginOnlyPage{
+          padding:18px 14px !important;
         }
 
-        .loginBrandLogo{
-          width:150px;
+        .loginOnlyCard{
+          max-width:100% !important;
         }
 
-        .loginLead{
-          font-size: 15px;
-          line-height: 1.6;
+        .loginOnlyHero{
+          padding:24px 22px 18px !important;
         }
 
-        .loginSectionTitle{
-          font-size: 22px;
+        .loginOnlyBody{
+          padding:24px 22px 30px !important;
         }
 
-        .loginInput{
-          height: 54px !important;
-          font-size: 16px !important;
+        .loginOnlyTitle{
+          font-size:30px !important;
         }
 
-        .loginPrimaryBtn{
-          min-height: 54px;
-          font-size: 16px;
+        .loginOnlyInput,
+        .loginOnlyButton{
+          height:54px !important;
+          min-height:54px !important;
         }
       }
     </style>
@@ -581,123 +584,127 @@ def login_impl(core):
     login_viewport = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">'
 
     html = f"""
-    <div class="shell loginShellPro" style="grid-template-columns:1fr;">
-      <div class="main">
+    <div class="loginOnlyPage">
+      <div class="loginOnlyCard">
+        <div class="loginOnlyHero">
+          <div class="loginOnlyLogo" aria-label="TimIQ">
+            <svg class="loginOnlyLogoClock" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path d="M7 25H26" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+              <path d="M10 34H24" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+              <path d="M16 43H22" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+              <rect x="31" y="8" width="11" height="6" rx="2" fill="#7FC7EE"/>
+              <rect x="47.5" y="14" width="6" height="6" rx="1.5" transform="rotate(45 47.5 14)" fill="#7FC7EE"/>
+              <circle cx="36" cy="32" r="18" stroke="#7FC7EE" stroke-width="5.5"/>
+              <path d="M36 32V18A14 14 0 0 1 50 32H36Z" fill="#4B83C6"/>
+            </svg>
 
-        <div class="card loginCardPro">
-          <div class="loginHeroPro">
-            <div class="loginBrandWrap">
-              <div class="loginLogoNew" aria-label="TimIQ">
-  <svg class="loginLogoClock" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-    <path d="M7 25H26" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
-    <path d="M10 34H24" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
-    <path d="M16 43H22" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
-    <rect x="31" y="8" width="11" height="6" rx="2" fill="#7FC7EE"/>
-    <rect x="47.5" y="14" width="6" height="6" rx="1.5" transform="rotate(45 47.5 14)" fill="#7FC7EE"/>
-    <circle cx="36" cy="32" r="18" stroke="#7FC7EE" stroke-width="5.5"/>
-    <path d="M36 32V18A14 14 0 0 1 50 32H36Z" fill="#4B83C6"/>
-  </svg>
-
-  <span class="loginLogoWord">
-    <span class="loginLogoTim">Tim</span><span class="loginLogoIQ">IQ</span>
-  </span>
-</div>
-              <p class="sub loginLead">Clock-in, attendance and payroll in one secure workspace.</p>
-            </div>
+            <span class="loginOnlyLogoWord">
+              <span class="loginOnlyLogoTim">Tim</span><span class="loginOnlyLogoIQ">IQ</span>
+            </span>
           </div>
 
-          <div class="loginFormWrap">
-            <div class="loginSectionTitle">Sign in to continue</div>
-            <form method="POST" class="loginFormGrid" onsubmit="var f=this,ae=document.activeElement;if(ae&&ae.blur)ae.blur();window.scrollTo(0,0);setTimeout(f.submit.bind(f),180);return false;">
-              <input type="hidden" name="csrf" value="{escape(csrf)}">
+          <p class="loginOnlyLead">Clock-in, attendance and payroll in one secure workspace.</p>
+        </div>
 
-              <div>
-                <label class="loginFieldLabel" for="login-username">Username</label>
-                <input id="login-username" class="input loginInput" name="username" value="{escape(entered_username)}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username" required>
-              </div>
+        <div class="loginOnlyBody">
+          <div class="loginOnlyTitle">Sign in to continue</div>
 
-                                          <div>
-                <label class="loginFieldLabel" for="login-workplace">Workplace ID</label>
+          <form method="POST" class="loginOnlyForm" onsubmit="var f=this,ae=document.activeElement;if(ae&&ae.blur)ae.blur();window.scrollTo(0,0);setTimeout(f.submit.bind(f),180);return false;">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+
+            <div>
+              <label class="loginOnlyLabel" for="login-username">Username</label>
+              <input
+                id="login-username"
+                class="loginOnlyInput"
+                name="username"
+                value="{escape(entered_username)}"
+                autocomplete="username"
+                autocapitalize="none"
+                spellcheck="false"
+                placeholder="Enter your username"
+                required>
+            </div>
+
+            <div>
+              <label class="loginOnlyLabel" for="login-workplace">Workplace ID</label>
+              <input
+                id="login-workplace"
+                class="loginOnlyInput"
+                name="workplace_id"
+                value="{escape(entered_workplace_id)}"
+                autocomplete="off"
+                autocapitalize="none"
+                autocorrect="off"
+                spellcheck="false"
+                inputmode="text"
+                enterkeyhint="next"
+                placeholder="e.g. north01">
+              <div class="loginOnlyHint">Required for workplace users.</div>
+            </div>
+
+            <div>
+              <label class="loginOnlyLabel" for="login-password">Password</label>
+
+              <div class="loginOnlyPasswordWrap">
                 <input
-                  id="login-workplace"
-                  class="input loginInput"
-                  name="workplace_id"
-                  value="{escape(entered_workplace_id)}"
-                  autocomplete="off"
-                  autocapitalize="none"
-                  autocorrect="off"
-                  spellcheck="false"
-                  inputmode="text"
-                  enterkeyhint="next"
-                  placeholder="e.g. north01">
-                <div class="sub" style="margin-top:6px; font-size:12px;">
-                  Required for workplace users.
-                </div>
+                  id="login-password"
+                  class="loginOnlyInput loginOnlyPasswordInput"
+                  type="password"
+                  name="password"
+                  autocomplete="current-password"
+                  placeholder="Enter your password"
+                  required>
+
+                <button
+                  class="loginOnlyEyeBtn"
+                  type="button"
+                  data-password-toggle="login-password"
+                  aria-label="Show password"
+                  aria-pressed="false">
+                  <svg class="eyeIcon eyeOpen" viewBox="0 0 24 24">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </svg>
+
+                  <svg class="eyeIcon eyeClosed" viewBox="0 0 24 24">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M4 20L20 4"></path>
+                  </svg>
+                </button>
               </div>
+            </div>
 
-              <div>
-  <label class="loginFieldLabel" for="login-password">Password</label>
+            <button class="loginOnlyButton" type="submit">Sign in</button>
+          </form>
 
-  <div class="passwordFieldWrap">
-    <input
-      id="login-password"
-      class="input loginInput passwordFieldInput"
-      type="password"
-      name="password"
-      autocomplete="current-password"
-      placeholder="Enter your password"
-      required
-    >
+          {("<div class='message error loginOnlyMessage'>" + escape(msg) + "</div>") if msg else ""}
 
-    <button
-      class="passwordEyeBtn"
-      type="button"
-      data-password-toggle="login-password"
-      aria-label="Show password"
-      aria-pressed="false"
-    >
-      <svg class="eyeIcon eyeOpen" viewBox="0 0 24 24">
-        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
-        <circle cx="12" cy="12" r="3"></circle>
-      </svg>
-
-      <svg class="eyeIcon eyeClosed" viewBox="0 0 24 24">
-        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
-        <circle cx="12" cy="12" r="3"></circle>
-        <path d="M4 20L20 4"></path>
-      </svg>
-    </button>
-  </div>
-</div>
-
-              <button class="loginPrimaryBtn" type="submit">Sign in</button>
-            </form>
-
-            {("<div class='message error loginMessageWrap'>" + escape(msg) + "</div>") if msg else ""}
-
-            <div class="loginFooterNote">Use the same credentials provided by your administrator. After sign-in you can access clock-in, timesheets and payroll tools based on your role.</div>
+          <div class="loginOnlyFooter">
+            Use the same credentials provided by your administrator. After sign-in you can access clock-in, timesheets and payroll tools based on your role.
           </div>
         </div>
       </div>
+
       <script>
-(function(){{
-  document.querySelectorAll("[data-password-toggle]").forEach(function(btn){{
-    btn.addEventListener("click", function(){{
-      var inputId = btn.getAttribute("data-password-toggle");
-      var input = document.getElementById(inputId);
-      if (!input) return;
+        (function(){{
+          document.querySelectorAll("[data-password-toggle]").forEach(function(btn){{
+            btn.addEventListener("click", function(){{
+              var inputId = btn.getAttribute("data-password-toggle");
+              var input = document.getElementById(inputId);
+              if (!input) return;
 
-      var isHidden = input.type === "password";
-      input.type = isHidden ? "text" : "password";
+              var isHidden = input.type === "password";
+              input.type = isHidden ? "text" : "password";
 
-      btn.classList.toggle("isVisible", isHidden);
-      btn.setAttribute("aria-pressed", isHidden ? "true" : "false");
-      btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
-    }});
-  }});
-}})();
-</script>
+              btn.classList.toggle("isVisible", isHidden);
+              btn.setAttribute("aria-pressed", isHidden ? "true" : "false");
+              btn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+            }});
+          }});
+        }})();
+      </script>
     </div>
     """
-
-    return render_template_string(f"{login_viewport}{PWA_TAGS}{STYLE}{login_page_style}{html}")
+    return render_template_string(f"{login_viewport}{PWA_TAGS}{login_page_style}{html}")

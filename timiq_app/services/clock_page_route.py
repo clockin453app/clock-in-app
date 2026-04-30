@@ -135,6 +135,172 @@ def clock_page_impl(core):
                         msg = f"Outside site radius. Distance: {int(dist_m)}m (limit {int(cfg['radius'])}m) • Site: {cfg['name']}"
                     msg_class = "message error"
                 else:
+                    if DB_MIGRATION_MODE:
+                        def _set_if_present(obj, attr, value):
+                            try:
+                                if hasattr(obj, attr):
+                                    setattr(obj, attr, value)
+                            except Exception:
+                                pass
+
+                        def _db_open_shift_for_user():
+                            try:
+                                return (
+                                    WorkHour.query
+                                    .filter(
+                                        WorkHour.employee_email == username,
+                                        WorkHour.clock_in.isnot(None),
+                                        WorkHour.clock_out.is_(None),
+                                        or_(
+                                            WorkHour.workplace_id == _session_workplace_id(),
+                                            WorkHour.workplace == _session_workplace_id(),
+                                        ),
+                                    )
+                                    .order_by(WorkHour.date.desc(), WorkHour.id.desc())
+                                    .first()
+                                )
+                            except Exception:
+                                return None
+
+                        def _db_today_shift_for_user():
+                            try:
+                                shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
+                                return (
+                                    WorkHour.query
+                                    .filter(
+                                        WorkHour.employee_email == username,
+                                        WorkHour.date == shift_date,
+                                        or_(
+                                            WorkHour.workplace_id == _session_workplace_id(),
+                                            WorkHour.workplace == _session_workplace_id(),
+                                        ),
+                                    )
+                                    .order_by(WorkHour.id.desc())
+                                    .first()
+                                )
+                            except Exception:
+                                return None
+
+                        if action == "in":
+                            db_open = _db_open_shift_for_user()
+                            if db_open:
+                                raise RuntimeError("You are already clocked in.")
+
+                            db_today = _db_today_shift_for_user()
+                            if db_today and getattr(db_today, "clock_out", None):
+                                raise RuntimeError("You already completed your shift for today.")
+
+                            selfie_url = _store_clock_selfie(
+                                selfie_data,
+                                username,
+                                "clock_in",
+                                now,
+                            ) if CLOCK_SELFIE_REQUIRED else ""
+
+                            cin = normalized_clock_in_time(now, early_access)
+                            shift_date = datetime.strptime(today_str, "%Y-%m-%d").date()
+                            clock_in_dt = datetime.strptime(f"{today_str} {cin}", "%Y-%m-%d %H:%M:%S")
+
+                            db_row = db_today
+                            if not db_row:
+                                db_row = WorkHour(
+                                    employee_email=username,
+                                    date=shift_date,
+                                    workplace=_session_workplace_id(),
+                                    workplace_id=_session_workplace_id(),
+                                )
+                                db.session.add(db_row)
+
+                            db_row.clock_in = clock_in_dt
+                            db_row.clock_out = None
+                            db_row.hours = None
+                            db_row.pay = None
+                            db_row.workplace = _session_workplace_id()
+                            db_row.workplace_id = _session_workplace_id()
+
+                            _set_if_present(db_row, "in_selfie_url", selfie_url)
+                            _set_if_present(db_row, "in_site", cfg.get("name", ""))
+                            _set_if_present(db_row, "in_lat", lat_v)
+                            _set_if_present(db_row, "in_lon", lon_v)
+                            _set_if_present(db_row, "in_acc", acc_v)
+                            _set_if_present(db_row, "in_dist_m", int(dist_m))
+
+                            db.session.commit()
+                            return redirect(url_for("home"))
+
+                        elif action == "out":
+                            db_row = _db_open_shift_for_user()
+                            if not db_row:
+                                today_row = _db_today_shift_for_user()
+                                if today_row and getattr(today_row, "clock_out", None):
+                                    raise RuntimeError("You already clocked out today.")
+                                raise RuntimeError("No active shift found.")
+
+                            selfie_url = _store_clock_selfie(
+                                selfie_data,
+                                username,
+                                "clock_out",
+                                now,
+                            ) if CLOCK_SELFIE_REQUIRED else ""
+
+                            shift_date = getattr(db_row, "date", None)
+                            clock_in_dt = getattr(db_row, "clock_in", None)
+
+                            if not shift_date or not clock_in_dt:
+                                raise RuntimeError("Open shift is missing clock-in data.")
+
+                            d = shift_date.isoformat()
+                            t = clock_in_dt.strftime("%H:%M:%S")
+                            cout = now.strftime("%H:%M:%S")
+
+                            rule_snapshot = _get_payroll_rule_for_shift(
+                                shift_date,
+                                _session_workplace_id(),
+                            )
+
+                            hours_rounded = _compute_hours_from_times(
+                                d,
+                                t,
+                                cout,
+                                _session_workplace_id(),
+                                rule_snapshot,
+                            )
+
+                            if hours_rounded is None:
+                                raise RuntimeError("Could not calculate hours for this shift.")
+
+                            pay = _calculate_shift_pay_from_rule(
+                                hours_rounded,
+                                rate,
+                                rule_snapshot,
+                            )
+
+                            clock_out_dt = datetime.strptime(f"{d} {cout}", "%Y-%m-%d %H:%M:%S")
+                            clock_in_dt_check = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S")
+
+                            if clock_out_dt < clock_in_dt_check:
+                                clock_out_dt = clock_out_dt + timedelta(days=1)
+
+                            db_row.clock_out = clock_out_dt
+                            db_row.hours = hours_rounded
+                            db_row.pay = pay
+                            db_row.workplace = _session_workplace_id()
+                            db_row.workplace_id = _session_workplace_id()
+
+                            _set_if_present(db_row, "out_selfie_url", selfie_url)
+                            _set_if_present(db_row, "out_site", cfg.get("name", ""))
+                            _set_if_present(db_row, "out_lat", lat_v)
+                            _set_if_present(db_row, "out_lon", lon_v)
+                            _set_if_present(db_row, "out_acc", acc_v)
+                            _set_if_present(db_row, "out_dist_m", int(dist_m))
+
+                            _save_workhour_rule_snapshot(db_row, rule_snapshot)
+                            db.session.commit()
+
+                            return redirect(url_for("home"))
+
+                        else:
+                            raise RuntimeError("Invalid action.")
                     rows = work_sheet.get_all_values()
 
                     if action == "in":

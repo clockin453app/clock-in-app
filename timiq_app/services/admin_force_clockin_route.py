@@ -7,7 +7,6 @@ def admin_force_clockin_impl(core):
     find_open_shift = core["find_open_shift"]
     DB_MIGRATION_MODE = core["DB_MIGRATION_MODE"]
     datetime = core["datetime"]
-    _workhour_query_for_user = core["_workhour_query_for_user"]
     _session_workplace_id = core["_session_workplace_id"]
     WorkHour = core["WorkHour"]
     db = core["db"]

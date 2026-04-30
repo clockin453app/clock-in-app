@@ -1,0 +1,967 @@
+/* =========================================================
+   TimIQ Management — picture-match rebuild
+   ========================================================= */
+
+:root {
+  --mg-navy: #121a45;
+  --mg-text: #263454;
+  --mg-muted: #6d7895;
+  --mg-border: #e0e8f4;
+  --mg-border-soft: #edf2f8;
+  --mg-bg: #f7f9fd;
+  --mg-card: #ffffff;
+  --mg-blue: #4f63ff;
+  --mg-indigo: #3c50f5;
+  --mg-purple: #0b63ff;
+--mg-violet: #0b63ff;
+--mg-magenta: #0b63ff;
+  --mg-green: #32b968;
+  --mg-amber: #f59e0b;
+  --mg-orange: #ff5b2e;
+  --mg-slate: #6b7890;
+  --mg-shadow: 0 12px 30px rgba(24, 39, 75, .045);
+}
+
+html,
+body {
+  background: #ffffff !important;
+}
+
+@media (min-width: 980px) {
+  body:has(.mgRefPage) {
+    --ref-sidebar-width: 222px;
+  }
+
+  body:has(.mgRefPage) .shell,
+  body:has(.mgRefPage) .dashboardShellModern,
+  body:has(.mgRefPage) .payrollShell {
+    grid-template-columns: 222px minmax(0, 1fr) !important;
+  }
+
+  body:has(.mgRefPage) .main,
+  body:has(.mgRefPage) main.main,
+  body:has(.mgRefPage) .pageContent,
+  body:has(.mgRefPage) .mainContent,
+  body:has(.mgRefPage) .content,
+  body:has(.mgRefPage) .appContent {
+    padding: 24px 32px 38px 32px !important;
+    background:
+      radial-gradient(circle at top right, rgba(79, 99, 255, .045), transparent 34%),
+      linear-gradient(180deg, #fbfcff 0%, #f8fafd 58%, #f5f7fb 100%) !important;
+  }
+
+  body:has(.mgRefPage) .sidebar,
+  body:has(.mgRefPage) .refSidebar,
+  body:has(.mgRefPage) .dashboardShellModern .sidebar,
+  body:has(.mgRefPage) .payrollShell .sidebar {
+    width: 222px !important;
+    min-width: 222px !important;
+    max-width: 222px !important;
+    background: rgba(255, 255, 255, .97) !important;
+    border-right: 1px solid var(--mg-border) !important;
+    box-shadow: 16px 0 44px rgba(29, 43, 76, .035) !important;
+  }
+}
+
+.mgRefPage {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  color: var(--mg-text) !important;
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+}
+
+/* Header */
+
+.mgRefHeader {
+  margin: 0 0 18px !important;
+}
+
+.mgRefHeaderTop {
+  min-height: 40px !important;
+  display: flex !important;
+  align-items: flex-start !important;
+  justify-content: space-between !important;
+  gap: 24px !important;
+  margin-bottom: 6px !important;
+}
+
+.mgRefCrumbs {
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  padding-top: 4px !important;
+  color: #71809c !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+.mgRefCrumbs a {
+  color: #71809c !important;
+  text-decoration: none !important;
+}
+
+.mgRefCrumbs strong {
+  color: #1c294b !important;
+  font-weight: 800 !important;
+}
+
+.mgRefUserTools {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+.mgRefIconButton {
+  width: 38px !important;
+  height: 38px !important;
+  display: grid !important;
+  place-items: center !important;
+  position: relative !important;
+  border: 1px solid var(--mg-border) !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  color: #1e2f55 !important;
+  box-shadow: 0 8px 18px rgba(24, 39, 75, .04) !important;
+  cursor: pointer !important;
+}
+
+.mgRefIconButton svg {
+  width: 18px !important;
+  height: 18px !important;
+}
+
+.mgRefBell i {
+  position: absolute !important;
+  top: -6px !important;
+  right: -5px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: #ff563a !important;
+  color: #fff !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+  font-style: normal !important;
+  font-weight: 800 !important;
+}
+
+.mgRefUser {
+  display: flex !important;
+  align-items: center !important;
+  gap: 11px !important;
+  padding-left: 12px !important;
+  border-left: 1px solid #e3eaf5 !important;
+}
+
+.mgRefAvatar {
+  width: 42px !important;
+  height: 42px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  background: #2563ff !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 255, .13) !important;
+}
+
+.mgRefUserText {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.mgRefUserText strong {
+  color: var(--mg-navy) !important;
+  font-size: 14px !important;
+  line-height: 1.1 !important;
+  font-weight: 800 !important;
+}
+
+.mgRefUserText span {
+  color: #73809c !important;
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+  font-weight: 600 !important;
+}
+
+.mgRefChevron {
+  color: #77839c !important;
+  font-size: 13px !important;
+}
+
+.mgRefTitleRow {
+  position: relative !important;
+  min-height: 72px !important;
+}
+
+.mgRefTitleRow h1 {
+  margin: 0 !important;
+  font-family: Georgia, "Times New Roman", serif !important;
+  color: var(--mg-navy) !important;
+  font-size: 42px !important;
+  line-height: .98 !important;
+  letter-spacing: -.045em !important;
+  font-weight: 800 !important;
+}
+
+.mgRefTitleRow p {
+  max-width: 720px !important;
+  margin: 11px 0 0 !important;
+  color: #6d7895 !important;
+  font-size: 14px !important;
+  line-height: 1.4 !important;
+  font-weight: 650 !important;
+}
+
+.mgRefMasterBadge {
+  position: absolute !important;
+  top: 5px !important;
+  left: 430px !important;
+  min-height: 30px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 14px !important;
+  border-radius: 8px !important;
+  background: #f1efff !important;
+  color: var(--mg-blue) !important;
+  font-size: 11px !important;
+  font-weight: 900 !important;
+  letter-spacing: .035em !important;
+}
+
+/* Layout */
+
+.mgRefGrid {
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 304px !important;
+  gap: 20px !important;
+  align-items: start !important;
+}
+
+.mgRefMain,
+.mgRefSide {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 14px !important;
+  align-self: start !important;
+  min-width: 0 !important;
+}
+
+/* Panels */
+
+.mgRefPanel,
+.mgRefSidePanel {
+  background: var(--mg-card) !important;
+  border: 1px solid var(--mg-border) !important;
+  border-radius: 18px !important;
+  box-shadow: var(--mg-shadow) !important;
+}
+
+.mgRefPanel {
+  padding: 16px !important;
+}
+
+.mgRefCompact {
+  padding: 14px 16px !important;
+}
+
+.mgRefSidePanel {
+  padding: 15px !important;
+}
+
+.mgRefPanelHead {
+  display: flex !important;
+  align-items: flex-start !important;
+  gap: 11px !important;
+  margin-bottom: 14px !important;
+}
+
+.mgRefPanelHead.manual {
+  align-items: center !important;
+}
+
+.mgRefPanelHead h2,
+.mgRefSideTitle h2 {
+  margin: 0 !important;
+  color: var(--mg-navy) !important;
+  font-size: 18px !important;
+  line-height: 1.1 !important;
+  letter-spacing: -.02em !important;
+  font-weight: 900 !important;
+}
+
+.mgRefPanelHead p {
+  margin: 5px 0 0 !important;
+  color: #6d7895 !important;
+  font-size: 12px !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+}
+
+/* Icons: no background blocks */
+
+.mgRefPanelIcon,
+.mgRefCardIcon,
+.mgRefDriveIcon,
+.mgRefSideIcon,
+.miniIcon,
+.mgRefCog {
+  display: grid !important;
+  place-items: center !important;
+  flex: 0 0 auto !important;
+  background: transparent !important;
+  border: 0 !important;
+  box-shadow: none !important;
+}
+
+.mgRefPanelIcon {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.mgRefPanelIcon svg {
+  width: 23px !important;
+  height: 23px !important;
+}
+
+.mgRefCardIcon,
+.mgRefDriveIcon {
+  width: 28px !important;
+  height: 28px !important;
+}
+
+.mgRefCardIcon svg {
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.mgRefDriveIcon svg {
+  width: 24px !important;
+  height: 24px !important;
+}
+
+.mgRefSideIcon {
+  width: 23px !important;
+  height: 23px !important;
+}
+
+.mgRefSideIcon svg {
+  width: 19px !important;
+  height: 19px !important;
+}
+
+.mgRefPanelIcon svg,
+.mgRefCardIcon svg,
+.mgRefSideIcon svg,
+.miniIcon svg,
+.mgRefQuickLinks svg,
+.mgRefIconButton svg,
+.mgRefCog svg {
+  fill: none !important;
+  stroke: currentColor !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.blue { color: var(--mg-blue) !important; }
+.indigo { color: var(--mg-indigo) !important; }
+.purple { color: var(--mg-purple) !important; }
+.violet { color: var(--mg-violet) !important; }
+.green { color: var(--mg-green) !important; }
+.amber { color: var(--mg-amber) !important; }
+.orange { color: var(--mg-orange) !important; }
+.magenta { color: var(--mg-magenta) !important; }
+.slate { color: var(--mg-slate) !important; }
+
+/* Feature cards */
+
+.mgRefCards {
+  display: grid !important;
+  gap: 11px !important;
+  align-items: stretch !important;
+}
+
+.mgRefCards.four {
+  grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
+}
+
+.mgRefCards.three {
+  grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+}
+
+.mgRefCard {
+  min-height: 142px !important;
+  height: 100% !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 8px !important;
+  padding: 14px !important;
+  background: #fff !important;
+  border: 1px solid var(--mg-border) !important;
+  border-radius: 13px !important;
+  color: var(--mg-text) !important;
+  text-decoration: none !important;
+  box-shadow: none !important;
+  transition: border-color .16s ease, transform .16s ease, box-shadow .16s ease !important;
+}
+
+.mgRefCard:hover {
+  border-color: #cfdcff !important;
+  transform: translateY(-1px) !important;
+  box-shadow: 0 12px 26px rgba(37, 99, 255, .06) !important;
+}
+
+.mgRefCardTop {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 28px !important;
+}
+
+.mgRefCard h3 {
+  margin: 0 !important;
+  color: var(--mg-navy) !important;
+  font-size: 13px !important;
+  line-height: 1.18 !important;
+  letter-spacing: -.01em !important;
+  font-weight: 850 !important;
+}
+
+.mgRefCard p {
+  margin: 0 !important;
+  color: #6d7895 !important;
+  font-size: 12px !important;
+  line-height: 1.42 !important;
+  font-weight: 650 !important;
+}
+
+.mgRefCardFoot {
+  display: grid !important;
+  grid-template-columns: auto 1fr auto !important;
+  align-items: center !important;
+  gap: 7px !important;
+  margin-top: auto !important;
+  padding-top: 10px !important;
+  border-top: 1px solid var(--mg-border-soft) !important;
+  min-height: 30px !important;
+}
+
+.mgRefCardFoot strong {
+  color: var(--mg-navy) !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+}
+
+.mgRefCardFoot span {
+  color: #6d7895 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+
+.mgRefCardFoot em {
+  color: var(--mg-blue) !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  font-style: normal !important;
+  font-weight: 900 !important;
+}
+
+.dot {
+  width: 9px !important;
+  height: 9px !important;
+  display: inline-block !important;
+  border-radius: 999px !important;
+  background: var(--mg-green) !important;
+}
+
+/* Manual + live */
+
+.mgRefAdminAction {
+  margin-left: auto !important;
+  min-height: 31px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 12px !important;
+  border-radius: 9px !important;
+  background: #f1efff !important;
+  color: var(--mg-blue) !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+}
+
+.mgRefCog {
+  width: 28px !important;
+  height: 28px !important;
+  color: var(--mg-slate) !important;
+}
+
+.mgRefCog svg {
+  width: 20px !important;
+  height: 20px !important;
+}
+
+.mgRefManual {
+  display: grid !important;
+  grid-template-columns: 175px minmax(240px, 1fr) 145px minmax(180px, 1fr) auto !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+.mgRefManual input,
+.mgRefManual select {
+  width: 100% !important;
+  min-height: 42px !important;
+  padding: 0 12px !important;
+  background: #fff !important;
+  border: 1px solid var(--mg-border) !important;
+  border-radius: 10px !important;
+  color: #18284d !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+.mgRefManual button {
+  min-height: 42px !important;
+  padding: 0 16px !important;
+  border: 0 !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, #4f63ff, #542fff) !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+  box-shadow: 0 12px 24px rgba(79, 99, 255, .18) !important;
+  cursor: pointer !important;
+}
+
+.mgRefAuditHint {
+  grid-column: 1 / -1 !important;
+  color: #6d7895 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+
+.mgRefViewLive {
+  margin-left: auto !important;
+  min-height: 34px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 13px !important;
+  border: 1px solid var(--mg-border) !important;
+  border-radius: 9px !important;
+  background: #fff !important;
+  color: var(--mg-blue) !important;
+  text-decoration: none !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.mgRefEmptyLive {
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  color: #6d7895 !important;
+  font-size: 12px !important;
+  font-weight: 650 !important;
+}
+
+.mgRefEmptyLive i {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  background: var(--mg-green) !important;
+}
+
+/* Right column */
+
+.mgRefSideTitle {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  margin-bottom: 13px !important;
+}
+
+.mgRefSideTitle h2 {
+  flex: 1 !important;
+  font-size: 15px !important;
+  font-weight: 900 !important;
+}
+
+.mgRefOverview {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  border: 1px solid var(--mg-border) !important;
+  border-radius: 12px !important;
+  overflow: hidden !important;
+  background: #fff !important;
+}
+
+.mgRefOverview div {
+  min-height: 70px !important;
+  display: grid !important;
+  grid-template-columns: 22px 1fr !important;
+  grid-template-rows: auto auto !important;
+  column-gap: 8px !important;
+  align-content: center !important;
+  padding: 11px !important;
+  background: #fff !important;
+  border-right: 1px solid var(--mg-border) !important;
+  border-bottom: 1px solid var(--mg-border) !important;
+}
+
+.mgRefOverview div:nth-child(2n) {
+  border-right: 0 !important;
+}
+
+.mgRefOverview div:nth-last-child(-n+2) {
+  border-bottom: 0 !important;
+}
+
+.miniIcon {
+  grid-row: 1 / 3 !important;
+  width: 22px !important;
+  height: 22px !important;
+}
+
+.miniIcon svg {
+  width: 16px !important;
+  height: 16px !important;
+}
+
+.mgRefOverview strong {
+  color: var(--mg-navy) !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+}
+
+.mgRefOverview small {
+  margin-top: 4px !important;
+  color: #6d7895 !important;
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+  font-weight: 650 !important;
+}
+
+.mgRefSideAction {
+  min-height: 39px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  color: var(--mg-blue) !important;
+  text-decoration: none !important;
+  font-size: 12px !important;
+  font-weight: 900 !important;
+}
+
+.mgRefSystemPill {
+  min-height: 26px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  padding: 0 9px !important;
+  border-radius: 999px !important;
+  background: #ecfdf3 !important;
+  color: var(--mg-green) !important;
+  font-size: 10px !important;
+  line-height: 1.1 !important;
+  font-weight: 850 !important;
+  white-space: nowrap !important;
+}
+
+.mgRefStatus,
+.mgRefActivity,
+.mgRefQuickLinks {
+  display: flex !important;
+  flex-direction: column !important;
+}
+
+.mgRefStatus div {
+  min-height: 36px !important;
+  display: grid !important;
+  grid-template-columns: 10px 1fr auto !important;
+  align-items: center !important;
+  gap: 9px !important;
+  color: #6d7895 !important;
+  font-size: 11px !important;
+  font-weight: 650 !important;
+}
+
+.mgRefStatus i {
+  width: 9px !important;
+  height: 9px !important;
+  border-radius: 50% !important;
+  background: var(--mg-green) !important;
+}
+
+.mgRefStatus em {
+  color: #6d7895 !important;
+  font-size: 10px !important;
+  font-style: normal !important;
+  font-weight: 650 !important;
+}
+
+.mgRefActivity div {
+  min-height: 54px !important;
+  display: grid !important;
+  grid-template-columns: 1fr auto !important;
+  gap: 10px !important;
+  align-items: start !important;
+  padding: 9px 0 !important;
+  border-bottom: 1px solid var(--mg-border-soft) !important;
+}
+
+.mgRefActivity div:last-child {
+  border-bottom: 0 !important;
+}
+
+.mgRefActivity strong {
+  color: var(--mg-navy) !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+}
+
+.mgRefActivity span {
+  color: #6d7895 !important;
+  font-size: 10px !important;
+  line-height: 1.35 !important;
+  font-weight: 650 !important;
+  text-align: right !important;
+}
+
+.mgRefQuickLinks a {
+  min-height: 39px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 9px !important;
+  border-bottom: 1px solid var(--mg-border-soft) !important;
+  color: #293657 !important;
+  text-decoration: none !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.mgRefQuickLinks a:last-child {
+  border-bottom: 0 !important;
+}
+
+.mgRefQuickLinks svg {
+  width: 16px !important;
+  height: 16px !important;
+  color: var(--mg-blue) !important;
+  flex: 0 0 auto !important;
+}
+
+/* Responsive */
+
+@media (max-width: 1280px) {
+  .mgRefGrid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mgRefCards.four,
+  .mgRefCards.three {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .mgRefManual {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .mgRefMasterBadge {
+    position: static !important;
+    margin-top: 12px !important;
+    width: max-content !important;
+  }
+}
+
+@media (max-width: 720px) {
+  .mgRefHeaderTop,
+  .mgRefUserTools {
+    flex-wrap: wrap !important;
+  }
+
+  .mgRefTitleRow h1 {
+    font-size: 34px !important;
+  }
+
+  .mgRefCards.four,
+  .mgRefCards.three,
+  .mgRefManual {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* Full-width rebuilt admin page */
+body:has(.mgmtPage) .main,
+body:has(.mgmtPage) main.main {
+  width: 100% !important;
+  max-width: none !important;
+  box-sizing: border-box !important;
+}
+
+.mgmtPage {
+  width: 100% !important;
+  max-width: none !important;
+}
+/* =========================================================
+   Manual clock cards fix
+   - clock in/out beside each other
+   - no purple
+   - force clock-out uses live employees
+   ========================================================= */
+
+.mgRefManualPair {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  align-items: stretch !important;
+}
+
+.mgRefManualPair .mgRefPanel {
+  margin: 0 !important;
+  height: 100% !important;
+}
+
+.mgRefManualOut {
+  grid-template-columns: minmax(220px, 1fr) 145px auto !important;
+}
+
+.mgRefManualIn {
+  grid-template-columns: 145px minmax(220px, 1fr) 130px minmax(170px, 1fr) auto !important;
+}
+
+.mgRefManual button {
+  min-height: 42px !important;
+  padding: 0 16px !important;
+  border: 1px solid #dbe4f0 !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  background-image: none !important;
+  color: #0b63ff !important;
+  box-shadow: none !important;
+  font-size: 12px !important;
+  font-weight: 700 !important;
+  cursor: pointer !important;
+}
+
+.mgRefManual button:hover {
+  background: #eef4ff !important;
+  border-color: #bcd0ff !important;
+  color: #0057e7 !important;
+}
+
+.mgRefManual button:disabled {
+  opacity: .55 !important;
+  cursor: not-allowed !important;
+}
+
+.mgRefAdminAction {
+  background: #eef4ff !important;
+  color: #0b63ff !important;
+  border: 1px solid #dbe4f0 !important;
+  box-shadow: none !important;
+}
+
+.mgRefManualPair .mgRefPanelIcon.blue {
+  color: #0b63ff !important;
+}
+
+@media (max-width: 1320px) {
+  .mgRefManualPair {
+    grid-template-columns: 1fr !important;
+  }
+
+  .mgRefManualOut,
+  .mgRefManualIn {
+    grid-template-columns: 1fr !important;
+  }
+}
+/* =========================================================
+   Manual Clock cards: stop fields sticking outside
+   ========================================================= */
+
+.mgRefManualPair {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px !important;
+  align-items: stretch !important;
+}
+
+.mgRefManualPair .mgRefPanel,
+.mgRefManualPair .mgRefCompact {
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+.mgRefManualPair .mgRefManual {
+  width: 100% !important;
+  min-width: 0 !important;
+  display: grid !important;
+  gap: 10px !important;
+  align-items: center !important;
+}
+
+/* Clock-Out: employee dropdown, time, button */
+.mgRefManualPair .mgRefManualOut {
+  grid-template-columns: minmax(0, 1fr) 116px 136px !important;
+}
+
+/* Clock-In: date, employee dropdown, time, site, button */
+.mgRefManualPair .mgRefManualIn {
+  grid-template-columns: 122px minmax(0, 1fr) 108px minmax(0, .75fr) 128px !important;
+}
+
+.mgRefManualPair .mgRefManual input,
+.mgRefManualPair .mgRefManual select,
+.mgRefManualPair .mgRefManual button {
+  width: 100% !important;
+  max-width: 100% !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.mgRefManualPair .mgRefManual select {
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
+}
+
+.mgRefManualPair .mgRefManual button {
+  padding: 0 10px !important;
+  white-space: nowrap !important;
+}
+
+.mgRefManualPair .mgRefAuditHint {
+  grid-column: 1 / -1 !important;
+  min-width: 0 !important;
+  overflow-wrap: anywhere !important;
+}
+
+/* On medium screens, keep cards side by side but stack fields inside each card */
+@media (max-width: 1500px) {
+  .mgRefManualPair {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+
+  .mgRefManualPair .mgRefManualOut,
+  .mgRefManualPair .mgRefManualIn {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+/* On small screens, stack the cards too */
+@media (max-width: 1050px) {
+  .mgRefManualPair {
+    grid-template-columns: 1fr !important;
+  }
+}

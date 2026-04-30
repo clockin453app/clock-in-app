@@ -1,0 +1,445 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-management.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+{% macro mi(path) %}
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    {{ path|safe }}
+  </svg>
+{% endmacro %}
+
+{% macro feature_card(href, tone, icon, title, desc, value, label, dot=False) %}
+  <a class="mgRefCard" href="{{ href }}">
+    <div class="mgRefCardTop">
+      <span class="mgRefCardIcon {{ tone }}">
+        {{ mi(icon) }}
+      </span>
+      <h3>{{ title }}</h3>
+    </div>
+
+    <p>{{ desc }}</p>
+
+    <div class="mgRefCardFoot{% if dot %} small{% endif %}">
+      {% if dot %}
+        <i class="dot"></i>
+      {% else %}
+        <strong>{{ value }}</strong>
+      {% endif %}
+      <span>{{ label }}</span>
+      <em>›</em>
+    </div>
+  </a>
+{% endmacro %}
+
+<div class="mgRefPage">
+  <header class="mgRefHeader">
+    <div class="mgRefHeaderTop">
+      <nav class="mgRefCrumbs" aria-label="Breadcrumb">
+        <a href="/">Dashboard</a>
+        <span>›</span>
+        <strong>Management</strong>
+      </nav>
+
+      <div class="mgRefUserTools">
+        <button class="mgRefIconButton mgRefBell" type="button" aria-label="Notifications">
+          {{ mi('<path d="M12 4a4 4 0 0 1 4 4v2.35c0 .82.22 1.63.64 2.33L18 15H6l1.36-2.32A4.45 4.45 0 0 0 8 10.35V8a4 4 0 0 1 4-4Z"/><path d="M10 18a2 2 0 0 0 4 0"/>') }}
+          <i>3</i>
+        </button>
+
+        <button class="mgRefIconButton" type="button" aria-label="Help">
+          {{ mi('<circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 1 1 5.6 1.5c-.5.78-1.4 1.12-2 1.78-.43.44-.62.88-.62 1.72"/><path d="M12 17h.01"/>') }}
+        </button>
+
+        <div class="mgRefUser">
+          <div class="mgRefAvatar">AD</div>
+          <div class="mgRefUserText">
+            <strong>admin</strong>
+            <span>{{ role_label_text }}</span>
+          </div>
+          <div class="mgRefChevron">⌄</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="mgRefTitleRow">
+      <div>
+        <h1>Management</h1>
+        <p>Configure organization settings, manage people, and oversee workplace operations.</p>
+      </div>
+
+      <span class="mgRefMasterBadge">MASTER ADMIN</span>
+    </div>
+  </header>
+
+  <div class="mgRefGrid">
+    <main class="mgRefMain">
+      <section class="mgRefPanel">
+        <div class="mgRefPanelHead">
+          <div class="mgRefPanelIcon blue">
+            {{ mi('<path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>') }}
+          </div>
+          <div>
+            <h2>People &amp; Access</h2>
+            <p>Manage your team and control access.</p>
+          </div>
+        </div>
+
+        <div class="mgRefCards four">
+          {{ feature_card(
+            '/admin/employees',
+            'indigo',
+            '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+            'Employees',
+            'Create employees, update roles and manage access.',
+            employees_total,
+            'Total Employees'
+          ) }}
+
+          {{ feature_card(
+            '/admin/onboarding',
+            'green',
+            '<path d="M9 12l2 2 4-5"/><path d="M5 4h14v16H5z"/><path d="M8 4V2h8v2"/>',
+            'Onboarding',
+            'Review starter forms, documents and contracts.',
+            onboarding_total,
+            'Pending Tasks'
+          ) }}
+
+          {{ feature_card(
+            '/admin/employee-sites',
+            'amber',
+            '<path d="M9 18 3 21V6l6-3 6 3 6-3v15l-6 3-6-3Z"/><path d="M9 3v15"/><path d="M15 6v15"/>',
+            'Site Access',
+            'Assign employees to site locations for clock-in access.',
+            employees_total,
+            'Active Assignments'
+          ) }}
+
+          {{ feature_card(
+            '/admin/locations',
+            'orange',
+            '<path d="M12 21s7-5.4 7-12a7 7 0 1 0-14 0c0 6.6 7 12 7 12Z"/><circle cx="12" cy="9" r="2.5"/>',
+            'Site Locations',
+            'Manage geo-fence sites and allowed clock-in zones.',
+            locations_total,
+            'Sites Configured'
+          ) }}
+        </div>
+      </section>
+
+      <section class="mgRefPanel">
+        <div class="mgRefPanelHead">
+          <div class="mgRefPanelIcon violet">
+            {{ mi('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-.4-1.1 1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.1-.4 1.7 1.7 0 0 0 .6-1A1.7 1.7 0 0 0 4.46 6.3l-.06-.06A2 2 0 1 1 7.23 3.4l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 .4 1.1 1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.24.35.6.6 1 .6h.6a2 2 0 1 1 0 4h-.6a1.7 1.7 0 0 0-1 .6Z"/>') }}
+          </div>
+          <div>
+            <h2>Operations</h2>
+            <p>Payroll, time capture and operational tools.</p>
+          </div>
+        </div>
+
+        <div class="mgRefCards four">
+          {{ feature_card(
+            '/admin/payroll',
+            'green',
+            '<path d="M6 3h8a4 4 0 0 1 0 8H6"/><path d="M6 3v18"/><path d="M6 13h9"/><path d="M4 21h8"/>',
+            'Payroll',
+            'Weekly payroll, tax, net pay and paid status.',
+            '',
+            'This week ready',
+            True
+          ) }}
+
+          {{ feature_card(
+            '/admin/clock-selfies',
+            'blue',
+            '<path d="M4 7h4l2-3h4l2 3h4v13H4z"/><circle cx="12" cy="13" r="3"/>',
+            'Clock Photos',
+            'View employee clock-in and clock-out photos.',
+            open_total,
+            'New This Week'
+          ) }}
+
+          {{ feature_card(
+            '/admin/work-progress',
+            'magenta',
+            '<path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/>',
+            'Site Progress',
+            'Upload and review site progress photos.',
+            locations_total,
+            'Updates Pending'
+          ) }}
+
+          {{ feature_card(
+            '/admin/company',
+            'slate',
+            '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .34 1.87l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.7 1.7 0 0 0 15 19.4a1.7 1.7 0 0 0-1 .6 1.7 1.7 0 0 0-.4 1.1V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-.4-1.1 1.7 1.7 0 0 0-1-.6 1.7 1.7 0 0 0-1.87.34l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.7 1.7 0 0 0 4.6 15a1.7 1.7 0 0 0-.6-1 1.7 1.7 0 0 0-1.1-.4H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.1-.4 1.7 1.7 0 0 0 .6-1A1.7 1.7 0 0 0 4.46 6.3l-.06-.06A2 2 0 1 1 7.23 3.4l.06.06A1.7 1.7 0 0 0 9 4.6a1.7 1.7 0 0 0 1-.6 1.7 1.7 0 0 0 .4-1.1V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 .4 1.1 1.7 1.7 0 0 0 1 .6 1.7 1.7 0 0 0 1.87-.34l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.7 1.7 0 0 0 19.4 9c.24.35.6.6 1 .6h.6a2 2 0 1 1 0 4h-.6a1.7 1.7 0 0 0-1 .6Z"/>',
+            'Company Settings',
+            'Change workplace name and company-level settings.',
+            '',
+            'Up to date',
+            True
+          ) }}
+        </div>
+      </section>
+
+      {% if is_master_admin %}
+      <section class="mgRefPanel">
+        <div class="mgRefPanelHead">
+          <div class="mgRefPanelIcon indigo">
+            {{ mi('<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/>') }}
+          </div>
+          <div>
+            <h2>Compliance &amp; Health</h2>
+            <p>Monitor system health, data and activity.</p>
+          </div>
+        </div>
+
+        <div class="mgRefCards three">
+          <a class="mgRefCard" href="/connect-drive">
+            <div class="mgRefCardTop">
+              <span class="mgRefDriveIcon" aria-hidden="true">
+                <svg viewBox="0 0 24 24">
+                  <path d="M8.2 4h7.6l4.2 7.3h-7.6L8.2 4Z" fill="#fbbc04"></path>
+                  <path d="M4 18.5 8.2 11.3h7.6l-4.2 7.2H4Z" fill="#34a853"></path>
+                  <path d="M15.8 4 20 11.3l-4.2 7.2-4.2-7.2L15.8 4Z" fill="#4285f4"></path>
+                </svg>
+              </span>
+              <h3>Connect Drive</h3>
+            </div>
+            <p>Reconnect Google Drive for onboarding uploads.</p>
+            <div class="mgRefCardFoot small">
+              <i class="dot"></i>
+              <span>Connected</span>
+              <em>›</em>
+            </div>
+          </a>
+
+          {{ feature_card(
+            '/admin/system-health',
+            'violet',
+            '<path d="M3 12h4l3 7 4-14 3 7h4"/>',
+            'System Health',
+            'Master-only check for database, storage, backups and app status.',
+            '',
+            'All systems normal',
+            True
+          ) }}
+
+          {{ feature_card(
+            '/admin/audit',
+            'purple',
+            '<path d="M9 3h6l2 2v16H7V5l2-2Z"/><path d="M9 9h6"/><path d="M9 13h6"/><path d="M9 17h4"/>',
+            'Audit Log',
+            'Master-only activity history for payroll, employees and actions.',
+            '1,342',
+            'Events Logged'
+          ) }}
+        </div>
+      </section>
+      {% endif %}
+            <div class="mgRefManualPair">
+
+        <section class="mgRefPanel mgRefCompact">
+          <div class="mgRefPanelHead manual">
+            <div class="mgRefPanelIcon blue">
+              {{ mi('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/><path d="M8 16h8"/>') }}
+            </div>
+            <div>
+              <h2>Manual Clock-Out</h2>
+              <p>Use this if someone forgot to clock out.</p>
+            </div>
+            <span class="mgRefAdminAction">Admin action</span>
+          </div>
+
+          <form method="POST" action="/admin/force-clockout" class="mgRefManual mgRefManualOut">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+
+            <select name="user" required>
+              {% if force_clockout_options %}
+                {% for shift in force_clockout_options %}
+                  <option value="{{ shift.username }}">
+                    {{ shift.label }} — clocked in {{ shift.start_label }}
+                  </option>
+                {% endfor %}
+              {% else %}
+                <option value="" disabled selected>No one is currently clocked in</option>
+              {% endif %}
+            </select>
+
+            <input type="time" step="1" name="out_time" value="{{ now_time_value }}" required>
+
+            <button type="submit" {% if not force_clockout_options %}disabled{% endif %}>
+              Manual Clock-Out
+            </button>
+
+            <span class="mgRefAuditHint">
+              {% if force_clockout_options %}
+                Showing live clocked-in employees only.
+              {% else %}
+                No open shifts found.
+              {% endif %}
+            </span>
+          </form>
+        </section>
+
+        <section class="mgRefPanel mgRefCompact">
+          <div class="mgRefPanelHead manual">
+            <div class="mgRefPanelIcon blue">
+              {{ mi('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>') }}
+            </div>
+            <div>
+              <h2>Manual Clock-In</h2>
+              <p>Use this if someone forgot to clock in.</p>
+            </div>
+            <span class="mgRefAdminAction">Admin action</span>
+          </div>
+
+          <form method="POST" action="/admin/force-clockin" class="mgRefManual mgRefManualIn">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+            <input type="date" name="date" value="{{ today_value }}" required>
+
+            <select name="user" required>
+              {% for employee in employee_options %}
+                <option value="{{ employee.username }}">{{ employee.label }}</option>
+              {% endfor %}
+            </select>
+
+            <input type="time" step="1" name="in_time" required>
+
+            <select name="site" required>
+              <option value="">Select Site</option>
+              {% for site in site_options %}
+                <option value="{{ site }}">{{ site }}</option>
+              {% endfor %}
+            </select>
+
+            <button type="submit">Manual Clock-In</button>
+
+            <span class="mgRefAuditHint">
+              This entry will be recorded in the audit log.
+            </span>
+          </form>
+        </section>
+
+      </div>
+
+      <section class="mgRefPanel mgRefCompact">
+        <div class="mgRefPanelHead">
+          <div class="mgRefPanelIcon green">
+            {{ mi('<path d="M4 12a8 8 0 0 1 16 0"/><path d="M8 12a4 4 0 0 1 8 0"/><path d="M12 12v.01"/>') }}
+          </div>
+          <div>
+            <h2>Live Attendance</h2>
+            <p>See who is currently active on site in real time.</p>
+          </div>
+          <a class="mgRefViewLive" href="/admin/current-sessions">View live board</a>
+        </div>
+
+        {% if open_shifts %}
+          <div class="mgRefLiveRows">
+            {% for shift in open_shifts[:4] %}
+              <div>
+                <strong>{{ shift.name }}</strong>
+                <span>{{ shift.start_label }}</span>
+                <em>Live</em>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="mgRefEmptyLive">
+            <i></i>
+            <span>No one is currently clocked in.</span>
+          </div>
+        {% endif %}
+      </section>
+    </main>
+
+    <aside class="mgRefSide">
+      <section class="mgRefSidePanel">
+        <div class="mgRefSideTitle">
+          <div class="mgRefSideIcon blue">
+            {{ mi('<path d="M4 21V7a2 2 0 0 1 2-2h5v16"/><path d="M11 21V3h7a2 2 0 0 1 2 2v16"/><path d="M7 9h1"/><path d="M7 13h1"/><path d="M14 7h2"/><path d="M14 11h2"/><path d="M14 15h2"/>') }}
+          </div>
+          <h2>Organization Overview</h2>
+        </div>
+
+        <div class="mgRefOverview">
+          <div>
+            <span class="miniIcon indigo">{{ mi('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>') }}</span>
+            <strong>{{ employees_total }}</strong>
+            <small>Employees</small>
+          </div>
+          <div>
+            <span class="miniIcon purple">{{ mi('<path d="M4 21V5a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v16"/><path d="M9 21v-5h3v5"/>') }}</span>
+            <strong>{{ locations_total }}</strong>
+            <small>Sites</small>
+          </div>
+          <div>
+            <span class="miniIcon blue">{{ mi('<path d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/>') }}</span>
+            <strong>7</strong>
+            <small>Depts / Teams</small>
+          </div>
+          <div>
+            <span class="miniIcon green">{{ mi('<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-5"/>') }}</span>
+            <strong>98%</strong>
+            <small>System Health</small>
+          </div>
+        </div>
+
+        <a class="mgRefSideAction" href="/admin/workplaces">View full report <span>→</span></a>
+      </section>
+
+      <section class="mgRefSidePanel">
+        <div class="mgRefSideTitle">
+          <div class="mgRefSideIcon violet">
+            {{ mi('<path d="M3 12h4l2.2-6 4.6 12L16 12h5"/>') }}
+          </div>
+          <h2>System Status</h2>
+          <span class="mgRefSystemPill">All Systems Operational</span>
+        </div>
+
+        <div class="mgRefStatus">
+          <div><i></i><span>Web Application</span><em>Operational</em></div>
+          <div><i></i><span>Database</span><em>Operational</em></div>
+          <div><i></i><span>Storage</span><em>Operational</em></div>
+          <div><i></i><span>Backups</span><em>Operational</em></div>
+        </div>
+
+        <a class="mgRefSideAction" href="/admin/system-health">View system health <span>→</span></a>
+      </section>
+
+      <section class="mgRefSidePanel">
+        <div class="mgRefSideTitle">
+          <div class="mgRefSideIcon indigo">
+            {{ mi('<path d="M8 4h8l2 2v14H6V6l2-2Z"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h4"/>') }}
+          </div>
+          <h2>Recent Audit Activity</h2>
+        </div>
+
+        <div class="mgRefActivity">
+          <div><strong>Payroll generated</strong><span>Today, 09:14 AM<br>by Marius O.</span></div>
+          <div><strong>Employee updated</strong><span>Today, 09:05 AM<br>by Marius O.</span></div>
+          <div><strong>Site access changed</strong><span>Yesterday, 04:21 PM<br>by Marius O.</span></div>
+        </div>
+
+        <a class="mgRefSideAction" href="/admin/audit">View audit log <span>→</span></a>
+      </section>
+
+      <section class="mgRefSidePanel">
+        <div class="mgRefSideTitle">
+          <div class="mgRefSideIcon purple">
+            {{ mi('<path d="M10 13a5 5 0 0 0 7.07 0l2.12-2.12a5 5 0 0 0-7.07-7.07L11 4.93"/><path d="M14 11a5 5 0 0 0-7.07 0L4.81 13.1a5 5 0 0 0 7.07 7.07L13 19.07"/>') }}
+          </div>
+          <h2>Quick Links</h2>
+        </div>
+
+        <div class="mgRefQuickLinks">
+          <a href="/admin/employees">{{ mi('<path d="M8 4h8l2 2v14H6V6l2-2Z"/>') }} Export Employee List</a>
+          <a href="/admin/payroll">{{ mi('<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>') }} Download Payroll Report</a>
+          <a href="/admin/work-progress">{{ mi('<path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/>') }} Site Progress Archive</a>
+          <a href="/admin/company">{{ mi('<path d="M12 5v14"/><path d="M5 12h14"/>') }} Upload Company Logo</a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

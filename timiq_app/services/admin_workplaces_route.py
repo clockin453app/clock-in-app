@@ -1,3 +1,4 @@
+from ..ui.render import render_page
 def admin_workplaces_impl(core):
     require_master_admin = core["require_master_admin"]
     get_csrf = core["get_csrf"]
@@ -18,16 +19,11 @@ def admin_workplaces_impl(core):
     Employee = core["Employee"]
     _session_workplace_id = core["_session_workplace_id"]
     _workplace_ids_for_read = core["_workplace_ids_for_read"]
-    escape = core["escape"]
-    page_back_button = core["page_back_button"]
     role_label = core["role_label"]
-    render_template_string = core["render_template_string"]
     STYLE = core["STYLE"]
     VIEWPORT = core["VIEWPORT"]
     PWA_TAGS = core["PWA_TAGS"]
     layout_shell = core["layout_shell"]
-
-    # PASTE ONLY THE BODY OF admin_workplaces() BELOW THIS LINE
 
     gate = require_master_admin()
     if gate:
@@ -96,6 +92,7 @@ def admin_workplaces_impl(core):
                 msg = "Admin password must be at least 8 characters."
             else:
                 exists = False
+
                 try:
                     vals = settings_sheet.get_all_values() if settings_sheet else []
                     headers = vals[0] if vals else []
@@ -118,6 +115,7 @@ def admin_workplaces_impl(core):
                         msg = "That workplace already exists."
                     else:
                         existing_users = _employees_usernames_for_workplace(workplace_id)
+
                         if admin_username.lower() in existing_users:
                             msg = "That admin username already exists in this workplace."
                         else:
@@ -152,10 +150,12 @@ def admin_workplaces_impl(core):
                             set_emp("LastName", admin_last)
                             set_emp("Site", "")
                             set_emp("Workplace_ID", workplace_id)
+
                             if "Active" in emp_headers:
                                 set_emp("Active", "TRUE")
 
                             employees_sheet.append_row(emp_row)
+
                             if DB_MIGRATION_MODE:
                                 try:
                                     db_setting = WorkplaceSetting.query.filter_by(workplace_id=workplace_id).first()
@@ -167,20 +167,26 @@ def admin_workplaces_impl(core):
                                     db_setting.currency_symbol = currency_symbol
                                     db_setting.company_name = company_name
 
-                                    db_admin = Employee.query.filter_by(username=admin_username,
-                                                                        workplace_id=workplace_id).first()
+                                    db_admin = Employee.query.filter_by(
+                                        username=admin_username,
+                                        workplace_id=workplace_id
+                                    ).first()
+
                                     if not db_admin:
-                                        db_admin = Employee.query.filter_by(email=admin_username,
-                                                                            workplace_id=workplace_id).first()
+                                        db_admin = Employee.query.filter_by(
+                                            email=admin_username,
+                                            workplace_id=workplace_id
+                                        ).first()
 
                                     admin_hash = generate_password_hash(admin_password)
+                                    admin_name = (" ".join([admin_first, admin_last])).strip() or admin_username
 
                                     if db_admin:
                                         db_admin.email = admin_username
                                         db_admin.username = admin_username
                                         db_admin.first_name = admin_first
                                         db_admin.last_name = admin_last
-                                        db_admin.name = (" ".join([admin_first, admin_last])).strip() or admin_username
+                                        db_admin.name = admin_name
                                         db_admin.password = admin_hash
                                         db_admin.role = "admin"
                                         db_admin.rate = Decimal("0")
@@ -196,64 +202,7 @@ def admin_workplaces_impl(core):
                                                 username=admin_username,
                                                 first_name=admin_first,
                                                 last_name=admin_last,
-                                                name=(" ".join([admin_first, admin_last])).strip() or admin_username,
-                                                password=admin_hash,
-                                                role="admin",
-                                                rate=Decimal("0"),
-                                                early_access="TRUE",
-                                                active="TRUE",
-                                                site="",
-                                                workplace=workplace_id,
-                                                workplace_id=workplace_id,
-                                                created_at=None,
-                                            )
-                                        )
-
-                                    db.session.commit()
-                                except Exception:
-                                    db.session.rollback()
-
-                            if DB_MIGRATION_MODE:
-                                try:
-                                    db_setting = WorkplaceSetting.query.filter_by(workplace_id=workplace_id).first()
-                                    if not db_setting:
-                                        db_setting = WorkplaceSetting(workplace_id=workplace_id)
-                                        db.session.add(db_setting)
-
-                                    db_setting.tax_rate = Decimal(str(tax_rate or "20"))
-                                    db_setting.currency_symbol = currency_symbol
-                                    db_setting.company_name = company_name
-
-                                    db_admin = Employee.query.filter_by(username=admin_username,
-                                                                        workplace_id=workplace_id).first()
-                                    if not db_admin:
-                                        db_admin = Employee.query.filter_by(email=admin_username,
-                                                                            workplace_id=workplace_id).first()
-
-                                    admin_hash = generate_password_hash(admin_password)
-
-                                    if db_admin:
-                                        db_admin.email = admin_username
-                                        db_admin.username = admin_username
-                                        db_admin.first_name = admin_first
-                                        db_admin.last_name = admin_last
-                                        db_admin.name = (" ".join([admin_first, admin_last])).strip() or admin_username
-                                        db_admin.password = admin_hash
-                                        db_admin.role = "admin"
-                                        db_admin.rate = Decimal("0")
-                                        db_admin.early_access = "TRUE"
-                                        db_admin.active = "TRUE"
-                                        db_admin.site = ""
-                                        db_admin.workplace = workplace_id
-                                        db_admin.workplace_id = workplace_id
-                                    else:
-                                        db.session.add(
-                                            Employee(
-                                                email=admin_username,
-                                                username=admin_username,
-                                                first_name=admin_first,
-                                                last_name=admin_last,
-                                                name=(" ".join([admin_first, admin_last])).strip() or admin_username,
+                                                name=admin_name,
                                                 password=admin_hash,
                                                 role="admin",
                                                 rate=Decimal("0"),
@@ -279,10 +228,13 @@ def admin_workplaces_impl(core):
                                 "admin_username": admin_username,
                                 "admin_password": admin_password,
                             }
+
                 except Exception:
                     msg = "Could not create workplace."
 
-    rows_html = []
+    companies = []
+    current_wp = _session_workplace_id()
+    current_currency = "—"
 
     try:
         vals = settings_sheet.get_all_values() if settings_sheet else []
@@ -296,9 +248,7 @@ def admin_workplaces_impl(core):
         i_cur = idx("Currency_Symbol")
         i_name = idx("Company_Name")
 
-        current_wp = _session_workplace_id()
-
-        allowed_wps = set(_workplace_ids_for_read(current_wp))
+        _workplace_ids_for_read(current_wp)
 
         for r in (vals[1:] if len(vals) > 1 else []):
             wp = (r[i_wp] if i_wp is not None and i_wp < len(r) else "").strip()
@@ -308,141 +258,36 @@ def admin_workplaces_impl(core):
             tax = (r[i_tax] if i_tax is not None and i_tax < len(r) else "").strip()
             cur = (r[i_cur] if i_cur is not None and i_cur < len(r) else "").strip()
             name = (r[i_name] if i_name is not None and i_name < len(r) else "").strip() or wp
-            status_text = "Current" if wp == current_wp else ""
 
-            if wp == current_wp:
-                open_btn = "<span style='font-weight:600; color: rgba(15,23,42,.55);'>Opened</span>"
-            else:
-                open_btn = f"""
-                      <form method="POST" style="margin:0;">
-                        <input type="hidden" name="csrf" value="{escape(csrf)}">
-                        <input type="hidden" name="action" value="switch">
-                        <input type="hidden" name="target_workplace" value="{escape(wp)}">
-                        <button class="btnTiny" type="submit">Open</button>
-                      </form>
-                    """
+            is_current = wp == current_wp
+            if is_current:
+                current_currency = cur or "—"
 
-            rows_html.append(f"""
-                  <tr>
-                    <td style="width:36%;">
-                      <div style="font-weight:700;">{escape(name)}</div>
-                      <div class="sub" style="margin:2px 0 0 0;">{escape(wp)}</div>
-                    </td>
-                    <td class="num" style="width:12%; text-align:right;">{escape(tax)}</td>
-                    <td style="width:12%; text-align:center;">{escape(cur)}</td>
-                    <td style="width:16%; text-align:left; font-weight:600; color: rgba(15,23,42,.72);">{escape(status_text)}</td>
-                    <td style="width:14%; text-align:center;">{open_btn}</td>
-                  </tr>
-                """)
+            companies.append({
+                "workplace_id": wp,
+                "name": name,
+                "tax": tax or "—",
+                "currency": cur or "—",
+                "is_current": is_current,
+            })
+
     except Exception:
-        rows_html = []
+        companies = []
 
-    table_html = "".join(rows_html) if rows_html else "<tr><td colspan='5'>No workplaces found.</td></tr>"
-
-    created_card = ""
-    if created_info:
-        created_card = f"""
-              <div class="card" style="padding:12px; margin-top:12px;">
-                <h2>First admin created</h2>
-                <div class="sub">Save these details now.</div>
-                <div class="card" style="padding:12px; margin-top:10px; background:rgba(56,189,248,.18); border:1px solid rgba(56,189,248,.35); color:rgba(2,6,23,.95);">
-                  <div><b>Company:</b> {escape(created_info["company_name"])}</div>
-                  <div><b>Workplace ID:</b> {escape(created_info["workplace_id"])}</div>
-                  <div><b>Admin username:</b> {escape(created_info["admin_username"])}</div>
-                  <div><b>Admin password:</b> {escape(created_info["admin_password"])}</div>
-                </div>
-              </div>
-            """
-
-    content = f"""
-          {page_back_button("/admin", "Back to Admin")}
-
-          <div class="headerTop">
-            <div>
-              <h1>Companies</h1>
-              <p class="sub">Master admin only.</p>
-            </div>
-            <div class="badge admin">{escape(role_label(session.get('role', 'master_admin')))}</div>
-          </div>
-
-
-          {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
-          {("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
-
-          <div class="card" style="padding:12px;">
-            <h2>Create company</h2>
-            <form method="POST">
-              <input type="hidden" name="csrf" value="{escape(csrf)}">
-              <input type="hidden" name="action" value="create">
-
-              <div class="row2">
-                <div>
-                  <label class="sub">Workplace ID</label>
-                  <input class="input" name="workplace_id" placeholder="e.g. nw01" required>
-                </div>
-                <div>
-                  <label class="sub">Company name</label>
-                  <input class="input" name="company_name" placeholder="e.g. Newera North" required>
-                </div>
-              </div>
-
-              <div class="row2">
-                <div>
-                  <label class="sub">Tax rate</label>
-                  <input class="input" name="tax_rate" value="20" required>
-                </div>
-                <div>
-                  <label class="sub">Currency symbol</label>
-                  <input class="input" name="currency_symbol" value="£" required>
-                </div>
-              </div>
-
-              <h2 style="margin-top:14px;">First admin</h2>
-
-              <div class="row2">
-                <div>
-                  <label class="sub">First name</label>
-                  <input class="input" name="admin_first" required>
-                </div>
-                <div>
-                  <label class="sub">Last name</label>
-                  <input class="input" name="admin_last" required>
-                </div>
-              </div>
-
-              <div class="row2">
-                <div>
-                  <label class="sub">Username</label>
-                  <input class="input" name="admin_username" required>
-                </div>
-                <div>
-                  <label class="sub">Password</label>
-                  <input class="input" name="admin_password" required>
-                </div>
-              </div>
-
-              <button class="btnSoft" type="submit" style="margin-top:12px;">Create workplace</button>
-            </form>
-          </div>
-
-          {created_card}
-
-          <div class="card" style="padding:12px; margin-top:12px;">
-      <h2>Existing companies</h2>
-      <div class="tablewrap workplacesTableWrap" style="margin-top:12px;">
-        <table class="workplacesTable" style="table-layout:fixed;">
-          <thead>
-            <tr>
-              <th style="width:36%; text-align:left;">Company</th>
-              <th class="num" style="width:12%; text-align:right;">Tax</th>
-              <th style="width:12%; text-align:center;">Currency</th>
-              <th style="width:16%; text-align:left;">Status</th>
-              <th style="width:14%; text-align:center;">Open</th>
-            </tr>
-          </thead>
-          <tbody>{table_html}</tbody>
-        </table>
-      </div>
-    </div>
-        """
-    return render_template_string(f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("workplaces", "master_admin", content))
+    return render_page(
+        template_name="admin/companies.html",
+        active="workplaces",
+        role="master_admin",
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+        csrf=csrf,
+        msg=msg,
+        ok=ok,
+        created_info=created_info,
+        role_label_text=role_label(session.get("role", "master_admin")),
+        current_workplace=current_wp,
+        current_currency=current_currency,
+        companies=companies,
+    )

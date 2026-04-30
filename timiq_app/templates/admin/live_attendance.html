@@ -1,0 +1,187 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-live-attendance.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+<div class="liveAttendancePage">
+  <div class="liveBreadcrumb">
+    <a href="/admin">Management</a>
+    <span>›</span>
+    <span>Live Attendance</span>
+  </div>
+
+  <div class="liveHeader">
+    <div>
+      <h1>Live Attendance</h1>
+      <p>Authenticated users active in the last {{ ttl_seconds }} seconds.</p>
+    </div>
+
+    <div class="liveHeaderActions">
+      <div class="liveBadge">MASTER ADMIN</div>
+      <a class="liveGhostButton" href="/admin">← Back</a>
+      <a class="livePrimaryButton" href="/admin/current-sessions">Refresh</a>
+    </div>
+  </div>
+
+  <div class="liveMetricGrid">
+    <div class="liveMetricCard">
+      <div class="liveMetricIcon green">●</div>
+      <div>
+        <div class="liveMetricLabel">Live Now</div>
+        <div class="liveMetricValue">{{ live_count }}</div>
+        <div class="liveMetricSub">Currently active sessions</div>
+      </div>
+    </div>
+
+    <div class="liveMetricCard">
+      <div class="liveMetricIcon purple">▦</div>
+      <div>
+        <div class="liveMetricLabel">Tracked Sessions</div>
+        <div class="liveMetricValue">{{ total_count }}</div>
+        <div class="liveMetricSub">Stored presence records</div>
+      </div>
+    </div>
+
+    <div class="liveMetricCard">
+      <div class="liveMetricIcon orange">↻</div>
+      <div>
+        <div class="liveMetricLabel">Auto Refresh</div>
+        <div class="liveMetricValue">15s</div>
+        <div class="liveMetricSub">This page refreshes automatically</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="liveMainGrid">
+    <section class="livePanel">
+      <div class="livePanelHeader">
+        <div>
+          <h2>Current Sessions</h2>
+          <p>Monitor logged-in users and force logout sessions if needed.</p>
+        </div>
+      </div>
+
+      <div class="liveTableShell">
+        <table class="liveTable">
+          <thead>
+            <tr>
+              <th>User</th>
+              <th>Role</th>
+              <th>Workplace</th>
+              <th>Status</th>
+              <th>Seen</th>
+              <th>Last Seen / IP</th>
+              <th>User Agent</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% if sessions %}
+              {% for item in sessions %}
+                <tr>
+                  <td>
+                    <div class="liveUserName">{{ item.username }}</div>
+                    <div class="liveUserMeta">{{ item.scope_label }}</div>
+                  </td>
+                  <td>{{ item.role_label }}</td>
+                  <td>{{ item.workplace_label }}</td>
+                  <td>
+                    {% if item.is_live %}
+                      <span class="liveStatus isLive"><span></span>Live</span>
+                    {% else %}
+                      <span class="liveStatus isIdle"><span></span>Idle</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ item.age }}</td>
+                  <td>
+                    <div>{{ item.last_seen_iso }}</div>
+                    <div class="liveUserMeta">IP: {{ item.ip }}</div>
+                  </td>
+                  <td>
+                    <div class="liveAgent">{{ item.user_agent }}</div>
+                  </td>
+                  <td>
+                    <form method="POST" action="/admin/current-sessions/force-logout" style="margin:0;">
+                      <input type="hidden" name="csrf" value="{{ csrf }}">
+                      <input type="hidden" name="session_key" value="{{ item.session_key }}">
+                      <button class="liveDangerButton" type="submit">Force logout</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="8" class="liveEmpty">No live sessions found.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="liveSideStack">
+      <section class="livePanel">
+        <div class="livePanelHeader">
+          <div>
+            <h2>Session Summary</h2>
+            <p>Quick system overview.</p>
+          </div>
+        </div>
+
+        <div class="liveSideItem">
+          <div class="liveSideLeft">
+            <span class="liveDot green"></span>
+            <span class="liveSideLabel">Live now</span>
+          </div>
+          <span class="liveSideValue">{{ live_count }}</span>
+        </div>
+
+        <div class="liveSideItem">
+          <div class="liveSideLeft">
+            <span class="liveDot purple"></span>
+            <span class="liveSideLabel">Tracked total</span>
+          </div>
+          <span class="liveSideValue">{{ total_count }}</span>
+        </div>
+
+        <div class="liveSideItem">
+          <div class="liveSideLeft">
+            <span class="liveDot orange"></span>
+            <span class="liveSideLabel">Refresh interval</span>
+          </div>
+          <span class="liveSideValue">15 seconds</span>
+        </div>
+      </section>
+
+      <section class="livePanel">
+        <div class="livePanelHeader">
+          <div>
+            <h2>Admin Actions</h2>
+            <p>Session controls remain protected by CSRF.</p>
+          </div>
+        </div>
+
+        <div class="liveSideItem">
+          <div class="liveSideLeft">
+            <span class="liveDot purple"></span>
+            <span class="liveSideLabel">Force logout</span>
+          </div>
+          <span class="liveSideValue">Available</span>
+        </div>
+
+        <div class="liveSideItem">
+          <div class="liveSideLeft">
+            <span class="liveDot green"></span>
+            <span class="liveSideLabel">Read only page</span>
+          </div>
+          <span class="liveSideValue">Safe</span>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+<script>
+  window.setTimeout(function(){
+    window.location.reload();
+  }, 15000);
+</script>

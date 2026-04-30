@@ -1,0 +1,387 @@
+.companiesPage {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.companiesBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.companiesBreadcrumb a {
+  color: #46516d;
+  text-decoration: none;
+}
+
+.companiesHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.companiesHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+}
+
+.companiesHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.companiesBadge {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 9px;
+  background: #eeeaff;
+  color: #5b3ff4;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .035em;
+  white-space: nowrap;
+}
+
+.companiesMessage {
+  padding: 12px 14px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 850;
+  background: #ecfdf3;
+  color: #16a34a;
+  border: 1px solid #bbf7d0;
+}
+
+.companiesMessage.error {
+  background: #fff1f2;
+  color: #e11d48;
+  border-color: #fecdd3;
+}
+
+.companiesLayout {
+  display: grid;
+  grid-template-columns: minmax(0, .95fr) minmax(460px, 1.05fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.companiesStack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.companiesPanel {
+  background: rgba(255, 255, 255, .94);
+  border: 1px solid #e3e8f4;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(22,34,66,.05);
+  padding: 18px;
+}
+
+.companiesPanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.companiesPanelTitle {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.companiesPanelIcon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #f1eeff;
+  color: #5b3ff4;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.companiesPanelIcon.green {
+  background: #ecfdf3;
+  color: #16a34a;
+}
+
+.companiesPanel h2 {
+  margin: 0;
+  color: #11183a;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.companiesPanel p {
+  margin: 6px 0 0;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.companyForm {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.companyFormSection {
+  padding: 14px;
+  border: 1px solid #e3e8f4;
+  border-radius: 15px;
+  background: #fbfcff;
+}
+
+.companyFormSection h3 {
+  margin: 0 0 12px;
+  color: #11183a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.companyFormGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.companyField label {
+  display: block;
+  margin-bottom: 6px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.companyField input {
+  width: 100%;
+  min-height: 44px;
+  border: 1px solid #d8e0ef;
+  border-radius: 11px;
+  background: #fff;
+  color: #121a3a;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.companySubmit {
+  min-height: 44px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #5b3ff4, #6848ff);
+  color: #fff;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(91,63,244,.22);
+  cursor: pointer;
+}
+
+.createdCard {
+  border-color: #bbf7d0;
+  background: linear-gradient(180deg, #ffffff, #f4fff8);
+}
+
+.createdDetails {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid #bbf7d0;
+  border-radius: 15px;
+  background: #ecfdf3;
+  color: #14532d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.createdDetails strong {
+  color: #052e16;
+}
+
+.companiesMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+}
+
+.companyMetric {
+  min-height: 112px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  background: #fff;
+  border: 1px solid #e3e8f4;
+  border-radius: 15px;
+}
+
+.companyMetricIcon {
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #f1eeff;
+  color: #5b3ff4;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.companyMetric strong {
+  display: block;
+  color: #11183a;
+  font-size: 28px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.companyMetric span {
+  display: block;
+  margin-top: 7px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.companyTableShell {
+  overflow: auto;
+  border: 1px solid #e3e8f4;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.companyTable {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.companyTable th {
+  height: 48px;
+  padding: 0 16px;
+  background: #fbfcff;
+  color: #66718b;
+  border-bottom: 1px solid #e3e8f4;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.companyTable td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f8;
+  color: #25304e;
+  font-size: 13px;
+  font-weight: 750;
+  vertical-align: middle;
+}
+
+.companyTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.companyName {
+  color: #11183a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.companyId {
+  margin-top: 4px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.companyStatus {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-radius: 999px;
+  background: #ecfdf3;
+  color: #16a34a;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.companyStatus.empty {
+  background: #f4f6fb;
+  color: #68748f;
+}
+
+.companyStatus span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.companyOpenButton {
+  min-height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #5b3ff4, #6848ff);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.companyOpened {
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.companyEmpty {
+  padding: 18px;
+  color: #68748f;
+  text-align: center;
+  font-weight: 800;
+}
+
+@media (max-width: 1180px) {
+  .companiesLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .companiesHeader {
+    flex-direction: column;
+  }
+
+  .companiesHeader h1 {
+    font-size: 34px;
+  }
+
+  .companyFormGrid,
+  .companiesMetricGrid {
+    grid-template-columns: 1fr;
+  }
+}

@@ -1,0 +1,455 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-payroll.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+{% macro pi(path) %}
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    {{ path|safe }}
+  </svg>
+{% endmacro %}
+
+<div class="prRefPage">
+  <header class="prRefHeader">
+    <div class="prRefTop">
+      <nav class="prRefCrumbs" aria-label="Breadcrumb">
+        <a href="/">Dashboard</a>
+        <span>›</span>
+        <a href="/admin">Management</a>
+        <span>›</span>
+        <strong>Payroll Report</strong>
+      </nav>
+
+      <div class="prRefUserTools">
+        <button class="prRefIconButton prRefBell" type="button" aria-label="Notifications">
+          {{ pi('<path d="M12 4a4 4 0 0 1 4 4v2.35c0 .82.22 1.63.64 2.33L18 15H6l1.36-2.32A4.45 4.45 0 0 0 8 10.35V8a4 4 0 0 1 4-4Z"/><path d="M10 18a2 2 0 0 0 4 0"/>') }}
+          <i>2</i>
+        </button>
+
+        <button class="prRefIconButton" type="button" aria-label="Help">
+          {{ pi('<circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 1 1 5.6 1.5c-.5.78-1.4 1.12-2 1.78-.43.44-.62.88-.62 1.72"/><path d="M12 17h.01"/>') }}
+        </button>
+
+        <div class="prRefUser">
+          <div class="prRefAvatarText">{{ user_initials|default('AD') }}</div>
+          <div class="prRefUserText">
+            <strong>{{ display_name|default('admin') }}</strong>
+            <span>{{ role_label_text|default('Master Admin') }}</span>
+          </div>
+          <div class="prRefChevron">⌄</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="prRefTitle">
+      <h1>Payroll Report</h1>
+      <p>Review weekly payroll, analyze costs, and export reports with ease.</p>
+    </div>
+  </header>
+
+  <section class="prRefFilters">
+    <form method="GET" class="prRefFilterForm">
+      <div class="prRefFilterGroup week">
+        <label>Week</label>
+        <div class="prRefWeekControls">
+          <a class="prRefWeekBtn" href="{{ prev_week_url }}">‹</a>
+          <select name="wk" onchange="this.form.submit()">
+            {{ week_options_html|safe }}
+          </select>
+          <a class="prRefWeekBtn {% if wk_offset == 0 %}disabled{% endif %}" href="{{ next_week_url }}">›</a>
+        </div>
+      </div>
+
+      <div class="prRefFilterGroup employee">
+        <label>Employee</label>
+        <select name="q">
+          {{ employee_options_html|safe }}
+        </select>
+      </div>
+
+      <div class="prRefFilterGroup date">
+        <label>Date range</label>
+        <div class="prRefDatePair">
+          <input type="date" name="from" value="{{ date_from }}">
+          <span>–</span>
+          <input type="date" name="to" value="{{ date_to }}">
+        </div>
+      </div>
+
+      <input type="hidden" name="ym" value="{{ ym }}">
+
+      <button class="prRefApply" type="submit">Apply</button>
+
+      <button class="prRefMoreFilters" type="button">
+        {{ pi('<path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/>') }}
+        More filters
+      </button>
+    </form>
+  </section>
+
+  <section class="prRefKpis">
+    <article class="prRefKpi">
+      <span class="prRefKpiIcon blue">
+        {{ pi('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>') }}
+      </span>
+      <div>
+        <p>Total Hours</p>
+        <strong>{{ total_hours_text }}</strong>
+        <em>{{ hours_delta_text|default('Current week') }}</em>
+      </div>
+    </article>
+
+    <article class="prRefKpi">
+      <span class="prRefKpiIcon green">
+        {{ pi('<path d="M17 19H7"/><path d="M8 11h6a4 4 0 0 0 0-8H9v18"/><path d="M8 14h7"/>') }}
+      </span>
+      <div>
+        <p>Gross Pay</p>
+        <strong>{{ gross_text }}</strong>
+        <em>{{ gross_delta_text|default('Current week') }}</em>
+      </div>
+    </article>
+
+    <article class="prRefKpi">
+      <span class="prRefKpiIcon purple">
+        {{ pi('<path d="M19 5 5 19"/><circle cx="7.5" cy="7.5" r="2.5"/><circle cx="16.5" cy="16.5" r="2.5"/>') }}
+      </span>
+      <div>
+        <p>CIS Tax</p>
+        <strong>{{ tax_text }}</strong>
+        <em>{{ tax_delta_text|default('Current week') }}</em>
+      </div>
+    </article>
+
+    <article class="prRefKpi">
+      <span class="prRefKpiIcon amber">
+        {{ pi('<path d="M20 7H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h15a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2Z"/><path d="M16 12h6"/><path d="M18 15h.01"/><path d="M7 7V5a2 2 0 0 1 2-2h8"/>') }}
+      </span>
+      <div>
+        <p>Net Pay</p>
+        <strong>{{ net_text }}</strong>
+        <em>{{ net_delta_text|default('Current week') }}</em>
+      </div>
+    </article>
+  </section>
+
+  <div class="prRefGrid">
+    <main class="prRefMain">
+      <section class="prRefPanel">
+        <div class="prRefPanelHead">
+          <div>
+            <h2>Weekly Payroll Review</h2>
+          </div>
+
+          <div class="prRefStatusPills">
+            <span>Employees <b>{{ employees_count }}</b></span>
+            <span class="ok">Approved <b>{{ approved_count }}</b></span>
+            <span class="warn">Pending <b>{{ pending_count }}</b></span>
+            <span class="bad">Not approved <b>{{ not_approved_count }}</b></span>
+            <button class="js-pr-approve-all" type="button">Approve all</button>
+            <button class="prRefDots" type="button">⋮</button>
+          </div>
+        </div>
+
+        <div class="prRefTableWrap">
+          <table class="prRefPayrollTable">
+            <thead>
+              <tr>
+                <th rowspan="2">Employee</th>
+                <th colspan="2">Time</th>
+                <th colspan="3">Pay</th>
+<th colspan="2">Deductions</th>
+                <th rowspan="2">Status</th>
+                <th rowspan="2"></th>
+              </tr>
+              <tr>
+                <th>Hours</th>
+                <th>OT Hours</th>
+                <th>Gross</th>
+                <th>CIS Tax</th>
+                <th>Net Pay</th>
+                <th>Other Deductions</th>
+                <th>Notes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ payroll_review_rows_html|safe }}
+            </tbody>
+          </table>
+        </div>
+
+        <div class="prRefTableFoot">
+          <span>Showing 1 to {{ employees_count }} of {{ employees_count }} employees</span>
+          <div>
+            <button type="button">‹</button>
+            <button type="button" class="active">1</button>
+            <button type="button">›</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="prRefPanel prRefMonthly">
+        <div class="prRefPanelHead">
+          <div class="prRefSectionTitle">
+            <span class="prRefSmallIcon blue">
+              {{ pi('<path d="M8 7V3"/><path d="M16 7V3"/><path d="M4 11h16"/><path d="M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/>') }}
+            </span>
+            <h2>Monthly Payroll Summary</h2>
+          </div>
+
+          <form method="GET" class="prRefMonthForm">
+            <input type="month" name="ym" value="{{ ym }}">
+            <input type="hidden" name="wk" value="{{ wk_offset }}">
+            <input type="hidden" name="q" value="{{ q }}">
+            <input type="hidden" name="from" value="{{ date_from }}">
+            <input type="hidden" name="to" value="{{ date_to }}">
+            <button type="submit">View history</button>
+          </form>
+        </div>
+
+        <div class="prRefMonthlyStats">
+          <div><span>Employees</span><strong>{{ month_employee_count }}</strong></div>
+          <div><span>Total Days</span><strong>{{ month_total_days }}</strong></div>
+          <div><span>Total Hours</span><strong>{{ month_total_hours }}</strong></div>
+          <div><span>Gross Pay</span><strong>{{ month_gross_text }}</strong></div>
+          <div><span>CIS Tax</span><strong>{{ month_tax_text }}</strong></div>
+          <div><span>Net Pay</span><strong>{{ month_net_text }}</strong></div>
+        </div>
+      </section>
+
+      <section class="prRefPanel">
+        <div class="prRefPanelHead">
+          <div class="prRefSectionTitle">
+            <span class="prRefChevronDown">⌄</span>
+            <h2>Employee Payroll Details</h2>
+          </div>
+
+          <div class="prRefHeadActions">
+            <a href="{{ csv_url }}">Export All</a>
+            <button type="button">Export ⌄</button>
+          </div>
+        </div>
+
+        <div class="prRefTableWrap">
+          <table class="prRefDetailsTable">
+            <thead>
+              <tr>
+                <th>Day</th>
+                <th>Date</th>
+                <th>Clock In</th>
+                <th>Clock Out</th>
+                <th>Hours</th>
+                <th>OT</th>
+                <th>Gross</th>
+                <th>CIS Tax</th>
+                <th>Net Pay</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ payroll_details_rows_html|safe }}
+            </tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+
+    <aside class="prRefSide">
+      <section class="prRefSidePanel">
+        <h2>Payroll Summary</h2>
+        <div class="prRefSummaryList">
+          <div><span>Employees</span><strong>{{ employees_count }}</strong></div>
+          <div><span>Total Hours</span><strong>{{ total_hours_text }}</strong></div>
+          <div><span>Gross Pay</span><strong>{{ gross_text }}</strong></div>
+          <div><span>CIS Tax</span><strong>{{ tax_text }}</strong></div>
+          <div><span>Net Pay</span><strong>{{ net_text }}</strong></div>
+        </div>
+      </section>
+
+      <section class="prRefSidePanel">
+        <h2>Payroll Split (Gross)</h2>
+
+        <div class="prRefDonutWrap">
+          <div class="prRefDonut" style="--wages: {{ split_wages_pct }}%; --overtime: {{ split_overtime_pct }}%; --other: {{ split_other_pct }}%;">
+            <div>
+              <strong>{{ gross_text }}</strong>
+              <span>Total Gross</span>
+            </div>
+          </div>
+
+          <div class="prRefLegend">
+            <div><i class="wages"></i><span>Wages</span><strong>{{ split_wages_text }}</strong></div>
+            <div><i class="overtime"></i><span>Overtime</span><strong>{{ split_overtime_text }}</strong></div>
+            <div><i class="other"></i><span>Other Pay</span><strong>{{ split_other_text }}</strong></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="prRefSidePanel">
+        <h2>Export & Actions</h2>
+        <div class="prRefActions">
+          <a href="{{ csv_url }}">
+            {{ pi('<path d="M12 4v11"/><path d="m7 10 5 5 5-5"/><path d="M5 20h14"/>') }}
+            <span><strong>Download CSV</strong><em>Export full payroll data</em></span>
+          </a>
+          <a href="/admin/payroll">
+            {{ pi('<path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/>') }}
+            <span><strong>Print Payroll Report</strong><em>Export to PDF</em></span>
+          </a>
+        </div>
+      </section>
+
+      <section class="prRefSidePanel">
+        <h2>Alerts & Notifications</h2>
+        <div class="prRefAlerts">
+          <a href="#">
+            <i class="warn">{{ pi('<path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4"/><path d="M12 17h.01"/>') }}</i>
+            <span><strong>{{ pending_count }} employee pending approval</strong><em>Review and approve to finalise payroll.</em></span>
+            <b>›</b>
+          </a>
+          <a href="#">
+            <i class="info">{{ pi('<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v5h1"/>') }}</i>
+            <span><strong>{{ missing_clockout_count }} timesheet lock-outs</strong><em>Employees have missing clock-out times.</em></span>
+            <b>›</b>
+          </a>
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>
+
+{{ pay_confirm_modal_html|safe }}
+{{ payroll_scripts_html|safe }}
+
+<script>
+  (function(){
+    const approveAllBtn = document.querySelector(".js-pr-approve-all");
+
+    if (approveAllBtn) {
+      approveAllBtn.addEventListener("click", async function(){
+        const forms = Array.from(document.querySelectorAll(".js-pr-approve-form"));
+
+        if (!forms.length) {
+          alert("There are no pending payroll rows to approve.");
+          return;
+        }
+
+        if (!confirm("Approve all pending payroll rows for this week?")) {
+          return;
+        }
+
+        approveAllBtn.disabled = true;
+        approveAllBtn.textContent = "Approving...";
+
+        for (const form of forms) {
+          try {
+            await fetch(form.action, {
+              method: "POST",
+              body: new FormData(form),
+              credentials: "same-origin"
+            });
+          } catch (err) {
+            console.error(err);
+          }
+        }
+
+        window.location.reload();
+      });
+    }
+
+    document.addEventListener("click", function(event){
+      const dotButton = event.target.closest("[data-pr-row-menu]");
+      const activeMenu = event.target.closest(".prRowActions");
+
+      if (!dotButton && !activeMenu) {
+        document.querySelectorAll(".prRowActions.isOpen").forEach(function(menu){
+          menu.classList.remove("isOpen");
+        });
+        return;
+      }
+
+      if (dotButton) {
+        event.preventDefault();
+        const wrap = dotButton.closest(".prRowActions");
+
+        document.querySelectorAll(".prRowActions.isOpen").forEach(function(menu){
+          if (menu !== wrap) {
+            menu.classList.remove("isOpen");
+          }
+        });
+
+        if (wrap) {
+          wrap.classList.toggle("isOpen");
+        }
+      }
+    });
+
+    document.querySelectorAll("[data-pr-unlock-form]").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        const formId = btn.getAttribute("data-pr-unlock-form");
+        const form = document.getElementById(formId);
+
+        if (!form) {
+          return;
+        }
+
+        const password = prompt("Enter your admin password to cancel this approval:");
+
+        if (!password) {
+          return;
+        }
+
+        const passwordInput = form.querySelector("input[name='unlock_password']");
+        if (passwordInput) {
+          passwordInput.value = password;
+        }
+
+        form.submit();
+      });
+    });
+  })();
+</script>
+<script>
+  (function(){
+    document.querySelectorAll("[data-pr-toggle]").forEach(function(button){
+      button.addEventListener("click", function(event){
+        event.preventDefault();
+        event.stopPropagation();
+
+        const key = button.getAttribute("data-pr-toggle");
+        const summaryRow = document.querySelector('[data-pr-summary-row="' + key + '"]');
+        const rows = document.querySelectorAll('[data-pr-detail-row="' + key + '"]');
+        const isOpen = button.getAttribute("aria-expanded") === "true";
+
+        button.setAttribute("aria-expanded", isOpen ? "false" : "true");
+
+        if (summaryRow) {
+          summaryRow.classList.toggle("isOpen", !isOpen);
+        }
+
+        rows.forEach(function(row){
+          row.classList.toggle("isHidden", isOpen);
+        });
+      });
+    });
+
+    document.querySelectorAll("[data-pr-summary-row]").forEach(function(row){
+      row.addEventListener("click", function(event){
+        if (
+          event.target.closest("button") ||
+          event.target.closest("a") ||
+          event.target.closest("input") ||
+          event.target.closest("select") ||
+          event.target.closest("form")
+        ) {
+          return;
+        }
+
+        const key = row.getAttribute("data-pr-summary-row");
+        const button = row.querySelector('[data-pr-toggle="' + key + '"]');
+
+        if (button) {
+          button.click();
+        }
+      });
+    });
+  })();
+</script>

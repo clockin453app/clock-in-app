@@ -13,6 +13,7 @@ def create_app() -> Flask:
 
     app = Flask(
         __name__,
+        template_folder=str(base_dir / "timiq_app" / "templates"),
         static_folder=str(base_dir / "static"),
         static_url_path="/static",
     )

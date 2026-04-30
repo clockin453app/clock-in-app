@@ -1,0 +1,426 @@
+.siteAccessPage {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.siteAccessBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.siteAccessBreadcrumb a {
+  color: #46516d;
+  text-decoration: none;
+}
+
+.siteAccessHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.siteAccessHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+}
+
+.siteAccessHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.siteAccessBadge {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 9px;
+  background: #eeeaff;
+  color: #5b3ff4;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .035em;
+  white-space: nowrap;
+}
+
+.siteAccessMetrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.siteAccessMetric {
+  min-height: 124px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(255,255,255,.94);
+  border: 1px solid #e3e8f4;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(22,34,66,.05);
+}
+
+.siteAccessMetricIcon {
+  width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 17px;
+  background: #f1eeff;
+  color: #5b3ff4;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.siteAccessMetricIcon.green {
+  background: #ecfdf3;
+  color: #16a34a;
+}
+
+.siteAccessMetricIcon.orange {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.siteAccessMetric strong {
+  display: block;
+  color: #11183a;
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.siteAccessMetric span {
+  display: block;
+  margin-top: 7px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.siteAccessLayout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 22px;
+  align-items: start;
+}
+
+.siteAccessPanel {
+  background: rgba(255,255,255,.94);
+  border: 1px solid #e3e8f4;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(22,34,66,.05);
+  padding: 18px;
+}
+
+.siteAccessPanelHeader {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.siteAccessPanelTitle {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.siteAccessPanelIcon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 13px;
+  background: #f1eeff;
+  color: #5b3ff4;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.siteAccessPanel h2 {
+  margin: 0;
+  color: #11183a;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.siteAccessPanel p {
+  margin: 6px 0 0;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.siteAccessManageButton {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #5b3ff4, #6848ff);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  text-decoration: none;
+  box-shadow: 0 12px 28px rgba(91,63,244,.22);
+}
+
+.siteAccessNotice {
+  margin-bottom: 18px;
+  padding: 14px;
+  border: 1px solid #e3e8f4;
+  border-radius: 15px;
+  background: #fbfcff;
+  color: #46516d;
+  font-size: 13px;
+  line-height: 1.45;
+  font-weight: 750;
+}
+
+.siteAccessTableShell {
+  overflow: auto;
+  border: 1px solid #e3e8f4;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.siteAccessTable {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.siteAccessTable th {
+  height: 48px;
+  padding: 0 16px;
+  background: #fbfcff;
+  color: #66718b;
+  border-bottom: 1px solid #e3e8f4;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.siteAccessTable td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f8;
+  color: #25304e;
+  font-size: 13px;
+  font-weight: 750;
+  vertical-align: middle;
+}
+
+.siteAccessTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.employeeCell {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.employeeAvatar {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  background: #f1eeff;
+  color: #5b3ff4;
+  font-size: 13px;
+  font-weight: 900;
+  flex: 0 0 42px;
+}
+
+.employeeName {
+  color: #11183a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.employeeUser {
+  margin-top: 4px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.siteChips {
+  margin-top: 8px;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.siteChip {
+  min-height: 26px;
+  display: inline-flex;
+  align-items: center;
+  padding: 0 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.siteChip.ok {
+  background: #ecfdf3;
+  color: #16a34a;
+}
+
+.siteChip.warn {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.siteChip.bad {
+  background: #fff1f2;
+  color: #e11d48;
+}
+
+.siteAssignForm {
+  display: grid;
+  grid-template-columns: minmax(160px, 1fr) minmax(160px, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.siteAssignForm select {
+  width: 100%;
+  min-height: 42px;
+  border: 1px solid #d8e0ef;
+  border-radius: 11px;
+  background: #fff;
+  color: #121a3a;
+  font-weight: 800;
+  padding: 0 12px;
+}
+
+.siteSaveButton {
+  min-height: 42px;
+  padding: 0 15px;
+  border: 0;
+  border-radius: 11px;
+  background: linear-gradient(135deg, #5b3ff4, #6848ff);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  box-shadow: 0 12px 28px rgba(91,63,244,.18);
+  cursor: pointer;
+}
+
+.rawSiteText {
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.sideStack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sideList {
+  display: flex;
+  flex-direction: column;
+}
+
+.sideItemRow {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.sideItemRow:last-child {
+  border-bottom: 0;
+}
+
+.sideItemLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #46516d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.sideDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+  background: #5b3ff4;
+}
+
+.sideDot.green {
+  background: #22b35b;
+}
+
+.sideDot.orange {
+  background: #fb923c;
+}
+
+.sideValue {
+  color: #11183a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.siteAccessEmpty {
+  padding: 18px;
+  color: #68748f;
+  text-align: center;
+  font-weight: 800;
+}
+
+@media (max-width: 1180px) {
+  .siteAccessLayout {
+    grid-template-columns: 1fr;
+  }
+
+  .siteAccessMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .siteAccessHeader {
+    flex-direction: column;
+  }
+
+  .siteAccessHeader h1 {
+    font-size: 34px;
+  }
+
+  .siteAccessMetrics {
+    grid-template-columns: 1fr;
+  }
+
+  .siteAssignForm {
+    grid-template-columns: 1fr;
+  }
+}

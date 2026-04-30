@@ -1,3 +1,6 @@
+from ..ui.render import render_page
+
+
 def admin_payroll_impl(core):
     require_admin = core["require_admin"]
     get_csrf = core["get_csrf"]
@@ -1543,6 +1546,426 @@ white-space:nowrap;
         </div>
       </div>
     """
+
+    # ================= NEW PAYROLL REPORT TEMPLATE RENDER =================
+
+    def _pr_initials(name):
+        parts = [p for p in str(name or "").strip().split() if p]
+        if not parts:
+            return "AD"
+        return "".join(p[0].upper() for p in parts[:2])
+
+    def _pr_money(value):
+        return f"{escape(currency)}{escape(money(round(float(value or 0), 2)))}"
+
+    def _pr_hours(value):
+        try:
+            return escape(fmt_hours(round(float(value or 0), 2)))
+        except Exception:
+            return "0"
+
+    def _pr_role_label(raw_role):
+        raw = str(raw_role or "").strip().lower()
+        if raw == "master_admin":
+            return "Master Admin"
+        if raw == "admin":
+            return "Admin"
+        return raw.replace("_", " ").title() or "Admin"
+
+    def _pr_status_for_user(username, gross_value):
+        paid_rec = _get_paid_record_for_week(week_start_str, week_end_str, username)
+        paid = bool(paid_rec.get("paid"))
+        paid_status_raw = str(paid_rec.get("paid_status") or "").strip().lower()
+        approved_only = paid_status_raw == "approved"
+
+        if paid or approved_only:
+            return "Approved", "ok"
+
+        if float(gross_value or 0) > 0:
+            return "Pending", "warn"
+
+        return "Not approved", "bad"
+
+    display_name = get_employee_display_name(session.get("username", "admin"))
+    user_initials = _pr_initials(display_name)
+    role_label_text = _pr_role_label(session.get("role", "admin"))
+
+    visible_users = list(all_users)
+    visible_users = sorted(visible_users, key=lambda s: get_employee_display_name(s).lower())
+
+    payroll_review_rows = []
+    approve_forms_html = []
+    payroll_details_rows = []
+
+    approved_count = 0
+    pending_count = 0
+    not_approved_count = 0
+
+    split_wages = 0.0
+    split_overtime = 0.0
+    split_other = 0.0
+
+    month_employee_count = len(monthly_by_user)
+    month_total_days = 0
+    month_total_hours_value = 0.0
+    month_gross_value = 0.0
+    month_tax_value = 0.0
+    month_net_value = 0.0
+
+    for _u, _rec in monthly_by_user.items():
+        month_total_days += int(_rec.get("days", 0) or 0)
+        month_total_hours_value += float(_rec.get("hours", 0.0) or 0.0)
+        _month_gross = round(float(_rec.get("gross", 0.0) or 0.0), 2)
+        _month_tax = round(_month_gross * tax_rate_for_user(_u), 2)
+        _month_net = round(_month_gross - _month_tax, 2)
+        month_gross_value += _month_gross
+        month_tax_value += _month_tax
+        month_net_value += _month_net
+
+    for u in visible_users:
+        display = get_employee_display_name(u)
+        role_text = employee_role_lookup.get(u, "") or "Employee"
+
+        hours = round(by_user.get(u, {}).get("hours", 0.0), 2)
+        ot_hours = round(by_user.get(u, {}).get("o", 0.0), 2)
+        gross = round(by_user.get(u, {}).get("gross", 0.0), 2)
+        tax = round(gross * tax_rate_for_user(u), 2)
+        net = round(gross - tax, 2)
+
+        base_hours = max(0.0, hours - ot_hours)
+        rate_value = 0.0
+        try:
+            rate_value = float(_get_user_rate(u) or 0.0)
+        except Exception:
+            rate_value = 0.0
+
+        overtime_value = 0.0
+        if ot_hours > 0 and rate_value > 0:
+            overtime_value = round(ot_hours * rate_value, 2)
+
+        split_overtime += overtime_value
+        split_wages += max(0.0, gross - overtime_value)
+
+        status_label, status_class = _pr_status_for_user(u, gross)
+
+        if status_class == "ok":
+            approved_count += 1
+        elif status_class == "warn":
+            pending_count += 1
+        else:
+            not_approved_count += 1
+
+        safe_row_key = re.sub(r"[^a-zA-Z0-9_-]+", "-", u)
+        approve_form_id = f"approve-{safe_row_key}"
+        unlock_form_id = f"unlock-{safe_row_key}"
+
+        approve_form_html = f"""
+          <form
+            id="{approve_form_id}"
+            class="js-pr-approve-form"
+            method="POST"
+            action="/admin/payroll-status"
+            style="display:none;">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <input type="hidden" name="action" value="approve">
+            <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+            <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+            <input type="hidden" name="username" value="{escape(u)}">
+            <input type="hidden" name="gross" value="{escape(str(gross))}">
+            <input type="hidden" name="tax" value="{escape(str(tax))}">
+            <input type="hidden" name="net" value="{escape(str(net))}">
+          </form>
+        """
+
+        unlock_form_html = f"""
+          <form
+            id="{unlock_form_id}"
+            class="js-pr-unlock-form"
+            method="POST"
+            action="/admin/payroll-status"
+            style="display:none;">
+            <input type="hidden" name="csrf" value="{escape(csrf)}">
+            <input type="hidden" name="action" value="unlock">
+            <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+            <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+            <input type="hidden" name="username" value="{escape(u)}">
+            <input type="hidden" name="gross" value="{escape(str(gross))}">
+            <input type="hidden" name="tax" value="{escape(str(tax))}">
+            <input type="hidden" name="net" value="{escape(str(net))}">
+            <input type="hidden" name="unlock_password" value="">
+          </form>
+        """
+
+        if status_class != "ok":
+            approve_forms_html.append(approve_form_html)
+
+        status_html = f'<span class="prRefBadge {status_class}">{escape(status_label)}</span>'
+
+        if status_class == "ok":
+            row_actions_html = f"""
+              {unlock_form_html}
+              <div class="prRowActions">
+                <button class="prRowDots" type="button" data-pr-row-menu aria-label="Payroll actions">⋮</button>
+                <div class="prRowMenu">
+                  <button class="danger" type="button" data-pr-unlock-form="{unlock_form_id}">
+                    Cancel approval
+                  </button>
+                </div>
+              </div>
+            """
+        else:
+            row_actions_html = f"""
+              {approve_form_html}
+              <div class="prRowActions">
+                <button class="prRowDots" type="button" data-pr-row-menu aria-label="Payroll actions">⋮</button>
+                <div class="prRowMenu">
+                  <button type="submit" form="{approve_form_id}">
+                    Approve
+                  </button>
+                </div>
+              </div>
+            """
+
+        payroll_review_rows.append(f"""
+          <tr>
+            <td class="emp">
+              <strong>{escape(display)}</strong>
+              <span>{escape(role_text)}</span>
+            </td>
+            <td class="num">{escape(fmt_hours(hours))}</td>
+            <td class="num">{escape(fmt_hours(ot_hours))}</td>
+            <td class="num">{_pr_money(gross)}</td>
+            <td class="num">{_pr_money(tax)}</td>
+            <td class="num">{_pr_money(net)}</td>
+            <td class="num">{_pr_money(0)}</td>
+            <td></td>
+            <td>{status_html}</td>
+            <td class="num">{row_actions_html}</td>
+          </tr>
+        """)
+
+        user_days = week_lookup.get(u, {}) if isinstance(week_lookup, dict) else {}
+        detail_key = re.sub(r"[^a-zA-Z0-9_-]+", "-", u)
+
+        payroll_details_rows.append(f"""
+          <tr class="prEmployeeSummaryRow" data-pr-summary-row="{detail_key}">
+            <td>
+              <button
+                class="prDetailToggle"
+                type="button"
+                data-pr-toggle="{detail_key}"
+                aria-expanded="false">
+                ›
+              </button>
+            </td>
+
+            <td class="emp">
+              <strong>{escape(display)}</strong>
+              <span>{escape(role_text)}</span>
+            </td>
+
+            <td></td>
+            <td></td>
+            <td class="num">{escape(fmt_hours(hours))}</td>
+            <td class="num">{escape(fmt_hours(ot_hours))}</td>
+            <td class="num">{_pr_money(gross)}</td>
+            <td class="num">{_pr_money(tax)}</td>
+            <td class="num">{_pr_money(net)}</td>
+            <td><span class="prRefBadge {status_class}">{escape(status_label)}</span></td>
+          </tr>
+        """)
+
+        user_had_rows = False
+
+        for di in range(7):
+            d_obj = week_start + timedelta(days=di)
+            d_str = d_obj.strftime("%Y-%m-%d")
+            rec = user_days.get(d_str, {}) if isinstance(user_days, dict) else {}
+
+            cin = str((rec.get("cin", "") if isinstance(rec, dict) else "") or "").strip()
+            cout = str((rec.get("cout", "") if isinstance(rec, dict) else "") or "").strip()
+            hrs = safe_float((rec.get("hours", "0") if isinstance(rec, dict) else "0"), 0.0)
+            pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), 0.0)
+
+            if not cin and not cout and hrs <= 0 and pay <= 0:
+                continue
+
+            user_had_rows = True
+
+            day_ot = calc_o_hours(u, d_str, hrs)
+            day_tax = round(pay * tax_rate_for_user(u), 2)
+            day_net = round(pay - day_tax, 2)
+            save_form_id = f"save-{detail_key}-{d_str}"
+
+            payroll_details_rows.append(f"""
+              <tr class="prEmployeeDetailLine isHidden" data-pr-detail-row="{detail_key}">
+                <td>{escape(d_obj.strftime("%a"))}</td>
+                <td>{escape(d_obj.strftime("%d %b %Y"))}</td>
+
+                <td>
+                  <form id="{save_form_id}" method="POST" action="/admin/save-shift">
+                    <input type="hidden" name="csrf" value="{escape(csrf)}">
+                    <input type="hidden" name="username" value="{escape(u)}">
+                    <input type="hidden" name="date" value="{escape(d_str)}">
+                    <input type="hidden" name="recalc" value="yes">
+                    <input class="prEditInput time" name="cin" value="{escape(cin[:5])}" placeholder="--:--">
+                  </form>
+                </td>
+
+                <td>
+                  <input class="prEditInput time" form="{save_form_id}" name="cout" value="{escape(cout[:5])}" placeholder="--:--">
+                </td>
+
+                <td class="num">
+                  <input class="prEditInput" form="{save_form_id}" name="hours" value="{escape(fmt_hours(hrs))}">
+                </td>
+
+                <td class="num">{escape(fmt_hours(day_ot))}</td>
+                <td class="num">{_pr_money(pay)}</td>
+                <td class="num">{_pr_money(day_tax)}</td>
+                <td class="num">{_pr_money(day_net)}</td>
+
+                <td>
+                  <button class="prSaveBtn" type="submit" form="{save_form_id}">
+                    Save
+                  </button>
+                </td>
+              </tr>
+            """)
+
+        if not user_had_rows:
+            payroll_details_rows.append(f"""
+              <tr class="prMutedRow isHidden" data-pr-detail-row="{detail_key}">
+                <td colspan="10">No shifts recorded for {escape(display)} in this week.</td>
+              </tr>
+            """)
+
+    if not payroll_review_rows:
+        payroll_review_rows.append("""
+          <tr>
+            <td colspan="10" style="text-align:center; padding:22px; color:#64748b;">
+              No payroll rows for this period.
+            </td>
+          </tr>
+        """)
+
+    if not payroll_details_rows:
+        payroll_details_rows.append("""
+          <tr>
+            <td colspan="10" style="text-align:center; padding:22px; color:#64748b;">
+              No employee payroll details for this period.
+            </td>
+          </tr>
+        """)
+
+    if overall_gross > 0:
+        split_wages_pct = round((split_wages / overall_gross) * 100, 1)
+        split_overtime_pct = round((split_overtime / overall_gross) * 100, 1)
+        split_other_pct = max(0.0, round(100.0 - split_wages_pct - split_overtime_pct, 1))
+    else:
+        split_wages_pct = 0.0
+        split_overtime_pct = 0.0
+        split_other_pct = 0.0
+
+    split_other = max(0.0, overall_gross - split_wages - split_overtime)
+
+    prev_week_url = url_for(
+        "admin_payroll",
+        q=q,
+        **{
+            "from": date_from,
+            "to": date_to,
+            "wk": prev_wk,
+            "ym": ym,
+        },
+    )
+
+    next_week_url = url_for(
+        "admin_payroll",
+        q=q,
+        **{
+            "from": date_from,
+            "to": date_to,
+            "wk": next_wk,
+            "ym": ym,
+        },
+    )
+
+    csv_url = url_for(
+        "admin_payroll_report_csv",
+        q=q,
+        **{
+            "from": date_from,
+            "to": date_to,
+            "wk": wk_offset,
+            "ym": ym,
+        },
+    )
+
+    display_date_from = date_from or week_start_str
+    display_date_to = date_to or week_end_str
+
+    return render_page(
+        template_name="admin/payroll.html",
+        active="admin",
+        role=session.get("role", "admin"),
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+
+        display_name=display_name,
+        user_initials=user_initials,
+        role_label_text=role_label_text,
+
+        wk_offset=wk_offset,
+        ym=ym,
+        q=q,
+        date_from=display_date_from,
+        date_to=display_date_to,
+        prev_week_url=prev_week_url,
+        next_week_url=next_week_url,
+        csv_url=csv_url,
+
+        week_options_html="".join(week_options),
+        employee_options_html="".join(employee_options),
+
+        total_hours_text=_pr_hours(overall_hours),
+        gross_text=_pr_money(overall_gross),
+        tax_text=_pr_money(overall_tax),
+        net_text=_pr_money(overall_net),
+
+        hours_delta_text="Current week",
+        gross_delta_text="Current week",
+        tax_delta_text="Current week",
+        net_delta_text="Current week",
+
+        employees_count=len(visible_users),
+        approved_count=approved_count,
+        pending_count=pending_count,
+        not_approved_count=not_approved_count,
+        missing_clockout_count=footer_missing_clockout_count,
+
+        payroll_review_rows_html="".join(payroll_review_rows),
+        payroll_details_rows_html="".join(payroll_details_rows),
+
+        month_employee_count=month_employee_count,
+        month_total_days=month_total_days,
+        month_total_hours=_pr_hours(month_total_hours_value),
+        month_gross_text=_pr_money(month_gross_value),
+        month_tax_text=_pr_money(month_tax_value),
+        month_net_text=_pr_money(month_net_value),
+
+        split_wages_pct=split_wages_pct,
+        split_overtime_pct=split_overtime_pct,
+        split_other_pct=split_other_pct,
+        split_wages_text=_pr_money(split_wages),
+        split_overtime_text=_pr_money(split_overtime),
+        split_other_text=_pr_money(split_other),
+
+        pay_confirm_modal_html=pay_confirm_modal_html if "pay_confirm_modal_html" in locals() else "",
+        payroll_scripts_html="".join(approve_forms_html),
+    )
 
 
     content = f"""

@@ -1,0 +1,271 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-dashboard.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+{% macro icon(path) %}
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    {{ path|safe }}
+  </svg>
+{% endmacro %}
+
+{% set employee_count = employees_total|default(0) %}
+{% set site_count = locations_total|default(0) %}
+{% set active_count = active_workers|default(0) %}
+{% set attendance_value = attendance_rate|default('0%') %}
+{% set payroll_value = payroll_total|default((currency_symbol|default('£')) ~ '0.00') %}
+{% set role_label = role_label_text|default('Master Admin') %}
+{% set total_hours_value = total_hours|default('0h') %}
+{% set avg_hourly_value = avg_hourly_cost|default((currency_symbol|default('£')) ~ '0.00') %}
+{% set attendance_points = attendance_chart|default([]) %}
+{% set payroll_points = payroll_bars|default([]) %}
+{% set activity_items = recent_activity|default([]) %}
+
+<div class="dbRefPage">
+  <header class="dbRefHeader">
+    <div class="dbRefTop">
+      <nav class="dbRefCrumbs" aria-label="Breadcrumb">
+        <strong>Dashboard</strong>
+      </nav>
+
+      <div class="dbRefUserTools">
+        <button class="dbRefIconButton dbRefBell" type="button" aria-label="Notifications">
+          {{ icon('<path d="M12 4a4 4 0 0 1 4 4v2.35c0 .82.22 1.63.64 2.33L18 15H6l1.36-2.32A4.45 4.45 0 0 0 8 10.35V8a4 4 0 0 1 4-4Z"/><path d="M10 18a2 2 0 0 0 4 0"/>') }}
+          <i>3</i>
+        </button>
+
+        <button class="dbRefIconButton" type="button" aria-label="Help">
+          {{ icon('<circle cx="12" cy="12" r="9"/><path d="M9.2 9a3 3 0 1 1 5.6 1.5c-.5.78-1.4 1.12-2 1.78-.43.44-.62.88-.62 1.72"/><path d="M12 17h.01"/>') }}
+        </button>
+
+        <div class="dbRefUser">
+          <div class="dbRefAvatarText">{{ user_initials|default('AD') }}</div>
+          <div class="dbRefUserText">
+            <strong>{{ display_name|default(session.get("name") or session.get("username") or "admin") }}</strong>
+            <span>{{ role_label }}</span>
+          </div>
+          <div class="dbRefChevron">⌄</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="dbRefTitle">
+      <h1>Dashboard</h1>
+      <p>Get a real-time overview of your workforce and operations.</p>
+    </div>
+  </header>
+
+  <section class="dbRefKpis">
+    <a class="dbRefKpi" href="/admin/employees">
+      <span class="dbRefKpiIcon indigo">
+        {{ icon('<path d="M17 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M21 21v-2a4 4 0 0 0-3-3.8"/><path d="M16 3.2a4 4 0 0 1 0 7.6"/>') }}
+      </span>
+      <div>
+        <h2>Employees</h2>
+        <strong>{{ employee_count }}</strong>
+        <p>Active employees</p>
+      </div>
+      <footer><span>{{ employees_delta_text|default('Current total') }}</span><em>›</em></footer>
+    </a>
+
+    <a class="dbRefKpi" href="/admin/locations">
+      <span class="dbRefKpiIcon green">
+        {{ icon('<path d="M4 21V7a2 2 0 0 1 2-2h5v16"/><path d="M11 21V3h7a2 2 0 0 1 2 2v16"/><path d="M7 9h1"/><path d="M7 13h1"/><path d="M14 7h2"/><path d="M14 11h2"/><path d="M14 15h2"/>') }}
+      </span>
+      <div>
+        <h2>Open Sites</h2>
+        <strong>{{ site_count }}</strong>
+        <p>Active sites</p>
+      </div>
+      <footer><span>{{ sites_delta_text|default('Current total') }}</span><em>›</em></footer>
+    </a>
+
+    <a class="dbRefKpi" href="/clock">
+      <span class="dbRefKpiIcon blue">
+        {{ icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>') }}
+      </span>
+      <div>
+        <h2>Attendance Today</h2>
+        <strong>{{ attendance_value }}</strong>
+        <p>{{ active_count }} active now</p>
+      </div>
+      <footer><span>{{ attendance_delta_text|default('Today') }}</span><em>›</em></footer>
+    </a>
+
+    <a class="dbRefKpi" href="/admin/payroll">
+      <span class="dbRefKpiIcon purple">
+        {{ icon('<path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>') }}
+      </span>
+      <div>
+        <h2>Payroll This Week</h2>
+        <strong>{{ payroll_value }}</strong>
+        <p>Estimated cost</p>
+      </div>
+      <footer><span>{{ payroll_delta_text|default('This week') }}</span><em>›</em></footer>
+    </a>
+  </section>
+
+  <section class="dbRefMainGrid">
+    <article class="dbRefPanel trendPanel">
+      <div class="dbRefPanelTitle">
+        <span class="dbRefTitleIcon blue">
+          {{ icon('<path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/>') }}
+        </span>
+        <h2>Weekly Attendance Trend</h2>
+        <button type="button">Last 7 days⌄</button>
+      </div>
+
+      <div class="dbLiveTrend" aria-label="Weekly attendance trend chart">
+        <div class="dbLiveYAxis">
+          <span>100%</span>
+          <span>75%</span>
+          <span>50%</span>
+          <span>25%</span>
+          <span>0%</span>
+        </div>
+
+        <div class="dbLivePlot">
+          {% if attendance_polyline %}
+            <svg class="dbLiveLineSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="{{ attendance_polyline }}"></polyline>
+            </svg>
+          {% endif %}
+          <div class="dbLiveGridLine l100"></div>
+          <div class="dbLiveGridLine l75"></div>
+          <div class="dbLiveGridLine l50"></div>
+          <div class="dbLiveGridLine l25"></div>
+          <div class="dbLiveGridLine l0"></div>
+
+          {% for point in attendance_points %}
+            <div class="dbLivePoint" style="left:{{ point.x }}%; bottom:{{ point.pct }}%;">
+              <b>{{ point.pct }}%</b>
+              <i></i>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="dbLiveDays">
+          {% for point in attendance_points %}
+            <span>{{ point.label }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="dbRefTrendFooter">
+        <span class="dbRefSmallIcon blue">
+          {{ icon('<path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/>') }}
+        </span>
+        <div>
+          <strong>Weekly Average</strong>
+          <p>{{ weekly_average|default('0%') }}</p>
+        </div>
+        <em>{{ weekly_average_delta_text|default('Last 7 days') }}</em>
+      </div>
+    </article>
+
+    <article class="dbRefPanel payrollPanel">
+      <div class="dbRefPanelTitle">
+        <span class="dbRefTitleIcon blue">
+          {{ icon('<circle cx="12" cy="12" r="9"/><path d="M12 6v12"/><path d="M15 9H10.5a2.5 2.5 0 0 0 0 5H13a2.5 2.5 0 0 1 0 5H8"/>') }}
+        </span>
+        <h2>Payroll Summary</h2>
+        <button type="button">This week⌄</button>
+      </div>
+
+      <div class="dbRefPayrollTop">
+        <div>
+          <p>Estimated Payroll Cost</p>
+          <strong>{{ payroll_value }}</strong>
+          <span>{{ payroll_delta_text|default('Compared with last week') }}</span>
+        </div>
+
+        <div class="dbLiveBarChart" aria-label="Payroll bar chart">
+          <div class="dbLiveBarScale">
+            {% for tick in payroll_ticks|default([]) %}
+              <span>{{ tick }}</span>
+            {% endfor %}
+          </div>
+
+          <div class="dbLiveBars">
+            {% for bar in payroll_points %}
+              <div class="dbLiveBarCol">
+                <i class="{% if loop.last %}active{% endif %}" style="height:{{ bar.pct }}%;"></i>
+                <span>{{ bar.label }}</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <div class="dbRefPayrollStats">
+        <div>
+          <span class="dbRefSmallIcon slate">
+            {{ icon('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l4 2"/>') }}
+          </span>
+          <strong>Total Hours</strong>
+          <p>{{ total_hours_value }}</p>
+          <em>{{ hours_delta_text|default('Compared with last week') }}</em>
+        </div>
+        <div>
+          <span class="dbRefSmallIcon slate">
+            {{ icon('<path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7H14a3.5 3.5 0 0 1 0 7H6"/>') }}
+          </span>
+          <strong>Avg. Hourly Cost</strong>
+          <p>{{ avg_hourly_value }}</p>
+          <em>{{ avg_hourly_delta_text|default('Based on payroll / hours') }}</em>
+        </div>
+      </div>
+    </article>
+
+    <article class="dbRefPanel activityPanel">
+      <div class="dbRefPanelTitle">
+        <span class="dbRefTitleIcon blue">
+          {{ icon('<path d="M8 4h8l2 2v14H6V6l2-2Z"/><path d="M9 10h6"/><path d="M9 14h6"/><path d="M9 18h4"/>') }}
+        </span>
+        <h2>Recent Activity</h2>
+      </div>
+
+      <div class="dbRefActivityList">
+        {% if activity_items %}
+          {% for item in activity_items %}
+            <div>
+              <span class="dbRefActivityIcon {{ item.tone|default('blue') }}">
+                {{ icon(item.icon|default('<path d="M8 4h8l2 2v14H6V6l2-2Z"/><path d="M9 10h6"/><path d="M9 14h6"/>')) }}
+              </span>
+              <strong>{{ item.title }}</strong>
+              <p>{{ item.subtitle }}</p>
+              <em>{{ item.when }}{% if item.actor %}<br>by {{ item.actor }}{% endif %}</em>
+            </div>
+          {% endfor %}
+        {% else %}
+          <div>
+            <span class="dbRefActivityIcon blue">{{ icon('<path d="M8 4h8l2 2v14H6V6l2-2Z"/>') }}</span>
+            <strong>No recent activity</strong>
+            <p>Live activity will appear here.</p>
+            <em>Now</em>
+          </div>
+        {% endif %}
+      </div>
+
+      <a class="dbRefPanelLink" href="/admin/audit">View all activity <span>→</span></a>
+    </article>
+
+    <article class="dbRefPanel quickPanel">
+      <div class="dbRefPanelTitle">
+        <span class="dbRefTitleIcon blue">
+          {{ icon('<path d="m13 2-9 13h8l-1 7 9-13h-8l1-7Z"/>') }}
+        </span>
+        <h2>Quick Actions</h2>
+      </div>
+
+      <div class="dbRefActionGrid">
+        <a href="/admin/employees"><span>{{ icon('<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>') }}</span><strong>Add Employee</strong><p>Create a new employee profile</p><em>›</em></a>
+        <a href="/my-times"><span>{{ icon('<path d="M8 7V3m8 4V3M4 11h16M5 5h14a1 1 0 0 1 1 1v14H4V6a1 1 0 0 1 1-1Z"/>') }}</span><strong>Create Timesheet</strong><p>Add a new timesheet entry</p><em>›</em></a>
+        <a href="/admin/locations"><span>{{ icon('<path d="M4 21V7a2 2 0 0 1 2-2h5v16"/><path d="M11 21V3h7a2 2 0 0 1 2 2v16"/>') }}</span><strong>Add Site</strong><p>Create a new site</p><em>›</em></a>
+        <a href="/admin/payroll"><span>{{ icon('<circle cx="12" cy="12" r="9"/><path d="M12 6v12"/><path d="M15 9H10.5a2.5 2.5 0 0 0 0 5H13a2.5 2.5 0 0 1 0 5H8"/>') }}</span><strong>Run Payroll</strong><p>Generate payroll for this week</p><em>›</em></a>
+        <a href="/admin/current-sessions"><span>{{ icon('<path d="M4 12a8 8 0 0 1 16 0"/><path d="M8 12a4 4 0 0 1 8 0"/><path d="M12 12v.01"/>') }}</span><strong>View Live Attendance</strong><p>See who’s on site now</p><em>›</em></a>
+        <a href="/my-reports"><span>{{ icon('<path d="M4 19V5"/><path d="M4 19h16"/><path d="m7 15 4-4 3 3 5-7"/>') }}</span><strong>View Reports</strong><p>Access key reports</p><em>›</em></a>
+      </div>
+
+      <a class="dbRefPanelLink" href="/admin">View all actions <span>→</span></a>
+    </article>
+  </section>
+</div>

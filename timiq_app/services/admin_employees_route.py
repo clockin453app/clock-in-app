@@ -1,3 +1,4 @@
+from timiq_app.ui.render import render_page
 def admin_employees_impl(core):
     require_admin = core["require_admin"]
     get_csrf = core["get_csrf"]
@@ -678,209 +679,30 @@ def admin_employees_impl(core):
         msg = emp_msg
         ok = bool(emp_ok)
 
-    reset_card = ""
-    if session.get("role") == "master_admin":
-        reset_card = f"""
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Reset Password</h2>
-            <p class="sub">Master admin can reset passwords only for users in the current workplace.</p>
+    employees_total = len(rows_html)
+    is_master_admin = session.get("role") == "master_admin"
 
-            <form method="POST" action="/admin/employees/reset-password" style="margin-top:12px;">
-              <input type="hidden" name="csrf" value="{escape(csrf)}">
-
-              <label class="sub">Username</label>
-              <select class="input" name="username" required>
-                {employee_options_html}
-              </select>
-
-              <label class="sub" style="margin-top:10px;">New password</label>
-              <input class="input" type="password" name="new_password" minlength="8" required>
-
-              <button class="btnSoft" type="submit" style="margin-top:12px;">Reset password</button>
-            </form>
-          </div>
-       """
-    reset_result_card = ""
-    if reset_ok and reset_user:
-        reset_result_card = f"""
-          <div class="card" style="padding:12px; margin-top:12px; background:rgba(56,189,248,.12); border:1px solid rgba(56,189,248,.35);">
-            <h2>Password Updated</h2>
-            <p class="sub">Password was updated successfully for this user.</p>
-            <div style="font-weight:700; margin-top:8px;">User: {escape(reset_user)}</div>
-          </div>
-        """
-    danger_card = ""
-    if session.get("role") == "master_admin":
-        danger_card = f"""
-      <div class="card" style="padding:12px; margin-top:12px; border:1px solid rgba(239,68,68,.25);">
-        <h2>Clear / Delete Employee</h2>
-        <p class="sub">Clear timesheet + payroll history, or delete the employee completely.</p>
-
-        <form method="POST" action="/admin/employees/clear-history" style="margin-top:12px;">
-          <input type="hidden" name="csrf" value="{escape(csrf)}">
-
-          <label class="sub">Employee</label>
-          <select class="input" name="username" required>
-            {employee_options_html}
-          </select>
-
-          <button class="btnSoft" type="submit" style="margin-top:12px;"
-                  onclick="return confirm('Clear all clock and payroll history for this employee?');">
-            Clear history
-          </button>
-        </form>
-
-        <form method="POST" action="/admin/employees/delete" style="margin-top:12px;">
-          <input type="hidden" name="csrf" value="{escape(csrf)}">
-
-          <label class="sub">Delete employee</label>
-          <select class="input" name="username" required>
-            {delete_employee_options_html}
-          </select>
-
-          <button class="btnSoft" type="submit" style="margin-top:12px; background:#7f1d1d; border-color:#7f1d1d;"
-                  onclick="return confirm('Delete this employee completely? This cannot be undone.');">
-            Delete account
-          </button>
-        </form>
-      </div>
-    """
-
-    content = f"""
-
-      <div class="headerTop">
-        <div>
-          <h1>Manage Employees</h1>
-          <p class="sub">Create employee login, update, reset password, delete accounts.  (auto username + temp password)</p>
-        </div>
-        <div class="badge admin">ADMIN</div>
-      </div>
-
-      {admin_back_link()}
-
-      {("<div class='message'>" + escape(msg) + "</div>") if (msg and ok) else ""}
-{("<div class='message error'>" + escape(msg) + "</div>") if (msg and not ok) else ""}
-
-{reset_result_card}
-
-      <div class="card" style="padding:12px;">
-        <form method="POST">
-          <input type="hidden" name="csrf" value="{escape(csrf)}">
-          <div class="row2">
-            <div>
-              <label class="sub">First name</label>
-              <input class="input" name="first" placeholder="e.g. John" required>
-            </div>
-            <div>
-              <label class="sub">Last name</label>
-              <input class="input" name="last" placeholder="e.g. Smith" required>
-            </div>
-          </div>
-
-          <div class="row2">
-            <div>
-              <label class="sub">Role</label>
-<select class="input" name="role" required>
-  {role_select_options_html}
-</select>
-            </div>
-            <div>
-              <label class="sub">Hourly rate</label>
-              <input class="input" name="rate" placeholder="e.g. 25">
-            </div>
-          </div>
-                    <div class="row2" style="margin-top:10px;">
-            <div>
-              <label class="sub">Tax % </label>
-              <input class="input" name="tax_rate" placeholder="Blank = company default, e.g. 20">
-            </div>
-            <div></div>
-          </div>
-
-          <button class="btnSoft" type="submit" style="margin-top:12px;">Create</button>
-        </form>
-        <p class="sub" style="margin-top:10px;">Note: this creates the user inside Workplace_ID <b>{escape(wp)}</b>.</p>
-      </div>
-
-      {created_card}
-      <div class="card" style="padding:12px; margin-top:12px;">
-  <h2>Update Employee</h2>
-  <p class="sub">Update role and/or hourly rate for an existing username in this workplace.</p>
-
-  <form method="POST" style="margin-top:12px;">
-    <input type="hidden" name="csrf" value="{escape(csrf)}">
-   <div style="margin-top:12px; display:flex; gap:10px;">
-  <button class="btnSoft" type="submit" name="action" value="update">Save changes</button>
-
-  <button class="btnSoft" type="submit" name="action" value="deactivate"
-          onclick="return confirm('Deactivate this employee?')">
-    Deactivate
-  </button>
-
-  <button class="btnSoft" type="submit" name="action" value="reactivate"
-          onclick="return confirm('Reactivate this employee?')">
-    Reactivate
-  </button>
-</div>
-
-    <label class="sub">Username</label>
-    <select class="input" name="edit_username" required>
-     {employee_options_html}
-    </select>   
-
-    <div class="row2" style="margin-top:10px;">
-  <div>
-    <label class="sub">New role (optional)</label>
-    <select class="input" name="edit_role">
-  <option value="">Leave blank to keep existing</option>
-    {update_role_options_html}
-</select>
-  </div>
-  <div>
-    <label class="sub">New hourly rate (optional)</label>
-    <input class="input" name="edit_rate" placeholder="Leave blank to keep existing">
-  </div>
-</div>
-<div class="row2" style="margin-top:10px;">
-  <div>
-    <label class="sub">New Tax % </label>
-    <input class="input" name="edit_tax_rate" placeholder="Blank = keep existing, e.g. 20">
-  </div>
-  <div></div>
-</div>
-
-<div style="margin-top:10px;">
-  <label class="sub">Early Access</label>
-  <select class="input" name="edit_early_access">
-    <option value="">Keep current</option>
-    <option value="TRUE">Enabled</option>
-    <option value="FALSE">Disabled</option>
-  </select>
-</div>
-  </form>
-</div>
-      {reset_card}
-      <div class="card" style="padding:12px; margin-top:12px;">
-        <h2>Employees (this workplace)</h2>
-        <div class="tablewrap" style="margin-top:12px;">
-          <table class="employeesTable">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Username</th>
-                <th>Role</th>
-                <th>Early Access</th>
-                <th class="num">Rate</th>
-                                <th class="num">Tax %</th>
-              </tr>
-            </thead>
-            <tbody>{table}</tbody>
-          </table>
-        </div>
-      </div>
-            {danger_card}
-    """
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
-        layout_shell("admin", session.get("role", "admin"), content)
+    return render_page(
+        template_name="admin/employees.html",
+        active="admin",
+        role=session.get("role", "admin"),
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+        csrf=csrf,
+        wp=wp,
+        msg=msg,
+        ok=ok,
+        created=created,
+        reset_ok=reset_ok,
+        reset_user=reset_user,
+        employee_options_html=employee_options_html,
+        delete_employee_options_html=delete_employee_options_html,
+        role_select_options_html=role_select_options_html,
+        update_role_options_html=update_role_options_html,
+        table_rows=table,
+        employees_total=employees_total,
+        role_count=len(role_suggestions),
+        is_master_admin=is_master_admin,
     )

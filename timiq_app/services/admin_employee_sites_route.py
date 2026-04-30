@@ -1,15 +1,13 @@
+from ..ui.render import render_page
 def admin_employee_sites_impl(core):
     require_admin = core["require_admin"]
     get_csrf = core["get_csrf"]
     _get_active_locations = core["_get_active_locations"]
     get_employees_compat = core["get_employees_compat"]
-    escape = core["escape"]
     _session_workplace_id = core["_session_workplace_id"]
     _workplace_ids_for_read = core["_workplace_ids_for_read"]
     _get_employee_sites = core["_get_employee_sites"]
     initials = core["initials"]
-    admin_back_link = core["admin_back_link"]
-    render_template_string = core["render_template_string"]
     STYLE = core["STYLE"]
     VIEWPORT = core["VIEWPORT"]
     PWA_TAGS = core["PWA_TAGS"]
@@ -24,33 +22,13 @@ def admin_employee_sites_impl(core):
     sites = _get_active_locations()
     site_names = [s["name"] for s in sites] if sites else []
 
-
-    rows_html = []
-    employee_rows = get_employees_compat()
-
-    def build_opts(current: str):
-        opts = []
-        cur = (current or "").strip()
-        cur_l = cur.lower()
-
-        if cur and (cur not in site_names):
-            opts.append(f"<option value='{escape(cur)}' selected>{escape(cur)} (inactive/unknown)</option>")
-
-        if not site_names:
-            opts.append("<option value='' selected>(No active locations)</option>")
-        else:
-            opts.append("<option value=''>— None —</option>")
-            for n in site_names:
-                sel = "selected" if (n.strip().lower() == cur_l and cur) else ""
-                opts.append(f"<option value='{escape(n)}' {sel}>{escape(n)}</option>")
-
-        return "".join(opts)
-
     current_wp = _session_workplace_id()
-
     allowed_wps = set(_workplace_ids_for_read(current_wp))
 
-    for user in employee_rows:
+    employees = []
+    assigned_total = 0
+
+    for user in get_employees_compat():
         u = (user.get("Username") or "").strip()
         if not u:
             continue
@@ -71,80 +49,41 @@ def admin_employee_sites_impl(core):
         s2 = assigned[1] if len(assigned) > 1 else ""
 
         chips = []
-        if not assigned:
-            chips.append("<span class='chip warn'>No site assigned (clock-in blocked)</span>")
-        else:
+        if assigned:
+            assigned_total += 1
             for s in assigned[:2]:
                 if s and s in site_names:
-                    chips.append(f"<span class='chip ok'>{escape(s)}</span>")
+                    chips.append({"label": s, "kind": "ok"})
                 elif s:
-                    chips.append(f"<span class='chip bad'>{escape(s)}?</span>")
+                    chips.append({"label": f"{s}?", "kind": "bad"})
 
-        rows_html.append(f"""
-              <tr>
-                <td>
-                  <div style='display:flex; align-items:center; gap:10px;'>
-                    <div class='avatar'>{escape(initials(disp))}</div>
-                    <div>
-                      <div style='font-weight:600;'>{escape(disp)}</div>
-                      <div class='sub' style='margin:2px 0 0 0;'>{escape(u)}</div>
-                      <div style='margin-top:6px; display:flex; gap:6px; flex-wrap:wrap;'>{''.join(chips)}</div>
-                    </div>
-                  </div>
-                </td>
-                <td style='min-width:420px;'>
-                  <form method='POST' action='/admin/employee-sites/save' style='margin:0; display:flex; gap:8px; align-items:center; flex-wrap:wrap;'>
-                    <input type='hidden' name='csrf' value='{escape(csrf)}'>
-                    <input type='hidden' name='user' value='{escape(u)}'>
-                    <select class='input' name='site1' style='margin-top:0; max-width:200px;'>
-                      {build_opts(s1)}
-                    </select>
-                    <select class='input' name='site2' style='margin-top:0; max-width:200px;'>
-                      {build_opts(s2)}
-                    </select>
-                    <button class='btnTiny' type='submit'>Save</button>
-                  </form>
-                  <div class='sub' style='margin-top:6px;'></div>
-                </td>
-                <td class='sub'>{escape(raw_site) if raw_site else ''}</td>
-              </tr>
-            """)
+        employees.append({
+            "username": u,
+            "display_name": disp,
+            "initials": initials(disp),
+            "raw_site": raw_site,
+            "assigned": bool(assigned),
+            "site1": s1,
+            "site2": s2,
+            "chips": chips,
+        })
 
-    body = "".join(rows_html) if rows_html else "<tr><td colspan='3'>No employees found.</td></tr>"
+    employees_total = len(employees)
+    unassigned_total = max(0, employees_total - assigned_total)
 
-    content = f"""
-          <div class="headerTop">
-            <div>
-              <h1>Site Access</h1>
-              <p class="sub">Assign each employee to up to 2 sites (used for geo-fence clock in/out).</p>
-            </div>
-            <div class="badge admin">ADMIN</div>
-          </div>
-
-          {admin_back_link()}
-
-          <div class="card" style="padding:12px;">
-            <p class="sub" style="margin-top:0;">
-              This updates the <b>Employees → Site</b> column. You can save <b>two sites</b>; they will be stored as <b>Site1,Site2</b>.
-              If no site is set for an employee, clock-in is <b>blocked</b> until a site is assigned.
-            </p>
-            <a href="/admin/locations" style="display:inline-block; margin-top:8px;">
-              <button class="btnSoft" type="button">Manage Site Locations</button>
-            </a>
-          </div>
-
-          <div class="card" style="padding:12px; margin-top:12px;">
-            <h2>Employees</h2>
-            <div class="tablewrap" style="margin-top:12px;">
-              <table style="min-width:980px;">
-                <thead><tr><th>Employee</th><th>Assign site(s)</th><th></th></tr></thead>
-                <tbody>{body}</tbody>
-              </table>
-            </div>
-          </div>
-        """
-
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" +
-        layout_shell("admin", session.get("role", "admin"), content)
+    return render_page(
+        template_name="admin/site_access.html",
+        active="admin",
+        role=session.get("role", "admin"),
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+        csrf=csrf,
+        employees=employees,
+        site_names=site_names,
+        employees_total=employees_total,
+        assigned_total=assigned_total,
+        unassigned_total=unassigned_total,
+        sites_total=len(site_names),
     )

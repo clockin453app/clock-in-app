@@ -1,0 +1,201 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-site-access.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+<div class="siteAccessPage">
+  <div class="siteAccessBreadcrumb">
+    <a href="/admin">Management</a>
+    <span>›</span>
+    <span>Site Access</span>
+  </div>
+
+  <div class="siteAccessHeader">
+    <div>
+      <h1>Site Access</h1>
+      <p>Assign each employee to up to two approved sites for geo-fence clock-in access.</p>
+    </div>
+    <div class="siteAccessBadge">ADMIN</div>
+  </div>
+
+  <div class="siteAccessMetrics">
+    <div class="siteAccessMetric">
+      <div class="siteAccessMetricIcon">👥</div>
+      <div>
+        <strong>{{ employees_total }}</strong>
+        <span>Employees shown</span>
+      </div>
+    </div>
+
+    <div class="siteAccessMetric">
+      <div class="siteAccessMetricIcon green">✓</div>
+      <div>
+        <strong>{{ assigned_total }}</strong>
+        <span>Assigned employees</span>
+      </div>
+    </div>
+
+    <div class="siteAccessMetric">
+      <div class="siteAccessMetricIcon orange">📍</div>
+      <div>
+        <strong>{{ sites_total }}</strong>
+        <span>Active locations</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="siteAccessLayout">
+    <section class="siteAccessPanel">
+      <div class="siteAccessPanelHeader">
+        <div class="siteAccessPanelTitle">
+          <div class="siteAccessPanelIcon">▦</div>
+          <div>
+            <h2>Employee Site Assignments</h2>
+            <p>Employees without a site are blocked from clocking in until access is assigned.</p>
+          </div>
+        </div>
+
+        <a class="siteAccessManageButton" href="/admin/locations">Manage Locations</a>
+      </div>
+
+      <div class="siteAccessNotice">
+        This updates the employee site fields. You can save two sites per employee. If no site is set,
+        clock-in is blocked until a site is assigned.
+      </div>
+
+      <div class="siteAccessTableShell">
+        <table class="siteAccessTable">
+          <thead>
+            <tr>
+              <th>Employee</th>
+              <th>Assign Site(s)</th>
+              <th>Raw Site Value</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% if employees %}
+              {% for employee in employees %}
+                <tr>
+                  <td>
+                    <div class="employeeCell">
+                      <div class="employeeAvatar">{{ employee.initials }}</div>
+                      <div>
+                        <div class="employeeName">{{ employee.display_name }}</div>
+                        <div class="employeeUser">{{ employee.username }}</div>
+
+                        <div class="siteChips">
+                          {% if employee.assigned %}
+                            {% for chip in employee.chips %}
+                              <span class="siteChip {{ chip.kind }}">{{ chip.label }}</span>
+                            {% endfor %}
+                          {% else %}
+                            <span class="siteChip warn">No site assigned</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td>
+                    <form class="siteAssignForm" method="POST" action="/admin/employee-sites/save">
+                      <input type="hidden" name="csrf" value="{{ csrf }}">
+                      <input type="hidden" name="user" value="{{ employee.username }}">
+
+                      <select name="site1">
+                        {% if employee.site1 and employee.site1 not in site_names %}
+                          <option value="{{ employee.site1 }}" selected>{{ employee.site1 }} (inactive/unknown)</option>
+                        {% endif %}
+
+                        {% if not site_names %}
+                          <option value="" selected>(No active locations)</option>
+                        {% else %}
+                          <option value="">— None —</option>
+                          {% for site in site_names %}
+                            <option value="{{ site }}" {% if site == employee.site1 %}selected{% endif %}>{{ site }}</option>
+                          {% endfor %}
+                        {% endif %}
+                      </select>
+
+                      <select name="site2">
+                        {% if employee.site2 and employee.site2 not in site_names %}
+                          <option value="{{ employee.site2 }}" selected>{{ employee.site2 }} (inactive/unknown)</option>
+                        {% endif %}
+
+                        {% if not site_names %}
+                          <option value="" selected>(No active locations)</option>
+                        {% else %}
+                          <option value="">— None —</option>
+                          {% for site in site_names %}
+                            <option value="{{ site }}" {% if site == employee.site2 %}selected{% endif %}>{{ site }}</option>
+                          {% endfor %}
+                        {% endif %}
+                      </select>
+
+                      <button class="siteSaveButton" type="submit">Save</button>
+                    </form>
+                  </td>
+
+                  <td>
+                    <div class="rawSiteText">{{ employee.raw_site }}</div>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td class="siteAccessEmpty" colspan="3">No employees found.</td>
+              </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <aside class="sideStack">
+      <section class="siteAccessPanel">
+        <div class="siteAccessPanelHeader">
+          <div>
+            <h2>Access Summary</h2>
+            <p>Current assignment coverage.</p>
+          </div>
+        </div>
+
+        <div class="sideList">
+          <div class="sideItemRow">
+            <div class="sideItemLeft"><span class="sideDot green"></span>Assigned</div>
+            <div class="sideValue">{{ assigned_total }}</div>
+          </div>
+
+          <div class="sideItemRow">
+            <div class="sideItemLeft"><span class="sideDot orange"></span>Unassigned</div>
+            <div class="sideValue">{{ unassigned_total }}</div>
+          </div>
+
+          <div class="sideItemRow">
+            <div class="sideItemLeft"><span class="sideDot"></span>Active sites</div>
+            <div class="sideValue">{{ sites_total }}</div>
+          </div>
+        </div>
+      </section>
+
+      <section class="siteAccessPanel">
+        <div class="siteAccessPanelHeader">
+          <div>
+            <h2>Active Sites</h2>
+            <p>Available choices for employee access.</p>
+          </div>
+        </div>
+
+        <div class="sideList">
+          {% if site_names %}
+            {% for site in site_names %}
+              <div class="sideItemRow">
+                <div class="sideItemLeft"><span class="sideDot green"></span>{{ site }}</div>
+                <div class="sideValue">Active</div>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="siteAccessEmpty">No active locations.</div>
+          {% endif %}
+        </div>
+      </section>
+    </aside>
+  </div>
+</div>

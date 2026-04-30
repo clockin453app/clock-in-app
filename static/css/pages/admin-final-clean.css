@@ -1,0 +1,419 @@
+/* =========================================================
+   TimIQ FINAL CLEAN TYPOGRAPHY ONLY
+   Keeps page colours/style, fixes text size and boldness.
+   Do NOT override icons, card colours, charts, sidebar colours,
+   or primary buttons here.
+   ========================================================= */
+
+/* ---------- App font ---------- */
+
+html,
+body,
+.shell,
+.main,
+main,
+.content,
+.page,
+.pageContent,
+.mainContent,
+.appContent,
+.adminContent {
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+  color: #11183a;
+}
+
+/* ---------- Keep pages full width without killing style ---------- */
+
+body .main,
+body main.main,
+body .content,
+body .pageContent,
+body .mainContent,
+body .appContent,
+body .adminContent {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+  box-sizing: border-box !important;
+}
+
+.dbRefPage,
+.mgRefPage,
+.prRefPage,
+.managementPage,
+.employeesPage,
+.companiesPage,
+.locationsPage,
+.siteAccessPage,
+.liveAttendancePage,
+.healthPage,
+.refPage {
+  width: 100% !important;
+  max-width: none !important;
+  min-width: 0 !important;
+}
+
+/* ---------- Main page headers ---------- */
+
+.main h1,
+main h1,
+.content h1,
+.page h1,
+.pageContent h1,
+.mainContent h1,
+.appContent h1,
+.adminContent h1,
+.dbRefPage h1,
+.mgRefPage h1,
+.prRefPage h1,
+.employeesPage h1,
+.companiesPage h1,
+.locationsPage h1,
+.siteAccessPage h1,
+.liveAttendancePage h1,
+.healthPage h1,
+.refPage h1 {
+  font-family: Georgia, "Times New Roman", serif !important;
+  font-size: 34px !important;
+  line-height: 1.05 !important;
+  letter-spacing: -0.035em !important;
+  font-weight: 700 !important;
+  color: #11183a !important;
+  margin-top: 0 !important;
+}
+
+/* Dashboard / Management / Payroll can stay a little more compact */
+.dbRefPage h1,
+.mgRefPage h1,
+.prRefPage h1 {
+  font-size: 32px !important;
+}
+
+/* ---------- Section headers ---------- */
+
+.main h2,
+main h2,
+.content h2,
+.page h2,
+.pageContent h2,
+.mainContent h2,
+.appContent h2,
+.adminContent h2,
+.dbRefPage h2,
+.mgRefPage h2,
+.prRefPage h2,
+.employeesPage h2,
+.companiesPage h2,
+.locationsPage h2,
+.siteAccessPage h2,
+.liveAttendancePage h2,
+.healthPage h2,
+.refPage h2 {
+  font-size: 16px !important;
+  line-height: 1.25 !important;
+  font-weight: 650 !important;
+  color: #11183a !important;
+}
+
+/* ---------- Card titles ---------- */
+
+.main h3,
+main h3,
+.content h3,
+.page h3,
+.pageContent h3,
+.mainContent h3,
+.appContent h3,
+.adminContent h3,
+.dbRefPage h3,
+.mgRefPage h3,
+.prRefPage h3,
+.employeesPage h3,
+.companiesPage h3,
+.locationsPage h3,
+.siteAccessPage h3,
+.liveAttendancePage h3,
+.healthPage h3,
+.refPage h3 {
+  font-size: 13px !important;
+  line-height: 1.3 !important;
+  font-weight: 600 !important;
+  color: #11183a !important;
+}
+
+/* ---------- Normal text ---------- */
+
+.main p,
+.main span,
+.main label,
+.main a,
+.main li,
+.main td,
+.main th,
+.main em,
+.main small,
+main p,
+main span,
+main label,
+main a,
+main li,
+main td,
+main th,
+main em,
+main small,
+.content p,
+.content span,
+.content label,
+.content a,
+.content li,
+.content td,
+.content th,
+.content em,
+.content small,
+.pageContent p,
+.pageContent span,
+.pageContent label,
+.pageContent a,
+.pageContent li,
+.pageContent td,
+.pageContent th,
+.pageContent em,
+.pageContent small,
+.mainContent p,
+.mainContent span,
+.mainContent label,
+.mainContent a,
+.mainContent li,
+.mainContent td,
+.mainContent th,
+.mainContent em,
+.mainContent small,
+.appContent p,
+.appContent span,
+.appContent label,
+.appContent a,
+.appContent li,
+.appContent td,
+.appContent th,
+.appContent em,
+.appContent small,
+.adminContent p,
+.adminContent span,
+.adminContent label,
+.adminContent a,
+.adminContent li,
+.adminContent td,
+.adminContent th,
+.adminContent em,
+.adminContent small {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  font-weight: 500 !important;
+}
+
+/* ---------- Descriptions / muted text ---------- */
+
+.sub,
+.dbRefTitle p,
+.mgRefTitleRow p,
+.prRefHeader p,
+.employeesHeader p,
+.companiesHeader p,
+.locationsHeader p,
+.siteAccessHeader p,
+.liveHeader p,
+.healthHeader p,
+.refPageHeader p,
+.mgRefPanelHead p,
+.mgRefCard p,
+.dbRefKpi p,
+.prRefKpi p {
+  font-size: 12px !important;
+  line-height: 1.45 !important;
+  font-weight: 500 !important;
+}
+
+/* ---------- Strong text: reduce heavy bold, but keep names readable ---------- */
+
+.main strong,
+.main b,
+main strong,
+main b,
+.content strong,
+.content b,
+.pageContent strong,
+.pageContent b,
+.mainContent strong,
+.mainContent b,
+.appContent strong,
+.appContent b,
+.adminContent strong,
+.adminContent b {
+  font-weight: 600 !important;
+}
+
+/* ---------- Table headers ---------- */
+
+.main th,
+main th,
+.content th,
+.pageContent th,
+.mainContent th,
+.appContent th,
+.adminContent th,
+.dbRefPage th,
+.mgRefPage th,
+.prRefPage th,
+.employeesPage th,
+.companiesPage th,
+.locationsPage th,
+.siteAccessPage th,
+.liveAttendancePage th,
+.healthPage th,
+.refPage th {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+  font-weight: 600 !important;
+}
+
+/* ---------- Table cells ---------- */
+
+.main td,
+main td,
+.content td,
+.pageContent td,
+.mainContent td,
+.appContent td,
+.adminContent td,
+.dbRefPage td,
+.mgRefPage td,
+.prRefPage td,
+.employeesPage td,
+.companiesPage td,
+.locationsPage td,
+.siteAccessPage td,
+.liveAttendancePage td,
+.healthPage td,
+.refPage td {
+  font-size: 12px !important;
+  line-height: 1.4 !important;
+  font-weight: 500 !important;
+}
+
+/* ---------- Inputs/selects: text only, no colour/style reset ---------- */
+
+input,
+select,
+textarea {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  font-size: 12px !important;
+  font-weight: 500 !important;
+}
+
+/* ---------- Buttons: text only, keep original colours/backgrounds ---------- */
+
+button,
+input[type="submit"],
+input[type="button"],
+.btn,
+a.btn {
+  font-size: 12px !important;
+  font-weight: 600 !important;
+}
+
+/* ---------- Sidebar: keep original colours, only correct text weight/size ---------- */
+
+.sideText,
+.menuText {
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* Do not let generic link rule make sidebar look wrong */
+.sidebar a,
+.sidebar .sideItem,
+.sidebar .menuItem {
+  text-decoration: none !important;
+}
+
+/* ---------- KPI numbers: keep strong but not oversized ---------- */
+
+.dbRefKpi strong,
+.prRefKpi strong,
+.mgRefCardStat strong,
+.employeeMetric strong,
+.companyMetric strong,
+.locationMetric strong,
+.siteAccessMetric strong,
+.liveMetricValue,
+.healthMetricValue,
+.modernMetricValue,
+.kpi .value {
+  font-size: 24px !important;
+  line-height: 1.05 !important;
+  font-weight: 700 !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+/* ---------- Dashboard lower cards ---------- */
+
+.dbRefSmallMetric strong,
+.dbRefQuickAction strong,
+.dbRefActivityText strong,
+.mgRefCard h3,
+.mgRefSidePanel h3,
+.prRefSidePanel h3 {
+  font-weight: 600 !important;
+}
+
+/* ---------- Payroll top status chips only ----------
+   Fix Not Approved chip without removing page colour.
+*/
+
+.prRefStatusPills span,
+.prRefStatusPills span.ok,
+.prRefStatusPills span.warn,
+.prRefStatusPills span.bad {
+  background: #ffffff !important;
+  border: 1px solid #dbe4f0 !important;
+  color: #42506b !important;
+  box-shadow: none !important;
+  font-size: 11px !important;
+  font-weight: 500 !important;
+}
+
+.prRefStatusPills span b {
+  font-weight: 600 !important;
+}
+
+.prRefStatusPills span.bad {
+  background: #ffffff !important;
+  border-color: #dbe4f0 !important;
+  color: #42506b !important;
+}
+
+/* ---------- Keep row badges coloured ---------- */
+
+.prRefBadge.ok {
+  background: #dcfce7 !important;
+  color: #16a34a !important;
+  border-color: #bbf7d0 !important;
+}
+
+.prRefBadge.warn {
+  background: #fff7ed !important;
+  color: #d97706 !important;
+  border-color: #fed7aa !important;
+}
+
+.prRefBadge.bad {
+  background: #fee2e2 !important;
+  color: #ef4444 !important;
+  border-color: #fecaca !important;
+}

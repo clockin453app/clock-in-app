@@ -1,0 +1,2270 @@
+/* =========================================================
+   TimIQ Payroll Report — Admin reference rebuild
+   ========================================================= */
+
+:root{
+  --pr-navy:#121a45;
+  --pr-text:#263454;
+  --pr-muted:#6d7895;
+  --pr-border:#e0e8f4;
+  --pr-border-soft:#edf2f8;
+  --pr-card:#ffffff;
+  --pr-blue:#4f63ff;
+  --pr-indigo:#3c50f5;
+  --pr-purple:#8b5cf6;
+  --pr-green:#32b968;
+  --pr-amber:#f59e0b;
+  --pr-red:#ef4444;
+  --pr-shadow:0 12px 30px rgba(24,39,75,.045);
+}
+
+html,
+body{
+  background:
+    radial-gradient(circle at top right, rgba(79,99,255,.045), transparent 34%),
+    linear-gradient(180deg,#fbfcff 0%,#f8fafd 58%,#f5f7fb 100%) !important;
+}
+
+@media (min-width:980px){
+  body:has(.prRefPage) .shell,
+  body:has(.prRefPage) .payrollShell{
+    grid-template-columns:222px minmax(0,1fr) !important;
+  }
+
+  body:has(.prRefPage) .main,
+  body:has(.prRefPage) main.main{
+    padding:24px 32px 38px 32px !important;
+    background:
+      radial-gradient(circle at top right, rgba(79,99,255,.045), transparent 34%),
+      linear-gradient(180deg,#fbfcff 0%,#f8fafd 58%,#f5f7fb 100%) !important;
+  }
+
+  body:has(.prRefPage) .sidebar{
+    width:222px !important;
+    min-width:222px !important;
+    max-width:222px !important;
+    background:rgba(255,255,255,.97) !important;
+    border-right:1px solid var(--pr-border) !important;
+    box-shadow:16px 0 44px rgba(29,43,76,.035) !important;
+  }
+}
+
+.prRefPage{
+  width:100% !important;
+  max-width:1398px !important;
+  margin:0 !important;
+  padding:0 !important;
+  color:var(--pr-text) !important;
+  font-family:Inter,"Segoe UI",Arial,sans-serif !important;
+}
+
+.prRefPage svg{
+  fill:none;
+  stroke:currentColor;
+  stroke-width:2;
+  stroke-linecap:round;
+  stroke-linejoin:round;
+}
+
+.prRefHeader{
+  margin:0 0 20px !important;
+}
+
+.prRefTop{
+  min-height:40px;
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:24px;
+  margin-bottom:12px;
+}
+
+.prRefCrumbs{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding-top:4px;
+  color:#6d7895;
+  font-size:12px;
+  font-weight:700;
+}
+
+.prRefCrumbs a{
+  color:#6d7895;
+  text-decoration:none;
+}
+
+.prRefCrumbs strong{
+  color:#1c294b;
+  font-weight:800;
+}
+
+.prRefUserTools{
+  display:flex;
+  align-items:center;
+  gap:12px;
+}
+
+.prRefIconButton{
+  width:38px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  position:relative;
+  border:1px solid var(--pr-border);
+  border-radius:12px;
+  background:#fff;
+  color:#1e2f55;
+  box-shadow:0 8px 18px rgba(24,39,75,.04);
+  cursor:pointer;
+}
+
+.prRefIconButton svg{
+  width:18px;
+  height:18px;
+}
+
+.prRefBell i{
+  position:absolute;
+  top:-6px;
+  right:-5px;
+  min-width:18px;
+  height:18px;
+  display:grid;
+  place-items:center;
+  padding:0 4px;
+  border-radius:999px;
+  background:#ff563a;
+  color:#fff;
+  font-size:10px;
+  font-style:normal;
+  font-weight:800;
+}
+
+.prRefUser{
+  display:flex;
+  align-items:center;
+  gap:11px;
+  padding-left:12px;
+  border-left:1px solid #e3eaf5;
+}
+
+.prRefAvatarText{
+  width:42px;
+  height:42px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:#2563ff;
+  color:#fff;
+  font-size:13px;
+  font-weight:800;
+}
+
+.prRefUserText{
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+
+.prRefUserText strong{
+  color:var(--pr-navy);
+  font-size:14px;
+  line-height:1.1;
+  font-weight:800;
+}
+
+.prRefUserText span{
+  color:#73809c;
+  font-size:12px;
+  line-height:1.1;
+  font-weight:600;
+}
+
+.prRefChevron{
+  color:#77839c;
+  font-size:13px;
+}
+
+.prRefTitle h1{
+  margin:0;
+  font-family:Georgia,"Times New Roman",serif;
+  color:var(--pr-navy);
+  font-size:38px;
+  line-height:.98;
+  letter-spacing:-.04em;
+  font-weight:800;
+}
+
+.prRefTitle p{
+  margin:9px 0 0;
+  color:#6d7895;
+  font-size:13px;
+  line-height:1.4;
+  font-weight:600;
+}
+
+/* Filters */
+
+.prRefFilters{
+  background:#fff;
+  border:1px solid var(--pr-border);
+  border-radius:16px;
+  box-shadow:var(--pr-shadow);
+  padding:16px;
+  margin-bottom:16px;
+}
+
+.prRefFilterForm{
+  display:grid;
+  grid-template-columns:290px 240px 1fr auto auto;
+  gap:16px;
+  align-items:end;
+}
+
+.prRefFilterGroup label{
+  display:block;
+  margin:0 0 7px;
+  color:#6d7895;
+  font-size:12px;
+  font-weight:800;
+}
+
+.prRefFilterGroup select,
+.prRefFilterGroup input{
+  width:100%;
+  height:38px;
+  border:1px solid var(--pr-border);
+  border-radius:10px;
+  background:#fff;
+  color:#263454;
+  font-size:12px;
+  font-weight:650;
+  padding:0 12px;
+  box-sizing:border-box;
+}
+
+.prRefWeekControls{
+  display:grid;
+  grid-template-columns:34px 1fr 34px;
+  gap:8px;
+}
+
+.prRefWeekBtn{
+  width:34px;
+  height:38px;
+  display:grid;
+  place-items:center;
+  border:1px solid var(--pr-border);
+  border-radius:10px;
+  background:#fff;
+  color:#53617b;
+  text-decoration:none;
+  font-size:20px;
+  font-weight:700;
+}
+
+.prRefWeekBtn.disabled{
+  opacity:.45;
+  pointer-events:none;
+}
+
+.prRefDatePair{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);
+  gap:10px;
+  align-items:center;
+}
+
+.prRefDatePair span{
+  color:#7b86a0;
+  font-weight:700;
+}
+
+.prRefApply{
+  height:38px;
+  padding:0 22px;
+  border:0;
+  border-radius:10px;
+  background:linear-gradient(135deg,#5b4dff,#6d3df4);
+  color:#fff;
+  font-size:12px;
+  font-weight:850;
+  box-shadow:0 12px 24px rgba(79,70,229,.18);
+  cursor:pointer;
+}
+
+.prRefMoreFilters{
+  height:38px;
+  padding:0 16px;
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  border:1px solid var(--pr-border);
+  border-radius:10px;
+  background:#fff;
+  color:#4f5e79;
+  font-size:12px;
+  font-weight:750;
+}
+
+.prRefMoreFilters svg{
+  width:16px;
+  height:16px;
+}
+
+/* KPIs */
+
+.prRefKpis{
+  display:grid;
+  grid-template-columns:repeat(4,minmax(0,1fr));
+  gap:16px;
+  margin-bottom:16px;
+}
+
+.prRefKpi{
+  min-height:104px;
+  display:grid;
+  grid-template-columns:58px 1fr;
+  gap:14px;
+  align-items:center;
+  padding:18px;
+  background:#fff;
+  border:1px solid var(--pr-border);
+  border-radius:16px;
+  box-shadow:var(--pr-shadow);
+}
+
+.prRefKpiIcon{
+  width:52px;
+  height:52px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+}
+
+.prRefKpiIcon svg{
+  width:25px;
+  height:25px;
+}
+
+.prRefKpiIcon.blue{background:#eef4ff;color:var(--pr-blue);}
+.prRefKpiIcon.green{background:#ecfdf3;color:var(--pr-green);}
+.prRefKpiIcon.purple{background:#f3eefe;color:var(--pr-purple);}
+.prRefKpiIcon.amber{background:#fff7ed;color:var(--pr-amber);}
+
+.prRefKpi p{
+  margin:0 0 7px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+}
+
+.prRefKpi strong{
+  display:block;
+  margin:0 0 7px;
+  color:var(--pr-navy);
+  font-size:25px;
+  line-height:1;
+  font-weight:850;
+}
+
+.prRefKpi em{
+  color:#64748b;
+  font-size:11px;
+  font-style:normal;
+  font-weight:600;
+}
+
+/* Layout */
+
+.prRefGrid{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 330px;
+  gap:16px;
+  align-items:start;
+}
+
+.prRefMain{
+  display:grid;
+  gap:16px;
+}
+
+.prRefSide{
+  display:grid;
+  gap:16px;
+}
+
+.prRefPanel,
+.prRefSidePanel{
+  background:#fff;
+  border:1px solid var(--pr-border);
+  border-radius:16px;
+  box-shadow:var(--pr-shadow);
+}
+
+.prRefPanel{
+  padding:16px;
+}
+
+.prRefSidePanel{
+  padding:16px;
+}
+
+.prRefPanelHead{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:14px;
+  margin-bottom:14px;
+}
+
+.prRefPanelHead h2,
+.prRefSidePanel h2{
+  margin:0;
+  color:var(--pr-navy);
+  font-size:16px;
+  letter-spacing:-.015em;
+  font-weight:820;
+}
+
+.prRefSectionTitle{
+  display:flex;
+  align-items:center;
+  gap:10px;
+}
+
+.prRefSmallIcon{
+  width:30px;
+  height:30px;
+  display:grid;
+  place-items:center;
+  border-radius:10px;
+  background:#eef4ff;
+  color:var(--pr-blue);
+}
+
+.prRefSmallIcon svg{
+  width:18px;
+  height:18px;
+}
+
+.prRefChevronDown{
+  color:#30405f;
+  font-size:18px;
+  font-weight:900;
+}
+
+/* Status pills */
+
+.prRefStatusPills{
+  display:flex;
+  align-items:center;
+  justify-content:flex-end;
+  flex-wrap:wrap;
+  gap:8px;
+}
+
+.prRefStatusPills span,
+.prRefStatusPills button{
+  min-height:30px;
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:0 12px;
+  border:1px solid var(--pr-border-soft);
+  border-radius:9px;
+  background:#fff;
+  color:#53617b;
+  font-size:11px;
+  font-weight:750;
+}
+
+.prRefStatusPills span b{
+  color:var(--pr-navy);
+  font-weight:900;
+}
+
+.prRefStatusPills .ok::before,
+.prRefStatusPills .warn::before,
+.prRefStatusPills .bad::before{
+  content:"";
+  width:7px;
+  height:7px;
+  border-radius:50%;
+}
+
+.prRefStatusPills .ok::before{background:var(--pr-green);}
+.prRefStatusPills .warn::before{background:var(--pr-amber);}
+.prRefStatusPills .bad::before{background:var(--pr-red);}
+
+.prRefStatusPills button{
+  border:0;
+  background:linear-gradient(135deg,#5b4dff,#6d3df4);
+  color:#fff;
+  cursor:pointer;
+}
+
+.prRefStatusPills .prRefDots{
+  width:30px;
+  justify-content:center;
+  padding:0;
+  background:#fff;
+  color:#64748b;
+  border:1px solid var(--pr-border-soft);
+}
+
+/* Tables */
+
+.prRefTableWrap{
+  overflow:auto;
+  border:1px solid var(--pr-border-soft);
+  border-radius:14px;
+}
+
+.prRefPayrollTable,
+.prRefDetailsTable{
+  width:100%;
+  min-width:960px;
+  border-collapse:separate;
+  border-spacing:0;
+  color:#263454;
+}
+
+.prRefPayrollTable th,
+.prRefPayrollTable td,
+.prRefDetailsTable th,
+.prRefDetailsTable td{
+  padding:12px 14px;
+  border-right:1px solid var(--pr-border-soft);
+  border-bottom:1px solid var(--pr-border-soft);
+  vertical-align:middle;
+}
+
+.prRefPayrollTable th:last-child,
+.prRefPayrollTable td:last-child,
+.prRefDetailsTable th:last-child,
+.prRefDetailsTable td:last-child{
+  border-right:0;
+}
+
+.prRefPayrollTable thead th,
+.prRefDetailsTable thead th{
+  background:#fbfdff;
+  color:#51607c;
+  font-size:11px;
+  font-weight:850;
+  text-align:center;
+}
+
+.prRefPayrollTable thead tr:first-child th{
+  color:#475571;
+}
+
+.prRefPayrollTable tbody td,
+.prRefDetailsTable tbody td{
+  background:#fff;
+  color:#34415d;
+  font-size:12px;
+  font-weight:650;
+}
+
+.prRefPayrollTable tbody tr:last-child td,
+.prRefDetailsTable tbody tr:last-child td{
+  border-bottom:0;
+}
+
+.prRefPayrollTable .emp{
+  min-width:190px;
+  text-align:left;
+}
+
+.prRefPayrollTable .emp strong,
+.prRefDetailsTable .emp strong{
+  display:block;
+  color:var(--pr-navy);
+  font-size:12px;
+  font-weight:850;
+}
+
+.prRefPayrollTable .emp span,
+.prRefDetailsTable .emp span{
+  display:block;
+  margin-top:3px;
+  color:#64748b;
+  font-size:10px;
+  font-weight:750;
+  text-transform:uppercase;
+}
+
+.prRefPayrollTable .num,
+.prRefDetailsTable .num{
+  text-align:right;
+  white-space:nowrap;
+}
+
+.prRefBadge{
+  min-width:76px;
+  min-height:24px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 10px;
+  border-radius:8px;
+  font-size:10px;
+  font-weight:850;
+}
+
+.prRefBadge.ok{
+  background:#dcfce7;
+  color:#16a34a;
+}
+
+.prRefBadge.warn{
+  background:#fff7ed;
+  color:#d97706;
+}
+
+.prRefBadge.bad{
+  background:#fee2e2;
+  color:#ef4444;
+}
+
+.prRefTableFoot{
+  min-height:42px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  color:#64748b;
+  font-size:12px;
+  font-weight:650;
+  padding:10px 0 0;
+}
+
+.prRefTableFoot div{
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+
+.prRefTableFoot button{
+  width:28px;
+  height:28px;
+  border:1px solid var(--pr-border);
+  border-radius:8px;
+  background:#fff;
+  color:#64748b;
+  font-weight:800;
+}
+
+.prRefTableFoot button.active{
+  background:#5b4dff;
+  color:#fff;
+  border-color:#5b4dff;
+}
+
+/* Monthly */
+
+.prRefMonthForm{
+  display:flex;
+  align-items:center;
+  gap:10px;
+  margin:0;
+}
+
+.prRefMonthForm input{
+  height:34px;
+  border:1px solid var(--pr-border);
+  border-radius:9px;
+  padding:0 10px;
+  color:#34415d;
+  font-size:12px;
+  font-weight:650;
+}
+
+.prRefMonthForm button,
+.prRefHeadActions a,
+.prRefHeadActions button{
+  min-height:34px;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  padding:0 14px;
+  border:1px solid var(--pr-border);
+  border-radius:9px;
+  background:#fff;
+  color:#4f63ff;
+  text-decoration:none;
+  font-size:12px;
+  font-weight:800;
+}
+
+.prRefMonthlyStats{
+  display:grid;
+  grid-template-columns:repeat(6,minmax(0,1fr));
+  border:1px solid var(--pr-border-soft);
+  border-radius:14px;
+  overflow:hidden;
+}
+
+.prRefMonthlyStats div{
+  min-height:62px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  gap:5px;
+  border-right:1px solid var(--pr-border-soft);
+}
+
+.prRefMonthlyStats div:last-child{
+  border-right:0;
+}
+
+.prRefMonthlyStats span{
+  color:#64748b;
+  font-size:11px;
+  font-weight:750;
+}
+
+.prRefMonthlyStats strong{
+  color:var(--pr-navy);
+  font-size:15px;
+  font-weight:850;
+}
+
+/* Side */
+
+.prRefSummaryList{
+  display:grid;
+}
+
+.prRefSummaryList div{
+  min-height:34px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  border-bottom:1px solid var(--pr-border-soft);
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+}
+
+.prRefSummaryList div:last-child{
+  border-bottom:0;
+}
+
+.prRefSummaryList strong{
+  color:var(--pr-navy);
+  font-weight:850;
+}
+
+.prRefDonutWrap{
+  display:grid;
+  grid-template-columns:140px 1fr;
+  gap:16px;
+  align-items:center;
+}
+
+.prRefDonut{
+  width:140px;
+  height:140px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  background:
+    conic-gradient(
+      #5b4dff 0 calc(var(--wages) * 1%),
+      #32b968 calc(var(--wages) * 1%) calc((var(--wages) + var(--overtime)) * 1%),
+      #a855f7 calc((var(--wages) + var(--overtime)) * 1%) 100%
+    );
+}
+
+.prRefDonut > div{
+  width:82px;
+  height:82px;
+  display:grid;
+  place-items:center;
+  align-content:center;
+  border-radius:50%;
+  background:#fff;
+  text-align:center;
+}
+
+.prRefDonut strong{
+  color:var(--pr-navy);
+  font-size:13px;
+  font-weight:900;
+}
+
+.prRefDonut span{
+  color:#64748b;
+  font-size:10px;
+  font-weight:700;
+}
+
+.prRefLegend{
+  display:grid;
+  gap:13px;
+}
+
+.prRefLegend div{
+  display:grid;
+  grid-template-columns:12px 1fr auto;
+  gap:9px;
+  align-items:center;
+  color:#64748b;
+  font-size:12px;
+  font-weight:700;
+}
+
+.prRefLegend i{
+  width:12px;
+  height:12px;
+  border-radius:3px;
+}
+
+.prRefLegend i.wages{background:#5b4dff;}
+.prRefLegend i.overtime{background:#32b968;}
+.prRefLegend i.other{background:#a855f7;}
+
+.prRefLegend strong{
+  color:#263454;
+  font-size:12px;
+  font-weight:850;
+}
+
+.prRefActions{
+  display:grid;
+  gap:10px;
+}
+
+.prRefActions a{
+  min-height:58px;
+  display:grid;
+  grid-template-columns:34px 1fr;
+  gap:12px;
+  align-items:center;
+  padding:11px;
+  border:1px solid var(--pr-border-soft);
+  border-radius:12px;
+  color:#263454;
+  text-decoration:none;
+}
+
+.prRefActions svg{
+  width:20px;
+  height:20px;
+  color:var(--pr-blue);
+}
+
+.prRefActions strong{
+  display:block;
+  color:var(--pr-navy);
+  font-size:12px;
+  font-weight:850;
+}
+
+.prRefActions em{
+  display:block;
+  margin-top:3px;
+  color:#64748b;
+  font-size:11px;
+  font-style:normal;
+  font-weight:650;
+}
+
+.prRefAlerts{
+  display:grid;
+  gap:10px;
+}
+
+.prRefAlerts a{
+  min-height:58px;
+  display:grid;
+  grid-template-columns:34px 1fr 12px;
+  gap:12px;
+  align-items:center;
+  padding:11px;
+  border:1px solid var(--pr-border-soft);
+  border-radius:12px;
+  color:#263454;
+  text-decoration:none;
+}
+
+.prRefAlerts i{
+  width:32px;
+  height:32px;
+  display:grid;
+  place-items:center;
+  border-radius:50%;
+  font-style:normal;
+}
+
+.prRefAlerts i svg{
+  width:18px;
+  height:18px;
+}
+
+.prRefAlerts i.warn{
+  background:#fff7ed;
+  color:#f59e0b;
+}
+
+.prRefAlerts i.info{
+  background:#eef4ff;
+  color:#4f63ff;
+}
+
+.prRefAlerts strong{
+  display:block;
+  color:var(--pr-navy);
+  font-size:12px;
+  font-weight:850;
+}
+
+.prRefAlerts em{
+  display:block;
+  margin-top:3px;
+  color:#64748b;
+  font-size:11px;
+  line-height:1.35;
+  font-style:normal;
+  font-weight:650;
+}
+
+.prRefAlerts b{
+  color:#64748b;
+  font-size:18px;
+}
+
+/* Responsive */
+
+@media (max-width:1320px){
+  .prRefGrid{
+    grid-template-columns:1fr;
+  }
+
+  .prRefSide{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+}
+
+@media (max-width:1120px){
+  .prRefFilterForm,
+  .prRefKpis{
+    grid-template-columns:repeat(2,minmax(0,1fr));
+  }
+
+  .prRefMoreFilters{
+    justify-content:center;
+  }
+}
+
+@media (max-width:760px){
+  .prRefTop,
+  .prRefUserTools,
+  .prRefPanelHead,
+  .prRefStatusPills{
+    flex-wrap:wrap;
+  }
+
+  .prRefFilterForm,
+  .prRefKpis,
+  .prRefSide,
+  .prRefMonthlyStats{
+    grid-template-columns:1fr;
+  }
+
+  .prRefTitle h1{
+    font-size:34px;
+  }
+}
+/* =========================================================
+   Payroll polish + working controls
+   ========================================================= */
+
+.prRefPage {
+  max-width: 1368px !important;
+}
+
+.prRefTitle h1 {
+  font-size: 36px !important;
+}
+
+.prRefTitle p {
+  font-size: 13px !important;
+}
+
+.prRefFilters,
+.prRefKpi,
+.prRefPanel,
+.prRefSidePanel {
+  box-shadow: 0 12px 30px rgba(24,39,75,.04) !important;
+}
+
+.prRefFilterGroup select {
+  min-width: 100% !important;
+  text-overflow: ellipsis !important;
+}
+
+.prRefPayrollTable th,
+.prRefPayrollTable td,
+.prRefDetailsTable th,
+.prRefDetailsTable td {
+  padding: 10px 12px !important;
+  font-size: 11.5px !important;
+}
+
+.prRefPayrollTable thead th,
+.prRefDetailsTable thead th {
+  font-size: 10.5px !important;
+  font-weight: 780 !important;
+}
+
+.prRefPayrollTable .emp strong,
+.prRefDetailsTable .emp strong {
+  font-size: 11.5px !important;
+  font-weight: 780 !important;
+}
+
+.prRefPayrollTable .emp span,
+.prRefDetailsTable .emp span {
+  font-size: 9.5px !important;
+  font-weight: 650 !important;
+}
+
+.prRefBadge {
+  min-width: 82px !important;
+  border: 0 !important;
+  cursor: default !important;
+}
+
+button.prRefBadge {
+  cursor: pointer !important;
+}
+
+.prRefBadge.ok:hover,
+.prRefBadge.warn:hover,
+.prRefBadge.bad:hover {
+  filter: brightness(.98) !important;
+}
+
+.prEditInput {
+  width: 72px !important;
+  height: 30px !important;
+  padding: 0 8px !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #111b3f !important;
+  font-size: 11.5px !important;
+  font-weight: 700 !important;
+  text-align: right !important;
+  box-sizing: border-box !important;
+}
+
+.prEditInput.time {
+  width: 78px !important;
+  text-align: center !important;
+}
+
+.prEditInput:focus {
+  background: #fff !important;
+  border-color: #9db4ff !important;
+  box-shadow: 0 0 0 3px rgba(79,99,255,.10) !important;
+  outline: none !important;
+}
+
+.prSaveBtn {
+  height: 30px !important;
+  padding: 0 10px !important;
+  border: 1px solid #dbe4f0 !important;
+  border-radius: 8px !important;
+  background: #fff !important;
+  color: #4f63ff !important;
+  font-size: 10.5px !important;
+  font-weight: 850 !important;
+  cursor: pointer !important;
+}
+
+.prSaveBtn:hover {
+  background: #f4f7ff !important;
+}
+
+.prEmployeeGroupRow td {
+  background: #fbfdff !important;
+  border-bottom: 1px solid #dfe8f4 !important;
+}
+
+.prEmployeeGroup {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  color: #111b3f !important;
+}
+
+.prEmployeeGroup strong {
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.prEmployeeGroup span {
+  color: #64748b !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
+  text-transform: uppercase !important;
+}
+
+.prEmployeeGroupTotal {
+  margin-left: auto !important;
+  color: #111b3f !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+}
+
+.prMutedRow td {
+  color: #94a3b8 !important;
+  font-size: 11px !important;
+  text-align: center !important;
+}
+
+.prRefStatusPills .js-pr-approve-all[disabled] {
+  opacity: .55 !important;
+  cursor: wait !important;
+}
+
+.prRefHeadActions a,
+.prRefHeadActions button,
+.prRefMonthForm button {
+  font-size: 11.5px !important;
+  font-weight: 780 !important;
+}
+
+.prRefDonut {
+  transform: scale(.94) !important;
+}
+/* =========================================================
+   Payroll final polish: no purple, working action menu
+   ========================================================= */
+
+:root {
+  --pr-purple: #4f63ff !important;
+}
+
+/* Replace all purple CTA gradients with TimIQ blue */
+.prRefApply,
+.prRefStatusPills button,
+.prRefMonthForm button,
+.prRefHeadActions a,
+.prRefHeadActions button,
+.prRefTableFoot button.active,
+.prRefButtonPrimary,
+.prRefActionsPrimary,
+.prRefStatusPills .js-pr-approve-all {
+  background: linear-gradient(135deg, #0b63ff, #0057e7) !important;
+  border-color: #0b63ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 12px 24px rgba(37, 99, 255, .16) !important;
+}
+
+/* Keep secondary buttons white/blue */
+.prRefMoreFilters,
+.prRefHeadActions a,
+.prRefHeadActions button {
+  background: #ffffff !important;
+  color: #0b63ff !important;
+  border-color: #dbe4f0 !important;
+  box-shadow: none !important;
+}
+
+.prRefMonthForm button,
+.prRefApply,
+.prRefStatusPills .js-pr-approve-all {
+  background: linear-gradient(135deg, #0b63ff, #0057e7) !important;
+  color: #ffffff !important;
+}
+
+/* Remove purple KPI / icon tones */
+.prRefKpiIcon.purple {
+  background: #eef4ff !important;
+  color: #0b63ff !important;
+}
+
+.prRefSmallIcon.purple,
+.prRefTitleIcon.purple {
+  background: #eef4ff !important;
+  color: #0b63ff !important;
+}
+
+/* Status badges: never purple */
+.prRefBadge.ok,
+button.prRefBadge.ok {
+  background: #dcfce7 !important;
+  color: #16a34a !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.prRefBadge.warn,
+button.prRefBadge.warn {
+  background: #fff7ed !important;
+  color: #d97706 !important;
+  border: 1px solid #fed7aa !important;
+}
+
+.prRefBadge.bad,
+button.prRefBadge.bad {
+  background: #fee2e2 !important;
+  color: #ef4444 !important;
+  border: 1px solid #fecaca !important;
+}
+
+button.prRefBadge {
+  font-family: inherit !important;
+  cursor: pointer !important;
+}
+
+/* Save buttons should be blue, not purple */
+.prSaveBtn {
+  min-width: 58px !important;
+  background: #0b63ff !important;
+  border-color: #0b63ff !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 18px rgba(37, 99, 255, .13) !important;
+}
+
+.prSaveBtn:hover {
+  background: #0057e7 !important;
+}
+
+/* Donut + legend: blue / green / amber, no purple */
+.prRefDonut {
+  background:
+    conic-gradient(
+      #0b63ff 0 calc(var(--wages) * 1%),
+      #32b968 calc(var(--wages) * 1%) calc((var(--wages) + var(--overtime)) * 1%),
+      #f59e0b calc((var(--wages) + var(--overtime)) * 1%) 100%
+    ) !important;
+}
+
+.prRefLegend i.wages {
+  background: #0b63ff !important;
+}
+
+.prRefLegend i.overtime {
+  background: #32b968 !important;
+}
+
+.prRefLegend i.other {
+  background: #f59e0b !important;
+}
+
+/* Dots action menu */
+.prRowActions {
+  position: relative !important;
+  display: inline-flex !important;
+  justify-content: flex-end !important;
+}
+
+.prRowDots {
+  width: 28px !important;
+  height: 28px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 1px solid transparent !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #64748b !important;
+  font-size: 18px !important;
+  line-height: 1 !important;
+  font-weight: 900 !important;
+  cursor: pointer !important;
+}
+
+.prRowDots:hover {
+  background: #f4f7ff !important;
+  border-color: #dbe4f0 !important;
+  color: #0b63ff !important;
+}
+
+.prRowMenu {
+  position: absolute !important;
+  top: 34px !important;
+  right: 0 !important;
+  z-index: 60 !important;
+  min-width: 170px !important;
+  display: none !important;
+  padding: 6px !important;
+  border: 1px solid #dfe8f4 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, .13) !important;
+}
+
+.prRowActions.isOpen .prRowMenu {
+  display: grid !important;
+  gap: 4px !important;
+}
+
+.prRowMenu button,
+.prRowMenu a {
+  width: 100% !important;
+  min-height: 34px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 10px !important;
+  border: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  color: #263454 !important;
+  text-decoration: none !important;
+  font-size: 12px !important;
+  font-weight: 750 !important;
+  cursor: pointer !important;
+  text-align: left !important;
+}
+
+.prRowMenu button:hover,
+.prRowMenu a:hover {
+  background: #f4f7ff !important;
+  color: #0b63ff !important;
+}
+
+.prRowMenu button.danger {
+  color: #dc2626 !important;
+}
+
+.prRowMenu button.danger:hover {
+  background: #fff1f2 !important;
+  color: #dc2626 !important;
+}
+
+/* Make the weekly table look more like the reference */
+.prRefPayrollTable tbody td {
+  height: 42px !important;
+}
+
+.prRefPayrollTable .num,
+.prRefDetailsTable .num {
+  font-weight: 650 !important;
+}
+
+.prEmployeeGroupRow td {
+  padding: 11px 14px !important;
+}
+
+.prEmployeeGroupTotal {
+  font-style: normal !important;
+}
+/* =========================================================
+   TimIQ button standard — no purple anywhere
+   ========================================================= */
+
+.prRefPage {
+  --timiq-blue: #0b63ff;
+  --timiq-blue-dark: #0057e7;
+  --timiq-blue-soft: #eef4ff;
+  --timiq-border: #dbe4f0;
+}
+
+/* Primary action buttons: solid TimIQ blue */
+.prRefPage .prRefApply,
+.prRefPage .js-pr-approve-all {
+  min-height: 36px !important;
+  padding: 0 16px !important;
+  border: 1px solid var(--timiq-blue) !important;
+  border-radius: 10px !important;
+  background: linear-gradient(135deg, var(--timiq-blue), var(--timiq-blue-dark)) !important;
+  color: #ffffff !important;
+  box-shadow: 0 10px 22px rgba(37, 99, 255, .16) !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+/* Secondary action buttons: white card button with blue text */
+.prRefPage .prRefMoreFilters,
+.prRefPage .prRefMonthForm button,
+.prRefPage .prRefHeadActions a,
+.prRefPage .prRefHeadActions button,
+.prRefPage .prRefActions a,
+.prRefPage .prRefAlerts a,
+.prRefPage .prRowMenu button,
+.prRefPage .prRowMenu a {
+  border: 1px solid var(--timiq-border) !important;
+  background: #ffffff !important;
+  color: var(--timiq-blue) !important;
+  box-shadow: none !important;
+}
+
+/* Save buttons: same format as Export All / Export */
+.prRefPage .prSaveBtn {
+  min-width: 62px !important;
+  min-height: 34px !important;
+  padding: 0 12px !important;
+  border: 1px solid var(--timiq-border) !important;
+  border-radius: 10px !important;
+  background: #ffffff !important;
+  color: var(--timiq-blue) !important;
+  box-shadow: none !important;
+  font-size: 11px !important;
+  font-weight: 850 !important;
+  cursor: pointer !important;
+}
+
+.prRefPage .prSaveBtn:hover,
+.prRefPage .prRefMoreFilters:hover,
+.prRefPage .prRefMonthForm button:hover,
+.prRefPage .prRefHeadActions a:hover,
+.prRefPage .prRefHeadActions button:hover,
+.prRefPage .prRefActions a:hover {
+  background: var(--timiq-blue-soft) !important;
+  border-color: #bcd0ff !important;
+  color: var(--timiq-blue-dark) !important;
+}
+
+/* Pagination active: blue, not purple */
+.prRefPage .prRefTableFoot button.active {
+  background: var(--timiq-blue) !important;
+  border-color: var(--timiq-blue) !important;
+  color: #ffffff !important;
+}
+
+/* Remove purple from any accidental gradient/background on payroll page */
+.prRefPage [style*="#5b4dff"],
+.prRefPage [style*="#6d3df4"],
+.prRefPage [style*="#8b5cf6"],
+.prRefPage [style*="#7c3aed"],
+.prRefPage [style*="purple"] {
+  background: var(--timiq-blue) !important;
+  color: #ffffff !important;
+}
+
+/* Icons and accents that were purple become blue */
+.prRefPage .purple,
+.prRefPage .prRefKpiIcon.purple,
+.prRefPage .prRefSmallIcon.purple,
+.prRefPage .prRefTitleIcon.purple {
+  color: var(--timiq-blue) !important;
+}
+
+.prRefPage .prRefKpiIcon.purple,
+.prRefPage .prRefSmallIcon.purple,
+.prRefPage .prRefTitleIcon.purple {
+  background: var(--timiq-blue-soft) !important;
+}
+
+/* Donut chart: blue / green / amber only */
+.prRefPage .prRefDonut {
+  background:
+    conic-gradient(
+      var(--timiq-blue) 0 calc(var(--wages) * 1%),
+      #32b968 calc(var(--wages) * 1%) calc((var(--wages) + var(--overtime)) * 1%),
+      #f59e0b calc((var(--wages) + var(--overtime)) * 1%) 100%
+    ) !important;
+}
+
+.prRefPage .prRefLegend i.wages {
+  background: var(--timiq-blue) !important;
+}
+
+.prRefPage .prRefLegend i.overtime {
+  background: #32b968 !important;
+}
+
+.prRefPage .prRefLegend i.other {
+  background: #f59e0b !important;
+}
+
+/* Status badges must stay semantic, never purple */
+.prRefPage .prRefBadge.ok {
+  background: #dcfce7 !important;
+  color: #16a34a !important;
+  border: 1px solid #bbf7d0 !important;
+}
+
+.prRefPage .prRefBadge.warn {
+  background: #fff7ed !important;
+  color: #d97706 !important;
+  border: 1px solid #fed7aa !important;
+}
+
+.prRefPage .prRefBadge.bad {
+  background: #fee2e2 !important;
+  color: #ef4444 !important;
+  border: 1px solid #fecaca !important;
+}
+/* =========================================================
+   Payroll final compact white polish
+   Plain white page, small clean rows, visible donut
+   ========================================================= */
+
+/* White page, no blue/grey wash */
+html,
+body,
+body:has(.prRefPage),
+body:has(.prRefPage) .main,
+body:has(.prRefPage) main.main,
+body:has(.prRefPage) .pageContent,
+body:has(.prRefPage) .mainContent,
+body:has(.prRefPage) .content,
+body:has(.prRefPage) .appContent {
+  background: #ffffff !important;
+  background-image: none !important;
+}
+
+/* Keep only very light card borders, no heavy shadows */
+.prRefFilters,
+.prRefKpi,
+.prRefPanel,
+.prRefSidePanel {
+  background: #ffffff !important;
+  border: 1px solid #e3ebf5 !important;
+  box-shadow: none !important;
+}
+
+/* Page scale closer to the reference */
+.prRefPage {
+  max-width: 1378px !important;
+}
+
+.prRefTitle h1 {
+  font-size: 36px !important;
+  line-height: 1 !important;
+}
+
+.prRefTitle p {
+  margin-top: 8px !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+}
+
+/* Compact filter bar */
+.prRefFilters {
+  padding: 13px 14px !important;
+  margin-bottom: 14px !important;
+  border-radius: 14px !important;
+}
+
+.prRefFilterForm {
+  gap: 12px !important;
+}
+
+.prRefFilterGroup label {
+  margin-bottom: 5px !important;
+  font-size: 11px !important;
+  font-weight: 750 !important;
+}
+
+.prRefFilterGroup select,
+.prRefFilterGroup input,
+.prRefWeekBtn,
+.prRefApply,
+.prRefMoreFilters {
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 9px !important;
+  font-size: 11px !important;
+}
+
+/* KPI cards smaller and cleaner */
+.prRefKpis {
+  gap: 14px !important;
+  margin-bottom: 14px !important;
+}
+
+.prRefKpi {
+  min-height: 86px !important;
+  grid-template-columns: 46px 1fr !important;
+  gap: 12px !important;
+  padding: 14px 16px !important;
+  border-radius: 14px !important;
+}
+
+.prRefKpiIcon {
+  width: 42px !important;
+  height: 42px !important;
+}
+
+.prRefKpiIcon svg {
+  width: 21px !important;
+  height: 21px !important;
+}
+
+.prRefKpi p {
+  margin-bottom: 5px !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+}
+
+.prRefKpi strong {
+  margin-bottom: 5px !important;
+  font-size: 22px !important;
+  font-weight: 820 !important;
+}
+
+.prRefKpi em {
+  font-size: 10.5px !important;
+  font-weight: 600 !important;
+}
+
+/* Panels closer together and flatter */
+.prRefGrid,
+.prRefMain,
+.prRefSide {
+  gap: 14px !important;
+}
+
+.prRefPanel,
+.prRefSidePanel {
+  padding: 14px !important;
+  border-radius: 14px !important;
+}
+
+.prRefPanelHead {
+  margin-bottom: 10px !important;
+}
+
+.prRefPanelHead h2,
+.prRefSidePanel h2 {
+  font-size: 15px !important;
+  font-weight: 800 !important;
+}
+
+/* Header pills smaller */
+.prRefStatusPills {
+  gap: 6px !important;
+}
+
+.prRefStatusPills span,
+.prRefStatusPills button {
+  min-height: 27px !important;
+  padding: 0 10px !important;
+  border-radius: 8px !important;
+  font-size: 10.5px !important;
+  font-weight: 720 !important;
+}
+
+.prRefStatusPills .prRefDots {
+  width: 28px !important;
+}
+
+/* Tables: compact, clean, tiny visible lines */
+.prRefTableWrap {
+  border: 1px solid #e5edf6 !important;
+  border-radius: 12px !important;
+  background: #ffffff !important;
+}
+
+.prRefPayrollTable,
+.prRefDetailsTable {
+  min-width: 930px !important;
+  border-collapse: separate !important;
+  border-spacing: 0 !important;
+}
+
+.prRefPayrollTable th,
+.prRefPayrollTable td,
+.prRefDetailsTable th,
+.prRefDetailsTable td {
+  padding: 7px 10px !important;
+  border-right: 1px solid #eaf0f7 !important;
+  border-bottom: 1px solid #eaf0f7 !important;
+  font-size: 10.5px !important;
+  line-height: 1.25 !important;
+}
+
+.prRefPayrollTable thead th,
+.prRefDetailsTable thead th {
+  height: 32px !important;
+  padding: 7px 10px !important;
+  background: #fbfcfe !important;
+  color: #5d6884 !important;
+  font-size: 10px !important;
+  font-weight: 760 !important;
+}
+
+.prRefPayrollTable tbody td,
+.prRefDetailsTable tbody td {
+  height: 31px !important;
+  background: #ffffff !important;
+  color: #142044 !important;
+  font-size: 10.5px !important;
+  font-weight: 620 !important;
+}
+
+.prRefPayrollTable .emp strong,
+.prRefDetailsTable .emp strong {
+  font-size: 10.5px !important;
+  font-weight: 760 !important;
+}
+
+.prRefPayrollTable .emp span,
+.prRefDetailsTable .emp span {
+  margin-top: 2px !important;
+  font-size: 8.8px !important;
+  font-weight: 650 !important;
+}
+
+.prRefPayrollTable .num,
+.prRefDetailsTable .num {
+  font-size: 10.5px !important;
+  font-weight: 620 !important;
+}
+
+/* Status badges smaller */
+.prRefBadge {
+  min-width: 72px !important;
+  min-height: 21px !important;
+  padding: 0 8px !important;
+  border-radius: 7px !important;
+  font-size: 9.5px !important;
+  font-weight: 760 !important;
+}
+
+/* Dots smaller */
+.prRowDots {
+  width: 24px !important;
+  height: 24px !important;
+  font-size: 16px !important;
+}
+
+/* Table footer smaller */
+.prRefTableFoot {
+  min-height: 34px !important;
+  padding-top: 8px !important;
+  font-size: 10.5px !important;
+}
+
+.prRefTableFoot button {
+  width: 24px !important;
+  height: 24px !important;
+  border-radius: 7px !important;
+  font-size: 10px !important;
+}
+
+/* Monthly summary compact */
+.prRefMonthlyStats div {
+  min-height: 50px !important;
+  gap: 4px !important;
+}
+
+.prRefMonthlyStats span {
+  font-size: 10px !important;
+  font-weight: 700 !important;
+}
+
+.prRefMonthlyStats strong {
+  font-size: 13px !important;
+  font-weight: 800 !important;
+}
+
+.prRefMonthForm input {
+  height: 34px !important;
+  border-radius: 9px !important;
+  font-size: 11px !important;
+}
+
+.prRefMonthForm button,
+.prRefHeadActions a,
+.prRefHeadActions button {
+  min-height: 34px !important;
+  border-radius: 9px !important;
+  font-size: 11px !important;
+}
+
+/* Employee details compact rows */
+.prEmployeeGroupRow td {
+  height: 30px !important;
+  padding: 7px 10px !important;
+  background: #fbfcfe !important;
+}
+
+.prEmployeeGroup {
+  min-height: 22px !important;
+  gap: 8px !important;
+}
+
+.prEmployeeGroup strong {
+  font-size: 10.8px !important;
+  font-weight: 780 !important;
+}
+
+.prEmployeeGroup span {
+  font-size: 8.8px !important;
+  font-weight: 650 !important;
+}
+
+.prEmployeeGroupTotal {
+  font-size: 10px !important;
+  font-weight: 760 !important;
+  font-style: normal !important;
+}
+
+.prMutedRow td {
+  height: 29px !important;
+  padding: 7px 10px !important;
+  color: #8b98b2 !important;
+  font-size: 10px !important;
+  font-weight: 600 !important;
+}
+
+/* Editable fields should look like table values until focused */
+.prEditInput {
+  width: 58px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 5px !important;
+  border: 1px solid transparent !important;
+  border-radius: 6px !important;
+  background: transparent !important;
+  color: #111b3f !important;
+  font-size: 10.5px !important;
+  font-weight: 650 !important;
+}
+
+.prEditInput.time {
+  width: 62px !important;
+}
+
+.prEditInput:focus {
+  background: #ffffff !important;
+  border-color: #bcd0ff !important;
+  box-shadow: 0 0 0 2px rgba(11, 99, 255, .08) !important;
+}
+
+/* Save button same style as Export buttons, no purple */
+.prSaveBtn {
+  min-width: 50px !important;
+  min-height: 26px !important;
+  height: 26px !important;
+  padding: 0 9px !important;
+  border: 1px solid #dbe4f0 !important;
+  border-radius: 8px !important;
+  background: #ffffff !important;
+  color: #0b63ff !important;
+  box-shadow: none !important;
+  font-size: 10px !important;
+  font-weight: 780 !important;
+}
+
+.prSaveBtn:hover {
+  background: #eef4ff !important;
+  border-color: #bcd0ff !important;
+}
+
+/* Right side panels compact */
+.prRefSummaryList div {
+  min-height: 29px !important;
+  font-size: 10.8px !important;
+}
+
+.prRefActions a,
+.prRefAlerts a {
+  min-height: 50px !important;
+  padding: 9px !important;
+  border-radius: 10px !important;
+}
+
+.prRefActions strong,
+.prRefAlerts strong {
+  font-size: 10.8px !important;
+  font-weight: 780 !important;
+}
+
+.prRefActions em,
+.prRefAlerts em {
+  font-size: 10px !important;
+}
+
+/* FIX DONUT: use percentage variables directly, not invalid calc(var * 1%) */
+.prRefDonut {
+  width: 126px !important;
+  height: 126px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  transform: none !important;
+  background:
+    conic-gradient(
+      #0b63ff 0 var(--wages),
+      #32b968 var(--wages) calc(var(--wages) + var(--overtime)),
+      #f59e0b calc(var(--wages) + var(--overtime)) 100%
+    ) !important;
+}
+
+.prRefDonut > div {
+  width: 76px !important;
+  height: 76px !important;
+}
+
+.prRefDonut strong {
+  font-size: 12px !important;
+}
+
+.prRefDonut span {
+  font-size: 9px !important;
+}
+
+.prRefDonutWrap {
+  grid-template-columns: 126px 1fr !important;
+  gap: 14px !important;
+}
+
+.prRefLegend {
+  gap: 10px !important;
+}
+
+.prRefLegend div {
+  font-size: 10.5px !important;
+}
+
+.prRefLegend strong {
+  font-size: 10.5px !important;
+}
+
+/* No purple anywhere in payroll */
+.prRefPage .prRefApply,
+.prRefPage .js-pr-approve-all {
+  background: linear-gradient(135deg, #0b63ff, #0057e7) !important;
+  border-color: #0b63ff !important;
+  color: #ffffff !important;
+}
+
+.prRefPage .prRefMonthForm button,
+.prRefPage .prRefHeadActions a,
+.prRefPage .prRefHeadActions button,
+.prRefPage .prSaveBtn {
+  background: #ffffff !important;
+  color: #0b63ff !important;
+  border-color: #dbe4f0 !important;
+  box-shadow: none !important;
+}
+
+.prRefPage .prRefMonthForm button:hover,
+.prRefPage .prRefHeadActions a:hover,
+.prRefPage .prRefHeadActions button:hover,
+.prRefPage .prSaveBtn:hover {
+  background: #eef4ff !important;
+  border-color: #bcd0ff !important;
+}
+/* =========================================================
+   Payroll full-width white layout fix
+   ========================================================= */
+
+html,
+body,
+body:has(.prRefPage),
+body:has(.prRefPage) .main,
+body:has(.prRefPage) main.main {
+  background: #ffffff !important;
+  background-image: none !important;
+}
+
+body:has(.prRefPage) .main,
+body:has(.prRefPage) main.main {
+  width: 100% !important;
+  max-width: none !important;
+  padding: 24px 32px 42px 32px !important;
+  box-sizing: border-box !important;
+}
+
+.prRefPage {
+  width: 100% !important;
+  max-width: none !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.prRefGrid {
+  width: 100% !important;
+  grid-template-columns: minmax(0, 1fr) 330px !important;
+  align-items: start !important;
+}
+
+.prRefMain,
+.prRefSide {
+  min-width: 0 !important;
+}
+
+.prRefFilters,
+.prRefKpi,
+.prRefPanel,
+.prRefSidePanel {
+  background: #ffffff !important;
+  box-shadow: none !important;
+  border: 1px solid #e3ebf5 !important;
+}
+
+@media (min-width: 1600px) {
+  body:has(.prRefPage) .main,
+  body:has(.prRefPage) main.main {
+    padding-left: 36px !important;
+    padding-right: 36px !important;
+  }
+
+  .prRefGrid {
+    grid-template-columns: minmax(0, 1fr) 350px !important;
+  }
+}
+
+@media (min-width: 1900px) {
+  .prRefGrid {
+    grid-template-columns: minmax(0, 1fr) 370px !important;
+  }
+}
+/* =========================================================
+   Donut chart reliable render
+   ========================================================= */
+
+.prRefDonut {
+  position: relative !important;
+  width: 126px !important;
+  height: 126px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  background: transparent !important;
+  overflow: hidden !important;
+}
+
+.prRefDonut::before {
+  content: "" !important;
+  position: absolute !important;
+  inset: 0 !important;
+  border-radius: 50% !important;
+  background:
+    conic-gradient(
+      #0b63ff 0 var(--wages),
+      #32b968 var(--wages) calc(var(--wages) + var(--overtime)),
+      #f59e0b calc(var(--wages) + var(--overtime)) 100%
+    ) !important;
+}
+
+.prRefDonut > div {
+  position: relative !important;
+  z-index: 2 !important;
+  width: 76px !important;
+  height: 76px !important;
+  display: grid !important;
+  place-items: center !important;
+  align-content: center !important;
+  border-radius: 50% !important;
+  background: #ffffff !important;
+  text-align: center !important;
+}
+
+.prRefDonut strong {
+  color: #111b3f !important;
+  font-size: 12px !important;
+  font-weight: 850 !important;
+}
+
+.prRefDonut span {
+  color: #64748b !important;
+  font-size: 9px !important;
+  font-weight: 650 !important;
+}
+/* =========================================================
+   Employee Payroll Details: summary row + expandable week
+   ========================================================= */
+
+.prEmployeeDetailLine.isHidden,
+.prMutedRow.isHidden {
+  display: none !important;
+}
+
+.prEmployeeSummaryRow td {
+  height: 32px !important;
+  padding: 7px 10px !important;
+  background: #ffffff !important;
+  border-bottom: 1px solid #eaf0f7 !important;
+  cursor: pointer !important;
+}
+
+.prEmployeeSummaryRow:hover td {
+  background: #fbfdff !important;
+}
+
+.prEmployeeSummaryRow.isOpen td {
+  background: #fbfdff !important;
+}
+
+.prDetailToggle {
+  width: 22px !important;
+  height: 22px !important;
+  display: grid !important;
+  place-items: center !important;
+  border: 0 !important;
+  border-radius: 7px !important;
+  background: transparent !important;
+  color: #53617b !important;
+  font-size: 17px !important;
+  line-height: 1 !important;
+  font-weight: 850 !important;
+  cursor: pointer !important;
+  transform: rotate(0deg) !important;
+  transition: transform .16s ease, background .16s ease, color .16s ease !important;
+}
+
+.prDetailToggle:hover {
+  background: #eef4ff !important;
+  color: #0b63ff !important;
+}
+
+.prDetailToggle[aria-expanded="true"] {
+  transform: rotate(90deg) !important;
+  color: #0b63ff !important;
+}
+
+.prEmployeeSummaryRow .emp strong {
+  display: inline-block !important;
+  color: #111b3f !important;
+  font-size: 10.8px !important;
+  font-weight: 780 !important;
+}
+
+.prEmployeeSummaryRow .emp span {
+  display: inline-block !important;
+  margin-left: 8px !important;
+  color: #64748b !important;
+  font-size: 8.8px !important;
+  font-weight: 650 !important;
+  text-transform: uppercase !important;
+}
+
+.prEmployeeSummaryRow .num {
+  color: #111b3f !important;
+  font-size: 10.5px !important;
+  font-weight: 750 !important;
+}
+
+.prEmployeeDetailLine td {
+  height: 30px !important;
+  padding: 6px 10px !important;
+  background: #ffffff !important;
+  color: #142044 !important;
+  font-size: 10.3px !important;
+  font-weight: 600 !important;
+}
+
+.prEmployeeDetailLine .prEditInput {
+  font-size: 10.3px !important;
+  font-weight: 600 !important;
+}
+
+.prEmployeeDetailLine .prSaveBtn {
+  min-width: 48px !important;
+  height: 25px !important;
+  min-height: 25px !important;
+  padding: 0 8px !important;
+  border-radius: 8px !important;
+  font-size: 9.8px !important;
+}
+/* =========================================================
+   NUMBERS ALIGNMENT FIX
+   ========================================================= */
+
+.prRefKpiValue,
+.prRefMoney,
+.prRefBigMoney,
+.prRefMetricValue,
+.prRefSummaryValue,
+.prRefTable td.num,
+.prRefTable th.num,
+.prRefWeeklyTable td.num,
+.prRefWeeklyTable th.num,
+.prRefDetailsTable td.num,
+.prRefDetailsTable th.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+.prRefSidePanel .prRefSummaryRow,
+.prRefPayrollSummaryRow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.prRefSidePanel .prRefSummaryRow span:first-child,
+.prRefPayrollSummaryRow span:first-child {
+  color: #63708a !important;
+  font-weight: 650 !important;
+}
+
+.prRefSidePanel .prRefSummaryRow span:last-child,
+.prRefPayrollSummaryRow span:last-child {
+  min-width: 88px !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+  color: #0f1b44 !important;
+  font-weight: 760 !important;
+}
+/* =========================================================
+   NUMBERS ALIGNMENT FIX
+   ========================================================= */
+
+.prRefKpiValue,
+.prRefMoney,
+.prRefBigMoney,
+.prRefMetricValue,
+.prRefSummaryValue,
+.prRefTable td.num,
+.prRefTable th.num,
+.prRefWeeklyTable td.num,
+.prRefWeeklyTable th.num,
+.prRefDetailsTable td.num,
+.prRefDetailsTable th.num {
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+}
+
+.prRefSidePanel .prRefSummaryRow,
+.prRefPayrollSummaryRow {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 16px !important;
+}
+
+.prRefSidePanel .prRefSummaryRow span:first-child,
+.prRefPayrollSummaryRow span:first-child {
+  color: #63708a !important;
+  font-weight: 650 !important;
+}
+
+.prRefSidePanel .prRefSummaryRow span:last-child,
+.prRefPayrollSummaryRow span:last-child {
+  min-width: 88px !important;
+  text-align: right !important;
+  font-variant-numeric: tabular-nums !important;
+  font-feature-settings: "tnum" 1, "lnum" 1 !important;
+  color: #0f1b44 !important;
+  font-weight: 760 !important;
+}
+/* Final payroll status-chip fix */
+.prRefStatusPills span,
+.prRefStatusPills span.ok,
+.prRefStatusPills span.warn,
+.prRefStatusPills span.bad {
+  background: #ffffff !important;
+  border: 1px solid #dbe4f0 !important;
+  color: #42506b !important;
+  box-shadow: none !important;
+}
+
+.prRefStatusPills span.bad {
+  background: #ffffff !important;
+  border-color: #dbe4f0 !important;
+  color: #42506b !important;
+}
+
+.prRefStatusPills span.bad::before {
+  background: #ef4444 !important;
+}

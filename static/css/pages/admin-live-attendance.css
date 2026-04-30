@@ -1,0 +1,391 @@
+.liveAttendancePage {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.liveBreadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.liveBreadcrumb a {
+  color: #46516d;
+  text-decoration: none;
+}
+
+.liveHeader {
+  display: flex;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: flex-start;
+}
+
+.liveHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+}
+
+.liveHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.liveHeaderActions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.liveBadge {
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 9px;
+  background: #eeeaff;
+  color: #5b3ff4;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: .035em;
+  white-space: nowrap;
+}
+
+.liveGhostButton,
+.livePrimaryButton {
+  min-height: 38px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 14px;
+  border-radius: 11px;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.liveGhostButton {
+  color: #293553;
+  background: #fff;
+  border: 1px solid #e3e8f4;
+}
+
+.livePrimaryButton {
+  color: #fff;
+  background: linear-gradient(135deg, #5b3ff4, #6848ff);
+  border: 1px solid transparent;
+  box-shadow: 0 12px 28px rgba(91, 63, 244, .22);
+}
+
+.liveMetricGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.liveMetricCard {
+  min-height: 132px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 20px;
+  background: rgba(255,255,255,.94);
+  border: 1px solid #e3e8f4;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(22,34,66,.05);
+}
+
+.liveMetricIcon {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+  border-radius: 18px;
+  font-size: 24px;
+  font-weight: 900;
+}
+
+.liveMetricIcon.green {
+  background: #ecfdf3;
+  color: #16a34a;
+}
+
+.liveMetricIcon.purple {
+  background: #f1eeff;
+  color: #5b3ff4;
+}
+
+.liveMetricIcon.orange {
+  background: #fff7ed;
+  color: #ea580c;
+}
+
+.liveMetricLabel {
+  color: #303a59;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+.liveMetricValue {
+  margin-top: 8px;
+  color: #11183a;
+  font-size: 36px;
+  line-height: 1;
+  font-weight: 900;
+  letter-spacing: -0.04em;
+}
+
+.liveMetricSub {
+  margin-top: 8px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.liveMainGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 22px;
+  align-items: start;
+}
+
+.livePanel {
+  background: rgba(255,255,255,.94);
+  border: 1px solid #e3e8f4;
+  border-radius: 18px;
+  box-shadow: 0 10px 28px rgba(22,34,66,.05);
+  padding: 18px;
+}
+
+.livePanelHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.livePanelHeader h2 {
+  margin: 0;
+  color: #11183a;
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.livePanelHeader p {
+  margin: 6px 0 0;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+
+.liveTableShell {
+  overflow: auto;
+  border: 1px solid #e3e8f4;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.liveTable {
+  width: 100%;
+  min-width: 1120px;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.liveTable th {
+  height: 48px;
+  padding: 0 16px;
+  background: #fbfcff;
+  color: #66718b;
+  border-bottom: 1px solid #e3e8f4;
+  font-size: 12px;
+  font-weight: 900;
+  text-align: left;
+}
+
+.liveTable td {
+  padding: 14px 16px;
+  border-bottom: 1px solid #eef2f8;
+  color: #25304e;
+  font-size: 13px;
+  font-weight: 750;
+  vertical-align: middle;
+}
+
+.liveTable tr:last-child td {
+  border-bottom: 0;
+}
+
+.liveUserName {
+  color: #17203d;
+  font-weight: 900;
+}
+
+.liveUserMeta {
+  margin-top: 4px;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.liveStatus {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0 11px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.liveStatus span {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.liveStatus.isLive {
+  color: #16a34a;
+  background: #ecfdf3;
+}
+
+.liveStatus.isLive span {
+  background: #22b35b;
+}
+
+.liveStatus.isIdle {
+  color: #ea580c;
+  background: #fff7ed;
+}
+
+.liveStatus.isIdle span {
+  background: #fb923c;
+}
+
+.liveAgent {
+  max-width: 280px;
+  white-space: normal;
+  word-break: break-word;
+  color: #68748f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.liveDangerButton {
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 10px;
+  background: #fff1f2;
+  color: #e11d48;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.liveEmpty {
+  padding: 20px;
+  color: #68748f;
+  text-align: center;
+  font-weight: 800;
+}
+
+.liveSideStack {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.liveSideItem {
+  min-height: 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid #eef2f8;
+}
+
+.liveSideItem:last-child {
+  border-bottom: 0;
+}
+
+.liveSideLeft {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.liveDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 999px;
+}
+
+.liveDot.green {
+  background: #22b35b;
+}
+
+.liveDot.orange {
+  background: #fb923c;
+}
+
+.liveDot.purple {
+  background: #5b3ff4;
+}
+
+.liveSideLabel {
+  color: #46516d;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.liveSideValue {
+  color: #11183a;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+@media (max-width: 1180px) {
+  .liveMetricGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .liveMainGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 720px) {
+  .liveHeader {
+    flex-direction: column;
+  }
+
+  .liveHeader h1 {
+    font-size: 34px;
+  }
+
+  .liveMetricGrid {
+    grid-template-columns: 1fr;
+  }
+}

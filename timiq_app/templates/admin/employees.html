@@ -1,0 +1,307 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-employees.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
+
+<div class="employeesPage">
+  <div class="employeesBreadcrumb">
+    <a href="/admin">Management</a>
+    <span>›</span>
+    <span>Employees</span>
+  </div>
+
+  <div class="employeesHeader">
+    <div>
+      <h1>Manage Employees</h1>
+      <p>Create employee logins, update rates, reset passwords and manage access.</p>
+    </div>
+    <div class="employeesBadge">ADMIN</div>
+  </div>
+
+  {% if msg %}
+    <div class="employeesMessage {% if not ok %}error{% endif %}">
+      {{ msg }}
+    </div>
+  {% endif %}
+
+  {% if reset_ok and reset_user %}
+    <div class="employeesMessage">
+      Password was updated successfully for {{ reset_user }}.
+    </div>
+  {% endif %}
+
+  <div class="employeesMetrics">
+    <div class="employeeMetric">
+      <div class="employeeMetricIcon">👥</div>
+      <div>
+        <strong>{{ employees_total }}</strong>
+        <span>Employees listed</span>
+      </div>
+    </div>
+
+    <div class="employeeMetric">
+      <div class="employeeMetricIcon green">＋</div>
+      <div>
+        <strong>{{ role_count }}</strong>
+        <span>Assignable roles</span>
+      </div>
+    </div>
+
+    <div class="employeeMetric">
+      <div class="employeeMetricIcon orange">▦</div>
+      <div>
+        <strong>{{ wp }}</strong>
+        <span>Current workplace</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="employeesLayout">
+    <div class="employeesStack">
+      <section class="employeesPanel">
+        <div class="employeesPanelHeader">
+          <div class="employeesPanelTitle">
+            <div class="employeesPanelIcon green">＋</div>
+            <div>
+              <h2>Create Employee</h2>
+              <p>Creates a username automatically and generates a temporary password.</p>
+            </div>
+          </div>
+        </div>
+
+        <form method="POST">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+
+          <div class="employeeFormGrid">
+            <div class="employeeField">
+              <label>First name</label>
+              <input name="first" placeholder="e.g. John" required>
+            </div>
+
+            <div class="employeeField">
+              <label>Last name</label>
+              <input name="last" placeholder="e.g. Smith" required>
+            </div>
+
+            <div class="employeeField">
+              <label>Role</label>
+              <select name="role" required>
+                {{ role_select_options_html|safe }}
+              </select>
+            </div>
+
+            <div class="employeeField">
+              <label>Hourly rate</label>
+              <input name="rate" placeholder="e.g. 25">
+            </div>
+
+            <div class="employeeField">
+              <label>Tax %</label>
+              <input name="tax_rate" placeholder="Blank = company default, e.g. 20">
+            </div>
+          </div>
+
+          <button class="employeeSubmit" type="submit">Create employee</button>
+        </form>
+
+        <div class="employeeNote">
+          Creates the user inside Workplace_ID <strong>{{ wp }}</strong>.
+        </div>
+      </section>
+
+      {% if created %}
+        <section class="employeesPanel">
+          <div class="employeesPanelHeader">
+            <div class="employeesPanelTitle">
+              <div class="employeesPanelIcon green">✓</div>
+              <div>
+                <h2>Employee Created</h2>
+                <p>Give these login details to the employee.</p>
+              </div>
+            </div>
+          </div>
+
+          <div class="createdLoginBox">
+            <div><strong>Username:</strong> {{ created.u }}</div>
+            <div><strong>Workplace ID:</strong> {{ created.wp }}</div>
+            <div><strong>Temp password:</strong> {{ created.p }}</div>
+          </div>
+        </section>
+      {% endif %}
+
+      <section class="employeesPanel">
+        <div class="employeesPanelHeader">
+          <div class="employeesPanelTitle">
+            <div class="employeesPanelIcon">⚙</div>
+            <div>
+              <h2>Update Employee</h2>
+              <p>Update role, hourly rate, tax rate or early access.</p>
+            </div>
+          </div>
+        </div>
+
+        <form method="POST">
+          <input type="hidden" name="csrf" value="{{ csrf }}">
+
+          <div class="employeeField">
+            <label>Username</label>
+            <select name="edit_username" required>
+              {{ employee_options_html|safe }}
+            </select>
+          </div>
+
+          <div class="employeeFormGrid">
+            <div class="employeeField">
+              <label>New role</label>
+              <select name="edit_role">
+                <option value="">Leave blank to keep existing</option>
+                {{ update_role_options_html|safe }}
+              </select>
+            </div>
+
+            <div class="employeeField">
+              <label>New hourly rate</label>
+              <input name="edit_rate" placeholder="Leave blank to keep existing">
+            </div>
+
+            <div class="employeeField">
+              <label>New Tax %</label>
+              <input name="edit_tax_rate" placeholder="Blank = keep existing, e.g. 20">
+            </div>
+
+            <div class="employeeField">
+              <label>Early Access</label>
+              <select name="edit_early_access">
+                <option value="">Keep current</option>
+                <option value="TRUE">Enabled</option>
+                <option value="FALSE">Disabled</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="employeeButtonRow">
+            <button class="employeeSoftButton" type="submit" name="action" value="update">Save changes</button>
+
+            <button class="employeeDangerButton" type="submit" name="action" value="deactivate"
+                    onclick="return confirm('Deactivate this employee?')">
+              Deactivate
+            </button>
+
+            <button class="employeeSoftButton" type="submit" name="action" value="reactivate"
+                    onclick="return confirm('Reactivate this employee?')">
+              Reactivate
+            </button>
+          </div>
+        </form>
+      </section>
+    </div>
+
+    <div class="employeesStack">
+      {% if is_master_admin %}
+        <section class="employeesPanel">
+          <div class="employeesPanelHeader">
+            <div class="employeesPanelTitle">
+              <div class="employeesPanelIcon">🔑</div>
+              <div>
+                <h2>Reset Password</h2>
+                <p>Master admin can reset passwords for users in the current workplace.</p>
+              </div>
+            </div>
+          </div>
+
+          <form method="POST" action="/admin/employees/reset-password">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+
+            <div class="employeeField">
+              <label>Username</label>
+              <select name="username" required>
+                {{ employee_options_html|safe }}
+              </select>
+            </div>
+
+            <div class="employeeField">
+              <label>New password</label>
+              <input type="password" name="new_password" minlength="8" required>
+            </div>
+
+            <button class="employeeSoftButton" type="submit">Reset password</button>
+          </form>
+        </section>
+      {% endif %}
+
+      <section class="employeesPanel">
+        <div class="employeesPanelHeader">
+          <div class="employeesPanelTitle">
+            <div class="employeesPanelIcon">▦</div>
+            <div>
+              <h2>Employees</h2>
+              <p>Employees in this workplace.</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="employeesTableShell">
+          <table class="employeesTable">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Username</th>
+                <th>Role</th>
+                <th>Early Access</th>
+                <th class="num">Rate</th>
+                <th class="num">Tax %</th>
+              </tr>
+            </thead>
+            <tbody>
+              {{ table_rows|safe }}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {% if is_master_admin %}
+        <section class="employeesPanel">
+          <div class="employeesPanelHeader">
+            <div class="employeesPanelTitle">
+              <div class="employeesPanelIcon red">!</div>
+              <div>
+                <h2>Clear / Delete Employee</h2>
+                <p>Clear timesheet history or delete the employee completely.</p>
+              </div>
+            </div>
+          </div>
+
+          <form method="POST" action="/admin/employees/clear-history">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+
+            <div class="employeeField">
+              <label>Employee</label>
+              <select name="username" required>
+                {{ employee_options_html|safe }}
+              </select>
+            </div>
+
+            <button class="employeeDangerButton" type="submit"
+                    onclick="return confirm('Clear all clock and payroll history for this employee?');">
+              Clear history
+            </button>
+          </form>
+
+          <form method="POST" action="/admin/employees/delete" style="margin-top:14px;">
+            <input type="hidden" name="csrf" value="{{ csrf }}">
+
+            <div class="employeeField">
+              <label>Delete employee</label>
+              <select name="username" required>
+                {{ delete_employee_options_html|safe }}
+              </select>
+            </div>
+
+            <button class="employeeDangerButton" type="submit"
+                    onclick="return confirm('Delete this employee completely? This cannot be undone.');">
+              Delete account
+            </button>
+          </form>
+        </section>
+      {% endif %}
+    </div>
+  </div>
+</div>
