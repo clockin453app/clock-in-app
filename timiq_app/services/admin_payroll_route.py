@@ -542,8 +542,10 @@ def admin_payroll_impl(core):
             f"<option value='{i}' {selected}>{escape(week_label(d0))}</option>"
         )
 
+    prev_two_wk = min(51, wk_offset + 2)
     prev_wk = min(51, wk_offset + 1)
     next_wk = max(0, wk_offset - 1)
+    next_two_wk = max(0, wk_offset - 2)
 
     payroll_refresh_url = url_for(
         "admin_payroll",
@@ -1869,37 +1871,32 @@ white-space:nowrap;
 
     split_other = max(0.0, overall_gross - split_wages - split_overtime)
 
+    prev_two_week_url = url_for(
+        "admin_payroll",
+        q=q,
+        wk=prev_two_wk,
+        ym=ym,
+    )
+
     prev_week_url = url_for(
         "admin_payroll",
         q=q,
-        **{
-            "from": date_from,
-            "to": date_to,
-            "wk": prev_wk,
-            "ym": ym,
-        },
+        wk=prev_wk,
+        ym=ym,
     )
 
     next_week_url = url_for(
         "admin_payroll",
         q=q,
-        **{
-            "from": date_from,
-            "to": date_to,
-            "wk": next_wk,
-            "ym": ym,
-        },
+        wk=next_wk,
+        ym=ym,
     )
 
-    csv_url = url_for(
-        "admin_payroll_report_csv",
+    next_two_week_url = url_for(
+        "admin_payroll",
         q=q,
-        **{
-            "from": date_from,
-            "to": date_to,
-            "wk": wk_offset,
-            "ym": ym,
-        },
+        wk=next_two_wk,
+        ym=ym,
     )
 
     display_date_from = date_from or week_start_str
@@ -1923,8 +1920,10 @@ white-space:nowrap;
         q=q,
         date_from=display_date_from,
         date_to=display_date_to,
+        prev_two_week_url=prev_two_week_url,
         prev_week_url=prev_week_url,
         next_week_url=next_week_url,
+        next_two_week_url=next_two_week_url,
         csv_url=csv_url,
 
         week_options_html="".join(week_options),

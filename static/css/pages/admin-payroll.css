@@ -2268,3 +2268,143 @@ body:has(.prRefPage) main.main {
 .prRefStatusPills span.bad::before {
   background: #ef4444 !important;
 }
+
+/* Payroll: compact action buttons only */
+.prRefApply {
+  height: 34px !important;
+  min-height: 34px !important;
+  padding: 0 16px !important;
+  border-radius: 9px !important;
+  background: var(--ref-primary, #0b63ff) !important;
+  border: 1px solid var(--ref-primary, #0b63ff) !important;
+  color: #fff !important;
+  font-size: 12px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 20px rgba(11, 99, 255, .14) !important;
+}
+
+.prRefStatusPills .js-pr-approve-all {
+  height: 30px !important;
+  min-height: 30px !important;
+  padding: 0 14px !important;
+  border-radius: 8px !important;
+  background: var(--ref-primary, #0b63ff) !important;
+  border: 1px solid var(--ref-primary, #0b63ff) !important;
+  color: #fff !important;
+  font-size: 11px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 8px 16px rgba(11, 99, 255, .14) !important;
+}
+
+/* Payroll: week arrow buttons smaller, no table changes */
+.prRefWeekBtn {
+  width: 34px !important;
+  height: 34px !important;
+  min-height: 34px !important;
+  border-radius: 9px !important;
+  font-size: 19px !important;
+  line-height: 1 !important;
+}
+
+/* Employee Payroll Details: compact DAILY rows only */
+.prRefDetailsTable tbody tr.prEmployeeDetailLine td {
+  height: 36px !important;
+  padding: 5px 12px !important;
+  font-size: 11px !important;
+  line-height: 1 !important;
+  vertical-align: middle !important;
+}
+
+/* Keep main employee name rows unchanged */
+.prRefDetailsTable tbody tr.prEmployeeSummaryRow td {
+  vertical-align: middle !important;
+}
+
+/* Clock In / Clock Out values aligned on the same level */
+.prRefDetailsTable tbody tr.prEmployeeDetailLine td:nth-child(3),
+.prRefDetailsTable tbody tr.prEmployeeDetailLine td:nth-child(4) {
+  text-align: center !important;
+  vertical-align: middle !important;
+}
+
+.prRefDetailsTable tbody tr.prEmployeeDetailLine td:nth-child(3) form {
+  height: 24px !important;
+  margin: 0 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  vertical-align: middle !important;
+}
+
+.prRefDetailsTable tbody tr.prEmployeeDetailLine .prEditInput.time {
+  width: 62px !important;
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: inline-block !important;
+  border: 1px solid transparent !important;
+  background: transparent !important;
+  color: #07152f !important;
+  font-size: 11px !important;
+  line-height: 24px !important;
+  font-weight: 850 !important;
+  text-align: center !important;
+  vertical-align: middle !important;
+  box-sizing: border-box !important;
+}
+
+.prRefDetailsTable tbody tr.prEmployeeDetailLine .prEditInput {
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 6px !important;
+  font-size: 11px !important;
+  line-height: 24px !important;
+}
+
+/* Smaller save button in daily rows only */
+.prRefDetailsTable tbody tr.prEmployeeDetailLine .prSaveBtn {
+  height: 24px !important;
+  min-height: 24px !important;
+  padding: 0 10px !important;
+  border-radius: 7px !important;
+  font-size: 10.5px !important;
+  line-height: 1 !important;
+}
+
+.prWeekHistoryPager {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+}
+
+.prWeekHistoryBtn,
+.prWeekHistoryCurrent {
+  width: 28px !important;
+  height: 28px !important;
+  min-width: 28px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  border-radius: 8px !important;
+  border: 1px solid #dfe7f3 !important;
+  background: #fff !important;
+  color: #33415f !important;
+  text-decoration: none !important;
+  font-size: 14px !important;
+  line-height: 1 !important;
+  font-weight: 850 !important;
+}
+
+.prWeekHistoryCurrent {
+  background: var(--ref-primary, #0b63ff) !important;
+  border-color: var(--ref-primary, #0b63ff) !important;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(11, 99, 255, .16) !important;
+}
+
+.prWeekHistoryBtn.disabled {
+  opacity: .38 !important;
+  pointer-events: none !important;
+  cursor: not-allowed !important;
+}

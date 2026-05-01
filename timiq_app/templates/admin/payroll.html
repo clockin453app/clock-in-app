@@ -177,13 +177,27 @@
         </div>
 
         <div class="prRefTableFoot">
-          <span>Showing 1 to {{ employees_count }} of {{ employees_count }} employees</span>
-          <div>
-            <button type="button">‹</button>
-            <button type="button" class="active">1</button>
-            <button type="button">›</button>
-          </div>
-        </div>
+  <span>Showing 1 to {{ employees_count }} of {{ employees_count }} employees</span>
+
+  <div class="prWeekHistoryPager">
+    <a class="prWeekHistoryBtn" href="{{ prev_two_week_url }}" title="Go back 2 weeks">‹</a>
+    <a class="prWeekHistoryBtn" href="{{ prev_week_url }}" title="Go back 1 week">‹</a>
+
+    <span class="prWeekHistoryCurrent">{{ wk_offset + 1 }}</span>
+
+    {% if wk_offset > 0 %}
+      <a class="prWeekHistoryBtn" href="{{ next_week_url }}" title="Go forward 1 week">›</a>
+    {% else %}
+      <span class="prWeekHistoryBtn disabled">›</span>
+    {% endif %}
+
+    {% if wk_offset > 1 %}
+      <a class="prWeekHistoryBtn" href="{{ next_two_week_url }}" title="Go forward 2 weeks">›</a>
+    {% else %}
+      <span class="prWeekHistoryBtn disabled">›</span>
+    {% endif %}
+  </div>
+</div>
       </section>
 
       <section class="prRefPanel prRefMonthly">
