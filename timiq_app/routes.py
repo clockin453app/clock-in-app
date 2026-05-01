@@ -660,6 +660,7 @@ from .services.report_rows import get_payroll_rows_data, get_workhours_rows_data
 from .services.clock_geo import sanitize_clock_geo, validate_recent_clock_capture, validate_user_location, get_site_config, get_active_locations, get_employee_sites, get_employee_site, haversine_m, ensure_workhours_geo_headers
 from .services.import_actions import import_onboarding_data, import_workhours_data, import_payroll_data, import_employees_data, import_settings_data, import_locations_data, import_audit_data
 from .services.clock_page_route import clock_page_impl
+from .services.live_attendance_route import live_attendance_impl
 from .services.admin_employees_route import admin_employees_impl
 from .services.admin_payroll_route import admin_payroll_impl
 from .services.my_reports_print_route import my_reports_print_impl
@@ -4502,8 +4503,10 @@ def sidebar_html(active: str, role: str) -> str:
     if role_l in ("admin", "master_admin"):
         items.append(("admin", "/admin", "Management", _svg_shield()))
 
-    if role_l == "master_admin":
+    if role_l in ("admin", "master_admin"):
         items.append(("current-sessions", "/admin/current-sessions", "Live Attendance", _icon_current_sessions(28)))
+
+    if role_l == "master_admin":
         items.append(("workplaces", "/admin/workplaces", "Companies", _icon_workplaces(28)))
 
     links = []
@@ -4587,7 +4590,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
 
     mobile_current_sessions_link = (
         '<a class="topAccountMenuItem" href="/admin/current-sessions"><span>Live Attendance</span><span class="topAccountMenuMark">›</span></a>'
-        if role == "master_admin" else ""
+        if str(role or "").strip().lower() in ("admin", "master_admin") else ""
     )
 
     mobile_work_progress_link = (
@@ -5537,54 +5540,7 @@ def admin():
 
 @routes.get("/admin/current-sessions")
 def admin_current_sessions():
-    gate = require_master_admin()
-    if gate:
-        return gate
-
-    csrf = get_csrf()
-    role = session.get("role", "master_admin")
-    rows = _list_current_live_sessions()
-
-    def ago_text(seconds: int) -> str:
-        s = max(0, int(seconds or 0))
-        if s < 60:
-            return f"{s}s ago"
-        if s < 3600:
-            return f"{s // 60}m ago"
-        return f"{s // 3600}h ago"
-
-    live_count = sum(1 for r in rows if r.get("is_live"))
-    total_count = len(rows)
-
-    session_items = []
-    for r in rows:
-        session_items.append({
-            "is_live": bool(r.get("is_live")),
-            "scope_label": "Global admin" if r.get("auth_scope") == "global_master_admin" else "Workplace login",
-            "workplace_label": r.get("workplace_id") or "default",
-            "username": r.get("username") or "",
-            "role_label": (r.get("role") or "employee").upper(),
-            "ip": r.get("ip") or "—",
-            "user_agent": r.get("user_agent") or "—",
-            "age": ago_text(r.get("age_seconds", 0)),
-            "last_seen_iso": r.get("last_seen_iso") or "—",
-            "session_key": r.get("session_key") or "",
-        })
-
-    return render_page(
-        template_name="admin/live_attendance.html",
-        active="current-sessions",
-        role=role,
-        layout_shell=layout_shell,
-        style=STYLE,
-        viewport=VIEWPORT,
-        pwa_tags=PWA_TAGS,
-        csrf=csrf,
-        ttl_seconds=LIVE_SESSION_TTL_SECONDS,
-        live_count=live_count,
-        total_count=total_count,
-        sessions=session_items,
-    )
+    return live_attendance_impl(core=globals())
 
 @routes.post("/admin/current-sessions/force-logout")
 def admin_current_sessions_force_logout():
