@@ -4596,7 +4596,22 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     mobile_work_progress_link = (
         '<a class="topAccountMenuItem" href="/work-progress"><span>Site Progress</span><span class="topAccountMenuMark">›</span></a>'
     )
+
     shell_back_html = '<span class="topShellBackPlaceholder"></span>'
+
+    breadcrumb_labels = {
+        "dashboard": "Dashboard",
+        "attendance": "Attendance",
+        "time": "Time Records",
+        "timesheets": "Timesheets",
+        "payments": "Pay History",
+        "site_progress": "Site Progress",
+        "management": "Management",
+        "live_attendance": "Live Attendance",
+        "companies": "Companies",
+    }
+
+    breadcrumb_current = breadcrumb_labels.get(str(active or "").strip(), "")
 
     back_match = re.search(
         r'<div\s+class="pageBackRow"(?P<attrs>[^>]*)>.*?</div>\s*',
@@ -4614,47 +4629,97 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
         label = html.unescape(label_match.group(1)) if label_match else "Back"
         safe_label = escape(label)
 
-        if href_match:
-            href = html.unescape(href_match.group(1))
+        if breadcrumb_current:
             shell_back_html = (
-                f'<a class="topShellBack" href="{escape(href)}" '
-                f'aria-label="{safe_label}" title="{safe_label}">← Back</a>'
+                '<nav class="topShellBreadcrumb" aria-label="Breadcrumb">'
+                '<a href="/">Dashboard</a>'
+                '<span>›</span>'
+                f'<strong>{escape(breadcrumb_current)}</strong>'
+                '</nav>'
             )
-        elif history_match:
-            shell_back_html = (
-                f'<button type="button" class="topShellBack" '
-                f'aria-label="{safe_label}" title="{safe_label}" '
-                f'onclick="window.history.back()">← Back</button>'
-            )
+        else:
+            shell_back_html = '<span class="topShellBackPlaceholder"></span>'
 
         content_html = content_html[:back_match.start()] + content_html[back_match.end():]
 
+    username = str(session.get("username") or "admin").strip() or "admin"
+
+    try:
+        display_name = get_employee_display_name(username)
+    except Exception:
+        display_name = username
+
+    role_text = str(role or "admin").replace("_", " ").title()
+
+    name_parts = [p for p in str(display_name or username).split() if p]
+    if len(name_parts) >= 2:
+        user_initials = (name_parts[0][0] + name_parts[-1][0]).upper()
+    elif name_parts:
+        user_initials = name_parts[0][:2].upper()
+    else:
+        user_initials = "AD"
+
     company_bar = f"""
-              <div class="pageTopActions">
-                {shell_back_html}
-                <div class="topAccountWrap">
-                    
-              <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
-              </button>
-              <div class="topAccountMenu">
-      <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
-      {mobile_current_sessions_link}
-      {mobile_work_progress_link}
-      <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
-      <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
-    </div>
+      <div class="pageTopActions">
+        {shell_back_html}
+
+        <div class="topShellUserTools">
+          <button class="topShellIconButton topShellBell" type="button" aria-label="Notifications">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 4a4 4 0 0 1 4 4v2.35c0 .82.22 1.63.64 2.33L18 15H6l1.36-2.32A4.45 4.45 0 0 0 8 10.35V8a4 4 0 0 1 4-4Z"></path>
+              <path d="M10 18a2 2 0 0 0 4 0"></path>
+            </svg>
+            <i>2</i>
+          </button>
+
+          <button class="topShellIconButton" type="button" aria-label="Help">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="12" cy="12" r="9"></circle>
+              <path d="M9.2 9a3 3 0 1 1 5.6 1.5c-.5.78-1.4 1.12-2 1.78-.43.44-.62.88-.62 1.72"></path>
+              <path d="M12 17h.01"></path>
+            </svg>
+          </button>
+
+          <div class="topShellUser">
+            <div class="topShellAvatar">{escape(user_initials)}</div>
+            <div class="topShellUserText">
+              <strong>{escape(display_name)}</strong>
+              <span>{escape(role_text)}</span>
+            </div>
+            <div class="topShellChevron">⌄</div>
+          </div>
+
+          <div class="topAccountWrap">
+            <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
+              <svg viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="12" cy="5" r="1.5"></circle>
+                <circle cx="12" cy="12" r="1.5"></circle>
+                <circle cx="12" cy="19" r="1.5"></circle>
+              </svg>
+            </button>
+
+            <div class="topAccountMenu">
+              <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
+              {mobile_current_sessions_link}
+              {mobile_work_progress_link}
+              <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
+              <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
             </div>
           </div>
-          <script>
+        </div>
+      </div>
+
+      <script>
       (function(){{
         if (window.__topAccountMenuBound) return;
         window.__topAccountMenuBound = true;
+
         document.addEventListener('click', function(e){{
           document.querySelectorAll('.topAccountWrap.open').forEach(function(wrap){{
             if (!wrap.contains(e.target)) wrap.classList.remove('open');
           }});
         }});
+
         document.addEventListener('keydown', function(e){{
           if (e.key === 'Escape') {{
             document.querySelectorAll('.topAccountWrap.open').forEach(function(wrap){{
@@ -4665,6 +4730,7 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
       }})();
       </script>
     """
+
 
     heartbeat_script = """
       <script>
@@ -4694,10 +4760,9 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
           {content_html}
           <div class="safeBottom"></div>
         </div>
-            </div>
+      </div>
       {heartbeat_script}
     """
-
 
 # ================= ROUTES =================
 @routes.get("/ping")

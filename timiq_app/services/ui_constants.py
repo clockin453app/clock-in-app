@@ -6270,6 +6270,273 @@ align-items:start !important;
     overflow:visible !important;
   }
 }
+/* =========================================================
+   Global page header cleanup
+   - one top-right account/header bar
+   - no old big title cards
+   - no duplicate page admin badges
+   ========================================================= */
+
+.pageTopActions {
+  min-height: 44px !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  gap: 18px !important;
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+}
+
+.topShellUserTools {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: flex-end !important;
+  gap: 12px !important;
+  margin-left: auto !important;
+}
+
+.topShellIconButton {
+  width: 38px !important;
+  height: 38px !important;
+  display: grid !important;
+  place-items: center !important;
+  position: relative !important;
+  border: 1px solid #e3eaf5 !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  color: #1e2f55 !important;
+  box-shadow: 0 8px 18px rgba(24, 39, 75, .04) !important;
+  cursor: pointer !important;
+}
+
+.topShellIconButton svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: currentColor !important;
+  fill: none !important;
+  stroke-width: 2 !important;
+  stroke-linecap: round !important;
+  stroke-linejoin: round !important;
+}
+
+.topShellBell i {
+  position: absolute !important;
+  top: -6px !important;
+  right: -5px !important;
+  min-width: 18px !important;
+  height: 18px !important;
+  display: grid !important;
+  place-items: center !important;
+  padding: 0 4px !important;
+  border-radius: 999px !important;
+  background: #ff563a !important;
+  color: #fff !important;
+  font-size: 10px !important;
+  line-height: 18px !important;
+  font-style: normal !important;
+  font-weight: 800 !important;
+}
+
+.topShellUser {
+  display: flex !important;
+  align-items: center !important;
+  gap: 11px !important;
+  padding-left: 12px !important;
+  border-left: 1px solid #e3eaf5 !important;
+}
+
+.topShellAvatar {
+  width: 42px !important;
+  height: 42px !important;
+  display: grid !important;
+  place-items: center !important;
+  border-radius: 50% !important;
+  background: var(--ref-primary, #0b63ff) !important;
+  color: #fff !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  box-shadow: 0 10px 22px rgba(11, 99, 255, .13) !important;
+}
+
+.topShellUserText {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+}
+
+.topShellUserText strong {
+  color: #11183a !important;
+  font-size: 14px !important;
+  line-height: 1.1 !important;
+  font-weight: 800 !important;
+}
+
+.topShellUserText span {
+  color: #73809c !important;
+  font-size: 12px !important;
+  line-height: 1.1 !important;
+  font-weight: 600 !important;
+}
+
+.topShellChevron {
+  color: #77839c !important;
+  font-size: 13px !important;
+}
+
+/* Existing 3-dot menu should sit on the same row */
+.topAccountTrigger {
+  width: 38px !important;
+  height: 38px !important;
+  border-radius: 12px !important;
+  background: #fff !important;
+  color: #1e2f55 !important;
+  border: 1px solid #e3eaf5 !important;
+  box-shadow: 0 8px 18px rgba(24, 39, 75, .04) !important;
+}
+
+.topAccountTrigger svg {
+  width: 18px !important;
+  height: 18px !important;
+  stroke: currentColor !important;
+  fill: currentColor !important;
+}
+
+/* Hide duplicate page-specific account areas */
+.dbRefUserTools,
+.mgRefUserTools,
+.prRefUserTools {
+  display: none !important;
+}
+
+/* Remove old admin/master badges from page title headers */
+.companiesBadge,
+.employeesBadge,
+.locationsBadge,
+.siteAccessBadge,
+.refAdminBadge,
+.mgRefMasterBadge,
+.auditBadge,
+.headerTop > .badge,
+.headerTop .badge.admin,
+.timeLogsHero .badge {
+  display: none !important;
+}
+
+/* Flatten old big title cards */
+.headerTop,
+.timeLogsHero,
+.timeLogsHero.plainSection,
+.auditHeader {
+  padding: 0 !important;
+  margin: 0 0 18px !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+/* Keep title typography consistent with the reference */
+.headerTop h1,
+.timeLogsHero h1,
+.auditHeader h1,
+.companiesHeader h1,
+.employeesHeader h1,
+.locationsHeader h1,
+.siteAccessHeader h1,
+.refPageHeader h1,
+.mgRefTitleRow h1,
+.prRefTitle h1,
+.dbRefTitle h1,
+.attHeader h1 {
+  font-family: Georgia, "Times New Roman", serif !important;
+  color: #11183a !important;
+  font-size: 42px !important;
+  line-height: 1.02 !important;
+  letter-spacing: -0.04em !important;
+  font-weight: 800 !important;
+}
+
+.headerTop p,
+.headerTop .sub,
+.timeLogsHero p,
+.timeLogsHero .sub,
+.auditHeader p,
+.companiesHeader p,
+.employeesHeader p,
+.locationsHeader p,
+.siteAccessHeader p,
+.refPageHeader p,
+.mgRefTitleRow p,
+.prRefTitle p,
+.dbRefTitle p,
+.attHeader p {
+  margin-top: 10px !important;
+  color: #68748f !important;
+  font-size: 15px !important;
+  line-height: 1.45 !important;
+  font-weight: 700 !important;
+}
+
+/* Let page header rows breathe like the dashboard reference */
+.dbRefTop,
+.mgRefHeaderTop,
+.prRefTop {
+  min-height: auto !important;
+  margin-bottom: 10px !important;
+}
+
+/* Since global topbar now owns account actions, page title rows should only contain title/subtitle */
+.mgRefTitleRow {
+  min-height: auto !important;
+}
+
+@media (max-width: 820px) {
+  .topShellUserText,
+  .topShellChevron {
+    display: none !important;
+  }
+
+  .topShellUser {
+    padding-left: 8px !important;
+  }
+
+  .topShellIconButton,
+  .topAccountTrigger {
+    width: 36px !important;
+    height: 36px !important;
+  }
+
+  .topShellAvatar {
+    width: 38px !important;
+    height: 38px !important;
+  }
+}
+
+/* Shell breadcrumb replacement for old Back pages */
+.topShellBreadcrumb {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 32px !important;
+  color: #60708f !important;
+  font-size: 13px !important;
+  font-weight: 700 !important;
+}
+
+.topShellBreadcrumb a {
+  color: #60708f !important;
+  text-decoration: none !important;
+}
+
+.topShellBreadcrumb span {
+  color: #9aa7bd !important;
+}
+
+.topShellBreadcrumb strong {
+  color: #11183a !important;
+  font-weight: 800 !important;
+}
+
 </style>
 
 """
