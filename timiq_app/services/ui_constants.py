@@ -330,6 +330,46 @@ STYLE = """
 }
 
 *{ box-sizing:border-box; }
+
+/* Prevent large black SVG/icon flash during page navigation */
+.sideIcon svg,
+.icoBox svg,
+.menuItem svg,
+.sectionIcon svg,
+.topAccountTrigger svg,
+.topShellBack svg,
+.pageBackLink svg,
+.dbRefIcon svg,
+.dbRefCard svg,
+.dbRefQuickIcon svg,
+.mgRefPanelIcon svg,
+.mgRefPanelHead svg,
+.mgRefCard svg,
+.mgRefQuickLinks svg,
+.prRefIcon svg,
+.prRefCardIcon svg,
+.prRefSideIcon svg,
+.prRefAction svg,
+.attKpiIcon svg,
+.attPanelIcon svg,
+.attSearchIcon svg,
+.attRowAction svg {
+  width: 22px !important;
+  height: 22px !important;
+  max-width: 22px !important;
+  max-height: 22px !important;
+  display: block !important;
+  flex: 0 0 auto !important;
+  stroke-width: 2 !important;
+}
+
+/* Extra safety for admin page icons before page CSS finishes loading */
+[class*="Icon"] > svg,
+[class*="icon"] > svg {
+  max-width: 28px !important;
+  max-height: 28px !important;
+}
+
 html,body{ height:100%; }
 
 body{
