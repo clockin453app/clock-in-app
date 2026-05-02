@@ -4694,10 +4694,8 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
           {content_html}
           <div class="safeBottom"></div>
         </div>
-      </div>
+            </div>
       {heartbeat_script}
-      <link rel="stylesheet" href="/static/css/timiq-reference-theme.css?v=30">
-      <link rel="stylesheet" href="/static/css/pages/admin-final-clean.css?v=12">
     """
 
 

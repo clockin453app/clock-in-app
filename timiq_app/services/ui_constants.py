@@ -9,6 +9,7 @@ PWA_TAGS = """
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
 <link rel="stylesheet" href="/static/css/timiq-reference-theme.css?v=30">
+<link rel="stylesheet" href="/static/css/pages/admin-final-clean.css?v=12">
 <script>
 (function(){
   function syncBottomNav(){
