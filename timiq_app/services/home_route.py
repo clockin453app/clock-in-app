@@ -451,26 +451,7 @@ def home_impl(core):
         except Exception:
             db_dashboard_open = None
 
-    # Sheet fallback only if DB did not provide the active start.
-    if not dashboard_active_start_iso:
-        dashboard_open_shift = find_open_shift(rows, username)
-
-        if dashboard_open_shift:
-            _, d, t = dashboard_open_shift
-
-            try:
-                start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-
-                dashboard_active_start_iso = start_dt.isoformat()
-                dashboard_active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
-                current_site_date = d
-                current_site_time = t
-
-                is_clocked_in = True
-                status_text = "Clocked In"
-                status_class = "ok"
-            except Exception:
-                pass
+    # DB-only app: do not use Google Sheet fallback for active shift state.
 
     # Sheet site-name fallback only if DB did not provide the current site.
     if not current_site_name:

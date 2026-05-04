@@ -540,19 +540,57 @@ def clock_page_impl(core):
                     msg = "Internal error while saving. Please refresh and try again."
                     msg_class = "message error"
 
-    # Active shift timer
-    rows2 = get_workhours_rows()
-    osf2 = find_open_shift(rows2, username)
+    # Active shift timer - DB ONLY
     active_start_iso = ""
     active_start_label = ""
-    if osf2:
-        _, d, t = osf2
-        try:
-            start_dt = datetime.strptime(f"{d} {t}", "%Y-%m-%d %H:%M:%S").replace(tzinfo=TZ)
-            active_start_iso = start_dt.isoformat()
-            active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
-        except Exception:
-            pass
+
+    try:
+        db_open_shift = (
+            WorkHour.query
+            .filter(
+                WorkHour.employee_email == username,
+                WorkHour.clock_in.isnot(None),
+                WorkHour.clock_out.is_(None),
+                or_(
+                    WorkHour.workplace_id == _session_workplace_id(),
+                    WorkHour.workplace == _session_workplace_id(),
+                ),
+            )
+            .order_by(WorkHour.date.desc(), WorkHour.id.desc())
+            .first()
+        )
+
+        if db_open_shift:
+            rec_date = getattr(db_open_shift, "date", None)
+            rec_clock_in = getattr(db_open_shift, "clock_in", None)
+
+            if rec_clock_in:
+                if hasattr(rec_clock_in, "date") and hasattr(rec_clock_in, "time"):
+                    start_dt = rec_clock_in
+                else:
+                    if isinstance(rec_date, str):
+                        rec_date_obj = datetime.strptime(rec_date[:10], "%Y-%m-%d").date()
+                    else:
+                        rec_date_obj = rec_date
+
+                    clock_text = str(rec_clock_in).strip()
+                    if len(clock_text) == 5:
+                        clock_text += ":00"
+
+                    start_dt = datetime.strptime(
+                        f"{rec_date_obj.isoformat()} {clock_text[:8]}",
+                        "%Y-%m-%d %H:%M:%S",
+                    )
+
+                if getattr(start_dt, "tzinfo", None) is None:
+                    start_dt = start_dt.replace(tzinfo=TZ)
+
+                active_start_iso = start_dt.isoformat()
+                active_start_label = start_dt.strftime("%Y-%m-%d %H:%M:%S")
+
+    except Exception:
+        active_start_iso = ""
+        active_start_label = ""
 
     if active_start_iso:
         timer_html = f"""
@@ -601,20 +639,20 @@ def clock_page_impl(core):
             <div class="clockHint">Tap Clock In to start your shift.</div>
             """
 
-        # Clock page mode:
-        # - if user has an open shift, this page is for clock-out
-        # - otherwise this page is for clock-in
-        clock_action_value = "out" if active_start_iso else "in"
-        clock_action_word = "clock out" if active_start_iso else "clock in"
-        clock_action_button = "CLOCK OUT" if active_start_iso else "CLOCK IN"
-        clock_action_class = "clockSecondaryAction" if active_start_iso else "clockPrimaryAction"
+    # Clock page mode:
+    # - if user has an open shift, this page is for clock-out
+    # - otherwise this page is for clock-in
+    clock_action_value = "out" if active_start_iso else "in"
+    clock_action_word = "clock out" if active_start_iso else "clock in"
+    clock_action_button = "CLOCK OUT" if active_start_iso else "CLOCK IN"
+    clock_action_class = "clockSecondaryAction" if active_start_iso else "clockPrimaryAction"
 
-        clock_title = f"Take a selfie to {clock_action_word}"
-        clock_footer_wait = f"You'll be able to <strong>{clock_action_word}</strong> after taking a selfie."
-        clock_footer_ready = f"Selfie captured. You can now <strong>{clock_action_word}</strong>."
+    clock_title = f"Take a selfie to {clock_action_word}"
+    clock_footer_wait = f"You'll be able to <strong>{clock_action_word}</strong> after taking a selfie."
+    clock_footer_ready = f"Selfie captured. You can now <strong>{clock_action_word}</strong>."
 
-        clock_footer_wait_js = json.dumps(clock_footer_wait)
-        clock_footer_ready_js = json.dumps(clock_footer_ready)
+    clock_footer_wait_js = json.dumps(clock_footer_wait)
+    clock_footer_ready_js = json.dumps(clock_footer_ready)
 
     # Map config for front-end (if site configured)
     sites_json = json.dumps(site_cfgs)
