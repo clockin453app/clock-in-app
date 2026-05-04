@@ -4622,7 +4622,6 @@ def layout_shell(active: str, role: str, content_html: str, shell_class: str = "
     if back_match:
         attrs = back_match.group("attrs") or ""
 
-
         href_match = re.search(r'data-shell-back-href="([^"]*)"', attrs)
         history_match = re.search(r'data-shell-back-history="1"', attrs)
         label_match = re.search(r'data-shell-back-label="([^"]*)"', attrs)
