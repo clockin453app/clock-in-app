@@ -409,6 +409,7 @@ def home_impl(core):
                 WorkHour.query
                 .filter(
                     WorkHour.employee_email == username,
+                    WorkHour.clock_in.isnot(None),
                     WorkHour.clock_out.is_(None),
                 )
                 .order_by(WorkHour.date.desc(), WorkHour.id.desc())
@@ -1074,7 +1075,7 @@ def home_impl(core):
           <a class="modernMetricCard clockStatusCardLink attendanceCombinedCard isClockedIn" href="/clock" title="Open clock page">
             <div class="attendanceCombinedMain">
               <div class="modernMetricLabel clockLiveLabel">
-                <span>Clocked In</span>
+                <span>Working Time</span>
                 <span class="clockLiveDot" aria-hidden="true"></span>
               </div>
               <div class="modernMetricValue liveTimeValue" id="dashboardMetricLiveTimer">00:00:00</div>

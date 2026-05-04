@@ -398,12 +398,26 @@
     <path d="M12 8v4l3 2"></path>
   </svg>
 </span>
-      <div>
+            <div>
         <div style="font-size:13px; font-weight:800; color:#68748f;">Clock Status</div>
-        <div style="font-size:24px; line-height:1.1; font-weight:900;">{{ status_text }}</div>
-        <div style="margin-top:6px; font-size:13px; font-weight:700; color:#68748f;">
-          Open attendance
-        </div>
+
+        {% if dashboard_active_start_iso %}
+          <div
+            id="employeeDashboardLiveTimer"
+            data-start="{{ dashboard_active_start_iso }}"
+            style="font-size:24px; line-height:1.1; font-weight:900; color:#07152f;"
+          >00:00:00</div>
+
+          <div style="margin-top:6px; font-size:13px; font-weight:800; color:#16a34a;">
+            Live since {{ dashboard_active_start_label[-8:-3] if dashboard_active_start_label else 'clock-in' }}
+          </div>
+        {% else %}
+          <div style="font-size:24px; line-height:1.1; font-weight:900;">{{ status_text }}</div>
+
+          <div style="margin-top:6px; font-size:13px; font-weight:700; color:#68748f;">
+            Open attendance
+          </div>
+        {% endif %}
       </div>
     </a>
 
@@ -792,4 +806,38 @@
       </div>
     </article>
   </section>
+
+    {% if dashboard_active_start_iso %}
+<script>
+  (function () {
+    const el = document.getElementById("employeeDashboardLiveTimer");
+    if (!el) return;
+
+    const startIso = el.getAttribute("data-start");
+    const start = new Date(startIso);
+
+    if (isNaN(start.getTime())) return;
+
+    function pad(n) {
+      return String(n).padStart(2, "0");
+    }
+
+    function tick() {
+      const now = new Date();
+      let diff = Math.floor((now - start) / 1000);
+      if (diff < 0) diff = 0;
+
+      const h = Math.floor(diff / 3600);
+      const m = Math.floor((diff % 3600) / 60);
+      const s = diff % 60;
+
+      el.textContent = pad(h) + ":" + pad(m) + ":" + pad(s);
+    }
+
+    tick();
+    setInterval(tick, 1000);
+  })();
+</script>
+{% endif %}
+
 </div>
