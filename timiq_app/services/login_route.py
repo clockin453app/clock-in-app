@@ -1965,13 +1965,32 @@ def login_impl(core):
       }
       /* FINAL MOBILE SHIELD + CHECKBOX CORRECTION */
 @media (max-width: 980px){
+  /* FINAL SHIELD POSITION MATCH */
+@media (max-width: 980px){
   .mobile-hero-art{
-    right:18px !important;
-    top:74px !important;
-    width:178px !important;
-    height:178px !important;
+    right:28px !important;
+    top:88px !important;
+    width:150px !important;
+    height:150px !important;
     z-index:2 !important;
   }
+
+  .mobile-shield-svg{
+    display:block !important;
+    width:100% !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+}
+
+@media (max-width: 430px){
+  .mobile-hero-art{
+    right:20px !important;
+    top:90px !important;
+    width:138px !important;
+    height:138px !important;
+  }
+}
 
   .mobile-shield-svg{
     display:block !important;
@@ -2018,10 +2037,130 @@ def login_impl(core):
     height:164px !important;
   }
 }
+/* FINAL MOBILE SHIELD DESIGN + POSITION */
+@media (max-width: 980px){
+  .mobile-hero-art{
+    position:absolute !important;
+    right:22px !important;
+    top:82px !important;
+    width:155px !important;
+    height:155px !important;
+    z-index:2 !important;
+  }
+
+  .mobile-shield-svg{
+    display:block !important;
+    width:100% !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+}
+
+@media (max-width: 430px){
+  .mobile-hero-art{
+    right:14px !important;
+    top:84px !important;
+    width:145px !important;
+    height:145px !important;
+  }
+}
+/* FINAL MOBILE SHIELD SHAPE + PLATFORM MATCH */
+@media (max-width: 980px){
+  .mobile-hero-art{
+    position:absolute !important;
+    right:16px !important;
+    top:74px !important;
+    width:170px !important;
+    height:170px !important;
+    z-index:2 !important;
+  }
+
+  .mobile-shield-svg{
+    display:block !important;
+    width:100% !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+}
+
+@media (max-width: 430px){
+  .mobile-hero-art{
+    right:10px !important;
+    top:76px !important;
+    width:160px !important;
+    height:160px !important;
+  }
+}
+/* FIX: remove mobile auto zoom + fix Remember me checkbox */
+@media (max-width: 980px){
+  html,
+  body{
+    -webkit-text-size-adjust:100% !important;
+    text-size-adjust:100% !important;
+    touch-action:manipulation !important;
+  }
+
+  input,
+  textarea,
+  select,
+  button{
+    font-size:16px !important;
+  }
+
+  .login-input{
+    font-size:16px !important;
+  }
+
+  .remember{
+    cursor:pointer !important;
+    -webkit-tap-highlight-color:transparent !important;
+  }
+
+  .remember > input[type="checkbox"]{
+    appearance:none !important;
+    -webkit-appearance:none !important;
+    box-sizing:border-box !important;
+    display:inline-grid !important;
+    place-items:center !important;
+    width:18px !important;
+    height:18px !important;
+    min-width:18px !important;
+    min-height:18px !important;
+    max-width:18px !important;
+    max-height:18px !important;
+    flex:0 0 18px !important;
+    padding:0 !important;
+    margin:0 !important;
+    border-radius:4px !important;
+    border:1.5px solid #9cb0ca !important;
+    background:#fff !important;
+    position:relative !important;
+    cursor:pointer !important;
+  }
+
+  .remember > input[type="checkbox"]::after{
+    content:"" !important;
+    width:8px !important;
+    height:4px !important;
+    border-left:2px solid #fff !important;
+    border-bottom:2px solid #fff !important;
+    transform:rotate(-45deg) translate(1px,-1px) !important;
+    opacity:0 !important;
+  }
+
+  .remember > input[type="checkbox"]:checked{
+    border-color:#0b63ff !important;
+    background:#0b63ff !important;
+  }
+
+  .remember > input[type="checkbox"]:checked::after{
+    opacity:1 !important;
+  }
+}
     </style>
     """
 
-    login_viewport = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
+    login_viewport = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">'
 
     html = f"""
     <div class="login-page">
@@ -2211,109 +2350,125 @@ def login_impl(core):
             </div>
 
             <div class="mobile-hero-art" aria-hidden="true">
-  <svg class="mobile-shield-svg" viewBox="0 0 230 220" fill="none">
+  <svg class="mobile-shield-svg" viewBox="0 0 280 240" fill="none" xmlns="http://www.w3.org/2000/svg">
     <defs>
-      <filter id="timiqShieldShadow" x="20" y="0" width="190" height="210" filterUnits="userSpaceOnUse">
-        <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#0b63ff" flood-opacity=".22"/>
+      <filter id="shieldSoftShadow" x="70" y="18" width="150" height="185" filterUnits="userSpaceOnUse">
+        <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0B63FF" flood-opacity=".18"/>
       </filter>
 
-      <radialGradient id="timiqShieldGlow" cx="50%" cy="50%" r="65%">
-        <stop offset="0" stop-color="#8fdfff" stop-opacity=".72"/>
-        <stop offset=".58" stop-color="#8fdfff" stop-opacity=".20"/>
-        <stop offset="1" stop-color="#8fdfff" stop-opacity="0"/>
+      <radialGradient id="platformGlow" cx="50%" cy="50%" r="60%">
+        <stop offset="0" stop-color="#6FD8FF" stop-opacity=".78"/>
+        <stop offset=".55" stop-color="#6FD8FF" stop-opacity=".18"/>
+        <stop offset="1" stop-color="#6FD8FF" stop-opacity="0"/>
       </radialGradient>
 
-      <linearGradient id="timiqShieldOuter" x1="48" y1="24" x2="178" y2="183" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#63c8ff"/>
-        <stop offset=".42" stop-color="#1682ff"/>
-        <stop offset="1" stop-color="#075ae9"/>
+      <linearGradient id="ringStrokeOuter" x1="50" y1="188" x2="238" y2="188" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#CDEEFF" stop-opacity=".88"/>
+        <stop offset="1" stop-color="#8CD8FF" stop-opacity=".70"/>
       </linearGradient>
 
-      <linearGradient id="timiqShieldFace" x1="72" y1="42" x2="154" y2="154" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#9fe7ff"/>
-        <stop offset=".52" stop-color="#54b5ff"/>
-        <stop offset="1" stop-color="#1d82ff"/>
+      <linearGradient id="ringStrokeInner" x1="78" y1="188" x2="210" y2="188" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#F0FBFF" stop-opacity=".92"/>
+        <stop offset="1" stop-color="#B4E7FF" stop-opacity=".82"/>
       </linearGradient>
 
-      <linearGradient id="timiqShieldRight" x1="145" y1="35" x2="190" y2="150" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#8edbff" stop-opacity=".80"/>
-        <stop offset=".45" stop-color="#2b96ff" stop-opacity=".78"/>
-        <stop offset="1" stop-color="#075ae9" stop-opacity=".95"/>
+      <linearGradient id="shieldOuter" x1="106" y1="28" x2="190" y2="178" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#71D0FF"/>
+        <stop offset=".42" stop-color="#1585FF"/>
+        <stop offset="1" stop-color="#095FF1"/>
       </linearGradient>
 
-      <linearGradient id="timiqLock" x1="92" y1="76" x2="132" y2="132" gradientUnits="userSpaceOnUse">
-        <stop offset="0" stop-color="#ffffff"/>
-        <stop offset="1" stop-color="#dbefff"/>
+      <linearGradient id="shieldFront" x1="116" y1="42" x2="171" y2="150" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#BDEEFF"/>
+        <stop offset=".42" stop-color="#6CC1FF"/>
+        <stop offset="1" stop-color="#2A8DFF"/>
+      </linearGradient>
+
+      <linearGradient id="shieldRightSide" x1="176" y1="36" x2="214" y2="156" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#A3E7FF" stop-opacity=".95"/>
+        <stop offset=".42" stop-color="#43A5FF" stop-opacity=".82"/>
+        <stop offset="1" stop-color="#0B63FF" stop-opacity=".95"/>
+      </linearGradient>
+
+      <linearGradient id="shieldGloss" x1="109" y1="40" x2="143" y2="126" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#FFFFFF" stop-opacity=".42"/>
+        <stop offset="1" stop-color="#FFFFFF" stop-opacity="0"/>
+      </linearGradient>
+
+      <linearGradient id="lockBody" x1="121" y1="94" x2="163" y2="140" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#FFFFFF"/>
+        <stop offset="1" stop-color="#DCEEFF"/>
       </linearGradient>
     </defs>
 
-    <!-- glowing platform -->
-    <ellipse cx="116" cy="183" rx="78" ry="27" fill="url(#timiqShieldGlow)"/>
-    <ellipse cx="116" cy="183" rx="83" ry="28" stroke="#bdeeff" stroke-width="3" opacity=".55"/>
-    <ellipse cx="116" cy="183" rx="64" ry="21" stroke="#e5f9ff" stroke-width="2" opacity=".92"/>
-    <ellipse cx="116" cy="183" rx="47" ry="15" stroke="#ffffff" stroke-width="1.6" opacity=".85"/>
+    <!-- platform / circles -->
+    <ellipse cx="150" cy="192" rx="88" ry="24" fill="url(#platformGlow)"/>
+    <ellipse cx="150" cy="192" rx="100" ry="29" stroke="url(#ringStrokeOuter)" stroke-width="2.8" opacity=".75"/>
+    <ellipse cx="150" cy="192" rx="80" ry="23" stroke="#DFF5FF" stroke-width="2.2" opacity=".88"/>
+    <ellipse cx="150" cy="192" rx="61" ry="17" stroke="url(#ringStrokeInner)" stroke-width="1.8" opacity=".98"/>
+    <ellipse cx="150" cy="192" rx="42" ry="12" stroke="#FFFFFF" stroke-width="1.5" opacity=".88"/>
 
-    <!-- small sparkle ring detail -->
-    <path d="M56 176C78 162 152 159 181 176" stroke="#ffffff" stroke-width="2" opacity=".72"/>
-    <path d="M78 194C100 203 147 202 168 194" stroke="#8bdcff" stroke-width="2" opacity=".45"/>
+    <!-- subtle sweep lines like template -->
+    <path d="M74 183C98 172 199 171 226 184" stroke="#FFFFFF" stroke-width="2" opacity=".52"/>
+    <path d="M95 201C118 209 181 209 204 201" stroke="#8AD9FF" stroke-width="2" opacity=".42"/>
 
     <!-- shield -->
-    <g filter="url(#timiqShieldShadow)">
+    <g filter="url(#shieldSoftShadow)">
+      <!-- main outer body -->
       <path
-        d="M116 19L181 43V91C181 137 157 171 116 196C75 171 49 137 49 91V43L116 19Z"
-        fill="url(#timiqShieldOuter)"
+        d="M150 24L206 44V92C206 136 184 171 150 194C116 171 94 136 94 92V44L150 24Z"
+        fill="url(#shieldOuter)"
       />
 
+      <!-- right 3D side -->
       <path
-        d="M116 19L181 43V91C181 137 157 171 116 196V19Z"
-        fill="url(#timiqShieldRight)"
+        d="M150 24L206 44L218 49V95C218 136 198 167 167 189L150 194V24Z"
+        fill="url(#shieldRightSide)"
         opacity=".72"
       />
 
+      <!-- front inset face -->
       <path
-        d="M116 35L163 52V91C163 124 147 149 116 169C85 149 67 124 67 91V52L116 35Z"
-        fill="url(#timiqShieldFace)"
+        d="M150 40L189 54V92C189 123 174 148 150 164C126 148 111 123 111 92V54L150 40Z"
+        fill="url(#shieldFront)"
       />
 
+      <!-- glossy left highlight -->
       <path
-        d="M116 35L163 52V91C163 101 161 111 158 120L116 69V35Z"
-        fill="#ffffff"
-        opacity=".20"
+        d="M150 40L111 54V92C111 123 126 148 150 164V40Z"
+        fill="url(#shieldGloss)"
       />
 
+      <!-- top edge shine -->
       <path
-        d="M67 52L116 35V169C85 149 67 124 67 91V52Z"
-        fill="#ffffff"
-        opacity=".12"
-      />
-
-      <path
-        d="M49 43L116 19L181 43"
-        stroke="#8fe3ff"
+        d="M94 44L150 24L206 44"
+        stroke="#9AE8FF"
         stroke-width="5"
         stroke-linejoin="round"
-        opacity=".75"
+        opacity=".82"
       />
 
-      <!-- lock, intentionally upright -->
+      <!-- right face glossy strip -->
       <path
-        d="M94 103V88C94 76.4 103.4 67 115 67C126.6 67 136 76.4 136 88V103"
-        stroke="#f8fdff"
+        d="M189 54L198 58V94C198 121 186 145 167 161L161 156C177 141 186 120 186 94V60Z"
+        fill="#D7F5FF"
+        opacity=".34"
+      />
+
+      <!-- lock shackle -->
+      <path
+        d="M129 105V91C129 79.4 138.4 70 150 70C161.6 70 171 79.4 171 91V105"
+        stroke="#F9FDFF"
         stroke-width="9"
         stroke-linecap="round"
       />
 
-      <rect
-        x="88"
-        y="99"
-        width="56"
-        height="43"
-        rx="10"
-        fill="url(#timiqLock)"
-      />
+      <!-- lock body -->
+      <rect x="123" y="101" width="54" height="42" rx="10" fill="url(#lockBody)"/>
 
-      <circle cx="116" cy="118" r="5.4" fill="#0b63ff"/>
-      <rect x="113.5" y="123" width="5" height="13" rx="2.5" fill="#0b63ff"/>
+      <!-- keyhole -->
+      <circle cx="150" cy="119" r="5.2" fill="#0B63FF"/>
+      <rect x="147.8" y="124" width="4.4" height="12.5" rx="2.2" fill="#0B63FF"/>
     </g>
   </svg>
 </div>
@@ -2402,7 +2557,7 @@ def login_impl(core):
 
               <div class="login-row">
                 <label class="remember">
-                  <input type="checkbox" name="remember" value="1" checked>
+                  <input id="remember-login" type="checkbox" name="remember" value="1" checked>
                   <span>Remember me</span>
                 </label>
 
@@ -2455,22 +2610,73 @@ def login_impl(core):
       </section>
 
       <script>
-        (function(){{
-          document.querySelectorAll("[data-password-toggle]").forEach(function(btn){{
-            btn.addEventListener("click", function(){{
-              var inputId = btn.getAttribute("data-password-toggle");
-              var input = document.getElementById(inputId);
-              if (!input) return;
+  (function(){{
+    document.querySelectorAll("[data-password-toggle]").forEach(function(btn){{
+      btn.addEventListener("click", function(){{
+        var inputId = btn.getAttribute("data-password-toggle");
+        var input = document.getElementById(inputId);
+        if (!input) return;
 
-              var hidden = input.type === "password";
-              input.type = hidden ? "text" : "password";
-              btn.classList.toggle("is-visible", hidden);
-              btn.setAttribute("aria-pressed", hidden ? "true" : "false");
-              btn.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
-            }});
-          }});
-        }})();
-      </script>
+        var hidden = input.type === "password";
+        input.type = hidden ? "text" : "password";
+        btn.classList.toggle("is-visible", hidden);
+        btn.setAttribute("aria-pressed", hidden ? "true" : "false");
+        btn.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
+      }});
+    }});
+
+    var remember = document.getElementById("remember-login");
+    var username = document.getElementById("login-username");
+    var workplace = document.getElementById("login-workplace");
+    var form = document.querySelector(".login-form");
+
+    try {{
+      var savedRemember = localStorage.getItem("timiq_remember_login") === "1";
+
+      if (remember && savedRemember) {{
+        remember.checked = true;
+
+        if (username && !username.value) {{
+          username.value = localStorage.getItem("timiq_saved_username") || "";
+        }}
+
+        if (workplace && !workplace.value) {{
+          workplace.value = localStorage.getItem("timiq_saved_workplace") || "";
+        }}
+      }}
+
+      if (remember) {{
+        remember.addEventListener("change", function(){{
+          if (!remember.checked) {{
+            localStorage.removeItem("timiq_remember_login");
+            localStorage.removeItem("timiq_saved_username");
+            localStorage.removeItem("timiq_saved_workplace");
+          }}
+        }});
+      }}
+
+      if (form && remember) {{
+        form.addEventListener("submit", function(){{
+          if (remember.checked) {{
+            localStorage.setItem("timiq_remember_login", "1");
+
+            if (username) {{
+              localStorage.setItem("timiq_saved_username", username.value || "");
+            }}
+
+            if (workplace) {{
+              localStorage.setItem("timiq_saved_workplace", workplace.value || "");
+            }}
+          }} else {{
+            localStorage.removeItem("timiq_remember_login");
+            localStorage.removeItem("timiq_saved_username");
+            localStorage.removeItem("timiq_saved_workplace");
+          }}
+        }});
+      }}
+    }} catch(e) {{}}
+  }})();
+</script>
 
     </div>
     """
