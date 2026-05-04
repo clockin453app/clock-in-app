@@ -1010,7 +1010,155 @@ def clock_page_impl(core):
         font-size: 20px;
       }}
     }} .clockFlowWrap {{ padding-top: 10px; }} .clockStep {{ padding: 22px 14px 24px; border-radius: 0 !important; }} .clockHeroTitle {{ font-size: 28px; margin-bottom: 20px; }} .clockSelfieStage {{ min-height: 240px; padding: 16px; }} .clockSelfieVideo {{ min-height: 240px; }} .clockCaptureBar {{ flex-direction: column; }} .clockGhostBtn {{ width: 100%; min-height: 58px; }} .clockPrimaryBtn {{ min-height: 62px; font-size: 18px; }} .clockPrimaryAction, .clockSecondaryAction {{ min-height: 72px; font-size: 20px; }} }}
+     
+         /* FINAL CLOCK BUTTON VISUAL FIX - must stay inside <style> */
 
+    .clockCaptureBar {{
+      gap: 12px !important;
+      padding: 14px !important;
+    }}
+
+    .clockPrimaryBtn {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 58px !important;
+      height: 58px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 10px !important;
+      border: 1px solid rgba(37, 99, 235, .22) !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #1d7cff 0%, #0f63f6 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 12px 24px rgba(15, 99, 246, .25) !important;
+      font-size: 17px !important;
+      font-weight: 900 !important;
+      cursor: pointer !important;
+    }}
+
+    .clockPrimaryBtnText,
+    .clockPrimaryBtnArrow {{
+      color: #ffffff !important;
+      font-weight: 900 !important;
+    }}
+
+    .clockPrimaryBtnArrow {{
+      font-size: 24px !important;
+      line-height: 1 !important;
+      margin-top: -2px !important;
+    }}
+
+    .clockGhostBtn {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 48px !important;
+      height: 48px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: 1px solid #d6e3f5 !important;
+      border-radius: 14px !important;
+      background: #ffffff !important;
+      color: #2563eb !important;
+      box-shadow: 0 5px 14px rgba(15, 23, 42, .06) !important;
+      font-size: 15px !important;
+      font-weight: 800 !important;
+      cursor: pointer !important;
+    }}
+
+    .clockGhostBtn[disabled] {{
+      opacity: .45 !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+      background: #f8fafc !important;
+      color: #94a3b8 !important;
+    }}
+
+    .clockActionStack {{
+      gap: 12px !important;
+    }}
+
+    .clockPrimaryAction {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 58px !important;
+      height: 58px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: 1px solid rgba(22, 163, 74, .25) !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 12px 24px rgba(22, 163, 74, .22) !important;
+      font-size: 17px !important;
+      font-weight: 900 !important;
+      text-transform: uppercase !important;
+      cursor: pointer !important;
+    }}
+
+    .clockSecondaryAction {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 58px !important;
+      height: 58px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: 1px solid rgba(220, 38, 38, .25) !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #ef4444 0%, #dc2626 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 12px 24px rgba(220, 38, 38, .20) !important;
+      font-size: 17px !important;
+      font-weight: 900 !important;
+      text-transform: uppercase !important;
+      cursor: pointer !important;
+    }}
+
+    .clockPrimaryAction[disabled],
+    .clockSecondaryAction[disabled] {{
+      opacity: .55 !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+    }}
+
+    .clockBackLink {{
+      min-height: 42px !important;
+      padding: 0 18px !important;
+      border: 1px solid #d6e3f5 !important;
+      border-radius: 999px !important;
+      background: #ffffff !important;
+      color: #2563eb !important;
+      box-shadow: 0 5px 14px rgba(15, 23, 42, .06) !important;
+      font-size: 14px !important;
+      font-weight: 800 !important;
+      cursor: pointer !important;
+    }}
+
+    @media (max-width: 640px) {{
+      .clockCaptureBar {{
+        gap: 10px !important;
+        padding: 12px !important;
+      }}
+
+      .clockPrimaryBtn {{
+        min-height: 56px !important;
+        height: 56px !important;
+        font-size: 16px !important;
+      }}
+
+      .clockGhostBtn {{
+        min-height: 48px !important;
+        height: 48px !important;
+        font-size: 15px !important;
+      }}
+
+      .clockPrimaryAction,
+      .clockSecondaryAction {{
+        min-height: 56px !important;
+        height: 56px !important;
+        font-size: 16px !important;
+      }}
+    }}
+     
           </style>
 
           {page_back_button("/", "Back to dashboard")}
@@ -1035,7 +1183,7 @@ def clock_page_impl(core):
                     <span class="clockPrimaryBtnText">Take Selfie</span>
                     <span class="clockPrimaryBtnArrow">&#8250;</span>
                   </button>
-                  <button class="clockGhostBtn" id="retakeSelfieBtn" type="button" disabled>Retake</button>
+                  <button class="clockGhostBtn" id="retakeSelfieBtn" type="button" disabled>Retake Selfie</button>
                 </div>
               </div>
 
