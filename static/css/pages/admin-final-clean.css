@@ -417,3 +417,225 @@ a.btn {
   color: #ef4444 !important;
   border-color: #fecaca !important;
 }
+
+/* =========================================================
+   TimIQ titleless page mode v1
+   Keep only breadcrumb/navigation at top of each page.
+   ========================================================= */
+
+/* Shell spacing: breadcrumb should sit near the very top */
+body .pageTopActions {
+  min-height: 44px !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  align-items: center !important;
+}
+
+/* Standard top breadcrumb/navigation */
+.topShellBreadcrumb,
+.timiqBreadcrumb,
+.dbRefPage > .topShellBreadcrumb,
+.attBreadcrumb,
+.companiesBreadcrumb,
+.employeesBreadcrumb,
+.locationsBreadcrumb,
+.siteAccessBreadcrumb,
+.refBreadcrumb,
+.mgRefCrumbs,
+.prRefCrumbs {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 24px !important;
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  color: #68748f !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+}
+
+.topShellBreadcrumb a,
+.timiqBreadcrumb a,
+.attBreadcrumb a,
+.companiesBreadcrumb a,
+.employeesBreadcrumb a,
+.locationsBreadcrumb a,
+.siteAccessBreadcrumb a,
+.refBreadcrumb a,
+.mgRefCrumbs a,
+.prRefCrumbs a {
+  color: #68748f !important;
+  text-decoration: none !important;
+}
+
+.topShellBreadcrumb span,
+.timiqBreadcrumb span,
+.attBreadcrumb span,
+.companiesBreadcrumb span,
+.employeesBreadcrumb span,
+.locationsBreadcrumb span,
+.siteAccessBreadcrumb span,
+.refBreadcrumb span,
+.mgRefCrumbs span,
+.prRefCrumbs span {
+  color: #9aa7bd !important;
+}
+
+.topShellBreadcrumb strong,
+.timiqBreadcrumb strong,
+.attBreadcrumb strong,
+.companiesBreadcrumb strong,
+.employeesBreadcrumb strong,
+.locationsBreadcrumb strong,
+.siteAccessBreadcrumb strong,
+.refBreadcrumb strong,
+.mgRefCrumbs strong,
+.prRefCrumbs strong {
+  color: #11183a !important;
+  font-weight: 800 !important;
+}
+
+/* Remove all page title/header blocks */
+.dbRefHeader,
+.attHeader,
+.companiesHeader,
+.employeesHeader,
+.locationsHeader,
+.siteAccessHeader,
+.refPageHeader,
+.employeePageHeader,
+.workProgressHeader,
+.accountProfileHeader,
+.timeLogsHero,
+.timeLogsHero.plainSection,
+.headerTop,
+.auditHeader {
+  display: none !important;
+}
+
+/* Management and Payroll headers contain breadcrumbs, so hide only title rows */
+.mgRefTitleRow,
+.prRefTitle,
+.timiqPageTitleRow {
+  display: none !important;
+}
+
+/* Keep management/payroll header containers only as breadcrumb holders */
+.mgRefHeader,
+.prRefHeader,
+.timiqPageHeader {
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.mgRefHeaderTop,
+.prRefTop {
+  min-height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+/* Remove old badges attached to page titles */
+.companiesBadge,
+.employeesBadge,
+.locationsBadge,
+.siteAccessBadge,
+.refAdminBadge,
+.mgRefMasterBadge,
+.auditBadge,
+.headerTop > .badge,
+.headerTop .badge.admin,
+.timeLogsHero .badge,
+.timeLogsEyebrow {
+  display: none !important;
+}
+
+/* Reduce first content gap after removed titles */
+.dbRefKpis,
+.attStatsGrid,
+.companiesMetricGrid,
+.employeesMetricGrid,
+.locationsMetricGrid,
+.siteAccessMetricGrid,
+.healthHeroGrid,
+.employeeSummaryGrid,
+.workProgressPage > .workProgressPanel:first-of-type,
+.accountProfilePage > .accountPanel:first-of-type,
+.timeLogsSummaryGrid,
+.mgRefGrid,
+.prRefFilters {
+  margin-top: 0 !important;
+}
+
+/* Step 13: after breadcrumbs are moved into the shell top row,
+   old page header wrappers must not reserve empty vertical space. */
+.mgRefHeader,
+.prRefHeader {
+  display: none !important;
+}
+
+.topShellBreadcrumb {
+  margin: 0 !important;
+}
+
+/* Step 16: Payroll details full width below the two-column payroll summary area */
+.prRefPage .prRefDetailsFull {
+  width: 100% !important;
+  max-width: 100% !important;
+  margin-top: 18px !important;
+}
+
+.prRefPage .prRefDetailsFull .prRefTableWrap {
+  width: 100% !important;
+  max-width: 100% !important;
+  overflow-x: auto !important;
+}
+
+.prRefPage .prRefDetailsFull .prRefDetailsTable {
+  width: 100% !important;
+  min-width: 1100px !important;
+}
+/* Step 17 corrected v2:
+   Payroll Review shows 10 rows, all rows same visual height. */
+.prRefPage .prRefMain > .prRefPanel:first-child .prRefPayrollTable tbody tr {
+  height: 48px !important;
+}
+
+.prRefPage .prRefMain > .prRefPanel:first-child .prRefPayrollTable tbody td {
+  padding-top: 10px !important;
+  padding-bottom: 10px !important;
+  vertical-align: middle !important;
+}
+
+.prRefPage .prRefMain > .prRefPanel:first-child .prRefPayrollTable tr.prRefFillerRow td {
+  color: transparent !important;
+  background: #ffffff !important;
+  pointer-events: none !important;
+}
+
+/* Step 18 v3: keep Payroll Split card taller, but keep donut normal size */
+.prRefPage .prRefSide > .prRefSidePanel:nth-of-type(2) {
+  min-height: 245px !important;
+}
+
+.prRefPage .prRefSide > .prRefSidePanel:nth-of-type(2) .prRefDonutWrap {
+  min-height: 190px !important;
+  align-items: center !important;
+  gap: 22px !important;
+}
+
+.prRefPage .prRefSide > .prRefSidePanel:nth-of-type(2) .prRefDonut {
+  width: 118px !important;
+  height: 118px !important;
+  flex: 0 0 118px !important;
+}
+
+.prRefPage .prRefSide > .prRefSidePanel:nth-of-type(2) .prRefDonutLegend {
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+}

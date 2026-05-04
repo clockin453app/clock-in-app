@@ -1,0 +1,83 @@
+.employeePage {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.employeePageHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+  font-weight: 800;
+}
+
+.employeePageHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.employeeWeekCard {
+  max-width: 760px;
+  background: #ffffff;
+  border: 1px solid #e0e7f2;
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(18, 34, 66, .06);
+  padding: 20px;
+}
+
+.employeeWeekSection {
+  background: #f8fbff;
+  border: 1px solid #e7edf6;
+  border-radius: 16px;
+  padding: 16px;
+}
+
+.employeeWeekSection + .employeeWeekSection {
+  margin-top: 14px;
+}
+
+.employeeWeekSection h2 {
+  margin: 0 0 12px;
+  color: #11183a;
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.employeeWeekGrid {
+  display: grid;
+  grid-template-columns: 150px 1fr;
+  gap: 10px 14px;
+  align-items: start;
+}
+
+.employeeWeekLabel {
+  color: #68748f;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.employeeWeekValue {
+  color: #11183a;
+  font-size: 14px;
+  font-weight: 900;
+}
+
+@media (max-width: 640px) {
+  .employeePageHeader h1 {
+    font-size: 34px;
+  }
+
+  .employeeWeekCard {
+    padding: 14px;
+  }
+
+  .employeeWeekGrid {
+    grid-template-columns: 1fr;
+  }
+}

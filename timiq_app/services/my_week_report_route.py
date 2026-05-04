@@ -20,7 +20,7 @@ def my_week_report_impl(core):
     VIEWPORT = core["VIEWPORT"]
     PWA_TAGS = core["PWA_TAGS"]
     layout_shell = core["layout_shell"]
-    render_template_string = core["render_template_string"]
+    render_page = core["render_page"]
 
     gate = require_login()
     if gate:
@@ -115,118 +115,25 @@ def my_week_report_impl(core):
     full_period = f"{selected_week_start.strftime('%d %b %Y')} – {selected_week_end.strftime('%d %b %Y')}"
     payment_date = selected_week_end.strftime("%d/%m/%y")
 
-    page_css = """
-        <style>
-          .weekReportShell{
-            max-width: 760px;
-            margin: 0 auto;
-            padding: 8px 0 20px;
-          }
-
-          .weekReportCard{
-            background:#ffffff;
-            border:1px solid rgba(68,130,195,.10);
-            box-shadow:0 18px 36px rgba(15,23,42,.08);
-            padding:20px;
-          }
-
-          .weekReportTitle{
-            font-size:18px;
-            font-weight:900;
-            color:#3b74ad;
-            margin:0 0 18px 0;
-          }
-
-          .weekReportSection{
-            background:#f8f7ff;
-            border:1px solid rgba(68,130,195,.08);
-            padding:16px;
-            margin-top:14px;
-          }
-
-          .weekReportSectionTitle{
-            font-size:15px;
-            font-weight:900;
-            color:#111827;
-            margin:0 0 12px 0;
-          }
-
-          .weekReportGrid{
-            display:grid;
-            grid-template-columns: 140px 1fr;
-            gap:10px 14px;
-            align-items:start;
-          }
-
-          .weekReportLabel{
-            color:#6f6c85;
-            font-weight:500;
-          }
-
-          .weekReportValue{
-            color:#111827;
-            font-weight:600;
-          }
-
-          @media (max-width: 640px){
-            .weekReportGrid{
-              grid-template-columns: 1fr 1fr;
-            }
-          }
-        </style>
-        """
-
-    content = f"""
-          {page_css}
-          {page_back_button("/my-reports", "Back to timesheets")}
-
-          <div class="weekReportShell">
-            <div class="weekReportCard">
-              <h1 class="weekReportTitle">{escape(period_label)}</h1>
-
-              <div class="weekReportSection">
-                <div class="weekReportSectionTitle">General Info</div>
-                <div class="weekReportGrid">
-                  <div class="weekReportLabel">Period:</div>
-                  <div class="weekReportValue">{escape(full_period)}</div>
-
-                  <div class="weekReportLabel">Payment Date:</div>
-                  <div class="weekReportValue">{escape(payment_date)}</div>
-
-                  <div class="weekReportLabel">Company:</div>
-                  <div class="weekReportValue">{escape(company_name)}</div>
-                </div>
-              </div>
-
-              <div class="weekReportSection">
-                <div class="weekReportSectionTitle">Estimated Earnings</div>
-                <div class="weekReportGrid">
-                  <div class="weekReportLabel">Hours/Days:</div>
-                  <div class="weekReportValue">{escape(fmt_hours(week_hours))}</div>
-
-                  <div class="weekReportLabel">Rate:</div>
-                  <div class="weekReportValue">{escape(currency)}{escape(f"{rate:.2f}")}</div>
-
-                  <div class="weekReportLabel">OT Hours/Days:</div>
-                  <div class="weekReportValue">{escape(fmt_hours(overtime_hours))}</div>
-
-                  <div class="weekReportLabel">Adjustments:</div>
-                  <div class="weekReportValue">{escape(currency)}0.00</div>
-
-                  <div class="weekReportLabel">Expenses:</div>
-                  <div class="weekReportValue">{escape(currency)}0.00</div>
-
-                  <div class="weekReportLabel">Mileage:</div>
-                  <div class="weekReportValue">0</div>
-
-                  <div class="weekReportLabel">Gross Pay:</div>
-                  <div class="weekReportValue">{escape(currency)}{money(week_gross)}</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        """
-
-    return render_template_string(
-        f"{STYLE}{VIEWPORT}{PWA_TAGS}" + layout_shell("reports", role, content)
+    return render_page(
+        template_name="employee/week_report.html",
+        active="reports",
+        role=role,
+        layout_shell=layout_shell,
+        style=STYLE,
+        viewport=VIEWPORT,
+        pwa_tags=PWA_TAGS,
+        page_back_html=page_back_button("/my-reports", "Back to timesheets"),
+        display_name=display_name,
+        company_name=company_name,
+        period_label=period_label,
+        full_period=full_period,
+        payment_date=payment_date,
+        week_hours=week_hours,
+        week_gross=week_gross,
+        overtime_hours=overtime_hours,
+        rate=rate,
+        currency=currency,
+        money=money,
+        fmt_hours=fmt_hours,
     )

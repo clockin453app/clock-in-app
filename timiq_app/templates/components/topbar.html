@@ -1,0 +1,50 @@
+<div class="timiqTopbar">
+  <div class="timiqTopbarLeft"></div>
+
+  <div class="timiqTopbarRight">
+    <button class="timiqTopbarIcon timiqTopbarBell" type="button" aria-label="Notifications">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <path d="M12 4a4 4 0 0 1 4 4v2.35c0 .82.22 1.63.64 2.33L18 15H6l1.36-2.32A4.45 4.45 0 0 0 8 10.35V8a4 4 0 0 1 4-4Z"></path>
+        <path d="M10 18a2 2 0 0 0 4 0"></path>
+      </svg>
+      <i>2</i>
+    </button>
+
+    <button class="timiqTopbarIcon" type="button" aria-label="Help">
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9"></circle>
+        <path d="M9.2 9a3 3 0 1 1 5.6 1.5c-.5.78-1.4 1.12-2 1.78-.43.44-.62.88-.62 1.72"></path>
+        <path d="M12 17h.01"></path>
+      </svg>
+    </button>
+
+    <div class="timiqTopbarUser">
+      <div class="timiqTopbarAvatar">{{ user_initials }}</div>
+      <div class="timiqTopbarUserText">
+        <strong>{{ display_name }}</strong>
+        <span>{{ role_label }}</span>
+      </div>
+      <span class="timiqTopbarChevron">⌄</span>
+    </div>
+
+    <div class="topAccountWrap">
+      <button type="button" class="topAccountTrigger" aria-label="Account menu">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <circle cx="12" cy="5" r="1.5"></circle>
+          <circle cx="12" cy="12" r="1.5"></circle>
+          <circle cx="12" cy="19" r="1.5"></circle>
+        </svg>
+      </button>
+
+      <div class="topAccountMenu">
+        <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
+        {% if role in ["admin", "master_admin"] %}
+          <a class="topAccountMenuItem" href="/admin/current-sessions"><span>Live Attendance</span><span class="topAccountMenuMark">›</span></a>
+        {% endif %}
+        <a class="topAccountMenuItem" href="/work-progress"><span>Site Progress</span><span class="topAccountMenuMark">›</span></a>
+        <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
+        <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
+      </div>
+    </div>
+  </div>
+</div>

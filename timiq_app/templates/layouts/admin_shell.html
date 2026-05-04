@@ -1,0 +1,14 @@
+<div class="shell {{ shell_class|default('') }}">
+  {% include "components/sidebar.html" %}
+
+  <main class="main">
+    {% include "components/topbar.html" %}
+
+    {% if page_meta %}
+      {% include "components/page_header.html" %}
+    {% endif %}
+
+    {{ content_html|safe }}
+    <div class="safeBottom"></div>
+  </main>
+</div>

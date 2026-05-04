@@ -1,14 +1,13 @@
-<link rel="stylesheet" href="{{ url_for('static', filename='css/timiq-reference-theme.css') }}">
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-live-attendance.css') }}">
 
 {% set attendance_rate = attendance_rate|default(0) %}
 
 <div class="attPage">
   <div class="attBreadcrumb">
-    <a href="/admin">Dashboard</a>
-    <span>›</span>
-    <span>Attendance</span>
-  </div>
+  <a href="/">Dashboard</a>
+  <span>›</span>
+  <strong>Attendance</strong>
+</div>
 
   <header class="attHeader">
     <div>

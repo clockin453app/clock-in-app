@@ -1,0 +1,14 @@
+<header class="timiqPageHeader">
+  {% if page_meta.breadcrumbs %}
+    <nav class="timiqBreadcrumb" aria-label="Breadcrumb">
+      {% for crumb in page_meta.breadcrumbs %}
+        {% if not loop.first %}<span>›</span>{% endif %}
+        {% if crumb.href %}
+          <a href="{{ crumb.href }}">{{ crumb.label }}</a>
+        {% else %}
+          <strong>{{ crumb.label }}</strong>
+        {% endif %}
+      {% endfor %}
+    </nav>
+  {% endif %}
+</header>

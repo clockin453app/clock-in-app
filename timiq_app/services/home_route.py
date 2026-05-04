@@ -47,6 +47,7 @@ def home_impl(core):
     render_template_string = core["render_template_string"]
     request = core["request"]
     url_for = core["url_for"]
+
     json_mod = core["json"]
 
     get_payroll_rows = core.get("get_payroll_rows")
@@ -60,10 +61,11 @@ def home_impl(core):
         return gate
 
     username = session["username"]
-    role = session.get("role", "employee")
-
+    role = (session.get("role", "employee") or "employee").strip().lower()
 
     display_name = get_employee_display_name(username)
+
+
     settings = get_company_settings()
     currency = str(settings.get("Currency_Symbol", "£") or "£")
 
@@ -3881,8 +3883,14 @@ showLocating();
                 "actor": "",
             })
 
+    dashboard_template = (
+        "admin/dashboard.html"
+        if role in ("admin", "master_admin")
+        else "employee/dashboard.html"
+    )
+
     return render_page(
-        template_name="admin/dashboard.html",
+        template_name=dashboard_template,
         active="home",
         role=role,
         layout_shell=layout_shell,
@@ -3903,6 +3911,7 @@ showLocating();
         dashboard_active_start_label=dashboard_active_start_label,
         dashboard_site_label=dashboard_site_label,
         dashboard_site_sub=dashboard_site_sub,
+        dashboard_geo_sites=dashboard_geo_sites,
 
         currency_symbol=currency,
         attendance_rate=f"{attendance_today_pct}%",

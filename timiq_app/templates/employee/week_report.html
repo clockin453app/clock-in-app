@@ -1,0 +1,54 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/employee-week-report.css') }}">
+
+{{ page_back_html|safe }}
+
+<div class="employeePage employeeWeekReportPage">
+  <header class="employeePageHeader">
+    <h1>{{ period_label }}</h1>
+    <p>{{ display_name }} &bull; {{ company_name }}</p>
+  </header>
+
+  <section class="employeeWeekCard">
+    <section class="employeeWeekSection">
+      <h2>General Info</h2>
+
+      <div class="employeeWeekGrid">
+        <div class="employeeWeekLabel">Period:</div>
+        <div class="employeeWeekValue">{{ full_period }}</div>
+
+        <div class="employeeWeekLabel">Payment Date:</div>
+        <div class="employeeWeekValue">{{ payment_date }}</div>
+
+        <div class="employeeWeekLabel">Company:</div>
+        <div class="employeeWeekValue">{{ company_name }}</div>
+      </div>
+    </section>
+
+    <section class="employeeWeekSection">
+      <h2>Estimated Earnings</h2>
+
+      <div class="employeeWeekGrid">
+        <div class="employeeWeekLabel">Hours/Days:</div>
+        <div class="employeeWeekValue">{{ fmt_hours(week_hours) }}</div>
+
+        <div class="employeeWeekLabel">Rate:</div>
+        <div class="employeeWeekValue">{{ currency }}{{ "%.2f"|format(rate) }}</div>
+
+        <div class="employeeWeekLabel">OT Hours/Days:</div>
+        <div class="employeeWeekValue">{{ fmt_hours(overtime_hours) }}</div>
+
+        <div class="employeeWeekLabel">Adjustments:</div>
+        <div class="employeeWeekValue">{{ currency }}0.00</div>
+
+        <div class="employeeWeekLabel">Expenses:</div>
+        <div class="employeeWeekValue">{{ currency }}0.00</div>
+
+        <div class="employeeWeekLabel">Mileage:</div>
+        <div class="employeeWeekValue">0</div>
+
+        <div class="employeeWeekLabel">Gross Pay:</div>
+        <div class="employeeWeekValue">{{ currency }}{{ money(week_gross) }}</div>
+      </div>
+    </section>
+  </section>
+</div>

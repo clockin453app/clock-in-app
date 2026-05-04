@@ -147,14 +147,20 @@ def admin_payroll_impl(core):
 
         hue = total % 360
         return f"hsl({hue}, 65%, 38%)"
+
     date_from = (request.args.get("from", "") or "").strip()
     date_to = (request.args.get("to", "") or "").strip()
     ym = (request.args.get("ym", "") or "").strip()
+
+    # Week dropdown/arrows and date range must not fight each other.
+    # Default mode is week. Date range is used only when Apply sets mode=range.
+    filter_mode = (request.args.get("mode", "week") or "week").strip().lower()
+
     use_range = False
     range_start = None
     range_end = None
 
-    if date_from and date_to:
+    if filter_mode == "range" and date_from and date_to:
         try:
             range_start = date.fromisoformat(date_from)
             range_end = date.fromisoformat(date_to)
@@ -163,6 +169,11 @@ def admin_payroll_impl(core):
             use_range = False
             range_start = None
             range_end = None
+
+    if not use_range:
+        # Important: remove stale date-range values when browsing by week.
+        date_from = ""
+        date_to = ""
 
     rows = get_workhours_rows()
     headers = rows[0] if rows else []
@@ -421,9 +432,30 @@ def admin_payroll_impl(core):
 
     monthly_by_user = {}
 
-    for row in filtered:
-        u = row["user"] or "Unknown"
-        d_str = str(row.get("date") or "").strip()
+    # Monthly summary must be independent from the weekly/date-range filter.
+    # It reads all valid workhour rows inside the selected month.
+    for r in rows[1:]:
+        if len(r) <= COL_PAY:
+            continue
+
+        u = (r[COL_USER] or "").strip()
+        if not u or u not in current_usernames:
+            continue
+
+        if wp_idx is not None:
+            row_wp = (r[wp_idx] if len(r) > wp_idx else "").strip() or "default"
+            if row_wp not in allowed_wps:
+                continue
+        else:
+            if not user_in_same_workplace(u):
+                continue
+
+        if q:
+            display_for_q = (get_employee_display_name(u) or "").lower()
+            if q not in u.lower() and q not in display_for_q:
+                continue
+
+        d_str = (r[COL_DATE] if len(r) > COL_DATE else "").strip()
         if not d_str:
             continue
 
@@ -435,16 +467,22 @@ def admin_payroll_impl(core):
         if d_obj < month_start or d_obj > month_end:
             continue
 
+        row_hours = (r[COL_HOURS] if len(r) > COL_HOURS else "") or ""
+        row_pay = (r[COL_PAY] if len(r) > COL_PAY else "") or ""
+
+        if row_hours != "":
+            row_pay = str(calc_day_gross(u, d_str, row_hours, row_pay))
+
+        worked_h = safe_float(row_hours, 0.0)
+        gross_h = safe_float(row_pay, 0.0)
+        overtime_h = calc_o_hours(u, d_str, worked_h)
+
         monthly_by_user.setdefault(u, {
             "days": 0,
             "hours": 0.0,
             "overtime": 0.0,
             "gross": 0.0,
         })
-
-        worked_h = safe_float(row.get("hours", 0.0), 0.0)
-        gross_h = safe_float(row.get("pay", 0.0), 0.0)
-        overtime_h = calc_o_hours(u, d_str, worked_h)
 
         if worked_h > 0:
             monthly_by_user[u]["days"] += 1
@@ -547,16 +585,20 @@ def admin_payroll_impl(core):
     next_wk = max(0, wk_offset - 1)
     next_two_wk = max(0, wk_offset - 2)
 
-    payroll_refresh_url = url_for(
-        "admin_payroll",
-        q=q,
-        **{
+    payroll_refresh_args = {
+        "q": q,
+        "wk": wk_offset,
+        "ym": ym,
+    }
+
+    if use_range:
+        payroll_refresh_args.update({
+            "mode": "range",
             "from": date_from,
             "to": date_to,
-            "wk": wk_offset,
-            "ym": ym,
-        }
-    )
+        })
+
+    payroll_refresh_url = url_for("admin_payroll", **payroll_refresh_args)
 
     payroll_week_bar_html = f"""
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:nowrap; min-width:0;">
@@ -1482,16 +1524,20 @@ white-space:nowrap;
                   </div>
                 """
 
-    payroll_refresh_url = url_for(
-        "admin_payroll",
-        q=q,
-        **{
+    payroll_refresh_args = {
+        "q": q,
+        "wk": wk_offset,
+        "ym": ym,
+    }
+
+    if use_range:
+        payroll_refresh_args.update({
+            "mode": "range",
             "from": date_from,
             "to": date_to,
-            "wk": wk_offset,
-            "ym": ym,
-        }
-    )
+        })
+
+    payroll_refresh_url = url_for("admin_payroll", **payroll_refresh_args)
 
     back_href = f"/admin/payroll?wk={wk_offset}" if use_range else "/admin"
 
@@ -1580,7 +1626,10 @@ white-space:nowrap;
         paid_status_raw = str(paid_rec.get("paid_status") or "").strip().lower()
         approved_only = paid_status_raw == "approved"
 
-        if paid or approved_only:
+        if paid:
+            return "Paid", "ok"
+
+        if approved_only:
             return "Approved", "ok"
 
         if float(gross_value or 0) > 0:
@@ -1660,6 +1709,7 @@ white-space:nowrap;
         safe_row_key = re.sub(r"[^a-zA-Z0-9_-]+", "-", u)
         approve_form_id = f"approve-{safe_row_key}"
         unlock_form_id = f"unlock-{safe_row_key}"
+        mark_paid_form_id = f"paid-{safe_row_key}"
 
         approve_form_html = f"""
           <form
@@ -1697,6 +1747,29 @@ white-space:nowrap;
             <input type="hidden" name="unlock_password" value="">
           </form>
         """
+        mark_paid_form_html = ""
+
+        row_paid_rec = _get_paid_record_for_week(week_start_str, week_end_str, u)
+        row_is_paid = bool(row_paid_rec.get("paid"))
+        row_paid_status_raw = str(row_paid_rec.get("paid_status") or "").strip().lower()
+        row_is_approved_only = row_paid_status_raw == "approved"
+
+        if row_is_approved_only and not row_is_paid and gross > 0:
+            mark_paid_form_html = f"""
+              <form
+                id="{mark_paid_form_id}"
+                method="POST"
+                action="/admin/mark-paid"
+                style="display:none;">
+                <input type="hidden" name="csrf" value="{escape(csrf)}">
+                <input type="hidden" name="week_start" value="{escape(week_start_str)}">
+                <input type="hidden" name="week_end" value="{escape(week_end_str)}">
+                <input type="hidden" name="user" value="{escape(u)}">
+                <input type="hidden" name="gross" value="{escape(str(gross))}">
+                <input type="hidden" name="tax" value="{escape(str(tax))}">
+                <input type="hidden" name="net" value="{escape(str(net))}">
+              </form>
+            """
 
         if status_class != "ok":
             approve_forms_html.append(approve_form_html)
@@ -1704,11 +1777,22 @@ white-space:nowrap;
         status_html = f'<span class="prRefBadge {status_class}">{escape(status_label)}</span>'
 
         if status_class == "ok":
+            paid_menu_button = ""
+
+            if row_is_approved_only and not row_is_paid and gross > 0:
+                paid_menu_button = f"""
+                  <button type="submit" form="{mark_paid_form_id}">
+                    Paid
+                  </button>
+                """
+
             row_actions_html = f"""
               {unlock_form_html}
+              {mark_paid_form_html}
               <div class="prRowActions">
                 <button class="prRowDots" type="button" data-pr-row-menu aria-label="Payroll actions">⋮</button>
                 <div class="prRowMenu">
+                  {paid_menu_button}
                   <button class="danger" type="button" data-pr-unlock-form="{unlock_form_id}">
                     Cancel approval
                   </button>
@@ -1899,8 +1983,8 @@ white-space:nowrap;
         ym=ym,
     )
 
-    display_date_from = date_from or week_start_str
-    display_date_to = date_to or week_end_str
+    display_date_from = range_start.isoformat() if use_range and range_start else week_start_str
+    display_date_to = range_end.isoformat() if use_range and range_end else week_end_str
 
     return render_page(
         template_name="admin/payroll.html",
@@ -1918,6 +2002,7 @@ white-space:nowrap;
         wk_offset=wk_offset,
         ym=ym,
         q=q,
+        filter_mode="range" if use_range else "week",
         date_from=display_date_from,
         date_to=display_date_to,
         prev_two_week_url=prev_two_week_url,

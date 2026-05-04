@@ -1,0 +1,795 @@
+<div class="employeeDashboardPage" style="display:flex; flex-direction:column; gap:18px;">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+
+  <style>
+    .empDashIcon{
+      width:54px;
+      height:54px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      border-radius:16px;
+      flex:0 0 54px;
+    }
+
+    .empDashIcon svg{
+      width:24px;
+      height:24px;
+      stroke:currentColor;
+      stroke-width:2;
+      fill:none;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+    }
+
+    .empDashIcon--blue{
+      background:#eff6ff;
+      color:#0b63ff;
+    }
+
+    .empDashIcon--green{
+      background:#f0fdf4;
+      color:#16a34a;
+    }
+
+    .empDashIcon--purple{
+      background:#f5f3ff;
+      color:#6d28d9;
+    }
+
+    .empDashIcon--orange{
+      background:#fff7ed;
+      color:#f97316;
+    }
+          .empChartCard{
+      padding:22px;
+      border:1px solid #dbe5f2;
+      border-radius:18px;
+      background:#fff;
+      box-shadow:0 12px 32px rgba(15,23,42,.05);
+      min-height:360px;
+    }
+
+    .empChartHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:18px;
+    }
+
+    .empChartTitle{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .empChartTitleIcon{
+      width:34px;
+      height:34px;
+      border-radius:12px;
+      background:#eff6ff;
+      color:#0b63ff;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      flex:0 0 34px;
+    }
+
+    .empChartTitleIcon svg{
+      width:19px;
+      height:19px;
+      stroke:currentColor;
+      stroke-width:2;
+      fill:none;
+      stroke-linecap:round;
+      stroke-linejoin:round;
+    }
+
+    .empChartHeader h2{
+      margin:0;
+      font-size:18px;
+      line-height:1.2;
+      color:#07152f;
+    }
+
+    .empChartHeader p{
+      margin:4px 0 0;
+      color:#68748f;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .empChartBadge{
+      border:1px solid #dbe5f2;
+      border-radius:12px;
+      padding:9px 12px;
+      color:#4f5f7f;
+      font-size:13px;
+      font-weight:800;
+      background:#fff;
+    }
+
+    .empLiveTrend{
+      display:grid;
+      grid-template-columns:44px minmax(0, 1fr);
+      grid-template-rows:250px auto;
+      gap:10px 12px;
+      min-height:295px;
+    }
+
+    .empLiveYAxis{
+      grid-row:1;
+      display:flex;
+      flex-direction:column;
+      justify-content:space-between;
+      color:#64748b;
+      font-size:12px;
+      font-weight:800;
+      text-align:right;
+      padding:2px 0;
+    }
+
+    .empLivePlot{
+      position:relative;
+      grid-column:2;
+      grid-row:1;
+      border-radius:14px;
+      overflow:hidden;
+      background:linear-gradient(180deg, rgba(79,70,229,.10), rgba(79,70,229,.02));
+    }
+
+    .empLiveLineSvg{
+      position:absolute;
+      inset:0;
+      width:100%;
+      height:100%;
+      z-index:3;
+    }
+
+    .empLiveLineSvg polyline{
+      fill:none;
+      stroke:#4f63ff;
+      stroke-width:2.4;
+      vector-effect:non-scaling-stroke;
+    }
+
+    .empGridLine{
+      position:absolute;
+      left:0;
+      right:0;
+      height:1px;
+      background:#e8eef7;
+      z-index:1;
+    }
+
+    .empGridLine.l100{top:0;}
+    .empGridLine.l75{top:25%;}
+    .empGridLine.l50{top:50%;}
+    .empGridLine.l25{top:75%;}
+    .empGridLine.l0{bottom:0;}
+
+    .empLivePoint{
+      position:absolute;
+      transform:translate(-50%, 50%);
+      z-index:4;
+      color:#334155;
+      font-size:12px;
+      font-weight:900;
+      white-space:nowrap;
+    }
+
+    .empLivePoint b{
+      position:absolute;
+      left:50%;
+      bottom:13px;
+      transform:translateX(-50%);
+      font-weight:900;
+    }
+
+    .empLivePoint i{
+      display:block;
+      width:11px;
+      height:11px;
+      border:3px solid #4f63ff;
+      border-radius:50%;
+      background:#fff;
+      box-shadow:0 4px 12px rgba(79,99,255,.22);
+    }
+
+    .empLiveDays{
+      grid-column:2;
+      grid-row:2;
+      display:grid;
+      grid-template-columns:repeat(7, minmax(0, 1fr));
+      color:#64748b;
+      font-size:12px;
+      font-weight:800;
+      text-align:center;
+    }
+
+    .empTrendFooter{
+      margin-top:18px;
+      padding:14px 16px;
+      border:1px solid #edf2f7;
+      border-radius:14px;
+      display:flex;
+      align-items:center;
+      gap:12px;
+      color:#07152f;
+      background:#fff;
+    }
+
+    .empTrendFooter strong{
+      display:block;
+      font-size:13px;
+      color:#4f5f7f;
+    }
+
+    .empTrendFooter p{
+      margin:2px 0 0;
+      font-size:14px;
+      font-weight:900;
+      color:#07152f;
+    }
+
+    .empTrendFooter em{
+      margin-left:auto;
+      font-style:normal;
+      font-size:13px;
+      font-weight:800;
+      color:#68748f;
+    }
+          .empLocationCard{
+      padding:22px;
+      border:1px solid #dbe5f2;
+      border-radius:18px;
+      background:#fff;
+      box-shadow:0 12px 32px rgba(15,23,42,.05);
+    }
+
+    .empLocationHeader{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      margin-bottom:16px;
+    }
+
+    .empLocationTitle{
+      display:flex;
+      align-items:center;
+      gap:10px;
+    }
+
+    .empLocationTitle h2{
+      margin:0;
+      font-size:18px;
+      line-height:1.2;
+      color:#07152f;
+    }
+
+    .empLocationTitle p{
+      margin:4px 0 0;
+      color:#68748f;
+      font-size:13px;
+      font-weight:700;
+    }
+
+    .empLocationBadge{
+      border:1px solid #dbe5f2;
+      border-radius:999px;
+      padding:8px 12px;
+      font-size:12px;
+      font-weight:900;
+      background:#eff6ff;
+      color:#0b63ff;
+      white-space:nowrap;
+    }
+
+    .empLocationBadge.good{
+      background:#dcfce7;
+      border-color:#bbf7d0;
+      color:#15803d;
+    }
+
+    .empLocationBadge.bad{
+      background:#fee2e2;
+      border-color:#fecaca;
+      color:#dc2626;
+    }
+
+    .empLocationBadge.warn{
+      background:#fff7ed;
+      border-color:#fed7aa;
+      color:#ea580c;
+    }
+
+    .empLocationLayout{
+      display:grid;
+      grid-template-columns:minmax(0, 1.4fr) minmax(220px, .6fr);
+      gap:16px;
+      align-items:stretch;
+    }
+
+    #empDashMap{
+      width:100%;
+      min-height:260px;
+      border:1px solid #dbe5f2;
+      border-radius:16px;
+      overflow:hidden;
+      background:#eef5ff;
+    }
+
+    .empLocationInfo{
+      border:1px solid #dbe5f2;
+      border-radius:16px;
+      padding:16px;
+      background:linear-gradient(180deg, #ffffff, #f8fbff);
+      display:flex;
+      flex-direction:column;
+      justify-content:center;
+      gap:12px;
+    }
+
+    .empLocationInfo strong{
+      display:block;
+      color:#07152f;
+      font-size:18px;
+      line-height:1.2;
+    }
+
+    .empLocationInfo span{
+      display:block;
+      color:#68748f;
+      font-size:13px;
+      font-weight:800;
+      line-height:1.4;
+    }
+
+    .empLocationSmall{
+      padding:12px;
+      border-radius:14px;
+      background:#f8fafc;
+      color:#4f5f7f;
+      font-size:12px;
+      font-weight:800;
+      line-height:1.35;
+    }
+
+    @media (max-width: 760px){
+      .empLocationHeader{
+        align-items:flex-start;
+        flex-direction:column;
+      }
+
+      .empLocationLayout{
+        grid-template-columns:1fr;
+      }
+
+      #empDashMap{
+        min-height:230px;
+      }
+    }
+  </style>
+
+
+  <section style="
+    display:grid;
+    grid-template-columns:repeat(auto-fit, minmax(230px, 1fr));
+    gap:16px;
+  ">
+    <a href="/clock" style="
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:22px;
+      border:1px solid #dbe5f2;
+      border-radius:18px;
+      background:#fff;
+      text-decoration:none;
+      color:#07152f;
+      box-shadow:0 12px 32px rgba(15,23,42,.05);
+    ">
+      <span class="empDashIcon empDashIcon--blue">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="12" r="8"></circle>
+    <path d="M12 8v4l3 2"></path>
+  </svg>
+</span>
+      <div>
+        <div style="font-size:13px; font-weight:800; color:#68748f;">Clock Status</div>
+        <div style="font-size:24px; line-height:1.1; font-weight:900;">{{ status_text }}</div>
+        <div style="margin-top:6px; font-size:13px; font-weight:700; color:#68748f;">
+          Open attendance
+        </div>
+      </div>
+    </a>
+
+    <a href="/my-times" style="
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:22px;
+      border:1px solid #dbe5f2;
+      border-radius:18px;
+      background:#fff;
+      text-decoration:none;
+      color:#07152f;
+      box-shadow:0 12px 32px rgba(15,23,42,.05);
+    ">
+      <span class="empDashIcon empDashIcon--green">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <circle cx="12" cy="13" r="5"></circle>
+    <path d="M12 10v3l2 1"></path>
+    <path d="M9 2h6"></path>
+    <path d="M9 22h6"></path>
+    <path d="M10 2v3"></path>
+    <path d="M14 2v3"></path>
+    <path d="M10 19v3"></path>
+    <path d="M14 19v3"></path>
+  </svg>
+</span>
+      <div>
+        <div style="font-size:13px; font-weight:800; color:#68748f;">This Week Hours</div>
+        <div style="font-size:24px; line-height:1.1; font-weight:900;">{{ total_hours }}</div>
+        <div style="margin-top:6px; font-size:13px; font-weight:700; color:#68748f;">
+          {{ hours_delta_text }}
+        </div>
+      </div>
+    </a>
+
+    <a href="/payments" style="
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:22px;
+      border:1px solid #dbe5f2;
+      border-radius:18px;
+      background:#fff;
+      text-decoration:none;
+      color:#07152f;
+      box-shadow:0 12px 32px rgba(15,23,42,.05);
+    ">
+      <span class="empDashIcon empDashIcon--purple">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M14.5 6a3.5 3.5 0 0 0-7 0c0 2 1 3 2.5 4.5H7.5"></path>
+    <path d="M7.5 13h7"></path>
+    <path d="M7.5 17h9"></path>
+  </svg>
+</span>
+      <div>
+        <div style="font-size:13px; font-weight:800; color:#68748f;">Payroll This Week</div>
+        <div style="font-size:24px; line-height:1.1; font-weight:900;">{{ payroll_total }}</div>
+        <div style="margin-top:6px; font-size:13px; font-weight:700; color:#68748f;">
+          Estimated pay
+        </div>
+      </div>
+    </a>
+
+    <a href="/my-reports" style="
+      display:flex;
+      align-items:center;
+      gap:16px;
+      padding:22px;
+      border:1px solid #dbe5f2;
+      border-radius:18px;
+      background:#fff;
+      text-decoration:none;
+      color:#07152f;
+      box-shadow:0 12px 32px rgba(15,23,42,.05);
+    ">
+      <span class="empDashIcon empDashIcon--orange">
+  <svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M8 3h6l5 5v13H8a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"></path>
+    <path d="M14 3v5h5"></path>
+    <path d="M10 13h6"></path>
+    <path d="M10 17h6"></path>
+  </svg>
+</span>
+      <div>
+        <div style="font-size:13px; font-weight:800; color:#68748f;">Timesheets</div>
+        <div style="font-size:24px; line-height:1.1; font-weight:900;">View</div>
+        <div style="margin-top:6px; font-size:13px; font-weight:700; color:#68748f;">
+          Weekly records
+        </div>
+      </div>
+    </a>
+  </section>
+      <section>
+    <article class="empLocationCard">
+      <div class="empLocationHeader">
+        <div class="empLocationTitle">
+          <span class="empChartTitleIcon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 21s7-5.2 7-11a7 7 0 0 0-14 0c0 5.8 7 11 7 11z"></path>
+              <circle cx="12" cy="10" r="2.5"></circle>
+            </svg>
+          </span>
+          <div>
+            <h2>Location Check</h2>
+            <p>Check if you are inside your assigned work location.</p>
+          </div>
+        </div>
+
+        <span id="empLocationBadge" class="empLocationBadge warn">Checking</span>
+      </div>
+
+      <div class="empLocationLayout">
+        <div id="empDashMap" aria-label="Employee location map"></div>
+
+        <div class="empLocationInfo">
+          <div>
+            <strong id="empLocationTitle">Checking your location…</strong>
+            <span id="empLocationSub">Allow location permission to verify your site.</span>
+          </div>
+
+          <div class="empLocationSmall" id="empLocationHelp">
+            This only checks your current browser location against your assigned site radius.
+          </div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <script>
+    (function(){
+      const SITES = {{ dashboard_geo_sites|default([])|tojson }};
+      const mapEl = document.getElementById("empDashMap");
+      const titleEl = document.getElementById("empLocationTitle");
+      const subEl = document.getElementById("empLocationSub");
+      const badgeEl = document.getElementById("empLocationBadge");
+      const helpEl = document.getElementById("empLocationHelp");
+
+      function setStatus(title, sub, badgeText, tone){
+        if (titleEl) titleEl.textContent = title;
+        if (subEl) subEl.textContent = sub;
+        if (badgeEl) {
+          badgeEl.textContent = badgeText;
+          badgeEl.classList.remove("good", "bad", "warn");
+          badgeEl.classList.add(tone || "warn");
+        }
+      }
+
+      function metresText(value){
+        const n = Math.round(Number(value || 0));
+        if (n >= 1000) return (n / 1000).toFixed(2) + " km";
+        return n + " m";
+      }
+
+      function distanceMeters(lat1, lon1, lat2, lon2){
+        const R = 6371000;
+        const toRad = function(v){ return v * Math.PI / 180; };
+        const dLat = toRad(lat2 - lat1);
+        const dLon = toRad(lon2 - lon1);
+        const a =
+          Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+          Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+          Math.sin(dLon / 2) * Math.sin(dLon / 2);
+
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      }
+
+      function nearestSite(lat, lon){
+        let best = null;
+
+        for (const raw of SITES) {
+          const site = raw || {};
+          const name = String(site.name || "").trim();
+          const sLat = Number(site.lat);
+          const sLon = Number(site.lon);
+          const radius = Number(site.radius || 0);
+
+          if (!name || !Number.isFinite(sLat) || !Number.isFinite(sLon) || radius <= 0) {
+            continue;
+          }
+
+          const dist = distanceMeters(lat, lon, sLat, sLon);
+          const item = {
+            name: name,
+            lat: sLat,
+            lon: sLon,
+            radius: radius,
+            distance: dist,
+            inside: dist <= radius
+          };
+
+          if (!best || dist < best.distance) {
+            best = item;
+          }
+        }
+
+        return best;
+      }
+
+      if (!mapEl) return;
+
+      if (!window.L) {
+        setStatus("Map unavailable", "Map library did not load. Open Attendance to use location check.", "Unavailable", "warn");
+        return;
+      }
+
+      const validSites = (Array.isArray(SITES) ? SITES : []).filter(function(site){
+        return site && site.name && Number.isFinite(Number(site.lat)) && Number.isFinite(Number(site.lon));
+      });
+
+      const defaultCenter = validSites.length
+        ? [Number(validSites[0].lat), Number(validSites[0].lon)]
+        : [51.5074, -0.1278];
+
+      const map = L.map("empDashMap", {
+        zoomControl: true,
+        attributionControl: true
+      }).setView(defaultCenter, validSites.length ? 16 : 6);
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        maxZoom: 19,
+        attribution: "&copy; OpenStreetMap"
+      }).addTo(map);
+
+      const bounds = [];
+
+      validSites.forEach(function(site){
+        const lat = Number(site.lat);
+        const lon = Number(site.lon);
+        const radius = Number(site.radius || 0);
+
+        L.circle([lat, lon], {
+          radius: radius,
+          color: "#0b63ff",
+          weight: 2,
+          fillColor: "#0b63ff",
+          fillOpacity: 0.10
+        }).addTo(map);
+
+        L.marker([lat, lon]).addTo(map).bindPopup(String(site.name || "Assigned site"));
+        bounds.push([lat, lon]);
+      });
+
+      if (!validSites.length) {
+        setStatus("No assigned site", "Ask an admin to assign your site access first.", "No site", "warn");
+        if (helpEl) helpEl.textContent = "No assigned site location was found for this account.";
+        return;
+      }
+
+      if (!navigator.geolocation) {
+        setStatus("Location unavailable", "This device/browser does not support location.", "Unavailable", "warn");
+        return;
+      }
+
+      navigator.geolocation.getCurrentPosition(function(pos){
+        const lat = Number(pos.coords.latitude);
+        const lon = Number(pos.coords.longitude);
+        const accuracy = Number(pos.coords.accuracy || 0);
+
+        const currentMarker = L.circleMarker([lat, lon], {
+          radius: 8,
+          color: "#16a34a",
+          weight: 3,
+          fillColor: "#16a34a",
+          fillOpacity: 0.90
+        }).addTo(map).bindPopup("You are here");
+
+        bounds.push([lat, lon]);
+
+        if (bounds.length > 1) {
+          map.fitBounds(bounds, { padding: [28, 28], maxZoom: 17 });
+        } else {
+          map.setView([lat, lon], 17);
+        }
+
+        const best = nearestSite(lat, lon);
+
+        if (!best) {
+          setStatus("No nearby site", "Your assigned site could not be checked.", "Unknown", "warn");
+          return;
+        }
+
+        if (best.inside) {
+          setStatus(
+            "You are at " + best.name,
+            "Location verified. Distance from site: " + metresText(best.distance) + ".",
+            "Good location",
+            "good"
+          );
+        } else {
+          setStatus(
+            "You are outside the site area",
+            "Nearest assigned site: " + best.name + " · " + metresText(best.distance) + " away.",
+            "Off site",
+            "bad"
+          );
+        }
+
+        if (helpEl) {
+          helpEl.textContent =
+            "GPS accuracy: about " + metresText(accuracy) +
+            ". Site radius: " + metresText(best.radius) + ".";
+        }
+
+      }, function(){
+        setStatus("Location permission needed", "Allow location access to check if you are at the correct site.", "Permission needed", "warn");
+      }, {
+        enableHighAccuracy: true,
+        timeout: 10000,
+        maximumAge: 30000
+      });
+    })();
+  </script>
+      <section>
+    <article class="empChartCard">
+      <div class="empChartHeader">
+        <div class="empChartTitle">
+          <span class="empChartTitleIcon">
+            <svg viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M4 19V5"></path>
+              <path d="M4 19h16"></path>
+              <path d="m7 15 4-4 3 3 5-7"></path>
+            </svg>
+          </span>
+          <div>
+            <h2>Weekly Attendance Trend</h2>
+            <p>Your attendance across the last 7 days.</p>
+          </div>
+        </div>
+
+        <span class="empChartBadge">Last 7 days</span>
+      </div>
+
+      <div class="empLiveTrend" aria-label="Weekly attendance trend chart">
+        <div class="empLiveYAxis">
+          <span>100%</span>
+          <span>75%</span>
+          <span>50%</span>
+          <span>25%</span>
+          <span>0%</span>
+        </div>
+
+        <div class="empLivePlot">
+          {% if attendance_polyline %}
+            <svg class="empLiveLineSvg" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+              <polyline points="{{ attendance_polyline }}"></polyline>
+            </svg>
+          {% endif %}
+
+          <div class="empGridLine l100"></div>
+          <div class="empGridLine l75"></div>
+          <div class="empGridLine l50"></div>
+          <div class="empGridLine l25"></div>
+          <div class="empGridLine l0"></div>
+
+          {% for point in attendance_chart|default([]) %}
+            <div class="empLivePoint" style="left:{{ point.x }}%; bottom:{{ point.pct }}%;">
+              <b>{{ point.pct }}%</b>
+              <i></i>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div class="empLiveDays">
+          {% for point in attendance_chart|default([]) %}
+            <span>{{ point.label }}</span>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="empTrendFooter">
+        <span class="empChartTitleIcon">
+          <svg viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M4 19V5"></path>
+            <path d="M4 19h16"></path>
+            <path d="m7 15 4-4 3 3 5-7"></path>
+          </svg>
+        </span>
+
+        <div>
+          <strong>Weekly Average</strong>
+          <p>{{ weekly_average|default('0%') }}</p>
+        </div>
+
+        <em>{{ weekly_average_delta_text|default('Last 7 days') }}</em>
+      </div>
+    </article>
+  </section>
+</div>

@@ -1,0 +1,14 @@
+<aside class="sidebar" aria-label="Main navigation">
+  <a class="sideLogo" href="/" aria-label="TimIQ dashboard">
+    <img src="/static/timiq-logo.png" alt="TimIQ">
+  </a>
+
+  <nav class="sideNav">
+    {% for item in nav_items %}
+      <a class="sideItem {% if item.key == active %}active{% endif %}" href="{{ item.href }}">
+        <span class="sideIcon sideIcon-{{ item.icon_key }}"></span>
+        <span>{{ item.label }}</span>
+      </a>
+    {% endfor %}
+  </nav>
+</aside>

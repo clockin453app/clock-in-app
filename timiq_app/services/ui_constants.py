@@ -4770,18 +4770,6 @@ body{
   text-rendering:optimizeLegibility;
 }
 
-h1,
-.headerTop h1,
-.dashboardTitle,
-.timeLogsTitle,
-.adminPageTitle,
-.statementTitle{
-  font-size:clamp(20px, 3.2vw, 28px) !important;
-  font-weight:600 !important;
-  line-height:1.08 !important;
-  letter-spacing:-.02em !important;
-}
-
 h2,
 .card h2,
 .adminSectionTitle,
@@ -5583,23 +5571,6 @@ textarea.input:focus{
     color:#0b63ff !important;
     border:1px solid #e4ebf5 !important;
     box-shadow:0 10px 24px rgba(15,23,42,.06) !important;
-  }
-
-  .headerTop{
-    padding:22px 24px !important;
-    margin-bottom:18px !important;
-    border:1px solid #e3ebf6 !important;
-    border-radius:18px !important;
-    background:#fff !important;
-    box-shadow:0 14px 32px rgba(15,23,42,.06) !important;
-  }
-
-  .headerTop h1{
-    color:#07152f !important;
-    font-size:32px !important;
-    line-height:1.08 !important;
-    font-weight:900 !important;
-    letter-spacing:-.04em !important;
   }
 
   .sub{
@@ -6408,88 +6379,6 @@ align-items:start !important;
   display: none !important;
 }
 
-/* Remove old admin/master badges from page title headers */
-.companiesBadge,
-.employeesBadge,
-.locationsBadge,
-.siteAccessBadge,
-.refAdminBadge,
-.mgRefMasterBadge,
-.auditBadge,
-.headerTop > .badge,
-.headerTop .badge.admin,
-.timeLogsHero .badge {
-  display: none !important;
-}
-
-/* Flatten old big title cards */
-.headerTop,
-.timeLogsHero,
-.timeLogsHero.plainSection,
-.auditHeader {
-  padding: 0 !important;
-  margin: 0 0 18px !important;
-  border: 0 !important;
-  border-radius: 0 !important;
-  background: transparent !important;
-  box-shadow: none !important;
-}
-
-/* Keep title typography consistent with the reference */
-.headerTop h1,
-.timeLogsHero h1,
-.auditHeader h1,
-.companiesHeader h1,
-.employeesHeader h1,
-.locationsHeader h1,
-.siteAccessHeader h1,
-.refPageHeader h1,
-.mgRefTitleRow h1,
-.prRefTitle h1,
-.dbRefTitle h1,
-.attHeader h1 {
-  font-family: Georgia, "Times New Roman", serif !important;
-  color: #11183a !important;
-  font-size: 42px !important;
-  line-height: 1.02 !important;
-  letter-spacing: -0.04em !important;
-  font-weight: 800 !important;
-}
-
-.headerTop p,
-.headerTop .sub,
-.timeLogsHero p,
-.timeLogsHero .sub,
-.auditHeader p,
-.companiesHeader p,
-.employeesHeader p,
-.locationsHeader p,
-.siteAccessHeader p,
-.refPageHeader p,
-.mgRefTitleRow p,
-.prRefTitle p,
-.dbRefTitle p,
-.attHeader p {
-  margin-top: 10px !important;
-  color: #68748f !important;
-  font-size: 15px !important;
-  line-height: 1.45 !important;
-  font-weight: 700 !important;
-}
-
-/* Let page header rows breathe like the dashboard reference */
-.dbRefTop,
-.mgRefHeaderTop,
-.prRefTop {
-  min-height: auto !important;
-  margin-bottom: 10px !important;
-}
-
-/* Since global topbar now owns account actions, page title rows should only contain title/subtitle */
-.mgRefTitleRow {
-  min-height: auto !important;
-}
-
 @media (max-width: 820px) {
   .topShellUserText,
   .topShellChevron {
@@ -6537,6 +6426,153 @@ align-items:start !important;
   font-weight: 800 !important;
 }
 
+
+/* =========================================================
+   TimIQ titleless page mode v1
+   Keep only breadcrumb/navigation at top of each page.
+   ========================================================= */
+
+body .pageTopActions {
+  min-height: 44px !important;
+  margin: 0 0 8px !important;
+  padding: 0 !important;
+  align-items: center !important;
+}
+
+.topShellBreadcrumb,
+.timiqBreadcrumb,
+.dbRefPage > .topShellBreadcrumb,
+.attBreadcrumb,
+.companiesBreadcrumb,
+.employeesBreadcrumb,
+.locationsBreadcrumb,
+.siteAccessBreadcrumb,
+.refBreadcrumb,
+.mgRefCrumbs,
+.prRefCrumbs {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px !important;
+  min-height: 24px !important;
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  color: #68748f !important;
+  font-size: 13px !important;
+  line-height: 1.2 !important;
+  font-weight: 700 !important;
+}
+
+.topShellBreadcrumb a,
+.timiqBreadcrumb a,
+.attBreadcrumb a,
+.companiesBreadcrumb a,
+.employeesBreadcrumb a,
+.locationsBreadcrumb a,
+.siteAccessBreadcrumb a,
+.refBreadcrumb a,
+.mgRefCrumbs a,
+.prRefCrumbs a {
+  color: #68748f !important;
+  text-decoration: none !important;
+}
+
+.topShellBreadcrumb span,
+.timiqBreadcrumb span,
+.attBreadcrumb span,
+.companiesBreadcrumb span,
+.employeesBreadcrumb span,
+.locationsBreadcrumb span,
+.siteAccessBreadcrumb span,
+.refBreadcrumb span,
+.mgRefCrumbs span,
+.prRefCrumbs span {
+  color: #9aa7bd !important;
+}
+
+.topShellBreadcrumb strong,
+.timiqBreadcrumb strong,
+.attBreadcrumb strong,
+.companiesBreadcrumb strong,
+.employeesBreadcrumb strong,
+.locationsBreadcrumb strong,
+.siteAccessBreadcrumb strong,
+.refBreadcrumb strong,
+.mgRefCrumbs strong,
+.prRefCrumbs strong {
+  color: #11183a !important;
+  font-weight: 800 !important;
+}
+
+.dbRefHeader,
+.attHeader,
+.companiesHeader,
+.employeesHeader,
+.locationsHeader,
+.siteAccessHeader,
+.refPageHeader,
+.employeePageHeader,
+.workProgressHeader,
+.accountProfileHeader,
+.timeLogsHero,
+.timeLogsHero.plainSection,
+.headerTop,
+.auditHeader {
+  display: none !important;
+}
+
+.mgRefTitleRow,
+.prRefTitle,
+.timiqPageTitleRow {
+  display: none !important;
+}
+
+.mgRefHeader,
+.prRefHeader,
+.timiqPageHeader {
+  margin: 0 0 18px !important;
+  padding: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  background: transparent !important;
+  box-shadow: none !important;
+}
+
+.mgRefHeaderTop,
+.prRefTop {
+  min-height: auto !important;
+  margin: 0 !important;
+  padding: 0 !important;
+}
+
+.companiesBadge,
+.employeesBadge,
+.locationsBadge,
+.siteAccessBadge,
+.refAdminBadge,
+.mgRefMasterBadge,
+.auditBadge,
+.headerTop > .badge,
+.headerTop .badge.admin,
+.timeLogsHero .badge,
+.timeLogsEyebrow {
+  display: none !important;
+}
+
+.dbRefKpis,
+.attStatsGrid,
+.companiesMetricGrid,
+.employeesMetricGrid,
+.locationsMetricGrid,
+.siteAccessMetricGrid,
+.healthHeroGrid,
+.employeeSummaryGrid,
+.workProgressPage > .workProgressPanel:first-of-type,
+.accountProfilePage > .accountPanel:first-of-type,
+.timeLogsSummaryGrid,
+.mgRefGrid,
+.prRefFilters {
+  margin-top: 0 !important;
+}
 </style>
 
 """

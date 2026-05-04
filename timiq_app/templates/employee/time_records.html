@@ -1,0 +1,74 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/employee-time-records.css') }}">
+
+{{ page_back_html|safe }}
+
+<div class="employeePage employeeTimeRecordsPage">
+  <header class="employeePageHeader">
+    <h1>Time Records</h1>
+    <p>{{ display_name }} &bull; Review every saved clock-in and clock-out entry.</p>
+  </header>
+
+  <section class="employeeSummaryGrid" aria-label="Time record summary">
+    <article class="employeeSummaryCard">
+      <span>Entries</span>
+      <strong>{{ entries_count }}</strong>
+      <small>Saved shifts</small>
+    </article>
+
+    <article class="employeeSummaryCard">
+      <span>Total Hours</span>
+      <strong>{{ total_hours_text }}</strong>
+      <small>Across all records</small>
+    </article>
+
+    <article class="employeeSummaryCard">
+      <span>Total Pay</span>
+      <strong>{{ currency }}{{ total_pay_text }}</strong>
+      <small>Recorded gross pay</small>
+    </article>
+
+    <article class="employeeSummaryCard">
+      <span>Recent Activity</span>
+      <strong>{{ last_clock_date }}</strong>
+      <small>Today: {{ today_count }} &bull; This week: {{ week_count }}</small>
+    </article>
+  </section>
+
+  <section class="employeePanel employeeTimeRecordsPanel" aria-labelledby="time-records-title">
+    <div class="employeePanelHeader">
+      <h2 id="time-records-title">Clock history</h2>
+      <span>{{ entries_count }} record(s)</span>
+    </div>
+
+    <div class="employeeTableWrap">
+      <table class="employeeTable employeeTimeRecordsTable">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Clock In</th>
+            <th>Clock Out</th>
+            <th class="num">Hours</th>
+            <th class="num">Pay</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if records %}
+            {% for record in records %}
+              <tr>
+                <td>{{ record.date }}</td>
+                <td>{{ record.clock_in }}</td>
+                <td>{{ record.clock_out }}</td>
+                <td class="num">{{ record.hours_text }}</td>
+                <td class="num">{{ currency }}{{ record.pay_text }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="employeeEmptyCell">No records yet.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

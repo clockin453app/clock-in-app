@@ -702,6 +702,11 @@ from .services.admin_recalculate_shifts_route import admin_recalculate_shifts_im
 from .services.site_manager_route import site_manager_impl, site_manager_force_clockin_impl, site_manager_force_clockout_impl
 from .services.auth_runtime import build_auth_runtime
 from .ui.render import render_page
+from .ui.shell import (
+    legacy_layout_shell,
+    legacy_page_back_button,
+    legacy_sidebar_html,
+)
 try:
     from PIL import Image, ImageOps
 except Exception:
@@ -4486,283 +4491,38 @@ def bottom_nav(active: str, role: str) -> str:
 
 
 def sidebar_html(active: str, role: str) -> str:
-    role_l = (role or "").strip().lower()
-
-    items = [
-        ("home", "/", "Dashboard", _icon_dashboard(28)),
-        ("clock", "/clock", "Attendance", _icon_clock(28)),
-        ("times", "/my-times", "Time Records", _icon_timelogs(28)),
-        ("reports", "/my-reports", "Timesheets", _icon_timesheets(28)),
-        ("payments", "/payments", "Pay History", _icon_payments(28)),
-        ("work-progress", "/work-progress", "Site Progress", _icon_work_progress(28)),
-    ]
-
-    if role_l == "site_manager":
-        items.append(("site-manager", "/site-manager", "Site Manager", _icon_admin(28)))
-
-    if role_l in ("admin", "master_admin"):
-        items.append(("admin", "/admin", "Management", _svg_shield()))
-
-    if role_l in ("admin", "master_admin"):
-        items.append(("current-sessions", "/admin/current-sessions", "Live Attendance", _icon_current_sessions(28)))
-
-    if role_l == "master_admin":
-        items.append(("workplaces", "/admin/workplaces", "Companies", _icon_workplaces(28)))
-
-    links = []
-    for key, href, label, icon in items:
-        links.append(f"""
-          <a class="sideItem nav-{key} {'active' if active == key else ''}" href="{href}">
-            <div class="sideLeft">
-              <div class="sideIcon">{icon}</div>
-              <div class="sideText">{escape(label)}</div>
-            </div>
-          </a>
-        """)
-
-    try:
-        company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
-    except Exception:
-        company_name = "Main"
-
-    return f"""
-      <aside class="sidebar refSidebar">
-        <div class="refSidebarLogo">
-          {timiq_logo_html()}
-        </div>
-
-        <nav class="refSidebarNav">
-          {''.join(links)}
-        </nav>
-
-        <div class="refSidebarCompany">
-          <div class="refSidebarCompanyIcon">▦</div>
-          <div class="refSidebarCompanyName">{escape(company_name)}</div>
-          <div class="refSidebarCompanyChevron">⌄</div>
-        </div>
-
-        <div class="refSidebarCollapse">
-          <span>‹</span>
-          <span>Collapse</span>
-        </div>
-      </aside>
-    """
+    return legacy_sidebar_html(
+        active,
+        role,
+        get_company_settings=get_company_settings,
+        icon_dashboard=_icon_dashboard,
+        icon_clock=_icon_clock,
+        icon_timelogs=_icon_timelogs,
+        icon_timesheets=_icon_timesheets,
+        icon_payments=_icon_payments,
+        icon_work_progress=_icon_work_progress,
+        icon_admin=_icon_admin,
+        icon_workplaces=_icon_workplaces,
+        icon_current_sessions=_icon_current_sessions,
+        svg_shield=_svg_shield,
+    )
 
 
 def page_back_button(href: str | None = None, label: str = "← Back") -> str:
-    text = escape(label or "Back")
+    return legacy_page_back_button(href, label)
 
-    if href:
-        safe_href = escape(href)
-        return f'''
-        <div class="pageBackRow"
-             data-shell-back="1"
-             data-shell-back-href="{safe_href}"
-             data-shell-back-label="{text}">
-          <a class="pageBackLink" href="{safe_href}" aria-label="{text}" title="{text}">
-  ← Back
-</a>
-        </div>
-        '''
-
-    return f'''
-    <div class="pageBackRow"
-         data-shell-back="1"
-         data-shell-back-history="1"
-         data-shell-back-label="{text}">
-      <button type="button"
-        class="pageBackLink"
-        aria-label="{text}"
-        title="{text}"
-        onclick="window.history.back()">
-  ← Back
-</button>
-    </div>
-    '''
 
 def layout_shell(active: str, role: str, content_html: str, shell_class: str = "") -> str:
-    extra = f" {shell_class}" if shell_class else ""
-
-    try:
-        company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
-    except Exception:
-        company_name = "Main"
-
-    mobile_current_sessions_link = (
-        '<a class="topAccountMenuItem" href="/admin/current-sessions"><span>Live Attendance</span><span class="topAccountMenuMark">›</span></a>'
-        if str(role or "").strip().lower() in ("admin", "master_admin") else ""
-    )
-
-    mobile_work_progress_link = (
-        '<a class="topAccountMenuItem" href="/work-progress"><span>Site Progress</span><span class="topAccountMenuMark">›</span></a>'
-    )
-
-    shell_back_html = '<span class="topShellBackPlaceholder"></span>'
-
-    breadcrumb_labels = {
-        "dashboard": "Dashboard",
-        "attendance": "Attendance",
-        "time": "Time Records",
-        "timesheets": "Timesheets",
-        "payments": "Pay History",
-        "site_progress": "Site Progress",
-        "management": "Management",
-        "live_attendance": "Live Attendance",
-        "companies": "Companies",
-    }
-
-    breadcrumb_current = breadcrumb_labels.get(str(active or "").strip(), "")
-
-    back_match = re.search(
-        r'<div\s+class="pageBackRow"(?P<attrs>[^>]*)>.*?</div>\s*',
+    return legacy_layout_shell(
+        active,
+        role,
         content_html,
-        flags=re.DOTALL,
+        shell_class,
+        get_company_settings=get_company_settings,
+        get_employee_display_name=get_employee_display_name,
+        sidebar_renderer=sidebar_html,
+        session_data=session,
     )
-
-    if back_match:
-        attrs = back_match.group("attrs") or ""
-
-        href_match = re.search(r'data-shell-back-href="([^"]*)"', attrs)
-        history_match = re.search(r'data-shell-back-history="1"', attrs)
-        label_match = re.search(r'data-shell-back-label="([^"]*)"', attrs)
-
-        label = html.unescape(label_match.group(1)) if label_match else "Back"
-        safe_label = escape(label)
-
-        if breadcrumb_current:
-            shell_back_html = (
-                '<nav class="topShellBreadcrumb" aria-label="Breadcrumb">'
-                '<a href="/">Dashboard</a>'
-                '<span>›</span>'
-                f'<strong>{escape(breadcrumb_current)}</strong>'
-                '</nav>'
-            )
-        else:
-            shell_back_html = '<span class="topShellBackPlaceholder"></span>'
-
-        content_html = content_html[:back_match.start()] + content_html[back_match.end():]
-
-    username = str(session.get("username") or "admin").strip() or "admin"
-
-    try:
-        display_name = get_employee_display_name(username)
-    except Exception:
-        display_name = username
-
-    role_text = str(role or "admin").replace("_", " ").title()
-
-    name_parts = [p for p in str(display_name or username).split() if p]
-    if len(name_parts) >= 2:
-        user_initials = (name_parts[0][0] + name_parts[-1][0]).upper()
-    elif name_parts:
-        user_initials = name_parts[0][:2].upper()
-    else:
-        user_initials = "AD"
-
-    company_bar = f"""
-      <div class="pageTopActions">
-        {shell_back_html}
-
-        <div class="topShellUserTools">
-          <button class="topShellIconButton topShellBell" type="button" aria-label="Notifications">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <path d="M12 4a4 4 0 0 1 4 4v2.35c0 .82.22 1.63.64 2.33L18 15H6l1.36-2.32A4.45 4.45 0 0 0 8 10.35V8a4 4 0 0 1 4-4Z"></path>
-              <path d="M10 18a2 2 0 0 0 4 0"></path>
-            </svg>
-            <i>2</i>
-          </button>
-
-          <button class="topShellIconButton" type="button" aria-label="Help">
-            <svg viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="12" cy="12" r="9"></circle>
-              <path d="M9.2 9a3 3 0 1 1 5.6 1.5c-.5.78-1.4 1.12-2 1.78-.43.44-.62.88-.62 1.72"></path>
-              <path d="M12 17h.01"></path>
-            </svg>
-          </button>
-
-          <div class="topShellUser">
-            <div class="topShellAvatar">{escape(user_initials)}</div>
-            <div class="topShellUserText">
-              <strong>{escape(display_name)}</strong>
-              <span>{escape(role_text)}</span>
-            </div>
-            <div class="topShellChevron">⌄</div>
-          </div>
-
-          <div class="topAccountWrap">
-            <button type="button" class="topAccountTrigger" aria-label="Account menu" onclick="(function(btn){{var wrap=btn.closest('.topAccountWrap'); if(!wrap) return; document.querySelectorAll('.topAccountWrap.open').forEach(function(el){{if(el!==wrap) el.classList.remove('open');}}); wrap.classList.toggle('open');}})(this)">
-              <svg viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="12" cy="5" r="1.5"></circle>
-                <circle cx="12" cy="12" r="1.5"></circle>
-                <circle cx="12" cy="19" r="1.5"></circle>
-              </svg>
-            </button>
-
-            <div class="topAccountMenu">
-              <a class="topAccountMenuItem" href="/onboarding"><span>Starter Form</span><span class="topAccountMenuMark">›</span></a>
-              {mobile_current_sessions_link}
-              {mobile_work_progress_link}
-              <a class="topAccountMenuItem" href="/password"><span>Profile</span><span class="topAccountMenuMark">›</span></a>
-              <a class="topAccountMenuItem danger" href="/logout"><span>Log out</span><span class="topAccountMenuMark">›</span></a>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <script>
-      (function(){{
-        if (window.__topAccountMenuBound) return;
-        window.__topAccountMenuBound = true;
-
-        document.addEventListener('click', function(e){{
-          document.querySelectorAll('.topAccountWrap.open').forEach(function(wrap){{
-            if (!wrap.contains(e.target)) wrap.classList.remove('open');
-          }});
-        }});
-
-        document.addEventListener('keydown', function(e){{
-          if (e.key === 'Escape') {{
-            document.querySelectorAll('.topAccountWrap.open').forEach(function(wrap){{
-              wrap.classList.remove('open');
-            }});
-          }}
-        }});
-      }})();
-      </script>
-    """
-
-
-    heartbeat_script = """
-      <script>
-      (function(){
-        if (window.__sessionHeartbeatBound) return;
-        window.__sessionHeartbeatBound = true;
-
-        function beat(){
-          fetch('/api/session-heartbeat', {
-            method: 'GET',
-            credentials: 'same-origin',
-            cache: 'no-store'
-          }).catch(function(){});
-        }
-
-        beat();
-        window.setInterval(beat, 45000);
-      })();
-      </script>
-    """
-
-    return f"""
-      <div class="shell{extra}">
-        {sidebar_html(active, role)}
-        <div class="main">
-          {company_bar}
-          {content_html}
-          <div class="safeBottom"></div>
-        </div>
-      </div>
-      {heartbeat_script}
-    """
 
 # ================= ROUTES =================
 @routes.get("/ping")

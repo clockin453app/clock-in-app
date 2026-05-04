@@ -1,5 +1,4 @@
 <link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-dashboard.css') }}">
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-final-clean.css') }}">
 
 {% macro icon(path) %}
   <svg viewBox="0 0 24 24" aria-hidden="true">
@@ -19,16 +18,11 @@
 {% set payroll_points = payroll_bars|default([]) %}
 {% set activity_items = recent_activity|default([]) %}
 
-<div class="dbRefPage">
+<nav class="topShellBreadcrumb" aria-label="Breadcrumb">
+  <strong>Dashboard</strong>
+</nav>
+
   <header class="dbRefHeader">
-    <div class="dbRefTop">
-      <nav class="dbRefCrumbs" aria-label="Breadcrumb">
-        <strong>Dashboard</strong>
-      </nav>
-
-
-    </div>
-
     <div class="dbRefTitle">
       <h1>Dashboard</h1>
       <p>Get a real-time overview of your workforce and operations.</p>

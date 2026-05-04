@@ -1,0 +1,65 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/employee-timesheets.css') }}">
+
+{{ page_back_html|safe }}
+
+<div class="employeePage employeeTimesheetsPage">
+  <header class="employeePageHeader">
+    <h1>Timesheets</h1>
+    <p>{{ display_name }} &bull; {{ company_name }}</p>
+  </header>
+
+  <section class="employeePanel employeeTimesheetsPanel" aria-labelledby="timesheets-title">
+    <div class="employeePanelHeader">
+      <h2 id="timesheets-title">All weekly timesheets</h2>
+      <span>{{ weekly_list|length }} week(s)</span>
+    </div>
+
+    <div class="employeeTableWrap">
+      <table class="employeeTable employeeTimesheetsTable">
+        <thead>
+          <tr>
+            <th>Period</th>
+            <th class="num">Hours</th>
+            <th class="num">Gross Pay</th>
+            <th class="num">CIS Tax</th>
+            <th class="num">Take Home</th>
+            <th>Company</th>
+            <th class="num">View</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% if weekly_list %}
+            {% for item in weekly_list %}
+              <tr>
+                <td>
+                  {{ item.period }}
+                  {% if item.is_paid %}
+                    <span class="employeePaidMark" title="Paid">£</span>
+                  {% endif %}
+                </td>
+                <td class="num">{{ fmt_hours(item.hours) }}</td>
+                <td class="num">{{ currency }}{{ money(item.gross) }}</td>
+                <td class="num">{{ currency }}{{ money(item.tax) }}</td>
+                <td class="num">{{ currency }}{{ money(item.net) }}</td>
+                <td>{{ item.company }}</td>
+                <td class="num">
+                  <a class="employeeIconButton"
+                     href="/my-week-report?wk={{ item.wk_offset }}"
+                     title="View timesheet"
+                     aria-label="View timesheet">
+                    ›
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="7" class="employeeEmptyCell">No weekly timesheet records found.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

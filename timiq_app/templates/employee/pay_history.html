@@ -1,0 +1,53 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/employee-pay-history.css') }}">
+
+{{ page_back_html|safe }}
+
+<div class="employeePage employeePayHistoryPage">
+  <header class="employeePageHeader">
+    <h1>Pay History</h1>
+    <p>{{ display_name }} &bull; {{ company_name }}</p>
+  </header>
+
+  <section class="employeePanel employeePayHistoryPanel" aria-labelledby="pay-history-title">
+    <div class="employeePanelHeader">
+      <h2 id="pay-history-title">Paid weeks</h2>
+      <span>{{ paid_rows|length }} paid week(s)</span>
+    </div>
+
+    <div class="employeeTableWrap">
+      <table class="employeeTable employeePayHistoryTable">
+        <thead>
+          <tr>
+            <th>Period</th>
+            <th class="num">Gross</th>
+            <th class="num">CIS Tax</th>
+            <th class="num">Net</th>
+            <th class="num">Payslip</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {% if paid_rows %}
+            {% for row in paid_rows %}
+              <tr>
+                <td>{{ row.period }}</td>
+                <td class="num">{{ row.gross_text }}</td>
+                <td class="num">{{ row.tax_text }}</td>
+                <td class="num">{{ row.net_text }}</td>
+                <td class="num">
+                  <a class="employeeIconButton" href="{{ row.payslip_url }}" title="Open payslip" aria-label="Open payslip">
+                    ↓
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="employeeEmptyCell">No paid weeks found yet.</td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+</div>

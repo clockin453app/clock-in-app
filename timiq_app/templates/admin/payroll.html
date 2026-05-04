@@ -28,11 +28,12 @@
 
   <section class="prRefFilters">
     <form method="GET" class="prRefFilterForm">
+        <input type="hidden" name="mode" id="payrollFilterMode" value="week">
       <div class="prRefFilterGroup week">
         <label>Week</label>
         <div class="prRefWeekControls">
           <a class="prRefWeekBtn" href="{{ prev_week_url }}">‹</a>
-          <select name="wk" onchange="this.form.submit()">
+          <select name="wk" onchange="document.getElementById('payrollFilterMode').value='week'; this.form.submit()">
             {{ week_options_html|safe }}
           </select>
           <a class="prRefWeekBtn {% if wk_offset == 0 %}disabled{% endif %}" href="{{ next_week_url }}">›</a>
@@ -57,7 +58,13 @@
 
       <input type="hidden" name="ym" value="{{ ym }}">
 
-      <button class="prRefApply" type="submit">Apply</button>
+      <button
+  class="prRefApply"
+  type="submit"
+  onclick="document.getElementById('payrollFilterMode').value='range'"
+>
+  Apply
+</button>
 
       <button class="prRefMoreFilters" type="button">
         {{ pi('<path d="M3 5h18"/><path d="M6 12h12"/><path d="M10 19h4"/>') }}
@@ -151,8 +158,26 @@
                 <th>Notes</th>
               </tr>
             </thead>
-            <tbody>
+                        <tbody>
               {{ payroll_review_rows_html|safe }}
+
+              {% set payroll_review_filler_rows = 10 - employees_count %}
+              {% if payroll_review_filler_rows > 0 %}
+                {% for _ in range(payroll_review_filler_rows) %}
+                  <tr class="prRefFillerRow" aria-hidden="true">
+                    <td>&nbsp;</td>
+                    <td class="num">&nbsp;</td>
+                    <td class="num">&nbsp;</td>
+                    <td class="num">&nbsp;</td>
+                    <td class="num">&nbsp;</td>
+                    <td class="num">&nbsp;</td>
+                    <td class="num">&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td>&nbsp;</td>
+                    <td class="num">&nbsp;</td>
+                  </tr>
+                {% endfor %}
+              {% endif %}
             </tbody>
           </table>
         </div>
@@ -191,13 +216,12 @@
           </div>
 
           <form method="GET" class="prRefMonthForm">
-            <input type="month" name="ym" value="{{ ym }}">
-            <input type="hidden" name="wk" value="{{ wk_offset }}">
-            <input type="hidden" name="q" value="{{ q }}">
-            <input type="hidden" name="from" value="{{ date_from }}">
-            <input type="hidden" name="to" value="{{ date_to }}">
-            <button type="submit">View history</button>
-          </form>
+  <input type="month" name="ym" value="{{ ym }}">
+  <input type="hidden" name="mode" value="week">
+  <input type="hidden" name="wk" value="{{ wk_offset }}">
+  <input type="hidden" name="q" value="{{ q }}">
+  <button type="submit">View history</button>
+</form>
         </div>
 
         <div class="prRefMonthlyStats">
@@ -207,42 +231,6 @@
           <div><span>Gross Pay</span><strong>{{ month_gross_text }}</strong></div>
           <div><span>CIS Tax</span><strong>{{ month_tax_text }}</strong></div>
           <div><span>Net Pay</span><strong>{{ month_net_text }}</strong></div>
-        </div>
-      </section>
-
-      <section class="prRefPanel">
-        <div class="prRefPanelHead">
-          <div class="prRefSectionTitle">
-            <span class="prRefChevronDown">⌄</span>
-            <h2>Employee Payroll Details</h2>
-          </div>
-
-          <div class="prRefHeadActions">
-            <a href="{{ csv_url }}">Export All</a>
-            <button type="button">Export ⌄</button>
-          </div>
-        </div>
-
-        <div class="prRefTableWrap">
-          <table class="prRefDetailsTable">
-            <thead>
-              <tr>
-                <th>Day</th>
-                <th>Date</th>
-                <th>Clock In</th>
-                <th>Clock Out</th>
-                <th>Hours</th>
-                <th>OT</th>
-                <th>Gross</th>
-                <th>CIS Tax</th>
-                <th>Net Pay</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {{ payroll_details_rows_html|safe }}
-            </tbody>
-          </table>
         </div>
       </section>
     </main>
@@ -307,8 +295,44 @@
           </a>
         </div>
       </section>
-    </aside>
+        </aside>
   </div>
+
+  <section class="prRefPanel prRefDetailsFull">
+    <div class="prRefPanelHead">
+      <div class="prRefSectionTitle">
+        <span class="prRefChevronDown">⌄</span>
+        <h2>Employee Payroll Details</h2>
+      </div>
+
+      <div class="prRefHeadActions">
+        <a href="{{ csv_url }}">Export All</a>
+        <button type="button">Export ⌄</button>
+      </div>
+    </div>
+
+    <div class="prRefTableWrap">
+      <table class="prRefDetailsTable">
+        <thead>
+          <tr>
+            <th>Day</th>
+            <th>Date</th>
+            <th>Clock In</th>
+            <th>Clock Out</th>
+            <th>Hours</th>
+            <th>OT</th>
+            <th>Gross</th>
+            <th>CIS Tax</th>
+            <th>Net Pay</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          {{ payroll_details_rows_html|safe }}
+        </tbody>
+      </table>
+    </div>
+  </section>
 </div>
 
 {{ pay_confirm_modal_html|safe }}

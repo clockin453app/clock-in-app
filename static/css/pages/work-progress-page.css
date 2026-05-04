@@ -1,0 +1,299 @@
+.workProgressPage {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.workProgressHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+  font-weight: 800;
+}
+
+.workProgressHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.workProgressPanel {
+  background: #fff;
+  border: 1px solid #e0e7f2;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 10px 28px rgba(18, 34, 66, .06);
+}
+
+.workProgressPanel h2 {
+  margin: 0 0 14px;
+  color: #11183a;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.workProgressForm {
+  margin-top: 12px;
+}
+
+.progressFilters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+  align-items: end;
+}
+
+.progressFilters > div {
+  min-width: 0;
+}
+
+.progressFilters label,
+.workProgressNoteLabel {
+  display: block;
+  margin-bottom: 6px;
+  color: #55617f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.progressFilters .input,
+.workProgressForm .input {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.workProgressNoteLabel {
+  margin-top: 12px;
+}
+
+.workProgressPrimaryButton {
+  width: 100%;
+  min-height: 42px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ref-primary, #0b63ff);
+  color: #fff;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(11, 99, 255, .18);
+}
+
+.workProgressForm .workProgressPrimaryButton {
+  margin-top: 12px;
+}
+
+.workProgressPrimaryButton:hover {
+  filter: brightness(.98);
+}
+
+.workProgressPrimaryButton:disabled {
+  opacity: .65;
+  cursor: not-allowed;
+}
+
+.workProgressMessage {
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 163, 74, .22);
+  border-radius: 14px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.workProgressMessage.isError {
+  border-color: rgba(220, 38, 38, .18);
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+#progressUploadStatus {
+  display: none;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(59, 116, 173, .18);
+  border-radius: 12px;
+  background: #eef4fb;
+  color: #3b74ad;
+  font-weight: 800;
+}
+
+#progressUploadStatus.success {
+  border-color: rgba(22, 163, 74, .22);
+  background: #f0fdf4;
+  color: #166534;
+}
+
+#progressUploadStatus.error {
+  border-color: rgba(220, 38, 38, .18);
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.workProgressGalleryFilters {
+  margin-top: 12px;
+}
+
+.workProgressBulkForm {
+  margin-top: 12px;
+}
+
+.progressBulkToolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 0;
+  border-top: 1px solid #e7edf6;
+  border-bottom: 1px solid #e7edf6;
+}
+
+.progressSelectBox {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #55617f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.progressBulkSummary {
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.progressBulkActions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.btnTiny {
+  min-height: 38px;
+  padding: 0 14px;
+  border: 1px solid #d8e3f2;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ref-primary, #0b63ff);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.btnTiny:hover {
+  background: #eef5ff;
+}
+
+.btnTiny.danger {
+  color: #dc2626;
+}
+
+.btnTiny[disabled] {
+  opacity: .55;
+  cursor: not-allowed;
+}
+
+.progressGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+  gap: 14px;
+  align-items: start;
+  margin-top: 14px;
+}
+
+.progressCard {
+  background: #fff;
+  border: 1px solid #e0e7f2;
+  border-radius: 16px;
+  box-shadow: 0 6px 14px rgba(15, 23, 42, .05);
+  overflow: hidden;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.progressCardSelectable {
+  cursor: pointer;
+  transition: border-color .15s ease, box-shadow .15s ease, background .15s ease;
+}
+
+.progressCardSelectable:hover {
+  border-color: rgba(59, 116, 173, .26);
+}
+
+.progressCardSelectable.is-selected {
+  border-color: rgba(11, 99, 255, .55);
+  box-shadow: 0 0 0 2px rgba(11, 99, 255, .12);
+  background: #f8fbff;
+}
+
+.progressThumbLink {
+  display: block;
+  text-decoration: none;
+}
+
+.progressThumb {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  height: auto;
+  object-fit: cover;
+  display: block;
+  border: 1px solid #e7edf6;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.progressMeta {
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.progressSite {
+  color: #11183a;
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.progressSubLine {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.3;
+  font-weight: 700;
+}
+
+@media (max-width: 640px) {
+  .workProgressHeader h1 {
+    font-size: 34px;
+  }
+
+  .workProgressPanel {
+    padding: 14px;
+  }
+
+  .progressFilters {
+    grid-template-columns: 1fr;
+  }
+
+  .progressGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+}

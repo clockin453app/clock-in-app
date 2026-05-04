@@ -1,0 +1,125 @@
+.accountProfilePage {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.accountProfileHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+  font-weight: 800;
+}
+
+.accountProfileHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.accountPanel {
+  background: #ffffff;
+  border: 1px solid #e0e7f2;
+  border-radius: 20px;
+  box-shadow: 0 10px 28px rgba(18, 34, 66, .06);
+  padding: 20px;
+}
+
+.accountPanel h2 {
+  margin: 0;
+  color: #11183a;
+  font-size: 20px;
+  font-weight: 900;
+}
+
+.accountPanel p {
+  margin: 8px 0 0;
+  color: #68748f;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.accountDetailsBlock {
+  margin-top: 14px;
+  overflow: auto;
+}
+
+.accountDetailsBlock table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.accountDetailsBlock th,
+.accountDetailsBlock td {
+  padding: 12px 14px;
+  border-bottom: 1px solid #e7edf6;
+  text-align: left;
+  font-size: 14px;
+}
+
+.accountDetailsBlock th {
+  color: #4f5f7d;
+  font-weight: 900;
+}
+
+.accountDetailsBlock td {
+  color: #11183a;
+  font-weight: 700;
+}
+
+.accountForm {
+  margin-top: 16px;
+}
+
+.accountForm label {
+  display: block;
+  margin: 12px 0 6px;
+  color: #55617f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.accountPrimaryButton {
+  margin-top: 14px;
+  min-height: 42px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 12px;
+  background: var(--ref-primary, #0b63ff);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(11, 99, 255, .18);
+}
+
+.accountMessage {
+  padding: 12px 14px;
+  border: 1px solid rgba(22, 163, 74, .22);
+  border-radius: 14px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 14px;
+  font-weight: 800;
+}
+
+.accountMessage.isError {
+  border-color: rgba(220, 38, 38, .18);
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+@media (max-width: 720px) {
+  .accountProfileHeader h1 {
+    font-size: 34px;
+  }
+
+  .accountPanel {
+    padding: 14px;
+  }
+}

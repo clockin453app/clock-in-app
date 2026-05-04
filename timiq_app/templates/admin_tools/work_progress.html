@@ -1,0 +1,327 @@
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/work-progress-page.css') }}">
+
+{{ page_back_html|safe }}
+
+<div class="workProgressPage">
+  <header class="workProgressHeader">
+    <h1>Site Progress</h1>
+    <p>Upload and review site progress photos for workplace <b>{{ workplace_id }}</b>.</p>
+  </header>
+
+  {% if msg and ok %}
+    <div class="workProgressMessage">{{ msg }}</div>
+  {% elif msg %}
+    <div class="workProgressMessage isError">{{ msg }}</div>
+  {% endif %}
+
+  <section class="workProgressPanel">
+    <h2>Add progress photos</h2>
+
+    <form method="POST" enctype="multipart/form-data" id="progressUploadForm" class="workProgressForm">
+      <input type="hidden" name="csrf" value="{{ csrf }}">
+      <input type="hidden" name="action" value="upload">
+
+      <div class="progressFilters">
+        <div>
+          <label>Site</label>
+          <select class="input" name="site" required>
+            {{ upload_site_options|safe }}
+          </select>
+        </div>
+
+        <div>
+          <label>Date</label>
+          <input class="input progressDateInput" type="date" name="shot_date" value="{{ today_str }}" required>
+        </div>
+
+        <div>
+          <label>Tag</label>
+          <input class="input" name="tag" placeholder="e.g. brickwork">
+        </div>
+
+        <div>
+          <label>Photos</label>
+          <input class="input" type="file" name="photo" accept="image/*" multiple required>
+        </div>
+      </div>
+
+      <label class="workProgressNoteLabel">Note</label>
+      <textarea class="input" name="note" rows="3" placeholder="What was completed today?"></textarea>
+
+      <button class="workProgressPrimaryButton" type="submit">Add progress photos</button>
+      <div id="progressUploadStatus"></div>
+    </form>
+  </section>
+
+  {% if is_admin %}
+    <section class="workProgressPanel">
+      <h2>Gallery</h2>
+
+      <form method="GET" class="progressFilters workProgressGalleryFilters">
+        <div>
+          <label>Site</label>
+          <select class="input" name="site">
+            {{ filter_site_options|safe }}
+          </select>
+        </div>
+
+        <div>
+          <label>Tag</label>
+          <input class="input" name="tag" value="{{ tag_filter }}" placeholder="optional tag">
+        </div>
+
+        <div>
+          <label>Uploaded by</label>
+          <input class="input" name="user" value="{{ user_filter }}" placeholder="optional username">
+        </div>
+
+        <div>
+          <button class="workProgressPrimaryButton" type="submit">Apply</button>
+        </div>
+      </form>
+
+      <form method="POST" id="progressBulkActionForm" class="workProgressBulkForm">
+        <input type="hidden" name="csrf" value="{{ csrf }}">
+        <input type="hidden" name="action" value="" id="progressBulkActionName">
+
+        <div class="progressBulkToolbar">
+          <label class="progressSelectBox">
+            <input type="checkbox" id="progressSelectAll">
+            <span>Select all</span>
+          </label>
+
+          <div class="progressBulkSummary">
+            <span id="progressSelectedCount">0</span> selected
+          </div>
+
+          <div class="progressBulkActions">
+            <button class="btnTiny" type="button" id="progressClearSelection">Clear selection</button>
+            <button class="btnTiny" type="submit" data-bulk-action="bulk_download" disabled>Download selected</button>
+            <button class="btnTiny danger" type="submit" data-bulk-action="bulk_delete" disabled>Delete selected</button>
+          </div>
+        </div>
+      </form>
+
+      <div class="progressGrid">
+        {{ gallery_html|safe }}
+      </div>
+    </section>
+  {% endif %}
+</div>
+
+<script>
+  (function() {
+    const form = document.getElementById("progressUploadForm");
+    if (!form) return;
+
+    const fileInput = form.querySelector('input[name="photo"]');
+    const statusEl = document.getElementById("progressUploadStatus");
+
+    form.addEventListener("submit", async function(e) {
+      const files = Array.from((fileInput && fileInput.files) || []).filter(Boolean);
+      if (!files.length) return;
+
+      e.preventDefault();
+
+      const csrf = form.querySelector('input[name="csrf"]').value;
+      const site = form.querySelector('select[name="site"]').value.trim();
+      const shotDate = form.querySelector('input[name="shot_date"]').value.trim();
+      const tag = form.querySelector('input[name="tag"]').value.trim();
+      const note = form.querySelector('textarea[name="note"]').value || "";
+      const submitBtn = form.querySelector('button[type="submit"]');
+
+      if (!site || !shotDate) {
+        form.submit();
+        return;
+      }
+
+      if (submitBtn) submitBtn.disabled = true;
+      statusEl.className = "";
+      statusEl.style.display = "block";
+      statusEl.textContent = "Starting upload...";
+
+      let okCount = 0;
+      let failCount = 0;
+
+      for (let i = 0; i < files.length; i++) {
+        const fd = new FormData();
+        fd.append("csrf", csrf);
+        fd.append("action", "upload");
+        fd.append("site", site);
+        fd.append("shot_date", shotDate);
+        fd.append("tag", tag);
+        fd.append("note", note);
+        fd.append("photo", files[i], files[i].name);
+
+        statusEl.textContent = "Uploading " + (i + 1) + " of " + files.length + ": " + files[i].name;
+
+        try {
+          const res = await fetch(window.location.pathname, {
+            method: "POST",
+            body: fd,
+            credentials: "same-origin",
+            headers: {
+              "X-Requested-With": "XMLHttpRequest"
+            }
+          });
+
+          const data = await res.json().catch(function() {
+            return { ok: false, message: "Upload failed." };
+          });
+
+          if (res.ok && data.ok) {
+            okCount += 1;
+          } else {
+            failCount += 1;
+          }
+        } catch (err) {
+          failCount += 1;
+        }
+      }
+
+      if (okCount > 0 && failCount === 0) {
+        statusEl.className = "success";
+        statusEl.textContent = "Upload successful: " + okCount + " photo(s) uploaded.";
+        form.reset();
+
+        setTimeout(function() {
+          window.location.reload();
+        }, 1500);
+      } else if (okCount > 0) {
+        statusEl.className = "";
+        statusEl.textContent = "Upload finished: " + okCount + " uploaded, " + failCount + " failed.";
+
+        setTimeout(function() {
+          window.location.reload();
+        }, 1800);
+      } else {
+        statusEl.className = "error";
+        statusEl.textContent = "Upload failed. Please try again.";
+        if (submitBtn) submitBtn.disabled = false;
+      }
+    });
+  })();
+
+  (function() {
+    const bulkForm = document.getElementById("progressBulkActionForm");
+    if (!bulkForm) return;
+
+    const actionInput = document.getElementById("progressBulkActionName");
+    const selectAll = document.getElementById("progressSelectAll");
+    const clearBtn = document.getElementById("progressClearSelection");
+    const countEl = document.getElementById("progressSelectedCount");
+    const actionButtons = Array.from(bulkForm.querySelectorAll("[data-bulk-action]"));
+    const checks = Array.from(document.querySelectorAll(".progressBulkCheck"));
+
+    let lastIndex = -1;
+
+    function syncSelection() {
+      const selectedCount = checks.filter(function(cb) {
+        return cb.checked;
+      }).length;
+
+      if (countEl) countEl.textContent = String(selectedCount);
+
+      if (selectAll) {
+        selectAll.checked = checks.length > 0 && selectedCount === checks.length;
+        selectAll.indeterminate = selectedCount > 0 && selectedCount < checks.length;
+      }
+
+      checks.forEach(function(cb) {
+        const card = cb.closest(".progressCardSelectable");
+        if (card) {
+          card.classList.toggle("is-selected", cb.checked);
+        }
+      });
+
+      actionButtons.forEach(function(btn) {
+        btn.disabled = selectedCount === 0;
+      });
+    }
+
+    function setRange(fromIndex, toIndex, checked) {
+      const start = Math.min(fromIndex, toIndex);
+      const end = Math.max(fromIndex, toIndex);
+
+      for (let i = start; i <= end; i += 1) {
+        checks[i].checked = checked;
+      }
+    }
+
+    checks.forEach(function(cb, index) {
+      cb.addEventListener("click", function(e) {
+        if (e.shiftKey && lastIndex >= 0) {
+          setRange(lastIndex, index, cb.checked);
+        }
+        lastIndex = index;
+        syncSelection();
+      });
+
+      const card = cb.closest(".progressCardSelectable");
+      if (card) {
+        card.addEventListener("click", function(e) {
+          if (e.target.closest("a, button, input, label")) return;
+          cb.checked = !cb.checked;
+          lastIndex = index;
+          syncSelection();
+        });
+      }
+    });
+
+    if (selectAll) {
+      selectAll.addEventListener("change", function() {
+        checks.forEach(function(cb) {
+          cb.checked = selectAll.checked;
+        });
+        syncSelection();
+      });
+    }
+
+    if (clearBtn) {
+      clearBtn.addEventListener("click", function(e) {
+        e.preventDefault();
+        checks.forEach(function(cb) {
+          cb.checked = false;
+        });
+        if (selectAll) {
+          selectAll.checked = false;
+          selectAll.indeterminate = false;
+        }
+        syncSelection();
+      });
+    }
+
+    actionButtons.forEach(function(btn) {
+      btn.addEventListener("click", function() {
+        if (actionInput) {
+          actionInput.value = btn.getAttribute("data-bulk-action") || "";
+        }
+      });
+    });
+
+    bulkForm.addEventListener("submit", function(e) {
+      const selectedCount = checks.filter(function(cb) {
+        return cb.checked;
+      }).length;
+
+      const actionName = (actionInput && actionInput.value) || "";
+
+      if (!selectedCount) {
+        e.preventDefault();
+        alert("Select at least one photo first.");
+        return;
+      }
+
+      if (!actionName) {
+        e.preventDefault();
+        return;
+      }
+
+      if (actionName === "bulk_delete" && !window.confirm("Delete selected photos?")) {
+        e.preventDefault();
+      }
+    });
+
+    syncSelection();
+  })();
+</script>

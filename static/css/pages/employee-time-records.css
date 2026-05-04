@@ -1,0 +1,166 @@
+.employeePage {
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.employeePageHeader {
+  margin: 0;
+}
+
+.employeePageHeader h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 42px;
+  line-height: 1.02;
+  letter-spacing: -0.04em;
+  color: #11183a;
+  font-weight: 800;
+}
+
+.employeePageHeader p {
+  margin: 10px 0 0;
+  color: #68748f;
+  font-size: 15px;
+  line-height: 1.45;
+  font-weight: 700;
+}
+
+.employeeSummaryGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+}
+
+.employeeSummaryCard,
+.employeePanel {
+  background: #fff;
+  border: 1px solid #e0e7f2;
+  box-shadow: 0 10px 28px rgba(18, 34, 66, .06);
+}
+
+.employeeSummaryCard {
+  min-height: 108px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.employeeSummaryCard span {
+  color: #596681;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.employeeSummaryCard strong {
+  margin-top: 8px;
+  color: #11183a;
+  font-size: 28px;
+  line-height: 1.05;
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.employeeSummaryCard small {
+  margin-top: 7px;
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.employeePanel {
+  padding: 20px;
+}
+
+.employeePanelHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.employeePanelHeader h2 {
+  margin: 0;
+  color: #11183a;
+  font-size: 20px;
+  line-height: 1.2;
+  font-weight: 900;
+}
+
+.employeePanelHeader span {
+  color: #68748f;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.employeeTableWrap {
+  overflow: auto;
+  border: 1px solid #e1e8f3;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.employeeTable {
+  width: 100%;
+  min-width: 760px;
+  border-collapse: collapse;
+}
+
+.employeeTable th,
+.employeeTable td {
+  padding: 16px 18px;
+  border-bottom: 1px solid #e7edf6;
+  color: #172342;
+  font-size: 14px;
+  line-height: 1.25;
+  text-align: left;
+  vertical-align: middle;
+  font-variant-numeric: tabular-nums;
+}
+
+.employeeTable th {
+  background: #f6f8fc;
+  color: #4f5f7d;
+  font-size: 12px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.employeeTable tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.employeeTable .num {
+  text-align: right;
+}
+
+.employeeEmptyCell {
+  text-align: center !important;
+  color: #68748f !important;
+  font-weight: 800;
+}
+
+@media (max-width: 1100px) {
+  .employeeSummaryGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  .employeePageHeader h1 {
+    font-size: 34px;
+  }
+
+  .employeeSummaryGrid {
+    grid-template-columns: 1fr;
+  }
+
+  .employeePanel {
+    padding: 14px;
+  }
+}

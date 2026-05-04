@@ -6,43 +6,6 @@
   color: var(--ref-text, #121a3a) !important;
 }
 
-.attBreadcrumb {
-  display: flex !important;
-  align-items: center !important;
-  gap: 12px !important;
-  color: var(--ref-muted, #68748f) !important;
-  font-size: 13px !important;
-  font-weight: 700 !important;
-}
-
-.attBreadcrumb a {
-  color: var(--ref-muted, #68748f) !important;
-  text-decoration: none !important;
-}
-
-.attBreadcrumb span:last-child {
-  color: var(--ref-text, #121a3a) !important;
-  font-weight: 800 !important;
-}
-
-.attHeader h1 {
-  margin: 0 !important;
-  font-family: Georgia, "Times New Roman", serif !important;
-  font-size: 44px !important;
-  line-height: 1 !important;
-  letter-spacing: -0.045em !important;
-  color: var(--ref-heading, #11183a) !important;
-  font-weight: 700 !important;
-}
-
-.attHeader p {
-  margin: 12px 0 0 !important;
-  color: var(--ref-muted, #68748f) !important;
-  font-size: 15px !important;
-  line-height: 1.45 !important;
-  font-weight: 600 !important;
-}
-
 .attKpiGrid {
   display: grid !important;
   grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
@@ -645,9 +608,6 @@
 }
 
 @media (max-width: 820px) {
-  .attHeader h1 {
-    font-size: 36px !important;
-  }
 
   .attKpiGrid {
     grid-template-columns: 1fr !important;
