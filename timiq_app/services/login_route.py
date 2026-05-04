@@ -24,6 +24,8 @@ def login_impl(core):
     get_company_settings = core["get_company_settings"]
     escape = core["escape"]
     render_template_string = core["render_template_string"]
+    STYLE = core["STYLE"]
+    VIEWPORT = core["VIEWPORT"]
     PWA_TAGS = core["PWA_TAGS"]
     _find_global_master_admin_record = core["_find_global_master_admin_record"]
     _issue_global_master_admin_session_token = core["_issue_global_master_admin_session_token"]
@@ -36,7 +38,6 @@ def login_impl(core):
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         workplace_id = (request.form.get("workplace_id", "") or "").strip()
-        remember_me = request.form.get("remember") == "1"
         ip = _client_ip()
 
         login_usernames = [username]
@@ -47,7 +48,8 @@ def login_impl(core):
 
         allowed, retry_after = _login_rate_limit_check(ip)
         if not allowed:
-            log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="", details=f"RetryAfter={retry_after}s")
+            log_audit("LOGIN_LOCKED", actor=ip, username=username, date_str="",
+                      details=f"RetryAfter={retry_after}s")
             mins = max(1, int(math.ceil(retry_after / 60)))
             msg = f"Too many login attempts. Try again in {mins} minute(s)."
         else:
@@ -67,19 +69,19 @@ def login_impl(core):
 
                     if not is_active:
                         _login_rate_limit_hit(ip)
-                        log_audit("LOGIN_INACTIVE", actor=ip, username=matched_global_username, date_str="", details="Inactive global master admin login attempt")
+                        log_audit("LOGIN_INACTIVE", actor=ip, username=matched_global_username, date_str="",
+                                  details="Inactive global master admin login attempt")
                         msg = "Invalid login"
                     else:
                         _login_rate_limit_clear(ip)
                         active_session_token = _issue_global_master_admin_session_token(matched_global_username)
                         if not active_session_token:
-                            log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_global_username, date_str="", details="Could not start global master admin session")
+                            log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_global_username, date_str="",
+                                      details="Could not start global master admin session")
                             msg = "Could not start secure session. Please try again."
                         else:
                             selected_workplace = workplace_id or (session.get("workplace_id") or "").strip() or "default"
                             session.clear()
-                            session.permanent = remember_me
-                            session["remember_me"] = remember_me
                             session["csrf"] = csrf
                             session["username"] = matched_global_username
                             session["workplace_id"] = selected_workplace
@@ -88,12 +90,15 @@ def login_impl(core):
                             session["rate"] = 0.0
                             session["early_access"] = True
                             session["active_session_token"] = active_session_token
-                            log_audit("LOGIN_OK", actor=ip, username=matched_global_username, date_str="", details=f"global master admin workplace={selected_workplace}")
+                            log_audit("LOGIN_OK", actor=ip, username=matched_global_username, date_str="",
+                                      details=f"global master admin workplace={selected_workplace}")
                             return redirect(url_for("home"))
                 else:
                     _login_rate_limit_hit(ip)
-                    log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="", details="Invalid global master admin username or password")
+                    log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
+                              details="Invalid global master admin username or password")
                     msg = "Invalid login"
+
             else:
                 if not workplace_id:
                     msg = "Workplace ID is required."
@@ -121,10 +126,12 @@ def login_impl(core):
 
                         if not is_active:
                             _login_rate_limit_hit(ip)
-                            log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="", details="Inactive account login attempt")
+                            log_audit("LOGIN_INACTIVE", actor=ip, username=username, date_str="",
+                                      details="Inactive account login attempt")
                             msg = "Invalid login"
                         else:
                             _login_rate_limit_clear(ip)
+
                             migrate_password_if_plain(
                                 matched_username,
                                 ok_user.get("Password", ""),
@@ -133,12 +140,11 @@ def login_impl(core):
                             )
                             active_session_token = _issue_active_session_token(matched_username, workplace_id)
                             if not active_session_token:
-                                log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_username, date_str="", details=f"Could not start active session workplace={workplace_id}")
+                                log_audit("LOGIN_SESSION_FAIL", actor=ip, username=matched_username, date_str="",
+                                          details=f"Could not start active session workplace={workplace_id}")
                                 msg = "Could not start secure session. Please try again."
                             else:
                                 session.clear()
-                                session.permanent = remember_me
-                                session["remember_me"] = remember_me
                                 session["csrf"] = csrf
                                 session["username"] = matched_username
                                 session["workplace_id"] = workplace_id
@@ -150,13 +156,14 @@ def login_impl(core):
                                 return redirect(url_for("home"))
                     else:
                         _login_rate_limit_hit(ip)
-                        log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="", details="Invalid username or password")
+                        log_audit("LOGIN_FAIL", actor=ip, username=username, date_str="",
+                                  details="Invalid username or password")
                         msg = "Invalid login"
 
     try:
-        company_name = (get_company_settings().get("Company_Name") or "").strip() or "TimIQ"
+        company_name = (get_company_settings().get("Company_Name") or "").strip() or "Main"
     except Exception:
-        company_name = "TimIQ"
+        company_name = "Main"
 
     entered_username = (request.form.get("username", "") or "").strip() if request.method == "POST" else ""
     entered_workplace_id = (request.form.get("workplace_id", "") or "").strip() if request.method == "POST" else ""
@@ -164,347 +171,2307 @@ def login_impl(core):
     login_page_style = """
     <style>
       :root{
-        --login-navy:#061a4d;
-        --login-blue:#0b63ff;
-        --login-blue2:#1586ff;
-        --login-cyan:#77cdf8;
-        --login-text:#091946;
-        --login-muted:#6e7f9e;
-        --login-line:#dce6f3;
-        --login-soft:#f3f8fe;
+        --bg:#f6f9fd;
+        --panel:#ffffff;
+        --line:#dbe5f2;
+        --line-strong:#d2ddec;
+        --text:#0a1833;
+        --muted:#7183a6;
+        --blue:#0b63ff;
+        --blue-2:#1f8cff;
+        --navy:#0c1f58;
+        --hero:#0a2e88;
+        --hero-dark:#081a4a;
+        --cyan:#72c7f6;
       }
 
       *{box-sizing:border-box;}
-      html,body{margin:0;width:100%;min-height:100%;overflow-x:hidden;}
+
+      html,body{
+        margin:0;
+        padding:0;
+        width:100%;
+        min-height:100%;
+      }
+
       body{
-        font-family:Inter,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
-        color:var(--login-text);
-        background:#f5f9fd;
+        font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+        color:var(--text);
+        background:
+          radial-gradient(1200px 600px at 85% 8%, rgba(126,211,247,.18), transparent 60%),
+          linear-gradient(180deg, #f9fbfe 0%, #f4f8fc 100%);
+        overflow-x:hidden;
         -webkit-font-smoothing:antialiased;
         -moz-osx-font-smoothing:grayscale;
       }
 
-      .authShell{
-        min-height:100vh;
+      .login-page{
         width:100%;
+        min-height:100vh;
         display:grid;
-        grid-template-columns:minmax(520px,48%) minmax(620px,52%);
-        background:
-          radial-gradient(780px 360px at 91% 2%,rgba(153,215,247,.25),transparent 62%),
-          linear-gradient(180deg,#fbfdff 0%,#f4f8fc 100%);
+        grid-template-columns:48% 52%;
       }
 
-      .authHero{
-        position:relative;
-        overflow:hidden;
-        min-height:100vh;
-        padding:76px 72px 56px;
-        color:#fff;
-        background:
-          radial-gradient(900px 540px at 78% 72%,rgba(36,142,255,.44),transparent 55%),
-          radial-gradient(520px 300px at 42% 50%,rgba(25,97,210,.35),transparent 65%),
-          linear-gradient(135deg,#07194a 0%,#0a2c83 58%,#0a41bc 100%);
-      }
-      .authHero::before{
+      /* LEFT DESKTOP HERO */
+      .login-hero{
+  position:relative;
+  min-height:100vh;
+  overflow:hidden;
+  color:#fff;
+  padding:54px 56px 46px;
+  background:
+    radial-gradient(680px 360px at 70% 62%, rgba(37,122,255,.34), transparent 58%),
+    linear-gradient(180deg, rgba(7,24,74,.90), rgba(10,46,136,.92)),
+    linear-gradient(135deg, #081a4a 0%, #0a2e88 100%);
+}
+
+      .login-hero::before{
         content:"";
         position:absolute;
         inset:0;
         background:
-          linear-gradient(105deg,rgba(255,255,255,.045),transparent 38%),
-          radial-gradient(circle at 50% 84%,rgba(99,192,255,.18),transparent 22%);
+          linear-gradient(90deg, rgba(255,255,255,.04) 1px, transparent 1px),
+          linear-gradient(180deg, rgba(255,255,255,.04) 1px, transparent 1px);
+        background-size:36px 36px;
+        opacity:.18;
         pointer-events:none;
       }
-      .authHero::after{
+
+      .hero-inner{
+        position:relative;
+        z-index:2;
+        display:flex;
+        flex-direction:column;
+        height:100%;
+      }
+
+      .hero-logo{
+        display:flex;
+        align-items:center;
+        gap:12px;
+      }
+
+      .hero-logo svg{
+        width:42px;
+        height:42px;
+        flex:0 0 42px;
+      }
+
+      .hero-logo-text{
+        font-size:34px;
+        font-weight:900;
+        letter-spacing:-.06em;
+        line-height:1;
+      }
+
+      .hero-logo-text .tim{color:#fff;}
+      .hero-logo-text .iq{color:#7fc7ee;}
+
+      .hero-copy{
+        max-width:470px;
+        margin-top:72px;
+      }
+
+      .hero-copy h1{
+  margin:0;
+  font-size:68px;
+  line-height:.96;
+  font-weight:900;
+  letter-spacing:-.06em;
+  color:#ffffff !important;
+  text-shadow:none;
+}
+.login-hero .hero-copy,
+.login-hero .hero-copy h1,
+.login-hero .hero-copy h1 *{
+  color:#ffffff !important;
+}
+
+.login-hero .hero-copy h1 .accent{
+  color:#72c7f6 !important;
+}
+
+.hero-copy h1 .accent{
+  color:#72c7f6 !important;
+}
+
+      .hero-copy .hero-rule{
+        width:54px;
+        height:3px;
+        border-radius:999px;
+        background:#72c7f6;
+        margin:34px 0 28px;
+        opacity:.9;
+      }
+
+      .hero-copy p{
+  margin:0;
+  max-width:420px;
+  color:rgba(255,255,255,.92);
+  font-size:18px;
+  line-height:1.65;
+  font-weight:500;
+}
+
+      .hero-features{
+        margin-top:52px;
+        display:grid;
+        gap:26px;
+        max-width:390px;
+      }
+
+      .hero-feature{
+        display:grid;
+        grid-template-columns:52px 1fr;
+        gap:16px;
+        align-items:start;
+      }
+
+      .hero-feature-icon{
+        width:52px;
+        height:52px;
+        border-radius:999px;
+        border:1px solid rgba(255,255,255,.14);
+        background:rgba(255,255,255,.10);
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        color:#ffffff;
+        backdrop-filter:blur(2px);
+      }
+
+      .hero-feature-icon svg{
+        width:22px;
+        height:22px;
+        stroke:currentColor;
+        fill:none;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .hero-feature strong{
+        display:block;
+        font-size:16px;
+        line-height:1.25;
+        font-weight:800;
+        color:#ffffff;
+        margin-bottom:4px;
+      }
+
+      .hero-feature span{
+        display:block;
+        color:rgba(255,255,255,.88);
+        font-size:15px;
+        line-height:1.45;
+        font-weight:500;
+      }
+
+      .hero-scene{
+  position:absolute;
+  inset:auto 0 0 0;
+  height:50%;
+  z-index:1;
+  pointer-events:none;
+  opacity:1;
+}
+
+.hero-scene svg{
+  width:100%;
+  height:100%;
+  display:block;
+}
+
+      .hero-dots{
+        position:absolute;
+        right:50px;
+        top:92px;
+        width:96px;
+        height:64px;
+        z-index:1;
+        opacity:.22;
+      }
+
+      .hero-dots::before{
         content:"";
         position:absolute;
-        width:92%;height:74%;right:-28%;top:10%;
-        border-radius:50%;
-        border:1px solid rgba(126,211,255,.23);
-        transform:rotate(-16deg);
-        pointer-events:none;
+        inset:0;
+        background-image:radial-gradient(rgba(255,255,255,.9) 1.2px, transparent 1.2px);
+        background-size:16px 16px;
       }
-      .authDots{
-        position:absolute;right:86px;top:100px;width:118px;height:72px;opacity:.22;
-        background-image:radial-gradient(rgba(113,203,255,.9) 1.4px,transparent 1.4px);
-        background-size:15px 15px;
+
+      /* RIGHT DESKTOP PANEL */
+      .login-main{
+        min-height:100vh;
+        padding:54px 54px 32px;
+        display:flex;
+        flex-direction:column;
+        justify-content:space-between;
+        background:
+          radial-gradient(760px 340px at 85% 0%, rgba(126,211,247,.20), transparent 55%),
+          linear-gradient(180deg, #fdfefe 0%, #f9fbfe 100%);
       }
-      .authCurve{position:absolute;inset:auto -7% 0 0;height:86%;pointer-events:none;opacity:.22;}
-      .authCurve svg{width:100%;height:100%;display:block;}
 
-      .brand{position:relative;z-index:3;display:inline-flex;align-items:center;gap:13px;}
-      .brandIcon{width:43px;height:43px;flex:0 0 43px;display:block;}
-      .brandWord{font-size:42px;line-height:1;font-weight:900;letter-spacing:-.07em;}
-      .brandWord .tim{color:#fff}.brandWord .iq{color:#83d6ff;}
+      .login-main-center{
+        flex:1;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }
 
-      .heroText{position:relative;z-index:3;margin-top:100px;max-width:500px;}
-      .authHero .heroText h1{
+      .login-card{
+        width:min(100%, 700px);
+        background:#fff;
+        border:1px solid #e3ebf5;
+        border-radius:20px;
+        padding:58px 62px 48px;
+        box-shadow:0 20px 60px rgba(12,31,88,.08);
+      }
+
+      .login-card h1{
         margin:0;
-        color:#ffffff !important;
-        -webkit-text-fill-color:#ffffff !important;
-        background:none !important;
-        background-image:none !important;
-        font-size:62px;
+        color:var(--navy);
+        font-size:58px;
         line-height:.98;
-        letter-spacing:-.055em;
         font-weight:900;
-        text-shadow:none !important;
-      }
-      .authHero .heroText h1 *{
-        color:#ffffff !important;
-        -webkit-text-fill-color:#ffffff !important;
-        background:none !important;
-        background-image:none !important;
-        text-shadow:none !important;
-      }
-      .authHero .heroText h1 .accent{
-        color:#7fd2fb !important;
-        -webkit-text-fill-color:#7fd2fb !important;
-      }
-      .heroRule{width:58px;height:3px;border-radius:999px;background:#74cef9;margin:32px 0 28px;}
-      .heroText p{margin:0;max-width:420px;color:rgba(255,255,255,.92);font-size:18px;line-height:1.58;font-weight:500;}
-
-      .heroFeatures{position:relative;z-index:3;display:grid;gap:28px;margin-top:58px;max-width:405px;}
-      .heroFeature{display:grid;grid-template-columns:56px 1fr;gap:18px;align-items:center;}
-      .heroFeatureIcon{width:56px;height:56px;border-radius:999px;border:1px solid rgba(255,255,255,.16);background:rgba(255,255,255,.11);display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1px rgba(255,255,255,.04);}
-      .heroFeatureIcon svg{width:25px;height:25px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-      .heroFeature strong{display:block;color:#fff;font-size:17px;line-height:1.25;font-weight:850;margin-bottom:4px;}
-      .heroFeature span{display:block;color:rgba(255,255,255,.88);font-size:15px;line-height:1.45;font-weight:500;}
-
-      .constructionArt{position:absolute;left:0;right:0;bottom:0;height:57%;z-index:1;pointer-events:none;opacity:.98;}
-      .constructionArt svg{width:100%;height:100%;display:block;}
-
-      .authMain{position:relative;min-height:100vh;display:flex;flex-direction:column;padding:54px 70px 32px;background:
-        radial-gradient(620px 260px at 98% 0%,rgba(149,219,255,.22),transparent 62%),
-        linear-gradient(180deg,#fbfdff 0%,#f5f9fd 100%);
-      }
-      .mainCenter{flex:1;display:flex;align-items:center;justify-content:center;}
-      .loginCard{width:min(100%,555px);background:#fff;border:1px solid #dfe8f4;border-radius:18px;box-shadow:0 28px 70px rgba(10,25,70,.10);padding:52px 48px 42px;}
-      .loginTitle{margin:0;color:#0d1d46;font-size:40px;line-height:1.05;font-weight:900;letter-spacing:-.045em;}
-      .loginSubtitle{margin:12px 0 31px;color:#7d8daa;font-size:15px;line-height:1.5;font-weight:500;}
-      .loginForm{display:grid;gap:18px;}
-      .fieldLabel{display:block;margin:0 0 9px;color:#10214d;font-size:14px;font-weight:850;}
-      .inputWrap{position:relative;}
-      .inputIcon{position:absolute;left:18px;top:50%;transform:translateY(-50%);width:20px;height:20px;color:#a7b5cb;display:flex;align-items:center;justify-content:center;pointer-events:none;}
-      .inputIcon svg,.eyeButton svg,.secureTitle svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-      .loginInput{width:100%;height:54px;border:1px solid #d9e3f1;border-radius:11px;background:#fff;color:#0d1d46;font-size:14px;font-weight:600;padding:0 16px 0 48px;outline:none;box-shadow:0 8px 20px rgba(15,23,42,.025);}
-      .loginInput::placeholder{color:#95a3bb;font-weight:500;}
-      .loginInput:focus{border-color:#9dc3ff;box-shadow:0 0 0 4px rgba(11,99,255,.075);}
-      .passwordInput{padding-right:58px;}
-      .eyeButton{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:39px;height:39px;border-radius:11px;border:1px solid #dce6f3;background:#fff;color:#0b63ff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
-      .eyeButton .eyeOpen{display:none}.eyeButton.isVisible .eyeOpen{display:block}.eyeButton.isVisible .eyeClosed{display:none;}
-      .fieldHint{margin-top:8px;color:#8190aa;font-size:13px;line-height:1.4;font-weight:600;}
-      .mobileActions{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:2px;}
-      .rememberLabel{display:inline-flex;align-items:center;gap:10px;color:#172653;font-size:15px;font-weight:700;}
-      .rememberLabel input{width:18px;height:18px;accent-color:#0b63ff;}
-      .forgotLink{font-size:15px;font-weight:800;color:#0b63ff;text-decoration:none;}
-      .submitButton{width:100%;height:58px;border:0;border-radius:11px;background:linear-gradient(90deg,#167cff 0%,#0b63ff 100%);color:#fff;font-size:16px;font-weight:850;display:flex;align-items:center;justify-content:center;gap:12px;cursor:pointer;box-shadow:0 16px 32px rgba(11,99,255,.19);margin-top:2px;}
-      .submitButton svg{display:none;width:22px;height:22px;stroke:#fff;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
-      .loginNote{display:flex;gap:11px;margin-top:20px;color:#7f8fa8;font-size:14px;line-height:1.55;font-weight:500;}
-      .loginNote svg{width:18px;height:18px;flex:0 0 18px;color:#a5b2c8;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;margin-top:2px;}
-      .message.error{margin-top:16px;border:1px solid #ffd4d1;background:#fff2f1;color:#b42318;border-radius:12px;padding:12px 14px;font-weight:800;font-size:14px;}
-      .secureBlock,.helpBlock{display:none;}
-      .authFooter{display:flex;align-items:center;justify-content:space-between;gap:20px;color:#8d9ab1;font-size:13px;font-weight:500;}
-      .footerLinks{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
-      .footerLinks a{color:#7e8ca5;text-decoration:none}.footerLinks a:last-child{color:#0b63ff;font-weight:700;}
-
-      .mobileHero{display:none;}
-
-      @media (max-width:1180px){.authShell{grid-template-columns:47% 53%;}.authHero{padding-left:56px;padding-right:48px}.heroText h1{font-size:54px}.authMain{padding-left:42px;padding-right:42px}.loginCard{width:min(100%,520px)}}
-
-      @media (max-width:900px){
-        body{background:linear-gradient(180deg,#edf6ff 0%,#fff 52%);}
-        .authShell{display:block;min-height:100vh;background:#fff;}
-        .authHero{display:none;}
-        .authMain{min-height:100vh;padding:0;background:linear-gradient(180deg,#edf6ff 0%,#fff 48%);}
-        .mobileHero{display:block;position:relative;overflow:hidden;min-height:284px;padding:54px 28px 88px;background:linear-gradient(180deg,#eef7ff 0%,#f8fbff 100%);}
-        .mobileHero::before{content:"";position:absolute;inset:0;background:radial-gradient(240px 150px at 78% 34%,rgba(16,129,255,.16),transparent 62%),linear-gradient(160deg,rgba(255,255,255,.70),transparent 54%);}
-        .mobileWave{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
-        .mobileTop{position:relative;z-index:2;display:flex;align-items:flex-start;justify-content:space-between;gap:14px;}
-        .mobileBrandBlock{padding-top:16px;max-width:210px;}
-        .mobileBrandBlock .brandWord{font-size:36px}.mobileBrandBlock .brandIcon{width:42px;height:42px;flex-basis:42px;}
-        .mobileLead{margin:20px 0 0;color:#536681;font-size:16px;line-height:1.55;font-weight:500;}
-        .shieldArt{width:160px;flex:0 0 160px;margin-right:-8px;margin-top:-4px;filter:drop-shadow(0 18px 32px rgba(0,98,255,.18));}
-        .shieldArt svg{display:block;width:100%;height:auto;}
-        .mainCenter{display:block;flex:0;}
-        .loginCard{position:relative;z-index:3;width:calc(100% - 32px);margin:-62px auto 0;border-radius:24px;padding:32px 28px 22px;box-shadow:0 16px 38px rgba(10,25,70,.09);}
-        .loginTitle{font-size:36px;letter-spacing:-.045em;}
-        .loginSubtitle{font-size:16px;margin:10px 0 28px;}
-        .loginForm{gap:20px;}
-        .fieldLabel{display:inline-block;background:#fff;padding:0 9px;margin:0 0 -9px 72px;position:relative;z-index:2;font-size:15px;}
-        .loginInput{height:64px;border-radius:15px;font-size:18px;padding-left:64px;}
-        .inputIcon{left:23px;width:27px;height:27px;color:#0874ff}.inputIcon svg{width:27px;height:27px;}
-        .eyeButton{right:12px;width:46px;height:46px;border-radius:14px;}.passwordInput{padding-right:68px;}
-        .fieldHint{font-size:15px;margin-top:12px;}
-        .mobileActions{display:flex;}
-        .submitButton{height:66px;border-radius:15px;justify-content:space-between;padding:0 22px;font-size:24px;margin-top:4px;}
-        .submitButton::before{content:"";width:22px;height:22px;}.submitButton svg{display:block;}
-        .loginNote{display:none;}
-        .secureBlock{display:block;text-align:center;margin-top:30px;}
-        .secureTitle{display:grid;grid-template-columns:1fr auto 1fr;gap:15px;align-items:center;color:#182954;font-size:20px;font-weight:850;}
-        .secureTitle::before,.secureTitle::after{content:"";height:1px;background:#dbe5f2;}.secureTitle span{display:inline-flex;align-items:center;gap:12px;}.secureTitle svg{color:#0874ff;}
-        .secureBlock p{margin:15px auto 0;max-width:390px;color:#71819d;font-size:16px;line-height:1.55;}
-        .helpBlock{display:grid;grid-template-columns:58px 1fr auto;align-items:center;gap:16px;margin-top:26px;padding:17px 20px;border:1px solid #dbe5f2;border-radius:18px;background:#fff;text-decoration:none;}
-        .helpIcon{width:58px;height:58px;border-radius:999px;border:3px solid #456b9d;color:#456b9d;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:900;}.helpText strong{display:block;color:#10214d;font-size:18px;font-weight:850;line-height:1.25}.helpText span{display:block;color:#5d7191;font-size:16px;line-height:1.4;margin-top:4px}.helpArrow{font-size:34px;color:#7c8da6;line-height:1;}
-        .authFooter{display:none;}
+        letter-spacing:-.055em;
       }
 
-      @media (max-width:520px){
-        .mobileHero{min-height:258px;padding:40px 20px 82px;}
-        .mobileBrandBlock{max-width:178px;padding-top:22px}.mobileBrandBlock .brandWord{font-size:32px}.mobileBrandBlock .brandIcon{width:38px;height:38px;flex-basis:38px}.mobileLead{font-size:15px;margin-top:16px;}
-        .shieldArt{width:140px;flex-basis:140px;}
-        .loginCard{width:calc(100% - 24px);margin-top:-54px;padding:28px 22px 22px;}
-        .loginTitle{font-size:32px}.loginSubtitle{font-size:15px;margin-bottom:24px}.fieldLabel{font-size:13px;margin-left:54px}.loginInput{height:58px;font-size:16px;padding-left:54px}.inputIcon{left:18px;width:24px;height:24px}.inputIcon svg{width:24px;height:24px}.submitButton{height:60px;font-size:20px}.rememberLabel,.forgotLink{font-size:15px}.secureTitle{font-size:17px}.secureBlock p{font-size:14px}.helpText strong{font-size:16px}.helpText span{font-size:14px}.helpIcon{width:50px;height:50px;font-size:28px}.helpBlock{grid-template-columns:50px 1fr auto;padding:15px 16px;}
+      .login-card .subtitle{
+        margin:14px 0 34px;
+        color:#7b8aa8;
+        font-size:18px;
+        line-height:1.5;
+        font-weight:500;
       }
+
+      .login-form{
+        display:grid;
+        gap:20px;
+      }
+
+      .field label{
+        display:block;
+        margin:0 0 10px;
+        color:#15264b;
+        font-size:16px;
+        font-weight:800;
+        line-height:1.2;
+      }
+
+      .input-wrap{
+        position:relative;
+      }
+
+      .input-icon{
+        position:absolute;
+        top:50%;
+        left:18px;
+        transform:translateY(-50%);
+        color:#a8b5ca;
+        width:22px;
+        height:22px;
+        pointer-events:none;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }
+
+      .input-icon svg{
+        width:22px;
+        height:22px;
+        stroke:currentColor;
+        fill:none;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .login-input{
+        width:100%;
+        height:66px;
+        border:1px solid #d8e2ef;
+        border-radius:14px;
+        background:#fff;
+        color:var(--text);
+        padding:0 20px 0 56px;
+        font-size:18px;
+        font-weight:600;
+        outline:none;
+        transition:border-color .18s ease, box-shadow .18s ease;
+      }
+
+      .login-input::placeholder{
+        color:#9aa7bd;
+        font-weight:500;
+      }
+
+      .login-input:focus{
+        border-color:#9ec2ff;
+        box-shadow:0 0 0 4px rgba(11,99,255,.08);
+      }
+
+      .input-note{
+        margin-top:10px;
+        color:#7b8aa8;
+        font-size:14px;
+        line-height:1.4;
+        font-weight:600;
+      }
+
+      .password-input{
+        padding-right:64px;
+      }
+
+      .toggle-pass{
+        position:absolute;
+        top:50%;
+        right:12px;
+        transform:translateY(-50%);
+        width:44px;
+        height:44px;
+        border-radius:12px;
+        border:1px solid #d8e2ef;
+        background:#fff;
+        color:#0b63ff;
+        cursor:pointer;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+      }
+
+      .toggle-pass svg{
+        width:21px;
+        height:21px;
+        stroke:currentColor;
+        fill:none;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .toggle-pass .eye-open{display:none;}
+      .toggle-pass.is-visible .eye-open{display:block;}
+      .toggle-pass.is-visible .eye-closed{display:none;}
+
+      .login-row{
+        display:flex;
+        align-items:center;
+        justify-content:space-between;
+        gap:18px;
+        margin-top:2px;
+      }
+
+      .remember{
+        display:flex;
+        align-items:center;
+        gap:12px;
+        font-size:16px;
+        font-weight:600;
+        color:#1b2b50;
+        user-select:none;
+      }
+
+      .remember input{
+        width:19px;
+        height:19px;
+        accent-color:#0b63ff;
+      }
+
+      .forgot-link{
+        color:#0b63ff;
+        text-decoration:none;
+        font-size:16px;
+        font-weight:700;
+      }
+
+      .login-btn{
+        width:100%;
+        height:66px;
+        border:0;
+        border-radius:14px;
+        margin-top:8px;
+        background:linear-gradient(90deg, #1478ff 0%, #0b63ff 100%);
+        color:#fff;
+        font-size:24px;
+        font-weight:800;
+        letter-spacing:-.02em;
+        cursor:pointer;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        gap:14px;
+        box-shadow:0 16px 34px rgba(11,99,255,.20);
+      }
+
+      .login-btn svg{
+        width:22px;
+        height:22px;
+        stroke:currentColor;
+        fill:none;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .message.error{
+        margin-top:14px;
+        border-radius:12px;
+        padding:12px 14px;
+        background:#fff2f2;
+        border:1px solid #ffd0d0;
+        color:#b42318;
+        font-weight:700;
+        font-size:14px;
+      }
+
+      .secure-box{
+        margin-top:28px;
+        text-align:center;
+      }
+
+      .secure-title{
+        display:grid;
+        grid-template-columns:1fr auto 1fr;
+        align-items:center;
+        gap:14px;
+        color:#1d2b52;
+        font-size:16px;
+        font-weight:800;
+      }
+
+      .secure-title::before,
+      .secure-title::after{
+        content:"";
+        height:1px;
+        background:#dbe5f2;
+      }
+
+      .secure-title span{
+        display:inline-flex;
+        align-items:center;
+        gap:10px;
+      }
+
+      .secure-title svg{
+        width:20px;
+        height:20px;
+        stroke:#0b63ff;
+        fill:none;
+        stroke-width:2;
+        stroke-linecap:round;
+        stroke-linejoin:round;
+      }
+
+      .secure-box p{
+        margin:16px auto 0;
+        max-width:520px;
+        color:#7b8aa8;
+        font-size:16px;
+        line-height:1.6;
+        font-weight:500;
+      }
+
+      .support-box{
+        margin-top:28px;
+        border:1px solid #dbe5f2;
+        border-radius:16px;
+        padding:18px 20px;
+        display:grid;
+        grid-template-columns:48px 1fr auto;
+        gap:16px;
+        align-items:center;
+        text-decoration:none;
+        background:#fff;
+      }
+
+      .support-icon{
+        width:48px;
+        height:48px;
+        border-radius:999px;
+        border:2px solid #7f93b2;
+        color:#4c6287;
+        display:flex;
+        align-items:center;
+        justify-content:center;
+        font-size:28px;
+        font-weight:800;
+      }
+
+      .support-copy strong{
+        display:block;
+        color:#15264b;
+        font-size:16px;
+        line-height:1.25;
+        font-weight:800;
+      }
+
+      .support-copy span{
+        display:block;
+        margin-top:4px;
+        color:#607392;
+        font-size:15px;
+        line-height:1.45;
+        font-weight:500;
+      }
+
+      .support-arrow{
+        color:#6f819f;
+        font-size:32px;
+        line-height:1;
+      }
+      /* DESKTOP should look like picture 2 */
+.login-row,
+.secure-box,
+.support-box{
+  display:none;
+}
+
+.login-btn svg{
+  display:none;
+}
+
+/* MOBILE should look like picture 3 */
+@media (max-width: 980px){
+  body{
+    background:#f7f9fd;
+  }
+
+  .login-page{
+    display:block;
+    min-height:100vh;
+    background:#f7f9fd;
+  }
+
+  .login-hero{
+    display:none;
+  }
+
+  .login-main{
+    min-height:100vh;
+    padding:0 0 24px;
+    background:#f7f9fd;
+  }
+
+  .login-main-center{
+    display:block;
+    padding:0;
+  }
+
+  .login-row{
+    display:flex;
+  }
+
+  .secure-box{
+    display:block;
+  }
+
+  .support-box{
+    display:grid;
+  }
+
+  .login-btn svg{
+    display:block;
+  }
+
+  .mobile-hero{
+    display:block;
+    position:relative;
+    overflow:hidden;
+    height:360px;
+    min-height:360px;
+    background:
+      linear-gradient(180deg, #f8fbff 0%, #eef5ff 100%);
+  }
+
+  .mobile-hero::before{
+    content:"";
+    position:absolute;
+    inset:0;
+    z-index:1;
+    pointer-events:none;
+    background:
+      radial-gradient(280px 140px at 26% 12%, rgba(214,228,249,.80), transparent 70%),
+      radial-gradient(260px 160px at 84% 78%, rgba(204,229,255,.35), transparent 72%);
+  }
+
+  .mobile-wave{
+    display:block;
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    z-index:0;
+    pointer-events:none;
+    opacity:.95;
+  }
+
+  .mobile-hero-copy,
+  .mobile-hero-art{
+    position:absolute;
+    z-index:2;
+  }
+
+  .mobile-hero-copy{
+    left:24px;
+    top:106px;
+    width:178px;
+  }
+
+  .mobile-logo{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+  }
+
+  .mobile-logo svg{
+    width:33px;
+    height:33px;
+    flex:0 0 33px;
+  }
+
+  .mobile-logo-text{
+    font-size:33px;
+    line-height:1;
+    font-weight:900;
+    letter-spacing:-.06em;
+  }
+
+  .mobile-logo-text .tim{color:#081844;}
+  .mobile-logo-text .iq{color:#0b63ff;}
+
+  .mobile-hero-copy p{
+    margin:20px 0 0;
+    width:188px;
+    max-width:188px;
+    color:#4f6485;
+    font-size:15px;
+    line-height:1.5;
+    font-weight:500;
+  }
+
+  .mobile-hero-art{
+    right:18px;
+    top:86px;
+    width:150px;
+  }
+
+  .mobile-hero-art svg{
+    display:block;
+    width:100%;
+    height:auto;
+  }
+
+  .login-card{
+    width:calc(100% - 24px);
+    max-width:none;
+    margin:-8px auto 0;
+    background:#fff;
+    border:1px solid #e4ebf5;
+    border-radius:22px;
+    padding:28px 20px 22px;
+    box-shadow:0 10px 30px rgba(12,31,88,.08);
+  }
+
+  .login-card h1{
+    font-size:34px;
+    line-height:1.02;
+    letter-spacing:-.05em;
+    color:#081844;
+    margin-bottom:0;
+  }
+
+  .login-card .subtitle{
+    margin:12px 0 28px;
+    color:#6e7f9c;
+    font-size:15px;
+    line-height:1.45;
+    font-weight:500;
+  }
+
+  .login-form{
+    gap:20px;
+  }
+
+  .field label{
+    display:inline-block;
+    margin:0 0 -9px 54px;
+    padding:0 9px;
+    position:relative;
+    z-index:2;
+    background:#fff;
+    color:#081844;
+    font-size:13px;
+    font-weight:900;
+    line-height:1;
+  }
+
+  .input-wrap{
+    position:relative;
+  }
+
+  .login-input{
+    height:58px;
+    border-radius:14px;
+    padding:0 20px 0 52px;
+    font-size:15px;
+    font-weight:500;
+    border:1px solid #dde6f0;
+    box-shadow:0 1px 2px rgba(12,31,88,.03);
+  }
+
+  .login-input::placeholder{
+    color:#8a98b0;
+    font-weight:500;
+  }
+
+  .input-icon{
+    left:16px;
+    width:21px;
+    height:21px;
+    color:#0b63ff;
+  }
+
+  .input-icon svg{
+    width:21px;
+    height:21px;
+  }
+
+  .input-note{
+    margin-top:10px;
+    color:#7a89a1;
+    font-size:14px;
+    line-height:1.35;
+    font-weight:500;
+  }
+
+  .password-input{
+    padding-right:58px;
+  }
+
+  .toggle-pass{
+    width:40px;
+    height:40px;
+    right:9px;
+    border-radius:12px;
+    border:1px solid #dde6f0;
+    background:#fff;
+    color:#0b63ff;
+  }
+
+  .login-row{
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-top:2px;
+  }
+
+  .remember,
+  .forgot-link{
+    font-size:14px;
+    font-weight:600;
+  }
+
+  .remember{
+    color:#1d2b50;
+    gap:10px;
+  }
+
+  .remember input{
+    width:18px;
+    height:18px;
+    accent-color:#0b63ff;
+  }
+
+  .forgot-link{
+    color:#0b63ff;
+  }
+
+  .login-btn{
+    height:60px;
+    border-radius:14px;
+    margin-top:4px;
+    padding:0 18px 0 22px;
+    background:linear-gradient(90deg, #1679ff 0%, #0b63ff 100%);
+    box-shadow:0 10px 24px rgba(11,99,255,.22);
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+  }
+
+  .login-btn::before{
+    display:none;
+  }
+
+  .login-btn span{
+    flex:1;
+    text-align:center;
+    font-size:18px;
+    font-weight:800;
+    color:#fff;
+    letter-spacing:-.02em;
+    margin-left:20px;
+  }
+
+  .login-btn svg{
+    width:26px;
+    height:26px;
+    flex:0 0 26px;
+  }
+
+  .secure-box{
+    margin-top:30px;
+    text-align:center;
+  }
+
+  .secure-title{
+    font-size:16px;
+    gap:14px;
+    color:#1d2b52;
+    font-weight:800;
+  }
+
+  .secure-title::before,
+  .secure-title::after{
+    content:"";
+    height:1px;
+    background:#e1e8f2;
+  }
+
+  .secure-box p{
+    margin:14px auto 0;
+    max-width:300px;
+    font-size:14px;
+    line-height:1.6;
+    color:#7a89a1;
+    font-weight:500;
+  }
+
+  .support-box{
+    margin-top:26px;
+    padding:16px;
+    border-radius:18px;
+    grid-template-columns:48px 1fr auto;
+    gap:14px;
+    border:1px solid #dde6f0;
+    background:#fff;
+  }
+
+  .support-icon{
+    width:48px;
+    height:48px;
+    font-size:28px;
+    border:2px solid #8aa0bf;
+    color:#506887;
+  }
+
+  .support-copy strong{
+    font-size:16px;
+    font-weight:800;
+    color:#15264b;
+  }
+
+  .support-copy span{
+    font-size:14px;
+    color:#607392;
+  }
+
+  .support-arrow{
+    font-size:28px;
+    color:#6f819f;
+  }
+
+  .login-footer{
+    display:none;
+  }
+}
+
+      @media (max-width: 640px){
+  .mobile-hero{
+    height:344px;
+    min-height:344px;
+  }
+
+  .mobile-hero-copy{
+    left:24px;
+    top:108px;
+    width:172px;
+  }
+
+  .mobile-logo svg{
+    width:31px;
+    height:31px;
+    flex:0 0 31px;
+  }
+
+  .mobile-logo-text{
+    font-size:31px;
+  }
+
+  .mobile-hero-copy p{
+    margin-top:18px;
+    width:170px;
+    max-width:170px;
+    font-size:14px;
+    line-height:1.5;
+  }
+
+  .mobile-hero-art{
+    right:16px;
+    top:90px;
+    width:136px;
+  }
+
+  .login-card{
+    width:calc(100% - 20px);
+    padding:28px 18px 20px;
+  }
+
+  .login-card h1{
+    font-size:31px;
+  }
+
+  .login-card .subtitle{
+    font-size:14px;
+    margin-bottom:24px;
+  }
+}
+
+      @media (max-width: 430px){
+  .mobile-hero{
+    height:334px;
+    min-height:334px;
+  }
+
+  .mobile-hero-copy{
+    left:22px;
+    top:108px;
+    width:164px;
+  }
+
+  .mobile-hero-copy p{
+    width:160px;
+    max-width:160px;
+  }
+
+  .mobile-hero-art{
+    right:14px;
+    top:94px;
+    width:126px;
+  }
+
+  .remember,
+  .forgot-link{
+    font-size:14px;
+  }
+}
+
+
+      /* FINAL FIX: keep desktop and mobile isolated.
+         This block intentionally comes last so it overrides older mobile rules above. */
+      .mobile-hero,
+      .mobile-wave{
+        display:none;
+      }
+
+      @media (min-width: 981px){
+        .mobile-hero,
+        .mobile-wave{
+          display:none !important;
+        }
+
+        .login-main{
+          min-height:100vh;
+          padding:54px 54px 32px;
+          display:flex;
+          flex-direction:column;
+          justify-content:space-between;
+          background:
+            radial-gradient(760px 340px at 85% 0%, rgba(126,211,247,.20), transparent 55%),
+            linear-gradient(180deg, #fdfefe 0%, #f9fbfe 100%);
+        }
+
+        .login-main-center{
+          flex:1;
+          display:flex;
+          align-items:center;
+          justify-content:center;
+          padding:0;
+        }
+
+        .login-card{
+          width:min(100%, 700px);
+          max-width:700px;
+          margin:0;
+          border-radius:20px;
+          padding:58px 62px 48px;
+          box-shadow:0 20px 60px rgba(12,31,88,.08);
+        }
+
+        .login-card h1{
+          font-size:58px;
+          line-height:.98;
+          letter-spacing:-.055em;
+        }
+
+        .login-card .subtitle{
+          font-size:18px;
+          margin:14px 0 34px;
+        }
+
+        .login-row,
+        .secure-box,
+        .support-box{
+          display:none !important;
+        }
+
+        .login-btn{
+          height:66px;
+          justify-content:center;
+          padding:0 22px;
+          font-size:24px;
+          font-weight:800;
+        }
+
+        .login-btn span{
+          font-size:24px;
+          font-weight:800;
+          margin:0;
+        }
+
+        .login-btn svg{
+          display:none !important;
+        }
+      }
+
+      @media (max-width: 980px){
+        html,
+        body{
+          width:100%;
+          min-height:100%;
+          background:#f7faff;
+        }
+
+        body{
+          overflow-x:hidden;
+        }
+
+        .login-page{
+          display:block;
+          width:100%;
+          min-height:100vh;
+          background:linear-gradient(180deg, #f8fbff 0%, #f4f8fe 100%);
+        }
+
+        .login-hero{
+          display:none !important;
+        }
+
+        .login-main{
+          display:block;
+          min-height:100vh;
+          padding:0 0 24px;
+          background:transparent;
+        }
+
+        .login-main-center{
+          display:block;
+          padding:0;
+        }
+
+        .mobile-hero{
+          display:block !important;
+          position:relative;
+          overflow:hidden;
+          height:350px;
+          min-height:350px;
+          background:linear-gradient(180deg, #f8fbff 0%, #eef6ff 100%);
+        }
+
+        .mobile-hero::before{
+          content:"";
+          position:absolute;
+          inset:0;
+          z-index:1;
+          pointer-events:none;
+          background:
+            radial-gradient(300px 150px at 50% -5%, rgba(255,255,255,.95), transparent 72%),
+            linear-gradient(180deg, rgba(255,255,255,.15), rgba(255,255,255,.50));
+        }
+
+        .mobile-wave{
+          display:block !important;
+          position:absolute;
+          inset:0;
+          width:100%;
+          height:100%;
+          z-index:0;
+          pointer-events:none;
+        }
+
+        .mobile-hero-copy,
+        .mobile-hero-art{
+          position:absolute;
+          z-index:2;
+        }
+
+        .mobile-hero-copy{
+          left:32px;
+          top:112px;
+          width:190px;
+        }
+
+        .mobile-logo{
+          display:flex;
+          align-items:center;
+          gap:10px;
+        }
+
+        .mobile-logo svg{
+          width:34px;
+          height:34px;
+          flex:0 0 34px;
+        }
+
+        .mobile-logo-text{
+          font-size:34px;
+          line-height:1;
+          font-weight:900;
+          letter-spacing:-.06em;
+        }
+
+        .mobile-logo-text .tim{color:#081844;}
+        .mobile-logo-text .iq{color:#0b63ff;}
+
+        .mobile-hero-copy p{
+          margin:22px 0 0;
+          width:196px;
+          max-width:196px;
+          color:#536781;
+          font-size:15px;
+          line-height:1.55;
+          font-weight:500;
+        }
+
+        .mobile-hero-art{
+          right:24px;
+          top:86px;
+          width:152px;
+        }
+
+        .mobile-hero-art svg{
+          display:block;
+          width:100%;
+          height:auto;
+        }
+
+        .login-card{
+          width:calc(100% - 40px);
+          max-width:640px;
+          margin:-2px auto 0;
+          background:#fff;
+          border:1px solid #dfe9f5;
+          border-radius:24px;
+          padding:30px 36px 24px;
+          box-shadow:0 18px 45px rgba(12,31,88,.08);
+        }
+
+        .login-card h1{
+          margin:0;
+          color:#081844;
+          font-size:34px;
+          line-height:1.02;
+          font-weight:900;
+          letter-spacing:-.055em;
+        }
+
+        .login-card .subtitle{
+          margin:12px 0 28px;
+          color:#6e7f9c;
+          font-size:15px;
+          line-height:1.45;
+          font-weight:500;
+        }
+
+        .login-form{
+          display:grid;
+          gap:20px;
+        }
+
+        .field label{
+          display:inline-block;
+          position:relative;
+          z-index:2;
+          margin:0 0 -9px 54px;
+          padding:0 9px;
+          background:#fff;
+          color:#081844;
+          font-size:13px;
+          font-weight:900;
+          line-height:1;
+        }
+
+        .input-wrap{
+          position:relative;
+        }
+
+        .login-input{
+          width:100%;
+          height:58px;
+          border:1px solid #dce6f2;
+          border-radius:14px;
+          background:#fff;
+          padding:0 20px 0 52px;
+          color:#081844;
+          font-size:15px;
+          font-weight:600;
+          box-shadow:0 2px 8px rgba(12,31,88,.035);
+        }
+
+        .login-input::placeholder{
+          color:#8b98ae;
+          font-weight:500;
+        }
+
+        .input-icon{
+          left:16px;
+          width:21px;
+          height:21px;
+          color:#0b63ff;
+        }
+
+        .input-icon svg{
+          width:21px;
+          height:21px;
+        }
+
+        .input-note{
+          margin-top:10px;
+          color:#7a89a1;
+          font-size:14px;
+          line-height:1.35;
+          font-weight:600;
+        }
+
+        .password-input{
+          padding-right:58px;
+        }
+
+        .toggle-pass{
+          width:40px;
+          height:40px;
+          right:9px;
+          border-radius:12px;
+          border:1px solid #dce6f2;
+          background:#fff;
+          color:#0b63ff;
+        }
+
+        .login-row{
+          display:flex !important;
+          align-items:center;
+          justify-content:space-between;
+          gap:12px;
+          margin-top:2px;
+        }
+
+        .remember,
+        .forgot-link{
+          font-size:15px;
+          font-weight:800;
+        }
+
+        .remember{
+          display:flex;
+          align-items:center;
+          gap:10px;
+          color:#1d2b50;
+        }
+
+        .remember input{
+          appearance:none;
+          -webkit-appearance:none;
+          width:18px;
+          height:18px;
+          border:1.5px solid #9aabc5;
+          border-radius:4px;
+          background:#fff;
+          position:relative;
+          display:inline-grid;
+          place-items:center;
+          margin:0;
+        }
+
+        .remember input:checked{
+          border-color:#0b63ff;
+          background:#0b63ff;
+        }
+
+        .remember input:checked::after{
+          content:"";
+          width:8px;
+          height:4px;
+          border-left:2px solid #fff;
+          border-bottom:2px solid #fff;
+          transform:rotate(-45deg) translate(1px,-1px);
+        }
+
+        .forgot-link{
+          color:#0b63ff;
+          text-decoration:none;
+        }
+
+        .login-btn{
+          height:60px;
+          border-radius:14px;
+          margin-top:2px;
+          padding:0 18px 0 22px;
+          background:linear-gradient(90deg, #1679ff 0%, #0b63ff 100%);
+          box-shadow:0 16px 30px rgba(11,99,255,.22);
+          display:flex;
+          align-items:center;
+          justify-content:space-between;
+          gap:0;
+        }
+
+        .login-btn::before{
+          content:"";
+          width:26px;
+          height:26px;
+          flex:0 0 26px;
+        }
+
+        .login-btn span{
+          flex:1;
+          text-align:center;
+          color:#fff;
+          font-size:19px;
+          font-weight:800;
+          letter-spacing:-.02em;
+          margin:0;
+        }
+
+        .login-btn svg{
+          display:block !important;
+          width:26px;
+          height:26px;
+          flex:0 0 26px;
+        }
+
+        .secure-box{
+          display:block !important;
+          margin-top:30px;
+          text-align:center;
+        }
+
+        .secure-title{
+          display:grid;
+          grid-template-columns:1fr auto 1fr;
+          align-items:center;
+          gap:14px;
+          color:#1d2b52;
+          font-size:16px;
+          font-weight:800;
+        }
+
+        .secure-title::before,
+        .secure-title::after{
+          content:"";
+          height:1px;
+          background:#e1e8f2;
+        }
+
+        .secure-title span{
+          display:inline-flex;
+          align-items:center;
+          gap:10px;
+          white-space:nowrap;
+        }
+
+        .secure-box p{
+          margin:14px auto 0;
+          max-width:320px;
+          color:#7a89a1;
+          font-size:14px;
+          line-height:1.6;
+          font-weight:500;
+        }
+
+        .support-box{
+          display:grid !important;
+          margin-top:26px;
+          padding:16px;
+          border:1px solid #dce6f2;
+          border-radius:18px;
+          background:#fff;
+          grid-template-columns:48px 1fr auto;
+          gap:14px;
+          align-items:center;
+        }
+
+        .support-icon{
+          width:48px;
+          height:48px;
+          border:2px solid #8ba0bf;
+          color:#506887;
+          font-size:28px;
+        }
+
+        .support-copy strong{
+          color:#15264b;
+          font-size:16px;
+          font-weight:900;
+        }
+
+        .support-copy span{
+          color:#607392;
+          font-size:14px;
+          line-height:1.4;
+        }
+
+        .support-arrow{
+          color:#6f819f;
+          font-size:28px;
+        }
+
+        .login-footer{
+          display:none !important;
+        }
+      }
+
+      @media (max-width: 430px){
+        .mobile-hero{
+          height:336px;
+          min-height:336px;
+        }
+
+        .mobile-hero-copy{
+          left:24px;
+          top:110px;
+          width:166px;
+        }
+
+        .mobile-logo svg{
+          width:31px;
+          height:31px;
+          flex-basis:31px;
+        }
+
+        .mobile-logo-text{
+          font-size:31px;
+        }
+
+        .mobile-hero-copy p{
+          width:166px;
+          max-width:166px;
+          font-size:14px;
+        }
+
+        .mobile-hero-art{
+          right:16px;
+          top:92px;
+          width:128px;
+        }
+
+        .login-card{
+          width:calc(100% - 24px);
+          padding:30px 20px 22px;
+        }
+
+        .login-card h1{
+          font-size:31px;
+        }
+
+        .login-card .subtitle{
+          font-size:14px;
+          margin-bottom:24px;
+        }
+
+        .remember,
+        .forgot-link{
+          font-size:14px;
+        }
+      }
+
+      /* PIXEL-MATCH MOBILE OVERRIDES */
+      @media (max-width: 980px){
+        body,
+        .login-page,
+        .login-main{
+          background:#f4f7fb !important;
+        }
+
+        .mobile-hero{
+          display:block !important;
+          height:352px !important;
+          min-height:352px !important;
+          background:
+            radial-gradient(260px 100px at 18% 14%, rgba(222,232,247,.90), transparent 72%),
+            linear-gradient(180deg, #f8fbff 0%, #eef5fe 100%) !important;
+        }
+
+        .mobile-hero-copy{
+          left:32px !important;
+          top:110px !important;
+          width:180px !important;
+        }
+
+        .mobile-logo,
+        .mobile-logo-text,
+        .mobile-hero-copy p,
+        .login-card h1,
+        .login-card .subtitle,
+        .field label,
+        .login-input,
+        .login-input::placeholder,
+        .input-note,
+        .remember,
+        .forgot-link,
+        .login-btn span,
+        .secure-title,
+        .secure-box p,
+        .support-copy strong,
+        .support-copy span{
+          font-family:Inter, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif !important;
+        }
+
+        .mobile-logo svg{
+          width:34px !important;
+          height:34px !important;
+          flex:0 0 34px !important;
+        }
+
+        .mobile-logo-text{
+          font-size:33px !important;
+          font-weight:900 !important;
+          letter-spacing:-.06em !important;
+        }
+
+        .mobile-hero-copy p{
+          margin-top:22px !important;
+          width:196px !important;
+          max-width:196px !important;
+          color:#556982 !important;
+          font-size:15px !important;
+          line-height:1.55 !important;
+          font-weight:500 !important;
+        }
+
+        .mobile-hero-art{
+          right:20px !important;
+          top:82px !important;
+          width:168px !important;
+        }
+
+        .login-card{
+          width:calc(100% - 38px) !important;
+          margin:-6px auto 0 !important;
+          border-radius:24px !important;
+          border:1px solid #dfe8f2 !important;
+          padding:30px 22px 24px !important;
+          box-shadow:0 14px 38px rgba(12,31,88,.08) !important;
+        }
+
+        .login-card h1{
+          color:#081844 !important;
+          font-size:33px !important;
+          line-height:1.05 !important;
+          font-weight:800 !important;
+          letter-spacing:-.04em !important;
+        }
+
+        .login-card .subtitle{
+          margin:14px 0 28px !important;
+          color:#6c7e9b !important;
+          font-size:15px !important;
+          line-height:1.45 !important;
+          font-weight:500 !important;
+        }
+
+        .field label{
+          color:#17284e !important;
+          font-size:12.5px !important;
+          font-weight:800 !important;
+        }
+
+        .login-input{
+          height:58px !important;
+          border:1px solid #dce5f0 !important;
+          border-radius:14px !important;
+          box-shadow:0 1px 3px rgba(10,24,51,.03) !important;
+          padding-left:52px !important;
+          color:#223555 !important;
+          font-size:15px !important;
+          font-weight:500 !important;
+        }
+
+        .login-input::placeholder{
+          color:#96a3b8 !important;
+          font-weight:500 !important;
+        }
+
+        .toggle-pass{
+          border:1px solid #dce5f0 !important;
+          border-radius:12px !important;
+        }
+
+        .remember{
+          font-size:14px !important;
+          font-weight:600 !important;
+        }
+
+        .forgot-link{
+          font-size:14px !important;
+          font-weight:500 !important;
+        }
+
+        .remember input{
+          appearance:none !important;
+          -webkit-appearance:none !important;
+          width:18px !important;
+          height:18px !important;
+          border-radius:4px !important;
+          border:1.5px solid #9cb0ca !important;
+          background:#fff !important;
+          display:inline-grid !important;
+          place-items:center !important;
+          margin:0 !important;
+          position:relative !important;
+        }
+
+        .remember input:checked{
+          background:#0b63ff !important;
+          border-color:#0b63ff !important;
+        }
+
+        .remember input:checked::after{
+          content:"" !important;
+          width:8px !important;
+          height:4px !important;
+          border-left:2px solid #fff !important;
+          border-bottom:2px solid #fff !important;
+          transform:rotate(-45deg) translate(1px,-1px) !important;
+        }
+
+        .login-btn{
+          height:60px !important;
+          border-radius:14px !important;
+          margin-top:4px !important;
+          padding:0 18px 0 22px !important;
+          background:linear-gradient(90deg, #177cff 0%, #0b63ff 100%) !important;
+          box-shadow:0 14px 28px rgba(11,99,255,.22) !important;
+        }
+
+        .login-btn span{
+          font-size:18px !important;
+          font-weight:700 !important;
+          margin-left:24px !important;
+        }
+
+        .secure-box{
+          margin-top:32px !important;
+        }
+
+        .secure-title{
+          font-size:16px !important;
+          font-weight:700 !important;
+        }
+
+        .secure-box p{
+          max-width:305px !important;
+          color:#7b89a0 !important;
+          font-size:14px !important;
+        }
+
+        .support-box{
+          margin-top:28px !important;
+          border:1px solid #dde5f0 !important;
+          border-radius:18px !important;
+          padding:16px 18px !important;
+          box-shadow:none !important;
+        }
+
+        .support-copy strong{
+          font-size:16px !important;
+          font-weight:700 !important;
+        }
+
+        .support-copy span{
+          font-size:14px !important;
+          line-height:1.45 !important;
+        }
+      }
+
+      @media (max-width: 430px){
+        .mobile-hero{height:336px !important; min-height:336px !important;}
+        .mobile-hero-copy{left:28px !important; top:108px !important; width:174px !important;}
+        .mobile-hero-copy p{width:176px !important; max-width:176px !important;}
+        .mobile-hero-art{right:14px !important; top:82px !important; width:150px !important;}
+        .login-card{width:calc(100% - 40px) !important; padding:30px 20px 24px !important;}
+      }
+
+      /* SURGICAL MATCH FIX: shield + checkbox only. Keep this last. */
+      @media (max-width: 980px){
+        .mobile-hero-art{
+          right:16px !important;
+          top:78px !important;
+          width:176px !important;
+        }
+
+        .mobile-hero-art svg{
+          overflow:visible !important;
+        }
+
+        .remember > input[type="checkbox"]{
+          appearance:none !important;
+          -webkit-appearance:none !important;
+          box-sizing:border-box !important;
+          display:inline-grid !important;
+          place-items:center !important;
+          flex:0 0 18px !important;
+          width:18px !important;
+          min-width:18px !important;
+          max-width:18px !important;
+          height:18px !important;
+          min-height:18px !important;
+          max-height:18px !important;
+          line-height:18px !important;
+          padding:0 !important;
+          margin:0 !important;
+          border:0 !important;
+          border-radius:4px !important;
+          background:#0b63ff !important;
+          position:relative !important;
+          vertical-align:middle !important;
+        }
+
+        .remember > input[type="checkbox"]::after{
+          content:"" !important;
+          width:8px !important;
+          height:4px !important;
+          border-left:2px solid #fff !important;
+          border-bottom:2px solid #fff !important;
+          transform:rotate(-45deg) translate(1px,-1px) !important;
+        }
+      }
+
+      @media (max-width: 430px){
+        .mobile-hero-art{
+          right:10px !important;
+          top:80px !important;
+          width:164px !important;
+        }
+      }
+      /* FINAL MOBILE SHIELD + CHECKBOX CORRECTION */
+@media (max-width: 980px){
+  .mobile-hero-art{
+    right:18px !important;
+    top:74px !important;
+    width:178px !important;
+    height:178px !important;
+    z-index:2 !important;
+  }
+
+  .mobile-shield-svg{
+    display:block !important;
+    width:100% !important;
+    height:auto !important;
+    overflow:visible !important;
+  }
+
+  .remember input{
+    appearance:none !important;
+    -webkit-appearance:none !important;
+    width:18px !important;
+    height:18px !important;
+    min-width:18px !important;
+    max-width:18px !important;
+    min-height:18px !important;
+    max-height:18px !important;
+    padding:0 !important;
+    margin:0 !important;
+    border-radius:4px !important;
+    border:1.5px solid #0b63ff !important;
+    background:#0b63ff !important;
+    display:inline-grid !important;
+    place-items:center !important;
+    position:relative !important;
+    flex:0 0 18px !important;
+  }
+
+  .remember input::after{
+    content:"" !important;
+    width:8px !important;
+    height:4px !important;
+    border-left:2px solid #fff !important;
+    border-bottom:2px solid #fff !important;
+    transform:rotate(-45deg) translate(1px,-1px) !important;
+  }
+}
+
+@media (max-width: 430px){
+  .mobile-hero-art{
+    right:8px !important;
+    top:76px !important;
+    width:164px !important;
+    height:164px !important;
+  }
+}
     </style>
-    """
-
-    brand_icon_desktop = """
-      <svg class=\"brandIcon\" viewBox=\"0 0 64 64\" fill=\"none\" aria-hidden=\"true\">
-        <path d=\"M7 25H26\" stroke=\"#7FC7EE\" stroke-width=\"5.5\" stroke-linecap=\"round\"/>
-        <path d=\"M10 34H24\" stroke=\"#7FC7EE\" stroke-width=\"5.5\" stroke-linecap=\"round\"/>
-        <path d=\"M16 43H22\" stroke=\"#7FC7EE\" stroke-width=\"5.5\" stroke-linecap=\"round\"/>
-        <rect x=\"31\" y=\"8\" width=\"11\" height=\"6\" rx=\"2\" fill=\"#7FC7EE\"/>
-        <rect x=\"47.5\" y=\"14\" width=\"6\" height=\"6\" rx=\"1.5\" transform=\"rotate(45 47.5 14)\" fill=\"#7FC7EE\"/>
-        <circle cx=\"36\" cy=\"32\" r=\"18\" stroke=\"#7FC7EE\" stroke-width=\"5.5\"/>
-        <path d=\"M36 32V18A14 14 0 0 1 50 32H36Z\" fill=\"#4B83C6\"/>
-      </svg>
-    """
-
-    brand_icon_mobile = """
-      <svg class=\"brandIcon\" viewBox=\"0 0 64 64\" fill=\"none\" aria-hidden=\"true\">
-        <path d=\"M7 25H26\" stroke=\"#0B63FF\" stroke-width=\"5.5\" stroke-linecap=\"round\"/>
-        <path d=\"M10 34H24\" stroke=\"#0B63FF\" stroke-width=\"5.5\" stroke-linecap=\"round\"/>
-        <path d=\"M16 43H22\" stroke=\"#0B63FF\" stroke-width=\"5.5\" stroke-linecap=\"round\"/>
-        <rect x=\"31\" y=\"8\" width=\"11\" height=\"6\" rx=\"2\" fill=\"#0B63FF\"/>
-        <rect x=\"47.5\" y=\"14\" width=\"6\" height=\"6\" rx=\"1.5\" transform=\"rotate(45 47.5 14)\" fill=\"#0B63FF\"/>
-        <circle cx=\"36\" cy=\"32\" r=\"18\" stroke=\"#0B63FF\" stroke-width=\"5.5\"/>
-        <path d=\"M36 32V18A14 14 0 0 1 50 32H36Z\" fill=\"#76CCF8\"/>
-      </svg>
-    """
-
-    construction_svg = """
-      <svg viewBox=\"0 0 900 560\" preserveAspectRatio=\"none\" aria-hidden=\"true\">
-        <defs>
-          <linearGradient id=\"lgGround\" x1=\"0\" y1=\"0\" x2=\"0\" y2=\"1\"><stop offset=\"0\" stop-color=\"#0b3ca9\" stop-opacity=\"0\"/><stop offset=\"1\" stop-color=\"#06163f\" stop-opacity=\".96\"/></linearGradient>
-          <linearGradient id=\"lgGlass\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#91e6ff\" stop-opacity=\".40\"/><stop offset=\"1\" stop-color=\"#91e6ff\" stop-opacity=\".02\"/></linearGradient>
-          <linearGradient id=\"lgLine\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"0\"><stop offset=\"0\" stop-color=\"#86dfff\" stop-opacity=\".03\"/><stop offset=\"1\" stop-color=\"#86dfff\" stop-opacity=\".45\"/></linearGradient>
-        </defs>
-        <path d=\"M0 560V390C108 348 220 336 338 352C480 371 585 357 720 306C800 276 850 254 900 230V560Z\" fill=\"url(#lgGround)\"/>
-        <ellipse cx=\"648\" cy=\"354\" rx=\"220\" ry=\"138\" fill=\"url(#lgGlass)\" opacity=\".58\"/>
-        <path d=\"M380 560C402 430 465 320 565 272C654 230 765 232 900 200\" stroke=\"url(#lgLine)\" stroke-width=\"2\" fill=\"none\"/>
-        <g opacity=\".38\" fill=\"#09276d\">
-          <rect x=\"95\" y=\"345\" width=\"32\" height=\"136\"/><rect x=\"155\" y=\"292\" width=\"42\" height=\"189\"/><rect x=\"222\" y=\"336\" width=\"34\" height=\"145\"/><rect x=\"287\" y=\"250\" width=\"48\" height=\"231\"/><rect x=\"350\" y=\"315\" width=\"33\" height=\"166\"/><rect x=\"412\" y=\"285\" width=\"36\" height=\"196\"/>
-        </g>
-        <g opacity=\".20\" fill=\"#87dfff\"><circle cx=\"196\" cy=\"432\" r=\"20\"/><rect x=\"485\" y=\"305\" width=\"24\" height=\"176\"/><rect x=\"535\" y=\"260\" width=\"25\" height=\"221\"/><rect x=\"590\" y=\"223\" width=\"24\" height=\"258\"/><rect x=\"640\" y=\"277\" width=\"26\" height=\"204\"/></g>
-        <g stroke=\"#82d9ff\" stroke-width=\"3\" fill=\"none\" opacity=\".42\"><path d=\"M650 480V156\"/><path d=\"M650 156h155\"/><path d=\"M795 156l34-63\"/><path d=\"M805 156l-62 26\"/><path d=\"M744 156h96\"/><path d=\"M744 156v70\"/><path d=\"M744 226l-10 13\"/><path d=\"M744 226l11 13\"/><path d=\"M565 310h190\"/><path d=\"M588 350h165\"/><path d=\"M610 390h138\"/></g>
-        <g stroke=\"#8ce4ff\" stroke-width=\"4\" fill=\"none\" opacity=\".25\"><path d=\"M545 448l112-158 88 74h-210\"/><path d=\"M582 405h198\"/><path d=\"M618 360h126\"/><path d=\"M650 290v160\"/><path d=\"M705 334v116\"/></g>
-        <g opacity=\".55\" fill=\"#05194a\"><circle cx=\"612\" cy=\"468\" r=\"26\"/><path d=\"M570 560c0-52 16-85 42-98 27 13 42 46 42 98Z\"/><circle cx=\"718\" cy=\"442\" r=\"30\"/><path d=\"M660 560c0-72 22-112 58-129 38 17 60 57 60 129Z\"/></g>
-        <path d=\"M0 520C185 488 340 485 495 500C670 517 785 514 900 492V560H0Z\" fill=\"#061742\" opacity=\".72\"/>
-      </svg>
-    """
-
-    shield_svg = """
-      <svg viewBox=\"0 0 220 190\" aria-hidden=\"true\">
-        <defs>
-          <radialGradient id=\"shieldGlow\" cx=\"50%\" cy=\"62%\" r=\"56%\"><stop offset=\"0\" stop-color=\"#86dfff\" stop-opacity=\".62\"/><stop offset=\"1\" stop-color=\"#86dfff\" stop-opacity=\"0\"/></radialGradient>
-          <linearGradient id=\"shieldA\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#7ed9ff\"/><stop offset=\".48\" stop-color=\"#168aff\"/><stop offset=\"1\" stop-color=\"#075de7\"/></linearGradient>
-          <linearGradient id=\"shieldB\" x1=\"0\" y1=\"0\" x2=\"1\" y2=\"1\"><stop offset=\"0\" stop-color=\"#caf4ff\"/><stop offset=\"1\" stop-color=\"#2996ff\"/></linearGradient>
-        </defs>
-        <ellipse cx=\"118\" cy=\"144\" rx=\"82\" ry=\"28\" fill=\"url(#shieldGlow)\"/>
-        <ellipse cx=\"118\" cy=\"145\" rx=\"72\" ry=\"22\" fill=\"none\" stroke=\"#c4ecff\" stroke-width=\"2\" opacity=\".80\"/>
-        <ellipse cx=\"118\" cy=\"145\" rx=\"54\" ry=\"15\" fill=\"none\" stroke=\"#d9f4ff\" stroke-width=\"2\" opacity=\".70\"/>
-        <path d=\"M118 16l58 20v48c0 41-24 70-58 88-34-18-58-47-58-88V36z\" fill=\"url(#shieldA)\"/>
-        <path d=\"M118 30l43 14v38c0 31-17 54-43 69-26-15-43-38-43-69V44z\" fill=\"url(#shieldB)\" opacity=\".86\"/>
-        <rect x=\"94\" y=\"78\" width=\"48\" height=\"38\" rx=\"9\" fill=\"#f6fbff\"/>
-        <path d=\"M103 78V67a15 15 0 0 1 30 0v11\" stroke=\"#f6fbff\" stroke-width=\"9\" stroke-linecap=\"round\"/>
-        <circle cx=\"118\" cy=\"96\" r=\"5\" fill=\"#0b63ff\"/><rect x=\"116\" y=\"101\" width=\"4\" height=\"11\" rx=\"2\" fill=\"#0b63ff\"/>
-      </svg>
     """
 
     login_viewport = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
 
     html = f"""
-    <div class="authShell">
-      <section class="authHero" aria-label="TimIQ login introduction">
-        <div class="authDots"></div>
-        <div class="authCurve"><svg viewBox="0 0 900 700" preserveAspectRatio="none"><path d="M60 690C60 520 142 390 306 302C468 215 552 112 678 20" stroke="#79d7ff" stroke-width="2" fill="none"/><path d="M292 700C320 538 398 430 558 360C690 302 782 230 900 128" stroke="#79d7ff" stroke-width="2" fill="none"/></svg></div>
-        <div class="brand">{brand_icon_desktop}<div class="brandWord"><span class="tim">Tim</span><span class="iq">IQ</span></div></div>
-        <div class="heroText">
-          <h1>One workspace.<br>Every worker.<br><span class="accent">Total visibility.</span></h1>
-          <div class="heroRule"></div>
-          <p>TimIQ brings together clock-in, attendance and payroll in one secure platform—so your projects run on time and on budget.</p>
-        </div>
-        <div class="heroFeatures">
-          <div class="heroFeature"><div class="heroFeatureIcon"><svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg></div><div><strong>Workforce in sync</strong><span>Accurate attendance across sites and teams.</span></div></div>
-          <div class="heroFeature"><div class="heroFeatureIcon"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-5"/></svg></div><div><strong>Built for security</strong><span>Enterprise-grade protection for your data.</span></div></div>
-          <div class="heroFeature"><div class="heroFeatureIcon"><svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-9"/></svg></div><div><strong>Actionable insights</strong><span>Real-time reporting that keeps projects moving.</span></div></div>
-        </div>
-        <div class="constructionArt">{construction_svg}</div>
-      </section>
+    <div class="login-page">
 
-      <section class="authMain">
-        <div class="mobileHero">
-          <svg class="mobileWave" viewBox="0 0 430 300" preserveAspectRatio="none"><path d="M0 42C62 10 124 20 190 42C260 66 312 34 430 24V300H0Z" fill="#e6f2ff"/><path d="M0 98C86 74 150 86 220 118C284 146 350 116 430 94V300H0Z" fill="#f2f8ff"/><path d="M0 154C84 138 138 148 210 178C278 207 350 184 430 160V300H0Z" fill="#fbfdff"/></svg>
-          <div class="mobileTop">
-            <div class="mobileBrandBlock"><div class="brand">{brand_icon_mobile}<div class="brandWord"><span class="tim" style="color:#0b1b4c">Tim</span><span class="iq" style="color:#0b63ff">IQ</span></div></div><p class="mobileLead">Check-in, attendance and payroll in one secure workspace.</p></div>
-            <div class="shieldArt">{shield_svg}</div>
+      <section class="login-hero">
+        <div class="hero-inner">
+          <div class="hero-logo" aria-label="TimIQ">
+            <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+              <path d="M7 25H26" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+              <path d="M10 34H24" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+              <path d="M16 43H22" stroke="#7FC7EE" stroke-width="5.5" stroke-linecap="round"/>
+              <rect x="31" y="8" width="11" height="6" rx="2" fill="#7FC7EE"/>
+              <rect x="47.5" y="14" width="6" height="6" rx="1.5" transform="rotate(45 47.5 14)" fill="#7FC7EE"/>
+              <circle cx="36" cy="32" r="18" stroke="#7FC7EE" stroke-width="5.5"/>
+              <path d="M36 32V18A14 14 0 0 1 50 32H36Z" fill="#4B83C6"/>
+            </svg>
+            <div class="hero-logo-text"><span class="tim">Tim</span><span class="iq">IQ</span></div>
+          </div>
+
+          <div class="hero-dots" aria-hidden="true"></div>
+
+          <div class="hero-copy">
+  <h1>
+    One workspace.<br>
+    Every worker.<br>
+    <span class="accent">Total visibility.</span>
+  </h1>
+  <div class="hero-rule"></div>
+  <p>TimIQ brings together clock-in, attendance and payroll in one secure platform—so your projects run on time and on budget.</p>
+</div>
+
+          <div class="hero-features">
+            <div class="hero-feature">
+              <div class="hero-feature-icon">
+                <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H7a4 4 0 0 0-4 4v2"/><circle cx="9.5" cy="7" r="4"/><path d="M19 8v6"/><path d="M22 11h-6"/></svg>
+              </div>
+              <div>
+                <strong>Workforce in sync</strong>
+                <span>Accurate attendance across sites and teams.</span>
+              </div>
+            </div>
+
+            <div class="hero-feature">
+              <div class="hero-feature-icon">
+                <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-5"/></svg>
+              </div>
+              <div>
+                <strong>Built for security</strong>
+                <span>Enterprise-grade protection for your data.</span>
+              </div>
+            </div>
+
+            <div class="hero-feature">
+              <div class="hero-feature-icon">
+                <svg viewBox="0 0 24 24"><path d="M4 19V5"/><path d="M4 19h16"/><path d="M8 16v-5"/><path d="M12 16V8"/><path d="M16 16v-9"/></svg>
+              </div>
+              <div>
+                <strong>Actionable insights</strong>
+                <span>Real-time reporting that keeps projects moving.</span>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div class="mainCenter">
-          <div class="loginCard">
-            <h1 class="loginTitle">Welcome back</h1>
-            <p class="loginSubtitle">Sign in to access your TimIQ workspace.</p>
+        <div class="hero-scene" aria-hidden="true">
+  <svg viewBox="0 0 900 520" preserveAspectRatio="none">
+    <defs>
+      <linearGradient id="siteGlow" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0" stop-color="#77d3ff" stop-opacity="0"/>
+        <stop offset="1" stop-color="#77d3ff" stop-opacity=".28"/>
+      </linearGradient>
 
-            <form method="POST" class="loginForm">
+      <linearGradient id="siteFill" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#6ecbff" stop-opacity=".30"/>
+        <stop offset="1" stop-color="#6ecbff" stop-opacity=".04"/>
+      </linearGradient>
+
+      <linearGradient id="darkFade" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="#0d2f89" stop-opacity=".00"/>
+        <stop offset=".35" stop-color="#0d2f89" stop-opacity=".10"/>
+        <stop offset="1" stop-color="#071a4a" stop-opacity=".78"/>
+      </linearGradient>
+    </defs>
+
+    <!-- background site glow -->
+    <path d="M0 518V360C120 330 205 318 300 326C410 334 515 360 620 349C717 339 805 301 900 250V518Z"
+          fill="url(#darkFade)"/>
+
+    <!-- big soft construction glow -->
+    <ellipse cx="620" cy="350" rx="210" ry="130" fill="url(#siteGlow)" opacity=".55"/>
+    <ellipse cx="670" cy="338" rx="150" ry="90" fill="url(#siteGlow)" opacity=".40"/>
+
+    <!-- arc line like the reference -->
+    <path d="M355 515C372 430 402 360 456 304C522 236 623 207 900 155"
+          stroke="#7fd8ff" stroke-opacity=".22" stroke-width="2" fill="none"/>
+
+    <!-- crane -->
+    <g opacity=".52" stroke="#7fd8ff" stroke-width="3" fill="none">
+      <path d="M722 130V392"/>
+      <path d="M722 150L556 282"/>
+      <path d="M556 282H796"/>
+      <path d="M620 282l14-22h122"/>
+      <path d="M650 282v48"/>
+      <path d="M749 282v88"/>
+      <path d="M737 370c0 10-7 18-18 18"/>
+    </g>
+
+    <!-- buildings / scaffolding -->
+    <g opacity=".45">
+      <rect x="472" y="278" width="30" height="152" fill="url(#siteFill)"/>
+      <rect x="512" y="236" width="26" height="194" fill="url(#siteFill)"/>
+      <rect x="546" y="200" width="22" height="230" fill="url(#siteFill)"/>
+      <rect x="578" y="250" width="28" height="180" fill="url(#siteFill)"/>
+      <rect x="616" y="178" width="20" height="252" fill="url(#siteFill)"/>
+      <rect x="646" y="220" width="24" height="210" fill="url(#siteFill)"/>
+      <rect x="680" y="160" width="18" height="270" fill="url(#siteFill)"/>
+      <rect x="706" y="138" width="24" height="292" fill="url(#siteFill)"/>
+    </g>
+
+    <g opacity=".28" stroke="#8adfff" stroke-width="2">
+      <path d="M585 216H735"/>
+      <path d="M585 248H735"/>
+      <path d="M585 280H735"/>
+      <path d="M585 312H735"/>
+      <path d="M585 344H735"/>
+      <path d="M585 376H735"/>
+    </g>
+
+    <!-- silhouetted workers -->
+    <g fill="#081a4a" opacity=".88">
+      <circle cx="640" cy="338" r="23"/>
+      <path d="M584 500c0-71 44-124 99-124c55 0 99 53 99 124z"/>
+      <rect x="627" y="358" width="28" height="92" rx="10"/>
+
+      <circle cx="575" cy="364" r="20"/>
+      <path d="M520 502c0-61 39-108 87-108s87 47 87 108z"/>
+      <rect x="565" y="382" width="24" height="80" rx="10"/>
+      <rect x="555" y="390" width="12" height="82" rx="8" transform="rotate(15 555 390)"/>
+    </g>
+
+    <!-- small foreground silhouettes -->
+    <g fill="#081a4a" opacity=".70">
+      <rect x="95" y="314" width="38" height="128"/>
+      <rect x="158" y="248" width="42" height="194"/>
+      <rect x="228" y="286" width="34" height="156"/>
+      <rect x="292" y="194" width="46" height="248"/>
+      <rect x="364" y="270" width="38" height="172"/>
+    </g>
+
+    <!-- subtle circles -->
+    <g opacity=".35">
+      <circle cx="210" cy="380" r="19" fill="#72c7f6"/>
+      <circle cx="690" cy="370" r="21" fill="#72c7f6"/>
+    </g>
+
+    <!-- ground -->
+    <path d="M0 500C220 470 385 468 562 476C665 481 781 486 900 470V520H0Z"
+          fill="#08235f" opacity=".80"/>
+  </svg>
+</div>
+      </section>
+
+      <section class="login-main">
+        <div class="login-main-center">
+
+          <div class="mobile-hero">
+            <svg class="mobile-wave" viewBox="0 0 430 340" preserveAspectRatio="none" aria-hidden="true">
+              <path d="M0 32C60 12 116 16 180 42C247 69 311 65 430 30V340H0Z" fill="#e7f1ff"/>
+              <path d="M0 106C77 89 145 97 218 126C292 155 352 146 430 118V340H0Z" fill="#f1f7ff"/>
+              <path d="M0 188C79 178 146 188 220 220C291 250 355 244 430 216V340H0Z" fill="#fbfdff"/>
+            </svg>
+
+            <div class="mobile-hero-copy">
+              <div class="mobile-logo" aria-label="TimIQ">
+                <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+                  <path d="M7 25H26" stroke="#0B63FF" stroke-width="5.5" stroke-linecap="round"/>
+                  <path d="M10 34H24" stroke="#0B63FF" stroke-width="5.5" stroke-linecap="round"/>
+                  <path d="M16 43H22" stroke="#0B63FF" stroke-width="5.5" stroke-linecap="round"/>
+                  <rect x="31" y="8" width="11" height="6" rx="2" fill="#0B63FF"/>
+                  <rect x="47.5" y="14" width="6" height="6" rx="1.5" transform="rotate(45 47.5 14)" fill="#0B63FF"/>
+                  <circle cx="36" cy="32" r="18" stroke="#0B63FF" stroke-width="5.5"/>
+                  <path d="M36 32V18A14 14 0 0 1 50 32H36Z" fill="#72C7F6"/>
+                </svg>
+                <div class="mobile-logo-text"><span class="tim">Tim</span><span class="iq">IQ</span></div>
+              </div>
+              <p>Check-in, attendance and payroll in one secure workspace.</p>
+            </div>
+
+            <div class="mobile-hero-art" aria-hidden="true">
+  <svg class="mobile-shield-svg" viewBox="0 0 230 220" fill="none">
+    <defs>
+      <filter id="timiqShieldShadow" x="20" y="0" width="190" height="210" filterUnits="userSpaceOnUse">
+        <feDropShadow dx="0" dy="10" stdDeviation="8" flood-color="#0b63ff" flood-opacity=".22"/>
+      </filter>
+
+      <radialGradient id="timiqShieldGlow" cx="50%" cy="50%" r="65%">
+        <stop offset="0" stop-color="#8fdfff" stop-opacity=".72"/>
+        <stop offset=".58" stop-color="#8fdfff" stop-opacity=".20"/>
+        <stop offset="1" stop-color="#8fdfff" stop-opacity="0"/>
+      </radialGradient>
+
+      <linearGradient id="timiqShieldOuter" x1="48" y1="24" x2="178" y2="183" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#63c8ff"/>
+        <stop offset=".42" stop-color="#1682ff"/>
+        <stop offset="1" stop-color="#075ae9"/>
+      </linearGradient>
+
+      <linearGradient id="timiqShieldFace" x1="72" y1="42" x2="154" y2="154" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#9fe7ff"/>
+        <stop offset=".52" stop-color="#54b5ff"/>
+        <stop offset="1" stop-color="#1d82ff"/>
+      </linearGradient>
+
+      <linearGradient id="timiqShieldRight" x1="145" y1="35" x2="190" y2="150" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#8edbff" stop-opacity=".80"/>
+        <stop offset=".45" stop-color="#2b96ff" stop-opacity=".78"/>
+        <stop offset="1" stop-color="#075ae9" stop-opacity=".95"/>
+      </linearGradient>
+
+      <linearGradient id="timiqLock" x1="92" y1="76" x2="132" y2="132" gradientUnits="userSpaceOnUse">
+        <stop offset="0" stop-color="#ffffff"/>
+        <stop offset="1" stop-color="#dbefff"/>
+      </linearGradient>
+    </defs>
+
+    <!-- glowing platform -->
+    <ellipse cx="116" cy="183" rx="78" ry="27" fill="url(#timiqShieldGlow)"/>
+    <ellipse cx="116" cy="183" rx="83" ry="28" stroke="#bdeeff" stroke-width="3" opacity=".55"/>
+    <ellipse cx="116" cy="183" rx="64" ry="21" stroke="#e5f9ff" stroke-width="2" opacity=".92"/>
+    <ellipse cx="116" cy="183" rx="47" ry="15" stroke="#ffffff" stroke-width="1.6" opacity=".85"/>
+
+    <!-- small sparkle ring detail -->
+    <path d="M56 176C78 162 152 159 181 176" stroke="#ffffff" stroke-width="2" opacity=".72"/>
+    <path d="M78 194C100 203 147 202 168 194" stroke="#8bdcff" stroke-width="2" opacity=".45"/>
+
+    <!-- shield -->
+    <g filter="url(#timiqShieldShadow)">
+      <path
+        d="M116 19L181 43V91C181 137 157 171 116 196C75 171 49 137 49 91V43L116 19Z"
+        fill="url(#timiqShieldOuter)"
+      />
+
+      <path
+        d="M116 19L181 43V91C181 137 157 171 116 196V19Z"
+        fill="url(#timiqShieldRight)"
+        opacity=".72"
+      />
+
+      <path
+        d="M116 35L163 52V91C163 124 147 149 116 169C85 149 67 124 67 91V52L116 35Z"
+        fill="url(#timiqShieldFace)"
+      />
+
+      <path
+        d="M116 35L163 52V91C163 101 161 111 158 120L116 69V35Z"
+        fill="#ffffff"
+        opacity=".20"
+      />
+
+      <path
+        d="M67 52L116 35V169C85 149 67 124 67 91V52Z"
+        fill="#ffffff"
+        opacity=".12"
+      />
+
+      <path
+        d="M49 43L116 19L181 43"
+        stroke="#8fe3ff"
+        stroke-width="5"
+        stroke-linejoin="round"
+        opacity=".75"
+      />
+
+      <!-- lock, intentionally upright -->
+      <path
+        d="M94 103V88C94 76.4 103.4 67 115 67C126.6 67 136 76.4 136 88V103"
+        stroke="#f8fdff"
+        stroke-width="9"
+        stroke-linecap="round"
+      />
+
+      <rect
+        x="88"
+        y="99"
+        width="56"
+        height="43"
+        rx="10"
+        fill="url(#timiqLock)"
+      />
+
+      <circle cx="116" cy="118" r="5.4" fill="#0b63ff"/>
+      <rect x="113.5" y="123" width="5" height="13" rx="2.5" fill="#0b63ff"/>
+    </g>
+  </svg>
+</div>
+          </div>
+
+          <div class="login-card">
+            <h1>Welcome back</h1>
+            <p class="subtitle">Sign in to continue to your workspace.</p>
+
+            <form method="POST" class="login-form">
               <input type="hidden" name="csrf" value="{escape(csrf)}">
 
-              <div>
-                <label class="fieldLabel" for="login-username">Username</label>
-                <div class="inputWrap"><span class="inputIcon"><svg viewBox="0 0 24 24"><path d="M20 21a8 8 0 0 0-16 0"/><circle cx="12" cy="8" r="4"/></svg></span><input id="login-username" class="loginInput" name="username" value="{escape(entered_username)}" autocomplete="username" autocapitalize="none" spellcheck="false" placeholder="Enter your username" required></div>
+              <div class="field">
+                <label for="login-username">Username</label>
+                <div class="input-wrap">
+                  <span class="input-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                  </span>
+                  <input
+                    id="login-username"
+                    class="login-input"
+                    name="username"
+                    value="{escape(entered_username)}"
+                    autocomplete="username"
+                    autocapitalize="none"
+                    spellcheck="false"
+                    placeholder="Enter your username"
+                    required>
+                </div>
               </div>
 
-              <div>
-                <label class="fieldLabel" for="login-workplace">Workplace ID</label>
-                <div class="inputWrap"><span class="inputIcon"><svg viewBox="0 0 24 24"><path d="M4 21h16"/><path d="M7 21V6l10-3v18"/><path d="M10 9h1"/><path d="M10 13h1"/><path d="M10 17h1"/><path d="M14 13h1"/><path d="M14 17h1"/></svg></span><input id="login-workplace" class="loginInput" name="workplace_id" value="{escape(entered_workplace_id)}" autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" inputmode="text" placeholder="e.g. north01"></div>
-                <div class="fieldHint">Required for workplace users.</div>
+              <div class="field">
+                <label for="login-workplace">Workplace ID</label>
+                <div class="input-wrap">
+                  <span class="input-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><path d="M4 21V5a2 2 0 0 1 2-2h9l5 5v13"/><path d="M14 3v6h6"/><path d="M8 13h2"/><path d="M8 17h2"/><path d="M14 13h2"/><path d="M14 17h2"/></svg>
+                  </span>
+                  <input
+                    id="login-workplace"
+                    class="login-input"
+                    name="workplace_id"
+                    value="{escape(entered_workplace_id)}"
+                    autocomplete="off"
+                    autocapitalize="none"
+                    autocorrect="off"
+                    spellcheck="false"
+                    inputmode="text"
+                    placeholder="e.g. north01">
+                </div>
+                <div class="input-note">Required for workplace users.</div>
               </div>
 
-              <div>
-                <label class="fieldLabel" for="login-password">Password</label>
-                <div class="inputWrap"><span class="inputIcon"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><input id="login-password" class="loginInput passwordInput" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required><button class="eyeButton" type="button" data-password-toggle="login-password" aria-label="Show password" aria-pressed="false"><svg class="eyeOpen" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eyeClosed" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 20L20 4"/></svg></button></div>
+              <div class="field">
+                <label for="login-password">Password</label>
+                <div class="input-wrap">
+                  <span class="input-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                  </span>
+                  <input
+                    id="login-password"
+                    class="login-input password-input"
+                    type="password"
+                    name="password"
+                    autocomplete="current-password"
+                    placeholder="Enter your password"
+                    required>
+
+                  <button
+                    class="toggle-pass"
+                    type="button"
+                    data-password-toggle="login-password"
+                    aria-label="Show password"
+                    aria-pressed="false">
+                    <svg class="eye-open" viewBox="0 0 24 24">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                    </svg>
+                    <svg class="eye-closed" viewBox="0 0 24 24">
+                      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"></path>
+                      <circle cx="12" cy="12" r="3"></circle>
+                      <path d="M4 20L20 4"></path>
+                    </svg>
+                  </button>
+                </div>
               </div>
 
-              <div class="mobileActions"><label class="rememberLabel"><input type="checkbox" name="remember" value="1" {"checked" if request.method == "POST" and request.form.get("remember") == "1" else ""}><span>Remember me</span></label><a class="forgotLink" href="#" onclick="alert('Please contact your administrator to reset your password.'); return false;">Forgot password?</a></div>
-              <button class="submitButton" type="submit"><span>Sign in</span><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
+              <div class="login-row">
+                <label class="remember">
+                  <input type="checkbox" name="remember" value="1" checked>
+                  <span>Remember me</span>
+                </label>
+
+                <a class="forgot-link" href="#" onclick="alert('Please contact your administrator to reset your password.'); return false;">Forgot password?</a>
+              </div>
+
+              <button class="login-btn" type="submit">
+                <span>Sign in</span>
+                <svg viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M5 12h14"></path>
+                  <path d="m13 6 6 6-6 6"></path>
+                </svg>
+              </button>
             </form>
 
             {("<div class='message error'>" + escape(msg) + "</div>") if msg else ""}
 
-            <div class="loginNote"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="9" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg><div>Use the same credentials provided by your administrator. After sign-in you can access clock-in, timesheets and payroll tools based on your role.</div></div>
-            <div class="secureBlock"><div class="secureTitle"><span><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-5"/></svg>Secure sign-in</span></div><p>Your data is protected with enterprise-grade encryption and secure authentication.</p></div>
-            <a class="helpBlock" href="#" onclick="alert('Contact your administrator for assistance.'); return false;"><div class="helpIcon">?</div><div class="helpText"><strong>Need help signing in?</strong><span>Contact your administrator for assistance.</span></div><div class="helpArrow">›</div></a>
+            <div class="secure-box">
+              <div class="secure-title">
+                <span>
+                  <svg viewBox="0 0 24 24">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path>
+                    <path d="M9 12l2 2 4-5"></path>
+                  </svg>
+                  Secure sign-in
+                </span>
+              </div>
+              <p>Your data is protected with enterprise-grade encryption and secure authentication.</p>
+            </div>
+
+            <a class="support-box" href="#" onclick="alert('Contact your administrator for assistance.'); return false;">
+              <div class="support-icon">?</div>
+              <div class="support-copy">
+                <strong>Need help signing in?</strong>
+                <span>Contact your administrator for assistance.</span>
+              </div>
+              <div class="support-arrow">›</div>
+            </a>
           </div>
         </div>
 
-        <footer class="authFooter"><div>© 2024 {escape(company_name)}. All rights reserved.</div><div class="footerLinks"><a href="#" onclick="return false;">Privacy Policy</a><a href="#" onclick="return false;">Terms of Service</a><a href="#" onclick="return false;">Need help? Contact support</a></div></footer>
+        <div class="login-footer">
+          <div>© 2024 TimIQ. All rights reserved.</div>
+          <div class="login-footer-links">
+            <a href="#" onclick="return false;">Privacy Policy</a>
+            <a href="#" onclick="return false;">Terms of Service</a>
+            <a href="#" onclick="return false;">Need help? Contact support</a>
+          </div>
+        </div>
       </section>
 
       <script>
         (function(){{
-          document.querySelectorAll('[data-password-toggle]').forEach(function(btn){{
-            btn.addEventListener('click', function(){{
-              var input = document.getElementById(btn.getAttribute('data-password-toggle'));
+          document.querySelectorAll("[data-password-toggle]").forEach(function(btn){{
+            btn.addEventListener("click", function(){{
+              var inputId = btn.getAttribute("data-password-toggle");
+              var input = document.getElementById(inputId);
               if (!input) return;
-              var visible = input.type === 'password';
-              input.type = visible ? 'text' : 'password';
-              btn.classList.toggle('isVisible', visible);
-              btn.setAttribute('aria-pressed', visible ? 'true' : 'false');
-              btn.setAttribute('aria-label', visible ? 'Hide password' : 'Show password');
+
+              var hidden = input.type === "password";
+              input.type = hidden ? "text" : "password";
+              btn.classList.toggle("is-visible", hidden);
+              btn.setAttribute("aria-pressed", hidden ? "true" : "false");
+              btn.setAttribute("aria-label", hidden ? "Hide password" : "Show password");
             }});
           }});
         }})();
       </script>
+
     </div>
     """
 

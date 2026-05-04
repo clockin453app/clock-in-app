@@ -91,6 +91,10 @@ def render_page(
         stylesheet_links.append(
             _stylesheet_tag("/static/css/pages/admin-final-clean.css?v=12")
         )
+    if not any("mobile-fit.css" in link for link in stylesheet_links):
+        stylesheet_links.append(
+            _stylesheet_tag("/static/css/pages/mobile-fit.css?v=1")
+        )
 
     if page_css:
         stylesheet_links.append(_stylesheet_tag(page_css))
