@@ -312,6 +312,14 @@ def admin_payroll_impl(core):
     week_end = week_start + timedelta(days=6)
     week_start_str = week_start.strftime("%Y-%m-%d")
     week_end_str = week_end.strftime("%Y-%m-%d")
+
+    # Employee Payroll Details must follow the selected date range.
+    # If no date range is selected, it falls back to the selected week.
+    detail_start = range_start if use_range and range_start and range_end else week_start
+    detail_end = range_end if use_range and range_start and range_end else week_end
+    detail_start_str = detail_start.strftime("%Y-%m-%d")
+    detail_end_str = detail_end.strftime("%Y-%m-%d")
+
     db_site_lookup = {}
 
     if DB_MIGRATION_MODE:
@@ -325,8 +333,8 @@ def admin_payroll_impl(core):
                             and_(WorkHour.workplace_id.is_(None), WorkHour.workplace.in_(allowed_wps)),
                             WorkHour.workplace.in_(allowed_wps),
                         ),
-                        WorkHour.date >= week_start,
-                        WorkHour.date <= week_end,
+                        WorkHour.date >= detail_start,
+                        WorkHour.date <= detail_end,
                     )
                 )
                 .order_by(WorkHour.date.asc(), WorkHour.id.asc())
@@ -535,7 +543,7 @@ def admin_payroll_impl(core):
             if not user_in_same_workplace(user):
                 continue
 
-        if d < week_start_str or d > week_end_str:
+        if d < detail_start_str or d > detail_end_str:
             continue
 
         row_hours = (r[COL_HOURS] if len(r) > COL_HOURS else "") or ""
@@ -1863,8 +1871,9 @@ white-space:nowrap;
 
         user_had_rows = False
 
-        for di in range(7):
-            d_obj = week_start + timedelta(days=di)
+        d_obj = detail_start
+
+        while d_obj <= detail_end:
             d_str = d_obj.strftime("%Y-%m-%d")
             rec = user_days.get(d_str, {}) if isinstance(user_days, dict) else {}
 
@@ -1874,6 +1883,7 @@ white-space:nowrap;
             pay = safe_float((rec.get("pay", "0") if isinstance(rec, dict) else "0"), 0.0)
 
             if not cin and not cout and hrs <= 0 and pay <= 0:
+                d_obj += timedelta(days=1)
                 continue
 
             user_had_rows = True
@@ -1918,11 +1928,12 @@ white-space:nowrap;
                 </td>
               </tr>
             """)
+            d_obj += timedelta(days=1)
 
         if not user_had_rows:
             payroll_details_rows.append(f"""
               <tr class="prMutedRow isHidden" data-pr-detail-row="{detail_key}">
-                <td colspan="10">No shifts recorded for {escape(display)} in this week.</td>
+                <td colspan="10">No shifts recorded for {escape(display)} in this period.</td>
               </tr>
             """)
 
