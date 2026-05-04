@@ -1398,8 +1398,12 @@ white-space:nowrap;
 
     last_updated = datetime.now(TZ).strftime("%d %b %Y • %H:%M")
     csv_url = "/admin/payroll-report.csv"
+    pdf_url = "/admin/payroll-report.pdf"
+
     if request.query_string:
-        csv_url += "?" + request.query_string.decode("utf-8", "ignore")
+        query_string = request.query_string.decode("utf-8", "ignore")
+        csv_url += "?" + query_string
+        pdf_url += "?" + query_string
 
     range_detail_html = ""
 
@@ -2021,6 +2025,7 @@ white-space:nowrap;
         next_week_url=next_week_url,
         next_two_week_url=next_two_week_url,
         csv_url=csv_url,
+        pdf_url=pdf_url,
 
         week_options_html="".join(week_options),
         employee_options_html="".join(employee_options),

@@ -693,6 +693,7 @@ from .services.admin_force_clockin_route import admin_force_clockin_impl
 from .services.admin_force_clockout_route import admin_force_clockout_impl
 from .services.admin_mark_paid_route import admin_mark_paid_impl
 from .services.admin_payroll_report_csv_route import admin_payroll_report_csv_impl
+from .services.admin_payroll_report_pdf_route import admin_payroll_report_pdf_impl
 from .services.admin_locations_save_route import admin_locations_save_impl
 from .services.admin_locations_deactivate_route import admin_locations_deactivate_impl
 from .services.admin_clock_selfies_route import admin_clock_selfies_impl
@@ -5493,6 +5494,10 @@ def _get_week_range(wk_offset: int):
 @routes.get("/admin/payroll-report.csv")
 def admin_payroll_report_csv():
     return admin_payroll_report_csv_impl(core=globals())
+
+@routes.get("/admin/payroll-report.pdf")
+def admin_payroll_report_pdf():
+    return admin_payroll_report_pdf_impl(core=globals())
 
 @routes.get("/admin/onboarding")
 def admin_onboarding_list():
