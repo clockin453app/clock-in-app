@@ -1,4 +1,4 @@
-VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
+VIEWPORT = '<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">'
 PWA_TAGS = """
 <title>TimIQ</title>
 <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=1">
@@ -8,9 +8,49 @@ PWA_TAGS = """
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <link rel="apple-touch-icon" href="/static/icon-192.png">
-<link rel="stylesheet" href="/static/css/timiq-reference-theme.css?v=30">
+<link rel="stylesheet" href="/static/css/timiq-reference-theme.css?v=31">
 <link rel="stylesheet" href="/static/css/pages/admin-final-clean.css?v=12">
 <script>
+(function(){
+  function lockViewport(){
+    var content = "width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover";
+    var meta = document.querySelector('meta[name="viewport"]');
+
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "viewport");
+      document.head.appendChild(meta);
+    }
+
+    meta.setAttribute("content", content);
+  }
+
+  lockViewport();
+
+  document.addEventListener("gesturestart", function(e){
+    e.preventDefault();
+  }, { passive:false });
+
+  document.addEventListener("gesturechange", function(e){
+    e.preventDefault();
+  }, { passive:false });
+
+  document.addEventListener("gestureend", function(e){
+    e.preventDefault();
+  }, { passive:false });
+
+  var lastTouchEnd = 0;
+
+  document.addEventListener("touchend", function(e){
+    var now = Date.now();
+
+    if (now - lastTouchEnd <= 300) {
+      e.preventDefault();
+    }
+
+    lastTouchEnd = now;
+  }, { passive:false });
+})();
 (function(){
   function syncBottomNav(){
     var vv = window.visualViewport;

@@ -6,7 +6,7 @@ def public_preview_impl(core):
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>TimIQ Workforce Management</title>
   <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon-32.png?v=1">
   <link rel="apple-touch-icon" href="/static/icon-192.png?v=3">
@@ -29,6 +29,23 @@ def public_preview_impl(core):
     }
 
     *{ box-sizing:border-box; }
+    
+    html,
+body{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  touch-action:manipulation;
+}
+
+input,
+textarea,
+select{
+  font-size:16px;
+  max-width:100%;
+}
 
     html{
       scroll-behavior:smooth;

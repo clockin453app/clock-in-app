@@ -114,9 +114,25 @@ def admin_onboarding_download_impl(core, username):
     <html>
     <head>
       <meta charset="utf-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, minimum-scale=1, user-scalable=no, viewport-fit=cover">
       <title>Onboarding Form - {escape(display_name)}</title>
       <style>
+      html,
+body{{
+  width:100%;
+  max-width:100%;
+  overflow-x:hidden;
+  -webkit-text-size-adjust:100%;
+  text-size-adjust:100%;
+  touch-action:manipulation;
+}}
+
+input,
+textarea,
+select{{
+  font-size:16px;
+  max-width:100%;
+}}
         body {{
           margin: 0;
           background: #f5f6fb;

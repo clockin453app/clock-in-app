@@ -2157,6 +2157,49 @@ def login_impl(core):
     opacity:1 !important;
   }
 }
+/* FINAL REMEMBER ME CHECKBOX FIX */
+@media (max-width: 980px){
+  .remember > input[type="checkbox"]{
+    appearance:none !important;
+    -webkit-appearance:none !important;
+    box-sizing:border-box !important;
+    display:inline-grid !important;
+    place-items:center !important;
+    width:18px !important;
+    height:18px !important;
+    min-width:18px !important;
+    min-height:18px !important;
+    max-width:18px !important;
+    max-height:18px !important;
+    flex:0 0 18px !important;
+    padding:0 !important;
+    margin:0 !important;
+    border-radius:4px !important;
+    border:1.5px solid #9cb0ca !important;
+    background:#fff !important;
+    position:relative !important;
+    cursor:pointer !important;
+  }
+
+  .remember > input[type="checkbox"]::after{
+    content:"" !important;
+    width:8px !important;
+    height:4px !important;
+    border-left:2px solid #fff !important;
+    border-bottom:2px solid #fff !important;
+    transform:rotate(-45deg) translate(1px,-1px) !important;
+    opacity:0 !important;
+  }
+
+  .remember > input[type="checkbox"]:checked{
+    border-color:#0b63ff !important;
+    background:#0b63ff !important;
+  }
+
+  .remember > input[type="checkbox"]:checked::after{
+    opacity:1 !important;
+  }
+}
     </style>
     """
 

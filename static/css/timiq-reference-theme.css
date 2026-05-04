@@ -1632,3 +1632,79 @@ thead th,
   color: #0b63ff !important;
   box-shadow: none !important;
 }
+
+
+/* =========================================================
+   GLOBAL MOBILE NO-ZOOM / SCREEN-FIT FIX
+   Prevents iPhone Safari input auto-zoom and horizontal drift.
+   ========================================================= */
+
+@media (max-width: 980px){
+  html,
+  body{
+    width:100% !important;
+    max-width:100% !important;
+    overflow-x:hidden !important;
+    -webkit-text-size-adjust:100% !important;
+    text-size-adjust:100% !important;
+    touch-action:manipulation !important;
+  }
+
+  body{
+    position:relative !important;
+  }
+
+  .shell,
+  .main,
+  .page,
+  .pageContent,
+  .login-page,
+  .login-main{
+    max-width:100% !important;
+    overflow-x:hidden !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]),
+  textarea,
+  select{
+    font-size:16px !important;
+    max-width:100% !important;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]):focus,
+  textarea:focus,
+  select:focus{
+    font-size:16px !important;
+  }
+
+  button,
+  a,
+  label{
+    touch-action:manipulation !important;
+  }
+
+  img,
+  svg,
+  canvas,
+  video{
+    max-width:100%;
+  }
+
+  .tableWrap,
+  .dbRefTableWrap,
+  .mgRefTableWrap,
+  .prRefTableWrap,
+  .companiesTableWrap,
+  .employeesTableWrap,
+  .locationsTableWrap,
+  .siteAccessTableWrap,
+  .healthTableWrap,
+  .liveAttendanceTableWrap,
+  .timeRecordsTableWrap,
+  .timesheetsTableWrap,
+  .payHistoryTableWrap{
+    max-width:100% !important;
+    overflow-x:auto !important;
+    -webkit-overflow-scrolling:touch !important;
+  }
+}
