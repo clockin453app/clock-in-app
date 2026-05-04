@@ -36,6 +36,7 @@ def login_impl(core):
         username = request.form.get("username", "").strip()
         password = request.form.get("password", "")
         workplace_id = (request.form.get("workplace_id", "") or "").strip()
+        remember_me = request.form.get("remember") == "1"
         ip = _client_ip()
 
         login_usernames = [username]
@@ -77,6 +78,8 @@ def login_impl(core):
                         else:
                             selected_workplace = workplace_id or (session.get("workplace_id") or "").strip() or "default"
                             session.clear()
+                            session.permanent = remember_me
+                            session["remember_me"] = remember_me
                             session["csrf"] = csrf
                             session["username"] = matched_global_username
                             session["workplace_id"] = selected_workplace
@@ -134,6 +137,8 @@ def login_impl(core):
                                 msg = "Could not start secure session. Please try again."
                             else:
                                 session.clear()
+                                session.permanent = remember_me
+                                session["remember_me"] = remember_me
                                 session["csrf"] = csrf
                                 session["username"] = matched_username
                                 session["workplace_id"] = workplace_id
@@ -233,30 +238,28 @@ def login_impl(core):
 
       .heroText{position:relative;z-index:3;margin-top:100px;max-width:500px;}
       .authHero .heroText h1{
-  margin:0;
-  color:#ffffff !important;
-  -webkit-text-fill-color:#ffffff !important;
-  background:none !important;
-  background-image:none !important;
-  font-size:62px;
-  line-height:.98;
-  letter-spacing:-.055em;
-  font-weight:900;
-  text-shadow:none !important;
-}
-
-.authHero .heroText h1 *{
-  color:#ffffff !important;
-  -webkit-text-fill-color:#ffffff !important;
-  background:none !important;
-  background-image:none !important;
-  text-shadow:none !important;
-}
-
-.authHero .heroText h1 .accent{
-  color:#7fd2fb !important;
-  -webkit-text-fill-color:#7fd2fb !important;
-}
+        margin:0;
+        color:#ffffff !important;
+        -webkit-text-fill-color:#ffffff !important;
+        background:none !important;
+        background-image:none !important;
+        font-size:62px;
+        line-height:.98;
+        letter-spacing:-.055em;
+        font-weight:900;
+        text-shadow:none !important;
+      }
+      .authHero .heroText h1 *{
+        color:#ffffff !important;
+        -webkit-text-fill-color:#ffffff !important;
+        background:none !important;
+        background-image:none !important;
+        text-shadow:none !important;
+      }
+      .authHero .heroText h1 .accent{
+        color:#7fd2fb !important;
+        -webkit-text-fill-color:#7fd2fb !important;
+      }
       .heroRule{width:58px;height:3px;border-radius:999px;background:#74cef9;margin:32px 0 28px;}
       .heroText p{margin:0;max-width:420px;color:rgba(255,255,255,.92);font-size:18px;line-height:1.58;font-weight:500;}
 
@@ -290,7 +293,7 @@ def login_impl(core):
       .eyeButton{position:absolute;right:9px;top:50%;transform:translateY(-50%);width:39px;height:39px;border-radius:11px;border:1px solid #dce6f3;background:#fff;color:#0b63ff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
       .eyeButton .eyeOpen{display:none}.eyeButton.isVisible .eyeOpen{display:block}.eyeButton.isVisible .eyeClosed{display:none;}
       .fieldHint{margin-top:8px;color:#8190aa;font-size:13px;line-height:1.4;font-weight:600;}
-      .mobileActions{display:none;align-items:center;justify-content:space-between;gap:14px;margin-top:2px;}
+      .mobileActions{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-top:2px;}
       .rememberLabel{display:inline-flex;align-items:center;gap:10px;color:#172653;font-size:15px;font-weight:700;}
       .rememberLabel input{width:18px;height:18px;accent-color:#0b63ff;}
       .forgotLink{font-size:15px;font-weight:800;color:#0b63ff;text-decoration:none;}
@@ -472,7 +475,7 @@ def login_impl(core):
                 <div class="inputWrap"><span class="inputIcon"><svg viewBox="0 0 24 24"><rect x="5" y="11" width="14" height="10" rx="2"/><path d="M8 11V8a4 4 0 0 1 8 0v3"/></svg></span><input id="login-password" class="loginInput passwordInput" type="password" name="password" autocomplete="current-password" placeholder="Enter your password" required><button class="eyeButton" type="button" data-password-toggle="login-password" aria-label="Show password" aria-pressed="false"><svg class="eyeOpen" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg><svg class="eyeClosed" viewBox="0 0 24 24"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/><path d="M4 20L20 4"/></svg></button></div>
               </div>
 
-              <div class="mobileActions"><label class="rememberLabel"><input type="checkbox" name="remember" value="1"><span>Remember me</span></label><a class="forgotLink" href="#" onclick="alert('Please contact your administrator to reset your password.'); return false;">Forgot password?</a></div>
+              <div class="mobileActions"><label class="rememberLabel"><input type="checkbox" name="remember" value="1" {"checked" if request.method == "POST" and request.form.get("remember") == "1" else ""}><span>Remember me</span></label><a class="forgotLink" href="#" onclick="alert('Please contact your administrator to reset your password.'); return false;">Forgot password?</a></div>
               <button class="submitButton" type="submit"><span>Sign in</span><svg viewBox="0 0 24 24"><path d="M5 12h14"/><path d="m13 6 6 6-6 6"/></svg></button>
             </form>
 
