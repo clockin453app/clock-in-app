@@ -297,7 +297,7 @@ def clock_page_impl(core):
                             _save_workhour_rule_snapshot(db_row, rule_snapshot)
                             db.session.commit()
 
-                            return redirect(url_for("home"))
+                            return redirect(url_for("home", clocked_out="1", hours=f"{hours_rounded:.2f}"))
 
                         else:
                             raise RuntimeError("Invalid action.")
@@ -526,7 +526,7 @@ def clock_page_impl(core):
                                 except Exception:
                                     db.session.rollback()
 
-                            msg = f"Clocked out successfully • {cfg['name']} ({int(dist_m)}m) • Total today: {hours_rounded:.2f}h"
+                            return redirect(url_for("home", clocked_out="1", hours=f"{hours_rounded:.2f}"))
 
                     else:
                         msg = "Invalid action."
@@ -600,6 +600,21 @@ def clock_page_impl(core):
             <div class="timerBig">00:00:00</div>
             <div class="clockHint">Tap Clock In to start your shift.</div>
             """
+
+        # Clock page mode:
+        # - if user has an open shift, this page is for clock-out
+        # - otherwise this page is for clock-in
+        clock_action_value = "out" if active_start_iso else "in"
+        clock_action_word = "clock out" if active_start_iso else "clock in"
+        clock_action_button = "CLOCK OUT" if active_start_iso else "CLOCK IN"
+        clock_action_class = "clockSecondaryAction" if active_start_iso else "clockPrimaryAction"
+
+        clock_title = f"Take a selfie to {clock_action_word}"
+        clock_footer_wait = f"You'll be able to <strong>{clock_action_word}</strong> after taking a selfie."
+        clock_footer_ready = f"Selfie captured. You can now <strong>{clock_action_word}</strong>."
+
+        clock_footer_wait_js = json.dumps(clock_footer_wait)
+        clock_footer_ready_js = json.dumps(clock_footer_ready)
 
     # Map config for front-end (if site configured)
     sites_json = json.dumps(site_cfgs)
@@ -1158,7 +1173,215 @@ def clock_page_impl(core):
         font-size: 16px !important;
       }}
     }}
-     
+         /* =========================================================
+       CLOCK PAGE FINAL FLOW + BUTTON FIX
+       Visual only, but supports clock-in / clock-out mode
+       ========================================================= */
+
+    .clockHeroTitle {{
+      max-width: 620px !important;
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }}
+
+    .clockSelfiePlaceholder {{
+      width: 100% !important;
+      min-height: 260px !important;
+      display: flex !important;
+      flex-direction: column !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 18px !important;
+      text-align: center !important;
+    }}
+
+    .clockSelfiePlaceholderText {{
+      order: 1 !important;
+      max-width: 440px !important;
+      font-size: 18px !important;
+      line-height: 1.35 !important;
+      color: #6b7280 !important;
+    }}
+
+    .clockSelfiePlaceholderIcon {{
+      order: 2 !important;
+      font-size: 78px !important;
+      line-height: 1 !important;
+    }}
+
+    .clockCaptureBar {{
+      gap: 12px !important;
+      padding: 14px !important;
+    }}
+
+    .clockPrimaryBtn {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 58px !important;
+      height: 58px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      gap: 10px !important;
+      border: 1px solid rgba(37, 99, 235, .22) !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #4f76ff 0%, #2563eb 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 12px 24px rgba(37, 99, 235, .26) !important;
+      font-size: 17px !important;
+      font-weight: 900 !important;
+      cursor: pointer !important;
+    }}
+
+    .clockPrimaryBtnText,
+    .clockPrimaryBtnArrow {{
+      color: #ffffff !important;
+      font-weight: 900 !important;
+    }}
+
+    .clockPrimaryBtnArrow {{
+      font-size: 24px !important;
+      line-height: 1 !important;
+      margin-top: -2px !important;
+    }}
+
+    .clockGhostBtn {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 48px !important;
+      height: 48px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: 1px solid #d6e3f5 !important;
+      border-radius: 14px !important;
+      background: #ffffff !important;
+      color: #2563eb !important;
+      box-shadow: 0 5px 14px rgba(15, 23, 42, .06) !important;
+      font-size: 15px !important;
+      font-weight: 800 !important;
+      cursor: pointer !important;
+    }}
+
+    .clockGhostBtn[disabled] {{
+      opacity: .45 !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+      background: #f8fafc !important;
+      color: #94a3b8 !important;
+    }}
+
+    .clockActionStack {{
+      gap: 12px !important;
+    }}
+
+    .clockPrimaryAction {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 62px !important;
+      height: 62px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: 1px solid rgba(22, 163, 74, .25) !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #5fcf58 0%, #16a34a 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 12px 24px rgba(22, 163, 74, .24) !important;
+      font-size: 18px !important;
+      font-weight: 900 !important;
+      text-transform: uppercase !important;
+      cursor: pointer !important;
+    }}
+
+    .clockSecondaryAction {{
+      display: flex !important;
+      width: 100% !important;
+      min-height: 62px !important;
+      height: 62px !important;
+      align-items: center !important;
+      justify-content: center !important;
+      border: 1px solid rgba(220, 38, 38, .25) !important;
+      border-radius: 14px !important;
+      background: linear-gradient(180deg, #ef5b4c 0%, #dc2626 100%) !important;
+      color: #ffffff !important;
+      box-shadow: 0 12px 24px rgba(220, 38, 38, .22) !important;
+      font-size: 18px !important;
+      font-weight: 900 !important;
+      text-transform: uppercase !important;
+      cursor: pointer !important;
+    }}
+
+    .clockPrimaryAction[disabled],
+    .clockSecondaryAction[disabled] {{
+      opacity: .55 !important;
+      cursor: not-allowed !important;
+      box-shadow: none !important;
+    }}
+
+    .clockBackLink {{
+      min-height: 44px !important;
+      padding: 0 18px !important;
+      border: 1px solid #d6e3f5 !important;
+      border-radius: 999px !important;
+      background: #ffffff !important;
+      color: #2563eb !important;
+      box-shadow: 0 5px 14px rgba(15, 23, 42, .06) !important;
+      font-size: 14px !important;
+      font-weight: 800 !important;
+      cursor: pointer !important;
+    }}
+
+    @media (max-width: 640px) {{
+      .clockStep {{
+        padding: 22px 14px 24px !important;
+      }}
+
+      .clockHeroTitle {{
+        font-size: 31px !important;
+        line-height: 1.05 !important;
+        margin-bottom: 14px !important;
+      }}
+
+      .clockSelfieStage {{
+        padding: 12px !important;
+      }}
+
+      .clockSelfiePlaceholder {{
+        min-height: 230px !important;
+        gap: 14px !important;
+      }}
+
+      .clockSelfiePlaceholderText {{
+        font-size: 17px !important;
+        max-width: 310px !important;
+      }}
+
+      .clockSelfiePlaceholderIcon {{
+        font-size: 66px !important;
+      }}
+
+      .clockSelfieVideo {{
+        height: 240px !important;
+        min-height: 240px !important;
+      }}
+
+      .clockPrimaryBtn {{
+        min-height: 56px !important;
+        height: 56px !important;
+        font-size: 16px !important;
+      }}
+
+      .clockGhostBtn {{
+        min-height: 48px !important;
+        height: 48px !important;
+        font-size: 15px !important;
+      }}
+
+      .clockPrimaryAction,
+      .clockSecondaryAction {{
+        min-height: 58px !important;
+        height: 58px !important;
+        font-size: 17px !important;
+      }}
+    }}
           </style>
 
           {page_back_button("/", "Back to dashboard")}
@@ -1168,13 +1391,13 @@ def clock_page_impl(core):
 
             <div class="clockStep" id="clockStepOne">
               <div class="clockStepLabel">Step 1 of 2</div>
-              <h1 class="clockHeroTitle">Take a selfie to continue</h1>
+              <h1 class="clockHeroTitle">{escape(clock_title)}</h1>
 
               <div class="clockStageCard">
                 <div class="clockSelfieStage">
                   <div class="clockSelfiePlaceholder" id="clockSelfiePlaceholder">
-                    <div class="clockSelfiePlaceholderIcon">&#128247;</div>
                     <div class="clockSelfiePlaceholderText">Open the camera and capture a clear front-facing selfie.</div>
+                    <div class="clockSelfiePlaceholderIcon">&#128247;</div>
                   </div>
                   <video id="selfieVideo" class="clockSelfieVideo" autoplay playsinline muted></video>
                 </div>
@@ -1199,7 +1422,7 @@ def clock_page_impl(core):
                 <div id="map" style="height:280px; min-height:280px;"></div>
               </div>
 
-              <div class="clockFooterNote" id="clockFooterNote">You'll be able to <strong>clock in</strong> after taking a selfie.</div>
+              <div class="clockFooterNote" id="clockFooterNote">{clock_footer_wait}</div>
             </div>
 
             <div class="clockStep clockStepTwo" id="clockStepTwo">
@@ -1225,8 +1448,7 @@ def clock_page_impl(core):
                 <input type="hidden" name="geo_ts" id="geoTs" value="">
                 <input type="hidden" name="selfie_data" id="selfieData" value="">
 
-                <button class="clockPrimaryAction" id="btnClockIn" type="button">Clock In</button>
-                <button class="clockSecondaryAction" id="btnClockOut" type="button">Clock Out</button>
+                <button class="{clock_action_class}" id="btnClockAction" type="button">{clock_action_button}</button>
               </form>
 
               <a href="/my-times" class="clockTextLink">View Time Records</a>
@@ -1245,8 +1467,10 @@ def clock_page_impl(core):
               const accEl = document.getElementById("geoAcc");
               const geoTsEl = document.getElementById("geoTs");
 
-              const btnIn = document.getElementById("btnClockIn");
-              const btnOut = document.getElementById("btnClockOut");
+              const btnClockAction = document.getElementById("btnClockAction");
+              const CLOCK_ACTION = "{clock_action_value}";
+              const CLOCK_FOOTER_WAIT = {clock_footer_wait_js};
+              const CLOCK_FOOTER_READY = {clock_footer_ready_js};
               const selfieDataEl = document.getElementById("selfieData");
               const selfieVideo = document.getElementById("selfieVideo");
               const selfieCanvas = document.getElementById("selfieCanvas");
@@ -1266,8 +1490,7 @@ def clock_page_impl(core):
               let selfieStream = null;
 
               function setDisabled(v) {{
-                btnIn.disabled = v;
-                btnOut.disabled = v;
+                if (btnClockAction) btnClockAction.disabled = v;
               }}
 
               function syncSteps() {{
@@ -1323,11 +1546,11 @@ def clock_page_impl(core):
   if (dataUrl) {{
     retakeSelfieBtn.disabled = false;
     selfieStatus.textContent = "Selfie captured.";
-    footerNote.innerHTML = "Selfie captured. You can now <strong>clock in</strong>.";
+    footerNote.innerHTML = CLOCK_FOOTER_READY;
   }} else {{
     retakeSelfieBtn.disabled = true;
     selfieStatus.textContent = "Tap Take Selfie to open the camera.";
-    footerNote.innerHTML = "You'll be able to <strong>clock in</strong> after taking a selfie.";
+    footerNote.innerHTML = CLOCK_FOOTER_WAIT;
   }}
   syncSteps();
 
@@ -1536,8 +1759,9 @@ def clock_page_impl(core):
                 if (document.hidden) stopSelfieCamera();
               }});
 
-              btnIn.addEventListener("click", () => requestLocationAndSubmit("in"));
-              btnOut.addEventListener("click", () => requestLocationAndSubmit("out"));
+              if (btnClockAction) {{
+                btnClockAction.addEventListener("click", () => requestLocationAndSubmit(CLOCK_ACTION));
+              }}
 
               updateCaptureUi(false);
 syncSteps();
